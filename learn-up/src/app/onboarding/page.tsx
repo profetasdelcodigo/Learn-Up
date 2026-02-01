@@ -67,21 +67,41 @@ export default function OnboardingPage() {
     }
 
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
+      // Verify user is authenticated
+      if (!user?.id) {
+        throw new Error("Usuario no autenticado");
+      }
+
+      console.log("Guardando perfil para usuario:", user.id);
+      console.log("Datos del formulario:", formData);
+
+      // Use upsert to insert or update the profile
+      const { data, error } = await supabase.from("profiles").upsert(
+        {
+          id: user.id, // CRITICAL: Include user ID for upsert
           full_name: formData.full_name || null,
           role: formData.role,
           school: formData.school,
           grade: formData.grade,
           section: formData.section || null,
-        })
-        .eq("id", user?.id);
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: "id", // Specify that id is the unique constraint
+        },
+      );
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error de Supabase al guardar perfil:", error);
+        throw error;
+      }
 
+      console.log("Perfil guardado exitosamente:", data);
+
+      // Redirect to dashboard
       router.push("/dashboard");
     } catch (err: any) {
+      console.error("Error completo al guardar perfil:", err);
       setError(err.message || "Ocurrió un error al guardar tu perfil");
     } finally {
       setLoading(false);
