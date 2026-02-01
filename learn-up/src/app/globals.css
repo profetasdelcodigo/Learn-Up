@@ -20,6 +20,11 @@ body {
 }
 
 @layer components {
+  /* Updated to include Cyan drop-shadow effect as requested */
+  .border-brand-gold {
+    @apply border-[#D4AF37] shadow-[0_0_8px_rgba(0,255,255,0.4)];
+  }
+
   button {
     @apply rounded-full border border-brand-gold text-white px-4 py-2 transition-transform active:scale-95;
   }

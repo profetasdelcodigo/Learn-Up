@@ -132,6 +132,27 @@ export default function RecipesPage() {
           >
             {/* Recipe Header */}
             <div className="mb-8 text-center">
+              {/* Dynamic Image */}
+              {recipe.imageQuery && (
+                <div className="relative w-full h-64 md:h-80 mb-8 rounded-3xl overflow-hidden border border-orange-500 shadow-[0_0_20px_rgba(255,165,0,0.3)] group">
+                  <img
+                    src={`https://image.pollinations.ai/prompt/${encodeURIComponent(recipe.imageQuery)}%20food%20photography%20delicious%204k%20lighting?width=1024&height=1024&nologo=true`}
+                    alt={recipe.title}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    onError={(e) => {
+                      // Fallback in case of error
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+                  <div className="absolute bottom-4 left-0 right-0 p-4">
+                    <p className="text-xs text-orange-300 font-mono tracking-wider">
+                      AI GENERATED VISUALIZATION
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-full bg-orange-500/10 border border-orange-500">
                 <Utensils className="w-8 h-8 text-orange-500" />
               </div>

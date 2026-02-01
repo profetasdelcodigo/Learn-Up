@@ -1,13 +1,23 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { Groq } from "groq-sdk";
 
-const apiKey = process.env.AI_API_KEY;
+const apiKey = process.env.GROQ_API_KEY;
 
 if (!apiKey) {
-  throw new Error("AI_API_KEY is not configured");
+  throw new Error("GROQ_API_KEY is not configured");
 }
 
-export const genAI = new GoogleGenerativeAI(apiKey);
+export const groq = new Groq({
+  apiKey: apiKey,
+});
 
-export const getModel = (modelName: string = "gemini-1.5-flash") => {
-  return genAI.getGenerativeModel({ model: modelName });
+export const getGroqCompletion = async (
+  messages: { role: "system" | "user" | "assistant"; content: string }[],
+  model: string = "llama-3.3-70b-versatile",
+  jsonMode: boolean = false,
+) => {
+  return groq.chat.completions.create({
+    messages: messages,
+    model: model,
+    response_format: jsonMode ? { type: "json_object" } : undefined,
+  });
 };

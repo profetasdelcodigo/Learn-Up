@@ -46,6 +46,7 @@ export default function CalendarPage() {
     description: "",
     start: "",
     end: "",
+    inviteEmail: "", // New field
   });
 
   const supabase = createClient();
@@ -83,19 +84,48 @@ export default function CalendarPage() {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { error } = await supabase.from("events").insert({
-        title: formData.title,
-        description: formData.description || null,
-        start_time: formData.start,
-        end_time: formData.end,
-        user_id: user.id,
-      });
+      // 1. Create Event
+      const { data: eventData, error } = await supabase
+        .from("events")
+        .insert({
+          title: formData.title,
+          description: formData.description || null,
+          start_time: formData.start,
+          end_time: formData.end,
+          user_id: user.id,
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
+      // 2. Invite Participant if email provided
+      if (formData.inviteEmail && eventData) {
+        const { error: inviteError } = await supabase
+          .from("event_participants")
+          .insert({
+            event_id: eventData.id,
+            user_email: formData.inviteEmail.trim(),
+          });
+        if (inviteError) {
+          console.error("Error inviting user:", inviteError);
+          // Verify if table exists or just show warning?
+          // We'll alert but keep event created
+          alert(
+            "Evento creado pero hubo un error al enviar la invitación (¿Existe la tabla event_participants?)",
+          );
+        }
+      }
+
       await loadEvents();
       setShowModal(false);
-      setFormData({ title: "", description: "", start: "", end: "" });
+      setFormData({
+        title: "",
+        description: "",
+        start: "",
+        end: "",
+        inviteEmail: "",
+      });
     } catch (err) {
       console.error("Error creating event:", err);
       alert("Hubo un error al crear el evento. Por favor intenta de nuevo.");
@@ -297,6 +327,24 @@ export default function CalendarPage() {
                       className="w-full px-4 py-3 bg-brand-black border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors resize-none"
                       placeholder="Detalles del evento..."
                       rows={3}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Invitar a (Email)
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.inviteEmail}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          inviteEmail: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-3 bg-brand-black border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
+                      placeholder="compañero@ejemplo.com"
                     />
                   </div>
 

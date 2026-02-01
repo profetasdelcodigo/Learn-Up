@@ -1,6 +1,6 @@
 "use server";
 
-import { getModel } from "@/lib/ai";
+import { getGroqCompletion } from "@/lib/ai";
 
 /**
  * Socratic tutor that teaches without giving direct answers
@@ -13,9 +13,7 @@ export async function askProfessor(
       return { response: "", error: "Por favor escribe una pregunta" };
     }
 
-    const model = getModel();
-
-    const prompt = `Eres un tutor socrático experto. Tu misión es enseñar a través de preguntas y guiar al estudiante a descubrir la respuesta por sí mismo. 
+    const systemPrompt = `Eres un tutor socrático experto. Tu misión es enseñar a través de preguntas y guiar al estudiante a descubrir la respuesta por sí mismo. 
 
 REGLAS ESTRICTAS:
 - NUNCA des la respuesta directa
@@ -24,15 +22,14 @@ REGLAS ESTRICTAS:
 - Usa analogías y ejemplos cuando sea útil
 - Sé amable, paciente y motivador
 - Si el estudiante está muy perdido, dale pequeñas pistas en forma de pregunta
+- Responde siempre en Español`;
 
-Pregunta del estudiante: ${message}
+    const response = await getGroqCompletion([
+      { role: "system", content: systemPrompt },
+      { role: "user", content: message },
+    ]);
 
-Responde como un tutor socrático:`;
-
-    const result = await model.generateContent(prompt);
-    const response = result.response.text();
-
-    return { response };
+    return { response: response.choices[0]?.message?.content || "" };
   } catch (error: any) {
     console.error("Error en askProfessor:", error);
     return {
@@ -54,9 +51,7 @@ export async function askCounselor(
       return { response: "", error: "Por favor describe tu situación" };
     }
 
-    const model = getModel();
-
-    const prompt = `Eres un psicólogo empático especializado en estudiantes. Tu objetivo es escuchar, validar emociones y ayudar al estudiante a encontrar soluciones saludables.
+    const systemPrompt = `Eres un psicólogo empático especializado en estudiantes. Tu objetivo es escuchar, validar emociones y ayudar al estudiante a encontrar soluciones saludables.
 
 REGLAS ESTRICTAS:
 - Sé extremadamente empático y comprensivo
@@ -66,15 +61,14 @@ REGLAS ESTRICTAS:
 - Si detectas señales de riesgo grave (autolesión, etc.), recomienda buscar ayuda profesional inmediata
 - Usa un tono cálido y cercano
 - Haz preguntas reflexivas que ayuden al estudiante a entender mejor su situación
+- Responde siempre en Español`;
 
-Situación del estudiante: ${problem}
+    const response = await getGroqCompletion([
+      { role: "system", content: systemPrompt },
+      { role: "user", content: problem },
+    ]);
 
-Responde como un consejero empático:`;
-
-    const result = await model.generateContent(prompt);
-    const response = result.response.text();
-
-    return { response };
+    return { response: response.choices[0]?.message?.content || "" };
   } catch (error: any) {
     console.error("Error en askCounselor:", error);
     return {
@@ -109,19 +103,17 @@ export async function generateQuiz(
       return { error: "Por favor especifica un tema" };
     }
 
-    const model = getModel();
-
-    const prompt = `Genera un quiz de práctica sobre el tema: "${topic}" con dificultad ${difficulty}.
-
-FORMATO ESTRICTO JSON (devuelve SOLO el JSON, sin texto adicional):
+    const systemPrompt = `Genera un quiz de práctica en formato JSON.
+    
+FORMATO JSON REQUERIDO:
 {
-  "topic": "${topic}",
-  "difficulty": "${difficulty}",
+  "topic": "string",
+  "difficulty": "string",
   "questions": [
     {
-      "question": "Pregunta aquí",
-      "options": ["Opción A", "Opción B", "Opción C", "Opción D"],
-      "correctAnswer": 0
+      "question": "string",
+      "options": ["string", "string", "string", "string"],
+      "correctAnswer": number (0-3)
     }
   ]
 }
@@ -130,20 +122,24 @@ REGLAS:
 - Genera EXACTAMENTE 5 preguntas
 - Cada pregunta debe tener 4 opciones
 - correctAnswer es el índice (0-3) de la opción correcta
-- Las preguntas deben ser educativas y relevantes al tema
-- Ajusta la complejidad según el nivel de dificultad
-- Las opciones incorrectas deben ser plausibles pero claramente incorrectas
-- Responde SOLO con el JSON, sin markdown ni texto adicional`;
+- Las preguntas deben ser educativas y relevantes al tema y dificultad solicitada
+- Responde SOLO con el JSON válido, sin texto adicional`;
 
-    const result = await model.generateContent(prompt);
-    let responseText = result.response.text().trim();
+    const userPrompt = `Genera un quiz sobre el tema: "${topic}" con dificultad ${difficulty}.`;
 
-    // Remove markdown code blocks if present
-    responseText = responseText
-      .replace(/```json\n?/g, "")
-      .replace(/```\n?/g, "");
+    const response = await getGroqCompletion(
+      [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      "llama-3.3-70b-versatile",
+      true, // Enable JSON mode
+    );
 
-    const quiz = JSON.parse(responseText) as Quiz;
+    const content = response.choices[0]?.message?.content;
+    if (!content) throw new Error("No content generation");
+
+    const quiz = JSON.parse(content) as Quiz;
 
     // Validate quiz structure
     if (!quiz.questions || quiz.questions.length === 0) {

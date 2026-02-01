@@ -13,6 +13,9 @@ interface Message {
   profiles?: {
     full_name: string | null;
     avatar_url: string | null;
+    role: string | null;
+    school: string | null;
+    grade: string | null;
   };
 }
 
@@ -55,7 +58,10 @@ export default function ChatPage() {
           created_at,
           profiles:user_id (
             full_name,
-            avatar_url
+            avatar_url,
+            role,
+            school,
+            grade
           )
         `,
         )
@@ -75,7 +81,7 @@ export default function ChatPage() {
 
     // Subscribe to new messages
     const channel = supabase
-      .channel("chat_messages")
+      .channel("room1") // Uses room1 as requested
       .on(
         "postgres_changes",
         {
@@ -95,7 +101,10 @@ export default function ChatPage() {
               created_at,
               profiles:user_id (
                 full_name,
-                avatar_url
+                avatar_url,
+                role,
+                school,
+                grade
               )
             `,
             )
@@ -103,11 +112,19 @@ export default function ChatPage() {
             .single();
 
           if (data) {
-            setMessages((prev) => [...prev, data as any]);
+            setMessages((prev) => {
+              // Avoid duplicates
+              if (prev.some((m) => m.id === data.id)) return prev;
+              return [...prev, data as any];
+            });
           }
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          console.log("Chat connected!");
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -156,7 +173,7 @@ export default function ChatPage() {
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="mb-6 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-full bg-brand-gold/10 border border-brand-gold">
+          <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-full bg-brand-gold/10 border border-brand-gold shadow-[0_0_15px_rgba(0,255,255,0.3)]">
             <MessageCircle className="w-8 h-8 text-brand-gold" />
           </div>
           <h1 className="text-4xl font-bold text-white mb-2">
@@ -168,9 +185,9 @@ export default function ChatPage() {
         </div>
 
         {/* Chat Container */}
-        <div className="bg-brand-black/80 backdrop-blur-xl border border-brand-gold rounded-3xl overflow-hidden">
+        <div className="bg-brand-black/80 backdrop-blur-xl border border-brand-gold rounded-3xl overflow-hidden shadow-[0_0_20px_rgba(0,255,255,0.15)]">
           {/* Messages */}
-          <div className="h-[500px] overflow-y-auto p-6 space-y-4">
+          <div className="h-[500px] overflow-y-auto p-6 space-y-6">
             {messages.length === 0 && (
               <div className="flex items-center justify-center h-full text-gray-500">
                 <p>No hay mensajes aún. ¡Sé el primero en escribir!</p>
@@ -182,6 +199,8 @@ export default function ChatPage() {
                 const isOwnMessage = message.user_id === currentUserId;
                 const userName = message.profiles?.full_name || "Usuario";
                 const avatarUrl = message.profiles?.avatar_url;
+                const role = message.profiles?.role || "";
+                const school = message.profiles?.school || "";
 
                 return (
                   <motion.div
@@ -198,10 +217,10 @@ export default function ChatPage() {
                         <img
                           src={avatarUrl}
                           alt={userName}
-                          className="w-10 h-10 rounded-full border border-brand-gold"
+                          className="w-10 h-10 rounded-full border border-brand-gold shadow-[0_0_5px_rgba(0,255,255,0.4)]"
                         />
                       ) : (
-                        <div className="w-10 h-10 rounded-full bg-brand-gold/10 border border-brand-gold flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-full bg-brand-gold/10 border border-brand-gold flex items-center justify-center shadow-[0_0_5px_rgba(0,255,255,0.4)]">
                           <User2Icon className="w-5 h-5 text-brand-gold" />
                         </div>
                       )}
@@ -209,25 +228,46 @@ export default function ChatPage() {
 
                     {/* Message Content */}
                     <div
-                      className={`flex flex-col ${isOwnMessage ? "items-end" : "items-start"} max-w-[70%]`}
+                      className={`flex flex-col ${isOwnMessage ? "items-end" : "items-start"} max-w-[80%]`}
                     >
-                      <div className="text-xs text-gray-500 mb-1 px-2">
-                        {userName} •{" "}
+                      <div className="flex items-center gap-2 mb-1 px-1">
+                        <span className="text-xs font-bold text-brand-gold">
+                          {userName}
+                        </span>
+                        {role && (
+                          <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-gray-800 text-cyan-400 border border-cyan-900">
+                            {role}
+                          </span>
+                        )}
+                        {school && (
+                          <span className="text-[10px] text-gray-400 truncate max-w-[100px]">
+                            {school}
+                          </span>
+                        )}
+                      </div>
+
+                      <div
+                        className={`p-4 rounded-2xl relative shadow-lg ${
+                          isOwnMessage
+                            ? "bg-brand-gold/20 border border-brand-gold text-white"
+                            : "bg-gray-900/50 border border-gray-700 text-gray-200"
+                        }`}
+                      >
+                        {/* Glow effect for own messages */}
+                        {isOwnMessage && (
+                          <div className="absolute inset-0 rounded-2xl bg-brand-gold/5 blur-md -z-10"></div>
+                        )}
+
+                        <p className="whitespace-pre-wrap break-words leading-relaxed text-sm">
+                          {message.content}
+                        </p>
+                      </div>
+
+                      <div className="text-[10px] text-gray-600 mt-1 px-1">
                         {new Date(message.created_at).toLocaleTimeString(
                           "es-ES",
                           { hour: "2-digit", minute: "2-digit" },
                         )}
-                      </div>
-                      <div
-                        className={`p-4 rounded-2xl ${
-                          isOwnMessage
-                            ? "bg-brand-gold text-brand-black"
-                            : "bg-brand-black border border-brand-gold text-white"
-                        }`}
-                      >
-                        <p className="whitespace-pre-wrap break-words">
-                          {message.content}
-                        </p>
                       </div>
                     </div>
                   </motion.div>
