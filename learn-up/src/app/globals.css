@@ -26,6 +26,6 @@ body {
   }
 
   button {
-    @apply rounded-full border border-brand-gold text-white px-4 py-2 transition-transform active:scale-95;
+    @apply rounded-full border border-brand-gold text-white px-4 py-2 transition-transform active:scale-95 shadow-[0_0_15px_rgba(0,255,255,0.3)] hover:shadow-[0_0_25px_rgba(0,255,255,0.5)] transition-all;
   }
 }
