@@ -15,6 +15,8 @@ function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
+  const [usernameError, setUsernameError] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -24,17 +26,54 @@ function LoginForm() {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setUsernameError("");
 
     try {
       if (isSignup) {
+        // Validate username presence
+        if (!username || username.length < 3) {
+          setUsernameError("El usuario debe tener al menos 3 caracteres");
+          setLoading(false);
+          return;
+        }
+
+        // Check username availability via RPC
+        const { data: isAvailable, error: rpcError } = await supabase.rpc(
+          "check_username_availability",
+          { username_check: username },
+        );
+
+        if (rpcError) {
+          console.error("Error checking username:", rpcError);
+          // If RPC fails (e.g. migration not run), we might want to fail gentle or hard
+          // For safety, assume fail or let it pass if we trust trigger?
+          // Better fail safe.
+          setError(
+            "Error verificando disponibilidad de usuario. ¿Ejecutaste la migración?",
+          );
+          throw rpcError;
+        }
+
+        if (!isAvailable) {
+          setUsernameError("Este nombre de usuario ya está en uso");
+          setLoading(false);
+          return;
+        }
+
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            // Include username in metadata for the trigger to pick up
+            data: { username },
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=/onboarding`,
           },
         });
         if (error) throw error;
+        // Immediate redirect might not work if confirmation is managed, but explicit message is better
+        // The router.push will happen, but user is unauthenticated usually if confirm needed.
+        // User requested: "Evita que el sistema pida confirmación if not strict".
+        // That is a Supabase Dashboard setting (Disable Confirm Email). Code can't force it.
         router.push("/onboarding");
       } else {
         const { error } = await supabase.auth.signInWithPassword({
@@ -151,6 +190,37 @@ function LoginForm() {
 
           {/* Email/Password form */}
           <form onSubmit={handleEmailAuth} className="space-y-4">
+            {isSignup && (
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Nombre de Usuario (@)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">
+                    @
+                  </span>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => {
+                      setUsername(
+                        e.target.value.toLowerCase().replace(/\s/g, ""),
+                      );
+                      setUsernameError("");
+                    }}
+                    required={isSignup}
+                    className={`w-full pl-10 pr-4 py-3 bg-brand-black border ${usernameError ? "border-red-500" : "border-gray-700"} rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors`}
+                    placeholder="usuario"
+                  />
+                </div>
+                {usernameError && (
+                  <p className="text-red-400 text-xs mt-1 ml-4">
+                    {usernameError}
+                  </p>
+                )}
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 Correo Electrónico

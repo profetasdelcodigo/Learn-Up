@@ -13,9 +13,23 @@ import {
   Search,
   MoreVertical,
   Users,
+  ArrowLeft,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import BottomNav from "@/components/BottomNav";
+import { createDailyRoom } from "@/actions/daily-video";
+import dynamic from "next/dynamic";
+
+const DailyVideo = dynamic(() => import("@/components/DailyVideo"), {
+  ssr: false,
+  loading: () => null,
+});
+
+const Whiteboard = dynamic(() => import("@/components/Whiteboard"), {
+  ssr: false,
+  loading: () => <div className="flex-1 flex items-center justify-center text-gray-400">Cargando Pizarra...</div>,
+});
 
 interface Message {
   id: string;
@@ -62,6 +76,10 @@ export default function ChatPage() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [activeChat, setActiveChat] = useState("room1");
+  const [mobileShowChat, setMobileShowChat] = useState(false); // Mobile view state
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [showVideo, setShowVideo] = useState(false);
+  const [showWhiteboard, setShowWhiteboard] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
@@ -200,9 +218,34 @@ export default function ChatPage() {
     }
   };
 
-  const startStudySession = () => {
-    router.push("/study");
+  const handleStartCall = async () => {
+    try {
+      // Don't set global loading since it blocks chat input
+      // maybe add a local loading state for the button?
+      const { url } = await createDailyRoom({
+        name: `${activeChat}-${Date.now()}`, // Ensure unique property or just let Daily handle it?
+        // User said: "ID del grupo o hash".
+        // Daily names must be unique or it returns existing?
+        // If privacy public, we want unique if we want clean room.
+        // Let's use activeChat ID but append random to avoid collisions if persistence not desired?
+        // Actually for "WhatsApp" style, maybe the room is persistent per chat?
+        // But user said "salas temporales".
+        // Let's use activeChat + random hash.
+      });
+      setVideoUrl(url);
+      setShowVideo(true);
+    } catch (e) {
+      console.error("Error creating room:", e);
+      alert("Error al iniciar videollamada");
+    }
   };
+
+
+
+  // Replaced via local state toggle
+  // const startStudySession = () => {
+  //   router.push("/study");
+  // };
 
   if (initialLoading) {
     return (
@@ -213,19 +256,26 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="min-h-screen bg-brand-black p-4 md:p-6 overflow-hidden">
-      <div className="max-w-[1600px] mx-auto h-[calc(100vh-2rem)] md:h-[calc(100vh-3rem)] flex gap-4">
+    <div className="min-h-screen bg-brand-black pb-16 md:pb-6 md:p-6 overflow-hidden">
+      <BottomNav />
+      {/* Container - Fixed height calc adjusted for mobile */}
+      <div className="max-w-[1600px] mx-auto h-[calc(100vh-4rem)] md:h-[calc(100vh-3rem)] flex gap-4 md:mt-0 relative">
         {/* LEFT COLUMN: Contacts/Groups */}
-        <div className="hidden md:flex flex-col w-80 bg-brand-black/80 backdrop-blur-xl border border-brand-gold/30 rounded-3xl overflow-hidden shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+        <div
+          className={`
+            flex-col w-full md:w-80 bg-brand-black/95 md:bg-brand-black/80 backdrop-blur-xl border-r md:border border-brand-gold/30 rounded-none md:rounded-3xl overflow-hidden shadow-[0_0_20px_rgba(0,0,0,0.5)] z-20 
+            ${mobileShowChat ? "hidden md:flex" : "flex"}
+          `}
+        >
           {/* Sidebar Header */}
-          <div className="p-4 border-b border-gray-800 bg-black/40">
-            <div className="flex items-center justify-between mb-4">
+          <div className="p-4 border-b border-gray-800 bg-black/40 pt-safe-top">
+            <div className="flex items-center justify-between mb-4 mt-2 md:mt-0">
               <h2 className="text-xl font-bold text-white">Chats</h2>
               <div className="flex gap-2">
-                <button className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                <button className="p-3 md:p-2 hover:bg-white/10 rounded-full transition-colors">
                   <Edit3 className="w-5 h-5 text-brand-gold" />
                 </button>
-                <button className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                <button className="p-3 md:p-2 hover:bg-white/10 rounded-full transition-colors">
                   <MoreVertical className="w-5 h-5 text-gray-400" />
                 </button>
               </div>
@@ -235,7 +285,7 @@ export default function ChatPage() {
               <input
                 type="text"
                 placeholder="Buscar..."
-                className="w-full pl-9 pr-4 py-2 bg-gray-900 border border-gray-800 rounded-xl text-sm text-white focus:outline-none focus:border-brand-gold/50"
+                className="w-full pl-9 pr-4 py-3 bg-gray-900 border border-gray-800 rounded-xl text-sm text-white focus:outline-none focus:border-brand-gold/50"
               />
             </div>
           </div>
@@ -245,19 +295,22 @@ export default function ChatPage() {
             {CONTACTS.map((contact) => (
               <div
                 key={contact.id}
-                onClick={() => setActiveChat(contact.id)}
-                className={`flex items-center gap-3 p-4 cursor-pointer transition-colors border-b border-gray-800/50 hover:bg-gray-800/30 ${activeChat === contact.id ? "bg-brand-gold/10 border-l-4 border-l-brand-gold" : ""}`}
+                onClick={() => {
+                  setActiveChat(contact.id);
+                  setMobileShowChat(true); // Switch to chat view on mobile
+                }}
+                className={`flex items-center gap-3 p-4 cursor-pointer transition-colors border-b border-gray-800/50 hover:bg-gray-800/30 min-h-[80px] md:min-h-0 ${activeChat === contact.id ? "bg-brand-gold/10 border-l-4 border-l-brand-gold" : ""}`}
               >
                 <div className="relative">
-                  <div className="w-12 h-12 rounded-full bg-brand-gold/20 flex items-center justify-center border border-brand-gold/30">
+                  <div className="w-14 h-14 md:w-12 md:h-12 rounded-full bg-brand-gold/20 flex items-center justify-center border border-brand-gold/30">
                     <Users className="w-6 h-6 text-brand-gold" />
                   </div>
                   {/* Online indicator */}
-                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-black"></div>
+                  <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-black"></div>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
-                    <h3 className="font-semibold text-white truncate">
+                    <h3 className="font-semibold text-white text-lg md:text-base truncate">
                       {contact.name}
                     </h3>
                     <span className="text-xs text-brand-gold">12:30</span>
@@ -272,13 +325,23 @@ export default function ChatPage() {
         </div>
 
         {/* RIGHT COLUMN: Active Chat */}
-        <div className="flex-1 flex flex-col bg-brand-black/80 backdrop-blur-xl border border-brand-gold rounded-3xl overflow-hidden shadow-[0_0_30px_rgba(0,255,255,0.05)] relative">
+        <div
+          className={`
+            flex-col bg-brand-black md:bg-brand-black/80 backdrop-blur-xl border md:border-brand-gold border-none rounded-none md:rounded-3xl overflow-hidden shadow-[0_0_30px_rgba(0,255,255,0.05)] relative w-full
+            ${mobileShowChat ? "flex fixed inset-0 z-50 md:static md:z-auto" : "hidden md:flex flex-1"}
+          `}
+        >
           {/* Chat Header */}
-          <div className="h-16 flex items-center justify-between px-6 bg-black/40 border-b border-brand-gold/30 z-10">
+          <div className="h-16 md:h-16 flex items-center justify-between px-4 md:px-6 bg-brand-black/90 md:bg-black/40 border-b border-brand-gold/30 z-10 pt-safe-top md:pt-0">
             <div className="flex items-center gap-3">
-              <div className="md:hidden">
-                {/* Back button for mobile would go here */}
-              </div>
+              {/* BACK BUTTON (Mobile Only) */}
+              <button
+                onClick={() => setMobileShowChat(false)}
+                className="p-2 -ml-2 mr-1 text-gray-300 hover:text-white md:hidden"
+              >
+                <ArrowLeft className="w-6 h-6" />
+              </button>
+
               <div className="w-10 h-10 rounded-full bg-brand-gold/20 flex items-center justify-center border border-brand-gold/30">
                 <Users className="w-5 h-5 text-brand-gold" />
               </div>
@@ -294,46 +357,48 @@ export default function ChatPage() {
             </div>
 
             {/* Header Actions: Video & Whiteboard */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3">
               <button
-                onClick={startStudySession}
-                className="group"
-                title="Videollamada con Jitsi"
+                onClick={handleStartCall}
+                className="group p-2.5 md:px-3 md:py-1.5 rounded-full bg-gray-900 border border-gray-700 hover:border-brand-gold/50 shadow-[0_0_10px_rgba(0,255,255,0.1)] transition-all"
+                title="Videollamada Pro"
               >
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-900 border border-gray-700 hover:border-brand-gold/50 hover:bg-gray-800 transition-all shadow-[0_0_10px_rgba(0,255,255,0.1)] group-hover:shadow-[0_0_15px_rgba(0,255,255,0.3)]">
-                  <Video className="w-4 h-4 text-cyan-400" />
-                  <span className="text-sm font-medium text-gray-300 hidden lg:inline">
-                    Llamada
-                  </span>
-                </div>
+                <Video className="w-5 h-5 text-cyan-400 md:mr-2" />
+                <span className="hidden md:inline text-sm font-medium text-gray-300">
+                  Llamada
+                </span>
               </button>
 
               <button
-                onClick={startStudySession}
-                className="group"
+                onClick={() => setShowWhiteboard(!showWhiteboard)}
+                className={`group p-2.5 md:px-3 md:py-1.5 rounded-full border transition-all ${
+                  showWhiteboard 
+                    ? "bg-brand-gold text-brand-black border-brand-gold" 
+                    : "bg-gray-900 border-gray-700 hover:border-brand-gold/50 text-gray-300"
+                }`}
                 title="Pizarra Compartida Tldraw"
               >
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-900 border border-gray-700 hover:border-brand-gold/50 hover:bg-gray-800 transition-all shadow-[0_0_10px_rgba(0,255,255,0.1)] group-hover:shadow-[0_0_15px_rgba(0,255,255,0.3)]">
-                  <Edit3 className="w-4 h-4 text-purple-400" />
-                  <span className="text-sm font-medium text-gray-300 hidden lg:inline">
-                    Pizarra
-                  </span>
-                </div>
+                <Edit3 className={`w-5 h-5 md:mr-2 ${showWhiteboard ? "text-brand-black" : "text-purple-400"}`} />
+                <span className="hidden md:inline text-sm font-medium">
+                  {showWhiteboard ? "Ver Chat" : "Pizarra"}
+                </span>
               </button>
 
-              <div className="w-px h-6 bg-gray-800 mx-1"></div>
+              <div className="w-px h-6 bg-gray-800 mx-1 hidden md:block"></div>
 
-              <button className="p-2 hover:bg-white/10 rounded-full transition-colors">
+              <button className="hidden md:block p-2 hover:bg-white/10 rounded-full transition-colors">
                 <Search className="w-5 h-5 text-gray-400" />
-              </button>
-              <button className="p-2 hover:bg-white/10 rounded-full transition-colors">
-                <MoreVertical className="w-5 h-5 text-gray-400" />
               </button>
             </div>
           </div>
 
-          {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 relative bg-gradient-to-b from-transparent to-brand-black/50">
+          {/* Messages or Whiteboard Area */}
+          {showWhiteboard ? (
+             <div className="flex-1 flex overflow-hidden relative bg-white z-0">
+                <Whiteboard roomId={activeChat} />
+             </div>
+          ) : (
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 relative bg-gradient-to-b from-transparent to-brand-black/50">
             {/* Background Pattern */}
             <div
               className="absolute inset-0 opacity-5 pointer-events-none"
@@ -369,7 +434,8 @@ export default function ChatPage() {
                     key={message.id}
                     initial={{ opacity: 0, scale: 0.95, y: 10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
-                    className={`flex gap-3 ${isOwnMessage ? "flex-row-reverse" : "flex-row"} items-end group`}
+                    transition={{ duration: 0.2 }} // Faster for mobile
+                    className={`flex gap-2 md:gap-3 ${isOwnMessage ? "flex-row-reverse" : "flex-row"} items-end group`}
                   >
                     {/* Avatar */}
                     <div className="flex-shrink-0 mb-1">
@@ -388,7 +454,7 @@ export default function ChatPage() {
 
                     {/* Message Bubble */}
                     <div
-                      className={`flex flex-col ${isOwnMessage ? "items-end" : "items-start"} max-w-[75%] md:max-w-[60%]`}
+                      className={`flex flex-col ${isOwnMessage ? "items-end" : "items-start"} max-w-[85%] md:max-w-[60%]`}
                     >
                       {!isOwnMessage && (
                         <div className="flex items-baseline gap-2 mb-1 ml-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -410,7 +476,6 @@ export default function ChatPage() {
                             : "bg-gray-900 text-gray-200 border border-gray-800 rounded-bl-none"
                         }`}
                       >
-                        {/* School tag inside message only if not own and first msg in sequence? Simplified: Always show school if relevant */}
                         {!isOwnMessage && school && (
                           <div className="text-[10px] text-gray-500 mb-1 font-mono">
                             {school}
@@ -435,10 +500,14 @@ export default function ChatPage() {
             </AnimatePresence>
             <div ref={messagesEndRef} />
           </div>
+          )}
 
           {/* Input Area */}
-          <div className="p-4 bg-black/40 border-t border-brand-gold/20">
-            <form onSubmit={handleSubmit} className="flex items-center gap-3">
+          <div className="p-3 md:p-4 bg-black/90 md:bg-black/40 border-t border-brand-gold/20 pb-safe-bottom">
+            <form
+              onSubmit={handleSubmit}
+              className="flex items-center gap-2 md:gap-3"
+            >
               <button
                 type="button"
                 className="p-2 text-gray-400 hover:text-brand-gold transition-colors"
@@ -451,7 +520,7 @@ export default function ChatPage() {
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="Escribe un mensaje..."
+                  placeholder="Mensaje..."
                   disabled={loading}
                   className="w-full pl-5 pr-12 py-3 bg-gray-900/80 border border-gray-700 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold focus:ring-1 focus:ring-brand-gold/50 transition-all font-light"
                 />
@@ -471,6 +540,17 @@ export default function ChatPage() {
           </div>
         </div>
       </div>
+
+      {/* Video Call Overlay */}
+      {showVideo && videoUrl && (
+        <DailyVideo
+          roomUrl={videoUrl}
+          onLeave={() => {
+            setShowVideo(false);
+            setVideoUrl(null);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -12,12 +12,17 @@ export const groq = new Groq({
 
 export const getGroqCompletion = async (
   messages: { role: "system" | "user" | "assistant"; content: string }[],
-  model: string = "llama-3.3-70b-versatile",
+  model: string = "llama3-70b-8192", // Switched to stable model ID
   jsonMode: boolean = false,
 ) => {
-  return groq.chat.completions.create({
-    messages: messages,
-    model: model,
-    response_format: jsonMode ? { type: "json_object" } : undefined,
-  });
+  try {
+    return await groq.chat.completions.create({
+      messages: messages,
+      model: model,
+      response_format: jsonMode ? { type: "json_object" } : undefined,
+    });
+  } catch (error) {
+    console.error("Groq API Error:", error);
+    throw error;
+  }
 };
