@@ -6,8 +6,10 @@ import Joyride, { CallBackProps, STATUS } from "react-joyride";
 export default function Tutorial() {
   const [run, setRun] = useState(false);
   const [hasSeenTutorial, setHasSeenTutorial] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     // Check local storage on mount
     const seen = localStorage.getItem("tutorial_seen");
     if (!seen) {
@@ -104,6 +106,8 @@ export default function Tutorial() {
     },
   ];
 
+  if (!mounted) return null;
+
   if (!run && hasSeenTutorial) {
     return (
       <button
@@ -124,6 +128,7 @@ export default function Tutorial() {
       showSkipButton
       showProgress
       callback={handleJoyrideCallback}
+      floaterProps={{ disableAnimation: true }}
       styles={{
         options: {
           primaryColor: "#D4AF37",
