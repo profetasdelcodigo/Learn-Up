@@ -12,12 +12,12 @@
   "dependencies": {
     "@daily-co/daily-js": "^0.87.0",
     "@daily-co/daily-react": "^0.24.0",
-    "@google/generative-ai": "^0.24.1",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.93.3",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.29.2",
     "groq-sdk": "^0.37.0",
+    "jotai": "^2.6.0",
     "lucide-react": "^0.563.0",
     "next": "16.1.6",
     "react": "19.2.3",
