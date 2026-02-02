@@ -114,6 +114,7 @@ function CallControls({
   isMinimized: boolean;
   onToggleMinimize: () => void;
 }) {
+  // @ts-ignore
   const callObject = useCallObject();
   const [isMicOn, setIsMicOn] = useState(true);
   const [isCamOn, setIsCamOn] = useState(true);
@@ -197,9 +198,6 @@ export default function DailyVideo({
 
     const newCallObject = DailyIframe.createCallObject({
       url: roomUrl,
-      dailyConfig: {
-        experimentalChromeVideoMuteLightOff: true,
-      },
     });
 
     newCallObject.join();
