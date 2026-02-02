@@ -22,13 +22,8 @@ export default function OnboardingPage() {
   const [user, setUser] = useState<any>(null);
 
   const [formData, setFormData] = useState({
-    full_name: "",
-    role: "",
-    school: "",
-    grade: "",
-    section: "",
-    full_name: "",
     username: "",
+    full_name: "",
     role: "",
     school: "",
     grade: "",
