@@ -39,8 +39,8 @@ export default function Whiteboard({ roomId }: { roomId: string }) {
         if (data?.pizarra_data && Object.keys(data.pizarra_data).length > 0) {
           try {
             // Disable history for initial load to avoid undoing into empty state
-            editor.history.ignore(() => {
-              editor.store.loadSnapshot(data.pizarra_data);
+            (editor as any).history.ignore(() => {
+              (editor.store as any).loadSnapshot(data.pizarra_data);
             });
           } catch (e) {
             console.error("Error loading snapshot:", e);
@@ -87,7 +87,7 @@ export default function Whiteboard({ roomId }: { roomId: string }) {
                 // If user is editing, this might interrupt.
                 // Ideal implementation requires Yjs/CRDT.
                 // For "Snapshot via DB", last write wins.
-                editor.store.loadSnapshot(newData);
+                (editor.store as any).loadSnapshot(newData);
               } catch (e) {
                 console.error(e);
               }
@@ -99,7 +99,7 @@ export default function Whiteboard({ roomId }: { roomId: string }) {
       // 3. Listen to Local Changes -> Save
       const saveData = debounce(async () => {
         if (!editorRef.current) return;
-        const snapshot = editorRef.current.store.getSnapshot();
+        const snapshot = (editorRef.current.store as any).getSnapshot();
 
         // Mark as local change for some ms (race condition possible but okay for MVP)
         isLocalChange.current = true;
