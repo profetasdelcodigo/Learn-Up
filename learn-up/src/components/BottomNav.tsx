@@ -12,7 +12,7 @@ export default function BottomNav() {
     { name: "IA", href: "/ai/profesor", icon: Brain },
     { name: "Chat", href: "/chat", icon: MessageCircle },
     { name: "Agenda", href: "/calendar", icon: Calendar },
-    { name: "Perfil", href: "/dashboard", icon: User }, // Perfil is in Dashboard for now
+    { name: "Perfil", href: "/dashboard/profile", icon: User },
   ];
 
   return (
