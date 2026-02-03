@@ -51,7 +51,9 @@ export default function LibraryPage() {
           file_url,
           is_approved,
           created_at,
-          profiles:user_id (
+          is_approved,
+          created_at,
+          profiles (
             full_name
           )
         `,

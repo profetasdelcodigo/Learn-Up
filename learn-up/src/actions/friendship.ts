@@ -33,16 +33,16 @@ export async function searchUsers(query: string) {
       // Check if there is a friendship record
       const { data: friendship } = await supabase
         .from("friendships")
-        .select("status, requester_id, receiver_id")
+        .select("status, sender_id, receiver_id")
         .or(
-          `and(requester_id.eq.${user.id},receiver_id.eq.${profile.id}),and(requester_id.eq.${profile.id},receiver_id.eq.${user.id})`,
+          `and(sender_id.eq.${user.id},receiver_id.eq.${profile.id}),and(sender_id.eq.${profile.id},receiver_id.eq.${user.id})`,
         )
         .single();
 
       return {
         ...profile,
         friendshipStatus: friendship ? friendship.status : null,
-        isRequester: friendship ? friendship.requester_id === user.id : false,
+        isRequester: friendship ? friendship.sender_id === user.id : false,
       };
     }),
   );
@@ -63,7 +63,7 @@ export async function sendFriendRequest(targetUserId: string) {
     .from("friendships")
     .select("id")
     .or(
-      `and(requester_id.eq.${user.id},receiver_id.eq.${targetUserId}),and(requester_id.eq.${targetUserId},receiver_id.eq.${user.id})`,
+      `and(sender_id.eq.${user.id},receiver_id.eq.${targetUserId}),and(sender_id.eq.${targetUserId},receiver_id.eq.${user.id})`,
     )
     .single();
 
@@ -72,7 +72,7 @@ export async function sendFriendRequest(targetUserId: string) {
   }
 
   const { error } = await supabase.from("friendships").insert({
-    requester_id: user.id,
+    sender_id: user.id,
     receiver_id: targetUserId,
     status: "pending",
   });
@@ -111,9 +111,9 @@ export async function getFriends() {
     // 1. Get Friendships
     const { data: friendships, error: fError } = await supabase
       .from("friendships")
-      .select("id, requester_id, receiver_id")
+      .select("id, sender_id, receiver_id")
       .eq("status", "accepted")
-      .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`);
+      .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
 
     if (fError) {
       console.error("Error fetching friendships:", fError);
@@ -124,7 +124,7 @@ export async function getFriends() {
 
     // 2. Extract Friend IDs
     const friendIds = friendships.map((f) =>
-      f.requester_id === user.id ? f.receiver_id : f.requester_id,
+      f.sender_id === user.id ? f.receiver_id : f.sender_id,
     );
     const uniqueFriendIds = Array.from(new Set(friendIds));
 
@@ -145,8 +145,7 @@ export async function getFriends() {
     const profileMap = new Map(profiles.map((p) => [p.id, p]));
 
     return friendships.map((f) => {
-      const friendId =
-        f.requester_id === user.id ? f.receiver_id : f.requester_id;
+      const friendId = f.sender_id === user.id ? f.receiver_id : f.sender_id;
       const profile = profileMap.get(friendId);
 
       // Return even if profile missing (robustness), though ideal to have it

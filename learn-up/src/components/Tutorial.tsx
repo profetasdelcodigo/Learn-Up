@@ -3,10 +3,13 @@
 import { useState, useEffect } from "react";
 import Joyride, { CallBackProps, STATUS } from "react-joyride";
 
+import { useRouter } from "next/navigation";
+
 export default function Tutorial() {
   const [run, setRun] = useState(false);
   const [hasSeenTutorial, setHasSeenTutorial] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     setMounted(true);
@@ -25,6 +28,7 @@ export default function Tutorial() {
       setRun(false);
       setHasSeenTutorial(true);
       localStorage.setItem("tutorial_seen", "true");
+      router.push("/dashboard");
     }
   };
 

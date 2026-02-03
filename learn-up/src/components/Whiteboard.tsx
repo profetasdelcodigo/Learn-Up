@@ -125,6 +125,21 @@ export default function Whiteboard({ roomId }: { roomId: string }) {
     [roomId, supabase],
   );
 
+  // Fix black screen issue by forcing viewport update
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (editorRef.current) {
+        try {
+          (editorRef.current as any).updateViewportScreenBounds();
+          (editorRef.current as any).zoomToFit();
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <div className="w-full h-full relative bg-white">
       <Tldraw
