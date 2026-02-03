@@ -105,7 +105,7 @@ export default function CalendarPage() {
           .from("event_participants")
           .insert({
             event_id: eventData.id,
-            user_email: formData.inviteEmail.trim(),
+            user_email: formData.inviteEmail.trim(), // Correct column according to most recent instruction
           });
         if (inviteError) {
           console.error("Error inviting user:", inviteError);

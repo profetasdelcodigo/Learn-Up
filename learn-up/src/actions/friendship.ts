@@ -57,6 +57,19 @@ export async function sendFriendRequest(targetUserId: string) {
 
   if (!user) throw new Error("Unauthorized");
 
+  // Check if already exists to prevent 500 error
+  const { data: existing } = await supabase
+    .from("friendships")
+    .select("id")
+    .or(
+      `and(requester_id.eq.${user.id},receiver_id.eq.${targetUserId}),and(requester_id.eq.${targetUserId},receiver_id.eq.${user.id})`,
+    )
+    .single();
+
+  if (existing) {
+    return { success: true, message: "Friendship already exists or pending" };
+  }
+
   const { error } = await supabase.from("friendships").insert({
     requester_id: user.id,
     receiver_id: targetUserId,
@@ -85,72 +98,127 @@ export async function acceptFriendRequest(requestId: string) {
   return { success: true };
 }
 
+// Safe robust version of getFriends
 export async function getFriends() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return [];
 
-  // Fetch accepted friendships
-  // Complicated because user could be requester or receiver
-  const { data, error } = await supabase
-    .from("friendships")
-    .select(
-      `
-        id,
-        requester_id,
-        receiver_id,
-        requester:profiles!friendships_requester_id_fkey(id, username, full_name, avatar_url),
-        receiver:profiles!friendships_receiver_id_fkey(id, username, full_name, avatar_url)
-      `,
-    )
-    .eq("status", "accepted")
-    .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`);
+    // 1. Get Friendships
+    const { data: friendships, error: fError } = await supabase
+      .from("friendships")
+      .select("id, requester_id, receiver_id")
+      .eq("status", "accepted")
+      .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`);
 
-  if (error) {
-    console.error("Error fetching friends:", error);
+    if (fError) {
+      console.error("Error fetching friendships:", fError);
+      return [];
+    }
+
+    if (!friendships || friendships.length === 0) return [];
+
+    // 2. Extract Friend IDs
+    const friendIds = friendships.map((f) =>
+      f.requester_id === user.id ? f.receiver_id : f.requester_id,
+    );
+    const uniqueFriendIds = Array.from(new Set(friendIds));
+
+    if (uniqueFriendIds.length === 0) return [];
+
+    // 3. Fetch Profiles manually
+    const { data: profiles, error: pError } = await supabase
+      .from("profiles")
+      .select("id, username, full_name, avatar_url")
+      .in("id", uniqueFriendIds);
+
+    if (pError) {
+      console.error("Error fetching friend profiles:", pError);
+      return [];
+    }
+
+    // 4. Map back to result structure
+    const profileMap = new Map(profiles.map((p) => [p.id, p]));
+
+    return friendships.map((f) => {
+      const friendId =
+        f.requester_id === user.id ? f.receiver_id : f.requester_id;
+      const profile = profileMap.get(friendId);
+
+      // Return even if profile missing (robustness), though ideal to have it
+      return {
+        friendshipId: f.id,
+        id: friendId,
+        username: profile?.username || "Usuario",
+        full_name: profile?.full_name || "Desconocido",
+        avatar_url: profile?.avatar_url,
+      };
+    });
+  } catch (error) {
+    console.error("Unexpected error in getFriends:", error);
     return [];
   }
-
-  // Map to a clean list of "other user" profiles
-  return data.map((f) => {
-    const isRequester = f.requester_id === user.id;
-    const profile = isRequester ? f.receiver : f.requester;
-    // Cast types from joined query
-    // Supabase returns generic types, we know it's profile
-    return {
-      friendshipId: f.id,
-      ...(Array.isArray(profile) ? profile[0] : profile),
-    };
-  });
 }
 
+// Safe robust version of getPendingRequests
 export async function getPendingRequests() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return [];
 
-  // Incoming requests
-  const { data, error } = await supabase
-    .from("friendships")
-    .select(
-      `
-        id,
-        created_at,
-        requester:profiles!friendships_requester_id_fkey(id, username, full_name, avatar_url)
-      `,
-    )
-    .eq("status", "pending")
-    .eq("receiver_id", user.id);
+    // 1. Get Pending Requests (where I am receiver)
+    const { data: requests, error: rError } = await supabase
+      .from("friendships")
+      .select("id, created_at, requester_id")
+      .eq("status", "pending")
+      .eq("receiver_id", user.id);
 
-  if (error) return [];
+    if (rError) {
+      console.error("Error fetching pending requests:", rError);
+      return [];
+    }
 
-  return data.map((r) => ({
-    id: r.id,
-    created_at: r.created_at,
-    requester: Array.isArray(r.requester) ? r.requester[0] : r.requester,
-  }));
+    if (!requests || requests.length === 0) return [];
+
+    // 2. Extract Requester IDs
+    const requesterIds = requests.map((r) => r.requester_id);
+    const uniqueIds = Array.from(new Set(requesterIds));
+
+    // 3. Fetch Profiles
+    const { data: profiles, error: pError } = await supabase
+      .from("profiles")
+      .select("id, username, full_name, avatar_url")
+      .in("id", uniqueIds);
+
+    if (pError) {
+      console.error("Error fetching requester profiles:", pError);
+      return [];
+    }
+
+    // 4. Map Result
+    const profileMap = new Map(profiles.map((p) => [p.id, p]));
+
+    return requests.map((r) => {
+      const profile = profileMap.get(r.requester_id);
+      return {
+        id: r.id,
+        created_at: r.created_at,
+        requester: {
+          id: r.requester_id,
+          username: profile?.username || "Usuario",
+          full_name: profile?.full_name || "Desconocido",
+          avatar_url: profile?.avatar_url,
+        },
+      };
+    });
+  } catch (error) {
+    console.error("Unexpected error in getPendingRequests:", error);
+    return [];
+  }
 }

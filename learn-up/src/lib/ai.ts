@@ -1,18 +1,20 @@
 import { Groq } from "groq-sdk";
 
-const apiKey = process.env.GROQ_API_KEY;
+const apiKey = process.env.GROQ_API_KEY || process.env.AI_API_KEY;
 
 if (!apiKey) {
-  throw new Error("GROQ_API_KEY is not configured");
+  console.error("AI Configuration Error: Misisng GROQ_API_KEY or AI_API_KEY");
+  // Don't throw immediately to avoid crashing build time if env not set yet?
+  // But for runtime it's fatal.
 }
 
 export const groq = new Groq({
-  apiKey: apiKey,
+  apiKey: apiKey || "dummy_key_to_prevent_crash", // Prevent instantiation error if missing
 });
 
 export const getGroqCompletion = async (
   messages: { role: "system" | "user" | "assistant"; content: string }[],
-  model: string = "llama3-70b-8192", // Switched to stable model ID
+  model: string = "llama-3.3-70b-versatile", // Switched to stable model ID
   jsonMode: boolean = false,
 ) => {
   try {

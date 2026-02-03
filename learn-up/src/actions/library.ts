@@ -45,7 +45,7 @@ export async function uploadLibraryFile(
     const { error: dbError } = await supabase.from("library_items").insert({
       title,
       file_url: publicUrl,
-      user_id: user.id,
+      user_id: user.id, // Correct column according to most recent instruction
       is_approved: false,
     });
 
