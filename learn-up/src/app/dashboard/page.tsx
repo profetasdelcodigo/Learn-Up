@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import Tutorial from "@/components/Tutorial";
+import Notifications from "@/components/Notifications";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -36,11 +37,16 @@ export default async function DashboardPage() {
         <div className="p-4 md:p-8">
           <div className="max-w-7xl mx-auto">
             {/* Header */}
-            <div className="bg-brand-black/80 backdrop-blur-xl border border-brand-gold rounded-3xl p-8 mb-8 mt-16 md:mt-0">
-              <h1 className="text-4xl font-bold text-white mb-2">Dashboard</h1>
-              <p className="text-gray-400">
-                Bienvenido, {profile?.full_name || user.email}
-              </p>
+            <div className="bg-brand-black/80 backdrop-blur-xl border border-brand-gold rounded-3xl p-8 mb-8 mt-16 md:mt-0 relative flex justify-between items-center">
+              <div>
+                <h1 className="text-4xl font-bold text-white mb-2">
+                  Dashboard
+                </h1>
+                <p className="text-gray-400">
+                  Bienvenido, {profile?.full_name || user.email}
+                </p>
+              </div>
+              <Notifications />
             </div>
 
             {/* AI Tools Section */}

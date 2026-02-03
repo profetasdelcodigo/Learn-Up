@@ -49,7 +49,7 @@ export default function OnboardingPage() {
         .from("profiles")
         .select("*")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
       // Prefill data if exists
       if (profile) {

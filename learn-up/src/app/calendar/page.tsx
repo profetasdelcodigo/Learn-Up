@@ -17,13 +17,13 @@ import {
   startOfMonth,
   endOfMonth,
   eachDayOfInterval,
-  isSameMonth,
   isSameDay,
   isToday,
   addMonths,
   subMonths,
 } from "date-fns";
 import { es } from "date-fns/locale";
+import Notifications from "@/components/Notifications";
 
 interface CalendarEvent {
   id: string;
@@ -105,15 +105,31 @@ export default function CalendarPage() {
           .from("event_participants")
           .insert({
             event_id: eventData.id,
-            user_email: formData.inviteEmail.trim(), // Correct column according to most recent instruction
+            user_email: formData.inviteEmail.trim(),
           });
         if (inviteError) {
           console.error("Error inviting user:", inviteError);
-          // Verify if table exists or just show warning?
-          // We'll alert but keep event created
           alert(
             "Evento creado pero hubo un error al enviar la invitación (¿Existe la tabla event_participants?)",
           );
+        } else {
+          // Try to notify the user if we can find them via email lookup
+          // Requires 'email' column in profiles
+          const { data: targetUser } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("email", formData.inviteEmail.trim())
+            .maybeSingle();
+
+          if (targetUser) {
+            await supabase.from("notifications").insert({
+              user_id: targetUser.id,
+              type: "event_invite",
+              title: "Invitación a Evento",
+              message: `${user.email} te invitó a: ${formData.title}`,
+              link: "/calendar",
+            });
+          }
         }
       }
 
@@ -158,21 +174,20 @@ export default function CalendarPage() {
     <div className="min-h-screen bg-brand-black p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-12 h-12 rounded-full bg-brand-gold/10 border border-brand-gold flex items-center justify-center">
-                  <CalendarIcon className="w-6 h-6 text-brand-gold" />
-                </div>
-                <h1 className="text-4xl font-bold text-white">
-                  Hora de Actuar
-                </h1>
+        <div className="mb-6 relative flex justify-between items-center">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 rounded-full bg-brand-gold/10 border border-brand-gold flex items-center justify-center">
+                <CalendarIcon className="w-6 h-6 text-brand-gold" />
               </div>
-              <p className="text-gray-400 ml-15">
-                Organiza tu tiempo y planifica tus actividades
-              </p>
+              <h1 className="text-4xl font-bold text-white">Hora de Actuar</h1>
             </div>
+            <p className="text-gray-400 ml-15">
+              Organiza tu tiempo y planifica tus actividades
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <Notifications />
             <button
               onClick={() => setShowModal(true)}
               className="px-6 py-3 bg-brand-gold text-brand-black font-semibold rounded-full hover:bg-brand-gold/90 transition-all flex items-center gap-2"

@@ -78,6 +78,16 @@ export async function sendFriendRequest(targetUserId: string) {
   });
 
   if (error) throw error;
+
+  // Notification for receiver
+  await supabase.from("notifications").insert({
+    user_id: targetUserId,
+    type: "friend_request",
+    title: "Nueva Solicitud de Amistad",
+    message: `${user.user_metadata.full_name || "Un usuario"} quiere conectar contigo`,
+    link: "/chat", // Redirect to chat/friends list
+  });
+
   return { success: true };
 }
 
