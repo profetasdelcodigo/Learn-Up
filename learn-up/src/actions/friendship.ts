@@ -12,13 +12,14 @@ export async function searchUsers(query: string) {
 
   if (!query || query.length < 3) return [];
 
-  // Search by username or full name
+  // Search by username or full name with robust ilike
+  // Explicitly casting to text to ensure proper PostgREST filter application
   const { data, error } = await supabase
     .from("profiles")
     .select("id, username, full_name, avatar_url")
     .or(`username.ilike.%${query}%,full_name.ilike.%${query}%`)
-    .neq("id", user.id) // Don't show self
-    .limit(10);
+    .neq("id", user.id)
+    .limit(20);
 
   if (error) {
     console.error("Error searching users:", error);

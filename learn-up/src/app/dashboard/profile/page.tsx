@@ -101,15 +101,46 @@ export default function ProfilePage() {
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
 
-    alert(
-      "La subida de archivos requiere configuración de Storage. Por ahora, esta función es demostrativa.",
-    );
-    // Real implementation would be:
-    // const file = e.target.files[0];
-    // const fileExt = file.name.split('.').pop();
-    // const fileName = `${user.id}-${Math.random()}.${fileExt}`;
-    // const { error } = await supabase.storage.from('avatars').upload(fileName, file);
-    // ... get public URL ... update profile ...
+    setSaving(true);
+    const file = e.target.files[0];
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, file);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("avatars").getPublicUrl(filePath);
+
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({
+          avatar_url: publicUrl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+
+      if (updateError) throw updateError;
+
+      // Update local state
+      setProfile({ ...profile, avatar_url: publicUrl });
+      alert("Avatar actualizado correctamente");
+    } catch (error) {
+      console.error("Error uploading avatar:", error);
+      alert(
+        "Error al subir la imagen. Verifica que el bucket 'avatars' exista y sea público.",
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) {
