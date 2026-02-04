@@ -3,9 +3,11 @@ import React from "react";
 export default function Logo({
   className = "w-8 h-8",
   classNameText = "text-xl",
+  showText = true,
 }: {
   className?: string;
   classNameText?: string;
+  showText?: boolean;
 }) {
   return (
     <div className="flex items-center gap-2">
@@ -35,9 +37,13 @@ export default function Logo({
           <path d="M12 13L8 8" strokeWidth="1" className="opacity-70" />
         </svg>
       </div>
-      <span className={`font-bold text-white tracking-tight ${classNameText}`}>
-        Learn Up
-      </span>
+      {showText && (
+        <span
+          className={`font-bold text-white tracking-tight ${classNameText}`}
+        >
+          Learn Up
+        </span>
+      )}
     </div>
   );
 }
