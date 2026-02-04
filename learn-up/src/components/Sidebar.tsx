@@ -12,6 +12,7 @@ import {
   Bell,
 } from "lucide-react";
 import BottomNav from "./BottomNav";
+import Logo from "./Logo";
 
 const navigation = [
   {
@@ -87,13 +88,13 @@ export default function Sidebar() {
 
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex fixed left-0 top-0 h-screen w-64 bg-brand-black border-r border-brand-gold flex-col z-30">
+        import Logo from "./Logo"; // ... (imports) // ...
         {/* Logo */}
         <div className="p-6 border-b border-gray-800">
           <Link href="/dashboard">
-            <h1 className="text-2xl font-bold text-brand-gold">Learn Up</h1>
+            <Logo />
           </Link>
         </div>
-
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-4 custom-scrollbar">
           <ul className="space-y-2">
@@ -141,7 +142,6 @@ export default function Sidebar() {
             })}
           </ul>
         </nav>
-
         {/* Footer */}
         <div className="p-4 border-t border-gray-800">
           <form action="/auth/signout" method="post">

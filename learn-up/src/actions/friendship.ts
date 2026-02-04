@@ -15,7 +15,7 @@ export async function searchUsers(query: string) {
   // Search by username or full name with robust ilike
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, username, full_name, avatar_url")
+    .select("id, username, full_name, avatar_url, school, grade, role")
     .or(`username.ilike.%${query}%,full_name.ilike.%${query}%`)
     .neq("id", user.id)
     .limit(20);
@@ -81,11 +81,11 @@ export async function sendFriendRequest(targetUserId: string) {
   // Notification for addressee
   await supabase.from("notifications").insert({
     user_id: targetUserId,
-    sender_id: user.id,
+    sender_id: user.id, // Explicitly sending sender_id
     type: "friend_request",
     title: "Nueva Solicitud de Amistad",
     message: `${user.user_metadata.full_name || "Un usuario"} quiere conectar contigo`,
-    link: "/dashboard/notifications", // Updated to point to new center
+    link: "/dashboard/notifications",
   });
 
   return { success: true };
@@ -165,7 +165,7 @@ export async function getFriends() {
     // 3. Fetch Profiles manually
     const { data: profiles, error: pError } = await supabase
       .from("profiles")
-      .select("id, username, full_name, avatar_url")
+      .select("id, username, full_name, avatar_url, school, grade, role")
       .in("id", uniqueFriendIds);
 
     if (pError) {
@@ -187,6 +187,9 @@ export async function getFriends() {
         username: profile?.username || "Usuario",
         full_name: profile?.full_name || "Desconocido",
         avatar_url: profile?.avatar_url,
+        school: profile?.school,
+        grade: profile?.grade,
+        role: profile?.role,
       };
     });
   } catch (error) {
@@ -224,7 +227,7 @@ export async function getPendingRequests() {
     // 3. Fetch Profiles
     const { data: profiles, error: pError } = await supabase
       .from("profiles")
-      .select("id, username, full_name, avatar_url")
+      .select("id, username, full_name, avatar_url, school, grade, role")
       .in("id", uniqueIds);
 
     if (pError) {
@@ -245,6 +248,9 @@ export async function getPendingRequests() {
           username: profile?.username || "Usuario",
           full_name: profile?.full_name || "Desconocido",
           avatar_url: profile?.avatar_url,
+          school: profile?.school,
+          grade: profile?.grade,
+          role: profile?.role,
         },
       };
     });

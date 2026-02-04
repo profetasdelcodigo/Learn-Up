@@ -24,6 +24,7 @@ import {
 } from "date-fns";
 import { es } from "date-fns/locale";
 import Notifications from "@/components/Notifications";
+import BackButton from "@/components/BackButton";
 
 interface CalendarEvent {
   id: string;
@@ -69,6 +70,52 @@ export default function CalendarPage() {
       console.error("Error loading events:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const [habits, setHabits] = useState<string[]>([]); // Array of date strings 'YYYY-MM-DD'
+
+  useEffect(() => {
+    loadEvents();
+    loadHabits();
+  }, [currentMonth]); // Reload when month changes? Or just once? Better once or on focus.
+
+  const loadHabits = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Fetch all habits for simplicity, or filter by month range
+    const { data } = await supabase
+      .from("habit_logs")
+      .select("date")
+      .eq("user_id", user.id);
+    if (data) {
+      setHabits(data.map((h) => h.date));
+    }
+  };
+
+  const toggleHabit = async (date: Date) => {
+    const dateStr = format(date, "yyyy-MM-dd");
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
+    if (habits.includes(dateStr)) {
+      // Remove
+      await supabase
+        .from("habit_logs")
+        .delete()
+        .match({ user_id: user.id, date: dateStr });
+      setHabits((prev) => prev.filter((d) => d !== dateStr));
+    } else {
+      // Add
+      await supabase
+        .from("habit_logs")
+        .insert({ user_id: user.id, date: dateStr, completed: true });
+      setHabits((prev) => [...prev, dateStr]);
     }
   };
 
@@ -170,9 +217,12 @@ export default function CalendarPage() {
     );
   }
 
+  // ...
+
   return (
     <div className="min-h-screen bg-brand-black p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
+        <BackButton className="mb-6" />
         {/* Header */}
         <div className="mb-6 relative flex justify-between items-center">
           <div>
@@ -259,6 +309,18 @@ export default function CalendarPage() {
                   >
                     {format(day, "d")}
                   </div>
+
+                  {/* Habit Tracker Toggle */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleHabit(day);
+                    }}
+                    className={`absolute top-2 right-2 p-1 rounded-full transition-all z-10 ${habits.includes(format(day, "yyyy-MM-dd")) ? "bg-green-500 text-black" : "bg-gray-800 text-gray-600 hover:bg-gray-700"}`}
+                    title="Marcar día completado"
+                  >
+                    <div className="w-2 h-2 rounded-full border border-current"></div>
+                  </button>
                   <div className="space-y-1">
                     {dayEvents.slice(0, 2).map((event) => (
                       <div
@@ -423,14 +485,7 @@ export default function CalendarPage() {
         </AnimatePresence>
 
         {/* Back to Dashboard */}
-        <div className="mt-6 text-center">
-          <a
-            href="/dashboard"
-            className="text-sm text-gray-500 hover:text-gray-400 transition-colors"
-          >
-            ← Volver al Dashboard
-          </a>
-        </div>
+        <div className="mt-6 text-center"></div>
       </div>
     </div>
   );

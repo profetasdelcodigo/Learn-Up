@@ -46,7 +46,6 @@ export default async function DashboardPage() {
                   Bienvenido, {profile?.full_name || user.email}
                 </p>
               </div>
-              <Notifications />
             </div>
 
             {/* AI Tools Section */}
@@ -54,7 +53,7 @@ export default async function DashboardPage() {
               <h2 className="text-2xl font-bold text-white mb-4 px-2">
                 🧠 Potencia tu mente
               </h2>
-              <div className="grid md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {/* Professor AI */}
                 <Link href="/ai/profesor">
                   <div className="bg-brand-black/80 backdrop-blur-xl border border-brand-gold rounded-3xl p-6 hover:bg-brand-gold/5 transition-all cursor-pointer group">
@@ -107,7 +106,7 @@ export default async function DashboardPage() {
               <h2 className="text-2xl font-bold text-white mb-4 px-2">
                 📚 Productividad
               </h2>
-              <div className="grid md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {/* Calendar */}
                 <Link href="/calendar">
                   <div className="bg-brand-black/80 backdrop-blur-xl border border-brand-gold rounded-3xl p-6 hover:bg-brand-gold/5 transition-all cursor-pointer group">
@@ -160,7 +159,7 @@ export default async function DashboardPage() {
               <h2 className="text-2xl font-bold text-white mb-4 px-2">
                 🍳 Nutrirecetas
               </h2>
-              <div className="grid md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {/* Recipe Generator */}
                 <Link href="/ai/recetas">
                   <div className="bg-brand-black/80 backdrop-blur-xl border border-orange-500 rounded-3xl p-6 hover:bg-orange-500/5 transition-all cursor-pointer group">

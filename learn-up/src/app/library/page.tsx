@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { uploadLibraryFile } from "@/actions/library";
 import { motion, AnimatePresence } from "framer-motion";
+import BackButton from "@/components/BackButton";
 import {
   BookOpen,
   Upload,
@@ -26,7 +27,9 @@ interface LibraryItem {
 
 export default function LibraryPage() {
   const [items, setItems] = useState<LibraryItem[]>([]);
+  const [pendingItems, setPendingItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
@@ -37,8 +40,57 @@ export default function LibraryPage() {
   const supabase = createClient();
 
   useEffect(() => {
+    checkAdmin();
     loadItems();
   }, []);
+
+  const checkAdmin = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      // Check if user is admin (hardcoded ID or role check)
+      // For this demo, let's assume a specific ID or check profiles 'role'
+      const { data } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+      if (
+        data?.role === "admin" ||
+        user.id === "ab4384b2-b430-466d-965a-5026df4fb1b3"
+      ) {
+        // Replace with actual Admin ID if known
+        setIsAdmin(true);
+        loadPendingItems();
+      }
+    }
+  };
+
+  const loadPendingItems = async () => {
+    const { data } = await supabase
+      .from("library_items")
+      .select(
+        `
+        id, title, file_url, is_approved, created_at,
+        profiles ( full_name )
+      `,
+      )
+      .eq("is_approved", false)
+      .order("created_at", { ascending: false });
+
+    if (data) setPendingItems(data as any);
+  };
+
+  const approveItem = async (id: string) => {
+    await supabase
+      .from("library_items")
+      .update({ is_approved: true })
+      .eq("id", id);
+    setPendingItems((prev) => prev.filter((i) => i.id !== id));
+    loadItems(); // Refresh public list
+    alert("Elemento aprobado");
+  };
 
   const loadItems = async () => {
     try {
@@ -116,9 +168,12 @@ export default function LibraryPage() {
     );
   }
 
+  // ...
+
   return (
     <div className="min-h-screen bg-brand-black p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
+        <BackButton className="mb-6" />
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
@@ -287,15 +342,46 @@ export default function LibraryPage() {
           )}
         </AnimatePresence>
 
+        {/* Admin Panel */}
+        {isAdmin && pendingItems.length > 0 && (
+          <div className="mt-12 border-t border-gray-800 pt-8">
+            <h2 className="text-2xl font-bold text-red-400 mb-6 flex items-center gap-2">
+              <span className="bg-red-500/10 p-2 rounded-lg">🛡️</span> Panel de
+              Administración
+            </h2>
+            <div className="grid gap-4">
+              {pendingItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="bg-gray-900/50 border border-gray-800 p-4 rounded-2xl flex items-center justify-between"
+                >
+                  <div>
+                    <h4 className="font-bold text-white">{item.title}</h4>
+                    <p className="text-sm text-gray-400">
+                      Por: {item.profiles?.full_name}
+                    </p>
+                    <a
+                      href={item.file_url}
+                      target="_blank"
+                      className="text-xs text-brand-gold hover:underline"
+                    >
+                      Ver archivo
+                    </a>
+                  </div>
+                  <button
+                    onClick={() => approveItem(item.id)}
+                    className="bg-green-500 text-black px-4 py-2 rounded-full font-bold text-sm hover:bg-white transition-colors"
+                  >
+                    Aprobar
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Back to Dashboard */}
-        <div className="mt-6 text-center">
-          <a
-            href="/dashboard"
-            className="text-sm text-gray-500 hover:text-gray-400 transition-colors"
-          >
-            ← Volver al Dashboard
-          </a>
-        </div>
+        <div className="mt-6 text-center"></div>
       </div>
     </div>
   );

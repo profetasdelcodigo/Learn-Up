@@ -68,6 +68,9 @@ interface UserProfile {
   avatar_url: string | null;
   friendshipStatus?: string; // for search
   friendshipId?: string; // for actions
+  school?: string | null;
+  grade?: string | null;
+  role?: string | null;
 }
 
 interface ChatRoom {
@@ -327,7 +330,7 @@ export default function ChatPage() {
     return {
       name: friend?.full_name || friend?.username || "Usuario",
       avatar: friend?.avatar_url,
-      status: "En línea", // Mock status
+      status: null,
     };
   };
 
@@ -420,7 +423,7 @@ export default function ChatPage() {
                       </div>
                     </div>
                     <button
-                      onClick={() => handleAcceptRequest(req.id)}
+                      onClick={() => handleAcceptRequest(req.requester.id)}
                       className="p-2 bg-brand-gold text-brand-black rounded-lg hover:bg-brand-gold/80"
                     >
                       <Check className="w-4 h-4" />
@@ -580,9 +583,15 @@ export default function ChatPage() {
                               <User2Icon className="w-4 h-4 text-gray-400" />
                             )}
                           </div>
-                          <span className="text-sm text-gray-300 group-hover:text-white">
-                            {friend.full_name || friend.username}
-                          </span>
+                          <div className="flex flex-col overflow-hidden">
+                            <span className="text-sm text-gray-300 group-hover:text-white font-medium truncate">
+                              {friend.full_name || friend.username}
+                            </span>
+                            <span className="text-[10px] text-gray-500 truncate">
+                              {friend.school || "IE?"} |{" "}
+                              {friend.grade || "Grado?"}
+                            </span>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -643,7 +652,7 @@ export default function ChatPage() {
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => setMobileShowChat(false)}
-                        className="md:hidden text-gray-400 hover:text-white"
+                        className="md:hidden p-2 -ml-2 text-brand-gold hover:bg-white/10 rounded-full transition-colors"
                       >
                         <ArrowLeft className="w-6 h-6" />
                       </button>
@@ -718,9 +727,18 @@ export default function ChatPage() {
                                 className={`max-w-[70%] p-3 rounded-2xl ${isOwn ? "bg-brand-gold text-black rounded-br-none" : "bg-gray-900 text-gray-200 border border-gray-800 rounded-bl-none"}`}
                               >
                                 {!isOwn && (
-                                  <p className="text-xs font-bold mb-1 opacity-70">
-                                    {msg.profiles?.full_name}
-                                  </p>
+                                  <div className="mb-1">
+                                    <p className="text-xs font-bold text-brand-gold opacity-90">
+                                      {msg.profiles?.full_name}
+                                    </p>
+                                    <p className="text-[10px] text-gray-400">
+                                      {msg.profiles?.school || "IE?"} |{" "}
+                                      {msg.profiles?.grade || "Grado?"} |{" "}
+                                      {msg.profiles?.role === "student"
+                                        ? "Estudiante"
+                                        : "Docente"}
+                                    </p>
+                                  </div>
                                 )}
                                 <p className="text-sm">{msg.content}</p>
                                 <p className="text-[10px] opacity-50 text-right mt-1">

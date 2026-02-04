@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { ChefHat, Loader2, Utensils } from "lucide-react";
 import { generateRecipe, Recipe } from "@/actions/ai-recipes";
+import BackButton from "@/components/BackButton";
 
 export default function RecipesPage() {
   const [mealType, setMealType] = useState("");
@@ -40,9 +41,12 @@ export default function RecipesPage() {
     setError("");
   };
 
+  // ...
+
   return (
     <div className="min-h-screen bg-brand-black p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
+        <BackButton className="mb-6" />
         {/* Header */}
         <div className="mb-8 text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-full bg-orange-500/10 border border-orange-500">
@@ -133,10 +137,10 @@ export default function RecipesPage() {
             {/* Recipe Header */}
             <div className="mb-8 text-center">
               {/* Dynamic Image */}
-              {recipe.imageQuery && (
+              {recipe.imageUrl && (
                 <div className="relative w-full h-64 md:h-80 mb-8 rounded-3xl overflow-hidden border border-orange-500 shadow-[0_0_20px_rgba(255,165,0,0.3)] group">
                   <img
-                    src={`https://image.pollinations.ai/prompt/${encodeURIComponent(recipe.imageQuery)}%20food%20photography%20delicious%204k%20lighting?width=1024&height=1024&nologo=true`}
+                    src={recipe.imageUrl}
                     alt={recipe.title}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                     onError={(e) => {
@@ -224,14 +228,7 @@ export default function RecipesPage() {
         )}
 
         {/* Back to Dashboard */}
-        <div className="mt-6 text-center">
-          <a
-            href="/dashboard"
-            className="text-sm text-gray-500 hover:text-gray-400 transition-colors"
-          >
-            ← Volver al Dashboard
-          </a>
-        </div>
+        <div className="mt-6 text-center"></div>
       </div>
     </div>
   );

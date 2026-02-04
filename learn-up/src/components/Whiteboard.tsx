@@ -132,11 +132,12 @@ export default function Whiteboard({ roomId }: { roomId: string }) {
         try {
           (editorRef.current as any).updateViewportScreenBounds();
           (editorRef.current as any).zoomToFit();
+          window.dispatchEvent(new Event("resize")); // Force browser layout recalc
         } catch (e) {
           console.error(e);
         }
       }
-    }, 500);
+    }, 800); // Increased timeout slightly
     return () => clearTimeout(timer);
   }, []);
 

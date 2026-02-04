@@ -8,6 +8,7 @@ export interface Recipe {
   steps: string[];
   description?: string;
   imageQuery?: string; // For Unsplash search
+  imageUrl?: string; // The active image URL
 }
 
 /**
@@ -59,6 +60,31 @@ REGLAS:
     // Validate recipe structure
     if (!recipe.title || !recipe.ingredients || !recipe.steps) {
       throw new Error("Receta inválida generada");
+    }
+
+    // Fetch Image from Unsplash
+    const unsplashKey = process.env.UNSPLASH_ACCESS_KEY;
+    if (unsplashKey && recipe.imageQuery) {
+      try {
+        const unsplashRes = await fetch(
+          `https://api.unsplash.com/search/photos?query=${encodeURIComponent(
+            recipe.imageQuery,
+          )}&per_page=1&orientation=landscape`,
+          {
+            headers: {
+              Authorization: `Client-ID ${unsplashKey}`,
+            },
+          },
+        );
+        if (unsplashRes.ok) {
+          const unsplashData = await unsplashRes.json();
+          if (unsplashData.results && unsplashData.results.length > 0) {
+            recipe.imageUrl = unsplashData.results[0].urls.regular;
+          }
+        }
+      } catch (imgErr) {
+        console.error("Error fetching Unsplash image:", imgErr);
+      }
     }
 
     return { recipe };

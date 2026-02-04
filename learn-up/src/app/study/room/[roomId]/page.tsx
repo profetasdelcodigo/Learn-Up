@@ -66,15 +66,15 @@ export default function StudyRoomPage() {
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
         {/* Jitsi Meet Video */}
         <div
           className={`transition-all duration-300 ${
             activeTab === "video"
               ? "w-full h-full"
               : activeTab === "split"
-                ? "w-1/3 border-r border-gray-800"
-                : "w-0 overflow-hidden"
+                ? "h-[30%] md:h-full w-full md:w-1/3 border-b md:border-b-0 md:border-r border-gray-800"
+                : "h-0 md:w-0 overflow-hidden"
           }`}
         >
           <iframe
@@ -90,8 +90,8 @@ export default function StudyRoomPage() {
             activeTab === "board"
               ? "w-full h-full"
               : activeTab === "split"
-                ? "w-2/3"
-                : "w-0 overflow-hidden"
+                ? "h-[70%] md:h-full w-full md:w-2/3"
+                : "h-0 md:w-0 overflow-hidden"
           }`}
         >
           {/* Tldraw needs to be client-side only and handled carefully with styles */}

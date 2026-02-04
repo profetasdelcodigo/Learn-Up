@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Loader2, BookOpen } from "lucide-react";
 import { askProfessor } from "@/actions/ai-tutor";
+import BackButton from "@/components/BackButton";
 
 interface Message {
   role: "user" | "assistant";
@@ -50,8 +51,11 @@ export default function ProfessorChatPage() {
     <div className="min-h-screen bg-brand-black p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="mb-8 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-full bg-brand-gold/10 border border-brand-gold">
+        <div className="mb-8 text-center relative">
+          <div className="absolute left-0 top-0">
+            <BackButton />
+          </div>
+          <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-full bg-brand-gold/10 border border-brand-gold mt-8 md:mt-0">
             <BookOpen className="w-8 h-8 text-brand-gold" />
           </div>
           <h1 className="text-4xl font-bold text-white mb-2">Profesor IA</h1>
@@ -64,7 +68,7 @@ export default function ProfessorChatPage() {
         {/* Chat Container */}
         <div className="bg-brand-black/80 backdrop-blur-xl border border-brand-gold rounded-3xl overflow-hidden">
           {/* Messages */}
-          <div className="h-[500px] overflow-y-auto p-6 space-y-4">
+          <div className="h-[calc(100vh-250px)] md:h-[500px] overflow-y-auto p-6 space-y-4">
             {messages.length === 0 && (
               <div className="flex items-center justify-center h-full text-gray-500">
                 <p>Haz tu primera pregunta para comenzar...</p>
