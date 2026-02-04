@@ -17,7 +17,7 @@ import {
   UserPlus,
   Check,
   X,
-  Bell,
+  Lock,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
@@ -360,20 +360,6 @@ export default function ChatPage() {
                 {viewMode === "search" ? "Buscar Personas" : "Chats"}
               </h2>
               <div className="flex gap-2">
-                {/* Requests Badge */}
-                {pendingRequests.length > 0 && (
-                  <button
-                    onClick={() =>
-                      setViewMode(
-                        viewMode === "requests" ? "chats" : "requests",
-                      )
-                    }
-                    className="p-2 relative bg-brand-gold/10 rounded-full text-brand-gold"
-                  >
-                    <Bell className="w-5 h-5" />
-                    <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border border-black"></span>
-                  </button>
-                )}
                 <button className="p-2 hover:bg-white/10 rounded-full transition-colors">
                   <Edit3 className="w-5 h-5 text-brand-gold" />
                 </button>
@@ -424,9 +410,9 @@ export default function ChatPage() {
                     </div>
                     <button
                       onClick={() => handleAcceptRequest(req.requester.id)}
-                      className="p-2 bg-brand-gold text-brand-black rounded-lg hover:bg-brand-gold/80"
+                      className="px-4 py-2 bg-brand-gold text-brand-black rounded-full font-semibold hover:bg-white transition-colors text-sm"
                     >
-                      <Check className="w-4 h-4" />
+                      Aceptar
                     </button>
                   </div>
                 ))}
@@ -622,21 +608,29 @@ export default function ChatPage() {
               if (!isFriend && room) {
                 return (
                   <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-gray-400">
-                    <div className="bg-gray-900 p-6 rounded-3xl border border-gray-800">
-                      <Users className="w-12 h-12 mx-auto mb-4 text-gray-600" />
-                      <h3 className="text-xl font-bold text-white mb-2">
-                        Chat Bloqueado
+                    <div className="bg-gray-900 p-8 rounded-3xl border border-brand-gold/30 max-w-md">
+                      <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-brand-gold/10 border-2 border-brand-gold flex items-center justify-center">
+                        <Lock className="w-10 h-10 text-brand-gold" />
+                      </div>
+                      <h3 className="text-2xl font-bold text-white mb-3">
+                        🔒 Chat Bloqueado
                       </h3>
-                      <p className="mb-6">
-                        Debes ser amigo de este usuario para chatear.
+                      <p className="text-gray-300 mb-6 leading-relaxed">
+                        Debes ser amigo de este usuario para desbloquear el{" "}
+                        <strong className="text-brand-gold">chat</strong>,{" "}
+                        <strong className="text-cyan-400">videollamadas</strong>{" "}
+                        y{" "}
+                        <strong className="text-purple-400">
+                          pizarra colaborativa
+                        </strong>
+                        .
                       </p>
                       <button
                         onClick={() => {
-                          // Search for them? Or just go back?
                           setViewMode("search");
                           setMobileShowChat(false);
                         }}
-                        className="px-6 py-2 bg-brand-gold text-brand-black rounded-full font-bold hover:bg-white transition-colors"
+                        className="px-6 py-3 bg-brand-gold text-brand-black rounded-full font-bold hover:bg-white transition-all shadow-lg"
                       >
                         Buscar Amigos
                       </button>
@@ -675,16 +669,50 @@ export default function ChatPage() {
                     {/* Actions */}
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={handleStartCall}
-                        className="p-2 hover:bg-gray-800 rounded-full text-cyan-400"
+                        onClick={isFriend ? handleStartCall : undefined}
+                        disabled={!isFriend}
+                        className={`p-2 rounded-full transition-colors ${
+                          isFriend
+                            ? "hover:bg-gray-800 text-cyan-400 cursor-pointer"
+                            : "text-gray-600 cursor-not-allowed"
+                        }`}
+                        title={
+                          !isFriend
+                            ? "Debes ser amigo para videollamar"
+                            : "Iniciar videollamada"
+                        }
                       >
-                        <Video className="w-5 h-5" />
+                        {!isFriend ? (
+                          <Lock className="w-5 h-5 text-brand-gold" />
+                        ) : (
+                          <Video className="w-5 h-5" />
+                        )}
                       </button>
                       <button
-                        onClick={() => setShowWhiteboard(!showWhiteboard)}
-                        className={`p-2 rounded-full hover:bg-gray-800 ${showWhiteboard ? "text-brand-gold bg-brand-gold/10" : "text-purple-400"}`}
+                        onClick={
+                          isFriend
+                            ? () => setShowWhiteboard(!showWhiteboard)
+                            : undefined
+                        }
+                        disabled={!isFriend}
+                        className={`p-2 rounded-full transition-colors ${
+                          !isFriend
+                            ? "text-gray-600 cursor-not-allowed"
+                            : showWhiteboard
+                              ? "text-brand-gold bg-brand-gold/10 hover:bg-brand-gold/20"
+                              : "text-purple-400 hover:bg-gray-800"
+                        }`}
+                        title={
+                          !isFriend
+                            ? "Debes ser amigo para usar la pizarra"
+                            : "Pizarra"
+                        }
                       >
-                        <Edit3 className="w-5 h-5" />
+                        {!isFriend ? (
+                          <Lock className="w-5 h-5 text-brand-gold" />
+                        ) : (
+                          <Edit3 className="w-5 h-5" />
+                        )}
                       </button>
                     </div>
                   </div>

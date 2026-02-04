@@ -8,6 +8,7 @@ import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { acceptFriendRequest } from "@/actions/friendship";
 import { useRouter } from "next/navigation";
+import BackButton from "@/components/BackButton";
 
 interface Notification {
   id: string;
@@ -147,6 +148,7 @@ export default function NotificationsPage() {
   return (
     <div className="min-h-screen bg-brand-black p-4 md:p-8 md:pl-72 pb-24 md:pb-8">
       <div className="max-w-4xl mx-auto mt-8 md:mt-0">
+        <BackButton className="mb-6" />
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-white flex items-center gap-3">
             <Bell className="w-8 h-8 text-brand-gold" />

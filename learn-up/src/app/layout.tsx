@@ -16,11 +16,11 @@ import WelcomeTutorial from "@/components/WelcomeTutorial";
 import BottomNav from "@/components/BottomNav";
 
 export const metadata: Metadata = {
-  title: "Learn Up",
+  title: "Learn Up | Tu Tutor IA",
   description:
     "Plataforma educativa integral con IA, herramientas sociales y más.",
   icons: {
-    icon: "/favicon.ico", // Using default for now, will replace with SVG later if asked, or just reference the component via code in head if standard favicon wasn't generated
+    icon: "/favicon.svg",
   },
 };
 

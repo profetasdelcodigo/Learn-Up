@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart, Send, Loader2 } from "lucide-react";
 import { askCounselor } from "@/actions/ai-tutor";
+import BackButton from "@/components/BackButton";
 
 interface Message {
   role: "user" | "assistant";
@@ -48,6 +49,7 @@ export default function CounselorChatPage() {
   return (
     <div className="min-h-screen bg-brand-black p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
+        <BackButton className="mb-6" />
         {/* Header */}
         <div className="mb-8 text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-full bg-pink-500/10 border border-pink-500">

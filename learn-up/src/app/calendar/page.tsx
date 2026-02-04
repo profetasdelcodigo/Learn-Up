@@ -23,7 +23,6 @@ import {
   subMonths,
 } from "date-fns";
 import { es } from "date-fns/locale";
-import Notifications from "@/components/Notifications";
 import BackButton from "@/components/BackButton";
 
 interface CalendarEvent {
@@ -237,7 +236,6 @@ export default function CalendarPage() {
             </p>
           </div>
           <div className="flex items-center gap-4">
-            <Notifications />
             <button
               onClick={() => setShowModal(true)}
               className="px-6 py-3 bg-brand-gold text-brand-black font-semibold rounded-full hover:bg-brand-gold/90 transition-all flex items-center gap-2"

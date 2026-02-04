@@ -17,24 +17,42 @@ export default function Logo({
         <svg
           viewBox="0 0 24 24"
           fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
           className="w-full h-full"
+          xmlns="http://www.w3.org/2000/svg"
         >
-          {/* Book */}
-          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-          <path d="M12 6c0 2-2 3-2 5" />
+          {/* Book - Golden */}
+          <path
+            d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
 
-          {/* Neural Network Nodes (Minimalist overlay) */}
-          <circle cx="12" cy="13" r="1.5" fill="currentColor" stroke="none" />
-          <circle cx="16" cy="8" r="1" fill="currentColor" stroke="none" />
-          <circle cx="8" cy="8" r="1" fill="currentColor" stroke="none" />
+          {/* Blue Intelligence Sparkle/Star */}
+          <g className="text-cyan-400">
+            <path
+              d="M15 6.5l0.5 1.5l1.5 0.5l-1.5 0.5l-0.5 1.5l-0.5-1.5l-1.5-0.5l1.5-0.5z"
+              fill="currentColor"
+              stroke="currentColor"
+              strokeWidth="0.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </g>
 
-          {/* Connections */}
-          <path d="M12 13L16 8" strokeWidth="1" className="opacity-70" />
-          <path d="M12 13L8 8" strokeWidth="1" className="opacity-70" />
+          {/* Neural Network Nodes - Blue accent */}
+          <g className="text-cyan-400/80">
+            <circle cx="10" cy="14" r="1" fill="currentColor" stroke="none" />
+            <circle cx="14" cy="14" r="1" fill="currentColor" stroke="none" />
+            <circle cx="12" cy="11" r="1" fill="currentColor" stroke="none" />
+          </g>
+
+          {/* Subtle connections */}
+          <g className="text-cyan-400/40" strokeWidth="1">
+            <path d="M12 11L10 14" stroke="currentColor" />
+            <path d="M12 11L14 14" stroke="currentColor" />
+          </g>
         </svg>
       </div>
       {showText && (

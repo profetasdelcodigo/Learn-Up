@@ -17,6 +17,7 @@ import {
   Github,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import BackButton from "@/components/BackButton";
 
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true);

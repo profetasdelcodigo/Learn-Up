@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Brain, Loader2, CheckCircle, XCircle, RotateCcw } from "lucide-react";
 import { generateQuiz, Quiz, QuizQuestion } from "@/actions/ai-tutor";
+import BackButton from "@/components/BackButton";
 
 export default function PracticePage() {
   const [topic, setTopic] = useState("");
@@ -78,6 +79,7 @@ export default function PracticePage() {
   return (
     <div className="min-h-screen bg-brand-black p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
+        <BackButton className="mb-6" />
         {/* Header */}
         <div className="mb-8 text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-full bg-purple-500/10 border border-purple-500">

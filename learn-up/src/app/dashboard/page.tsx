@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import Tutorial from "@/components/Tutorial";
-import Notifications from "@/components/Notifications";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
