@@ -13,7 +13,6 @@ export async function searchUsers(query: string) {
   if (!query || query.length < 3) return [];
 
   // Search by username or full name with robust ilike
-  // Explicitly casting to text to ensure proper PostgREST filter application
   const { data, error } = await supabase
     .from("profiles")
     .select("id, username, full_name, avatar_url")
@@ -27,22 +26,21 @@ export async function searchUsers(query: string) {
   }
 
   // Check friendship status for each result
-  // This is a bit N+1 but okay for search limit 10
   const resultsWithStatus = await Promise.all(
     data.map(async (profile) => {
-      // Check if there is a friendship record
+      // Check if there is a friendship record using new columns
       const { data: friendship } = await supabase
         .from("friendships")
-        .select("status, sender_id, receiver_id")
+        .select("status, requester_id, addressee_id")
         .or(
-          `and(sender_id.eq.${user.id},receiver_id.eq.${profile.id}),and(sender_id.eq.${profile.id},receiver_id.eq.${user.id})`,
+          `and(requester_id.eq.${user.id},addressee_id.eq.${profile.id}),and(requester_id.eq.${profile.id},addressee_id.eq.${user.id})`,
         )
-        .single();
+        .maybeSingle();
 
       return {
         ...profile,
         friendshipStatus: friendship ? friendship.status : null,
-        isRequester: friendship ? friendship.sender_id === user.id : false,
+        isRequester: friendship ? friendship.requester_id === user.id : false,
       };
     }),
   );
@@ -58,58 +56,82 @@ export async function sendFriendRequest(targetUserId: string) {
 
   if (!user) throw new Error("Unauthorized");
 
-  // Check if already exists to prevent 500 error
+  // Check if already exists
   const { data: existing } = await supabase
     .from("friendships")
     .select("id")
     .or(
-      `and(sender_id.eq.${user.id},receiver_id.eq.${targetUserId}),and(sender_id.eq.${targetUserId},receiver_id.eq.${user.id})`,
+      `and(requester_id.eq.${user.id},addressee_id.eq.${targetUserId}),and(requester_id.eq.${targetUserId},addressee_id.eq.${user.id})`,
     )
-    .single();
+    .maybeSingle();
 
   if (existing) {
     return { success: true, message: "Friendship already exists or pending" };
   }
 
+  // Insert using requester_id/addressee_id
   const { error } = await supabase.from("friendships").insert({
-    sender_id: user.id,
-    receiver_id: targetUserId,
+    requester_id: user.id,
+    addressee_id: targetUserId,
     status: "pending",
   });
 
   if (error) throw error;
 
-  // Notification for receiver
+  // Notification for addressee
   await supabase.from("notifications").insert({
     user_id: targetUserId,
+    sender_id: user.id,
     type: "friend_request",
     title: "Nueva Solicitud de Amistad",
     message: `${user.user_metadata.full_name || "Un usuario"} quiere conectar contigo`,
-    link: "/chat", // Redirect to chat/friends list
+    link: "/dashboard/notifications", // Updated to point to new center
   });
 
   return { success: true };
 }
 
-export async function acceptFriendRequest(requestId: string) {
+export async function acceptFriendRequest(senderId: string) {
+  // Note: senderId here refers to the person who SENT the request (requester_id),
+  // and the current user is the addressee_id.
+  // Sometimes this might be passed as friendship_id, but the user prompt implies "accept request".
+  // Let's assume the argument is the ID of the USER we are accepting, OR the friendship ID.
+  // Given the context of "list of notifications" usually we have the friendship ID or the user ID.
+  // Let's make it robust: accept by finding the pending request from this user.
+
+  // HOWEVER, standard practice is to pass the User ID of the requester.
+  // Let's assume senderId is the User ID of the friend.
+
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
+  // Update status to accepted where I am the addressee and they are the requester
   const { error } = await supabase
     .from("friendships")
     .update({ status: "accepted" })
-    .eq("id", requestId)
-    // Ensure user is the receiver
-    .eq("receiver_id", user.id);
+    .match({
+      requester_id: senderId,
+      addressee_id: user.id,
+      status: "pending",
+    });
 
   if (error) throw error;
+
+  // Also create a notification back to the requester saying "Request Accepted"
+  await supabase.from("notifications").insert({
+    user_id: senderId,
+    type: "system",
+    title: "Solicitud Aceptada",
+    message: `${user.user_metadata?.full_name || "Alguien"} aceptó tu solicitud de amistad.`,
+    link: "/chat",
+  });
+
   return { success: true };
 }
 
-// Safe robust version of getFriends
 export async function getFriends() {
   try {
     const supabase = await createClient();
@@ -121,9 +143,9 @@ export async function getFriends() {
     // 1. Get Friendships
     const { data: friendships, error: fError } = await supabase
       .from("friendships")
-      .select("id, sender_id, receiver_id")
+      .select("id, requester_id, addressee_id")
       .eq("status", "accepted")
-      .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
+      .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
 
     if (fError) {
       console.error("Error fetching friendships:", fError);
@@ -134,7 +156,7 @@ export async function getFriends() {
 
     // 2. Extract Friend IDs
     const friendIds = friendships.map((f) =>
-      f.sender_id === user.id ? f.receiver_id : f.sender_id,
+      f.requester_id === user.id ? f.addressee_id : f.requester_id,
     );
     const uniqueFriendIds = Array.from(new Set(friendIds));
 
@@ -155,10 +177,10 @@ export async function getFriends() {
     const profileMap = new Map(profiles.map((p) => [p.id, p]));
 
     return friendships.map((f) => {
-      const friendId = f.sender_id === user.id ? f.receiver_id : f.sender_id;
+      const friendId =
+        f.requester_id === user.id ? f.addressee_id : f.requester_id;
       const profile = profileMap.get(friendId);
 
-      // Return even if profile missing (robustness), though ideal to have it
       return {
         friendshipId: f.id,
         id: friendId,
@@ -173,7 +195,6 @@ export async function getFriends() {
   }
 }
 
-// Safe robust version of getPendingRequests
 export async function getPendingRequests() {
   try {
     const supabase = await createClient();
@@ -182,12 +203,12 @@ export async function getPendingRequests() {
     } = await supabase.auth.getUser();
     if (!user) return [];
 
-    // 1. Get Pending Requests (where I am receiver)
+    // 1. Get Pending Requests (where I am addressee)
     const { data: requests, error: rError } = await supabase
       .from("friendships")
       .select("id, created_at, requester_id")
       .eq("status", "pending")
-      .eq("receiver_id", user.id);
+      .eq("addressee_id", user.id);
 
     if (rError) {
       console.error("Error fetching pending requests:", rError);

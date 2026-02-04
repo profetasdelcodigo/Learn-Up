@@ -9,6 +9,7 @@ import {
   ChefHat,
   BookOpen,
   MessageCircle,
+  Bell,
 } from "lucide-react";
 import BottomNav from "./BottomNav";
 
@@ -42,6 +43,11 @@ const navigation = [
     name: "Biblioteca",
     href: "/library",
     icon: BookOpen,
+  },
+  {
+    name: "Notificaciones",
+    href: "/dashboard/notifications",
+    icon: Bell,
   },
   {
     name: "Chat",

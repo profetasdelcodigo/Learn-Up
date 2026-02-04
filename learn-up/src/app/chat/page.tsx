@@ -601,133 +601,169 @@ export default function ChatPage() {
         `}
         >
           {activeChat ? (
-            <>
-              {/* Header */}
-              <div className="h-16 flex items-center justify-between px-4 bg-black/40 border-b border-brand-gold/20">
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setMobileShowChat(false)}
-                    className="md:hidden text-gray-400 hover:text-white"
-                  >
-                    <ArrowLeft className="w-6 h-6" />
-                  </button>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-brand-gold/10 flex items-center justify-center border border-brand-gold/30">
-                      <Users className="w-5 h-5 text-brand-gold" />
-                    </div>
-                    <div>
-                      <h2 className="font-bold text-white">
-                        {rooms.find((r) => r.id === activeChat)?.name ||
-                          (() => {
-                            // Fallback name calc
-                            const r = rooms.find((r) => r.id === activeChat);
-                            return r ? getRoomInfo(r).name : "Chat";
-                          })()}
-                      </h2>
-                      <p className="text-xs text-green-500 flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                        En línea
+            (() => {
+              const room = rooms.find((r) => r.id === activeChat);
+              const otherId = room?.participants.find(
+                (p) => p !== currentUserId,
+              );
+              const isFriend =
+                room?.type === "group" || friends.some((f) => f.id === otherId);
+
+              // Block if not friend (and not group)
+              if (!isFriend && room) {
+                return (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-gray-400">
+                    <div className="bg-gray-900 p-6 rounded-3xl border border-gray-800">
+                      <Users className="w-12 h-12 mx-auto mb-4 text-gray-600" />
+                      <h3 className="text-xl font-bold text-white mb-2">
+                        Chat Bloqueado
+                      </h3>
+                      <p className="mb-6">
+                        Debes ser amigo de este usuario para chatear.
                       </p>
+                      <button
+                        onClick={() => {
+                          // Search for them? Or just go back?
+                          setViewMode("search");
+                          setMobileShowChat(false);
+                        }}
+                        className="px-6 py-2 bg-brand-gold text-brand-black rounded-full font-bold hover:bg-white transition-colors"
+                      >
+                        Buscar Amigos
+                      </button>
                     </div>
                   </div>
-                </div>
+                );
+              }
 
-                {/* Actions */}
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleStartCall}
-                    className="p-2 hover:bg-gray-800 rounded-full text-cyan-400"
-                  >
-                    <Video className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => setShowWhiteboard(!showWhiteboard)}
-                    className={`p-2 rounded-full hover:bg-gray-800 ${showWhiteboard ? "text-brand-gold bg-brand-gold/10" : "text-purple-400"}`}
-                  >
-                    <Edit3 className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
+              return (
+                <>
+                  {/* Header */}
+                  <div className="h-16 flex items-center justify-between px-4 bg-black/40 border-b border-brand-gold/20">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setMobileShowChat(false)}
+                        className="md:hidden text-gray-400 hover:text-white"
+                      >
+                        <ArrowLeft className="w-6 h-6" />
+                      </button>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-brand-gold/10 flex items-center justify-center border border-brand-gold/30">
+                          <Users className="w-5 h-5 text-brand-gold" />
+                        </div>
+                        <div>
+                          <h2 className="font-bold text-white">
+                            {room?.name || getRoomInfo(room!).name}
+                          </h2>
+                          <p className="text-xs text-green-500 flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                            En línea
+                          </p>
+                        </div>
+                      </div>
+                    </div>
 
-              {/* Content */}
-              {showWhiteboard ? (
-                <div className="flex-1 relative bg-white">
-                  <Whiteboard roomId={activeChat} />
-                </div>
-              ) : (
-                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-transparent to-black/50">
-                  {messages.length === 0 && (
-                    <div className="flex items-center justify-center h-full text-gray-500">
-                      <p>Comienza la conversación...</p>
+                    {/* Actions */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleStartCall}
+                        className="p-2 hover:bg-gray-800 rounded-full text-cyan-400"
+                      >
+                        <Video className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => setShowWhiteboard(!showWhiteboard)}
+                        className={`p-2 rounded-full hover:bg-gray-800 ${showWhiteboard ? "text-brand-gold bg-brand-gold/10" : "text-purple-400"}`}
+                      >
+                        <Edit3 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  {showWhiteboard ? (
+                    <div className="flex-1 relative bg-white">
+                      <Whiteboard roomId={activeChat} />
+                    </div>
+                  ) : (
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-transparent to-black/50">
+                      {messages.length === 0 && (
+                        <div className="flex items-center justify-center h-full text-gray-500">
+                          <p>Comienza la conversación...</p>
+                        </div>
+                      )}
+                      <AnimatePresence>
+                        {messages.map((msg) => {
+                          const isOwn = msg.user_id === currentUserId;
+                          return (
+                            <motion.div
+                              key={msg.id}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className={`flex gap-3 ${isOwn ? "flex-row-reverse" : "flex-row"}`}
+                            >
+                              <div className="w-8 h-8 rounded-full bg-gray-800 flex-shrink-0 overflow-hidden border border-gray-700">
+                                {msg.profiles?.avatar_url ? (
+                                  <img
+                                    src={msg.profiles.avatar_url}
+                                    className="w-full h-full"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <User2Icon className="w-4 h-4 text-gray-500" />
+                                  </div>
+                                )}
+                              </div>
+                              <div
+                                className={`max-w-[70%] p-3 rounded-2xl ${isOwn ? "bg-brand-gold text-black rounded-br-none" : "bg-gray-900 text-gray-200 border border-gray-800 rounded-bl-none"}`}
+                              >
+                                {!isOwn && (
+                                  <p className="text-xs font-bold mb-1 opacity-70">
+                                    {msg.profiles?.full_name}
+                                  </p>
+                                )}
+                                <p className="text-sm">{msg.content}</p>
+                                <p className="text-[10px] opacity-50 text-right mt-1">
+                                  {new Date(msg.created_at).toLocaleTimeString(
+                                    [],
+                                    {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    },
+                                  )}
+                                </p>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </AnimatePresence>
+                      <div ref={messagesEndRef} />
                     </div>
                   )}
-                  <AnimatePresence>
-                    {messages.map((msg) => {
-                      const isOwn = msg.user_id === currentUserId;
-                      return (
-                        <motion.div
-                          key={msg.id}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className={`flex gap-3 ${isOwn ? "flex-row-reverse" : "flex-row"}`}
-                        >
-                          <div className="w-8 h-8 rounded-full bg-gray-800 flex-shrink-0 overflow-hidden border border-gray-700">
-                            {msg.profiles?.avatar_url ? (
-                              <img
-                                src={msg.profiles.avatar_url}
-                                className="w-full h-full"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <User2Icon className="w-4 h-4 text-gray-500" />
-                              </div>
-                            )}
-                          </div>
-                          <div
-                            className={`max-w-[70%] p-3 rounded-2xl ${isOwn ? "bg-brand-gold text-black rounded-br-none" : "bg-gray-900 text-gray-200 border border-gray-800 rounded-bl-none"}`}
-                          >
-                            {!isOwn && (
-                              <p className="text-xs font-bold mb-1 opacity-70">
-                                {msg.profiles?.full_name}
-                              </p>
-                            )}
-                            <p className="text-sm">{msg.content}</p>
-                            <p className="text-[10px] opacity-50 text-right mt-1">
-                              {new Date(msg.created_at).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </p>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
-                  </AnimatePresence>
-                  <div ref={messagesEndRef} />
-                </div>
-              )}
 
-              {/* Input */}
-              {!showWhiteboard && (
-                <div className="p-4 bg-black/60 border-t border-gray-800">
-                  <form onSubmit={handleSendMessage} className="flex gap-2">
-                    <input
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      placeholder="Escribe un mensaje..."
-                      className="flex-1 bg-gray-900 border border-gray-700 rounded-full px-4 py-2 text-white focus:border-brand-gold focus:outline-none"
-                    />
-                    <button
-                      type="submit"
-                      disabled={!input.trim()}
-                      className="p-2 bg-brand-gold rounded-full text-black hover:bg-white transition-colors disabled:opacity-50"
-                    >
-                      <Send className="w-5 h-5" />
-                    </button>
-                  </form>
-                </div>
-              )}
-            </>
+                  {/* Input */}
+                  {!showWhiteboard && (
+                    <div className="p-4 bg-black/60 border-t border-gray-800">
+                      <form onSubmit={handleSendMessage} className="flex gap-2">
+                        <input
+                          value={input}
+                          onChange={(e) => setInput(e.target.value)}
+                          placeholder="Escribe un mensaje..."
+                          className="flex-1 bg-gray-900 border border-gray-700 rounded-full px-4 py-2 text-white focus:border-brand-gold focus:outline-none"
+                        />
+                        <button
+                          type="submit"
+                          disabled={!input.trim()}
+                          className="p-2 bg-brand-gold rounded-full text-black hover:bg-white transition-colors disabled:opacity-50"
+                        >
+                          <Send className="w-5 h-5" />
+                        </button>
+                      </form>
+                    </div>
+                  )}
+                </>
+              );
+            })()
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-gray-500 opacity-50">
               <MessageCircle className="w-16 h-16 mb-4" />
