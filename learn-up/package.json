@@ -14,6 +14,7 @@
     "@daily-co/daily-react": "^0.24.0",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.93.3",
+    "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.29.2",
     "groq-sdk": "^0.37.0",
@@ -24,6 +25,7 @@
     "react-big-calendar": "^1.19.4",
     "react-dom": "19.2.3",
     "react-joyride": "^2.9.3",
+    "tailwind-merge": "^3.4.0",
     "tldraw": "^4.3.1"
   },
   "devDependencies": {
