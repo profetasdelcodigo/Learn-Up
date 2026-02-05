@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import BottomNav from "./BottomNav";
 import Logo from "./Logo";
+import { useEffect, useState } from "react";
+import { createClient } from "@/utils/supabase/client";
 
 const navigation = [
   {
@@ -49,6 +51,7 @@ const navigation = [
     name: "Notificaciones",
     href: "/dashboard/notifications",
     icon: Bell,
+    showBadge: true, // Mark this item to show notification badge
   },
   {
     name: "Chat",
@@ -80,6 +83,66 @@ const navigation = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [unreadCount, setUnreadCount] = useState(0);
+  const supabase = createClient();
+
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { count } = await supabase
+        .from("notifications")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("is_read", false);
+
+      setUnreadCount(count || 0);
+    };
+
+    fetchUnreadCount();
+
+    // Real-time subscription for new notifications
+    const {
+      data: { user: currentUser },
+    } = supabase.auth.getUser().then((res) => res);
+
+    if (currentUser) {
+      const channel = supabase
+        .channel("notification-badge")
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "notifications",
+            filter: `user_id=eq.${currentUser.id}`,
+          },
+          () => {
+            fetchUnreadCount(); // Refresh count on new notification
+          },
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "notifications",
+            filter: `user_id=eq.${currentUser.id}`,
+          },
+          () => {
+            fetchUnreadCount(); // Refresh count when marked as read
+          },
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [supabase]);
 
   return (
     <>
@@ -88,7 +151,6 @@ export default function Sidebar() {
 
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex fixed left-0 top-0 h-screen w-64 bg-brand-black border-r border-brand-gold flex-col z-30">
-        import Logo from "./Logo"; // ... (imports) // ...
         {/* Logo */}
         <div className="p-6 border-b border-gray-800">
           <Link href="/dashboard">
@@ -108,7 +170,7 @@ export default function Sidebar() {
                 <li key={item.name}>
                   <Link
                     href={item.href}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all ${
+                    className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all relative ${
                       isActive
                         ? "bg-brand-gold text-brand-black font-semibold shadow-[0_0_15px_rgba(212,175,55,0.3)]"
                         : "text-gray-300 hover:bg-brand-gold/10 hover:text-brand-gold"
@@ -116,6 +178,12 @@ export default function Sidebar() {
                   >
                     <item.icon className="w-5 h-5" />
                     <span>{item.name}</span>
+                    {/* Notification Badge */}
+                    {item.showBadge && unreadCount > 0 && (
+                      <span className="absolute top-2 right-2 flex items-center justify-center w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full border-2 border-brand-black">
+                        {unreadCount > 9 ? "9+" : unreadCount}
+                      </span>
+                    )}
                   </Link>
 
                   {/* Submenu */}

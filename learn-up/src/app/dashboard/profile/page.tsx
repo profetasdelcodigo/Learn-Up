@@ -84,7 +84,7 @@ export default function ProfilePage() {
         .update({
           description: formData.description,
           country: formData.country,
-          social_links: socials,
+          socials: socials, // Changed from social_links to socials
           updated_at: new Date().toISOString(),
         })
         .eq("id", user.id);

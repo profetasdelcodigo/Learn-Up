@@ -102,19 +102,33 @@ export default function CalendarPage() {
     } = await supabase.auth.getUser();
     if (!user) return;
 
-    if (habits.includes(dateStr)) {
-      // Remove
-      await supabase
-        .from("habit_logs")
-        .delete()
-        .match({ user_id: user.id, date: dateStr });
-      setHabits((prev) => prev.filter((d) => d !== dateStr));
-    } else {
-      // Add
-      await supabase
-        .from("habit_logs")
-        .insert({ user_id: user.id, date: dateStr, completed: true });
-      setHabits((prev) => [...prev, dateStr]);
+    try {
+      if (habits.includes(dateStr)) {
+        // Remove
+        const { error } = await supabase
+          .from("habit_logs")
+          .delete()
+          .match({ user_id: user.id, date: dateStr });
+
+        if (error) {
+          console.error("Error deleting habit:", error);
+          return;
+        }
+        setHabits((prev) => prev.filter((d) => d !== dateStr));
+      } else {
+        // Add
+        const { error } = await supabase
+          .from("habit_logs")
+          .insert({ user_id: user.id, date: dateStr, completed: true });
+
+        if (error) {
+          console.error("Error adding habit:", error);
+          return;
+        }
+        setHabits((prev) => [...prev, dateStr]);
+      }
+    } catch (error) {
+      console.error("Habit toggle error:", error);
     }
   };
 

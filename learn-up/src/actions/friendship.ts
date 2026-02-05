@@ -112,11 +112,10 @@ export async function acceptFriendRequest(senderId: string) {
   const { error } = await supabase
     .from("friendships")
     .update({ status: "accepted" })
-    .match({
-      requester_id: senderId,
-      addressee_id: user.id,
-      status: "pending",
-    });
+    .update({ status: "accepted" })
+    .eq("requester_id", senderId)
+    .eq("addressee_id", user.id)
+    .eq("status", "pending");
 
   if (error) throw error;
 

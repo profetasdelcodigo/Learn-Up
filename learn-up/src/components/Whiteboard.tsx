@@ -137,8 +137,24 @@ export default function Whiteboard({ roomId }: { roomId: string }) {
           console.error(e);
         }
       }
-    }, 800); // Increased timeout slightly
-    return () => clearTimeout(timer);
+    }, 800); // Initial check
+
+    // Backup check for slower connections/renders
+    const timer2 = setTimeout(() => {
+      if (editorRef.current) {
+        try {
+          (editorRef.current as any).updateViewportScreenBounds();
+          window.dispatchEvent(new Event("resize"));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }, 2000);
+
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(timer2);
+    };
   }, []);
 
   return (
