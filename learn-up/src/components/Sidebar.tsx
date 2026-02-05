@@ -105,43 +105,47 @@ export default function Sidebar() {
     fetchUnreadCount();
 
     // Real-time subscription for new notifications
-    const {
-      data: { user: currentUser },
-    } = supabase.auth.getUser().then((res) => res);
+    const setupRealtime = async () => {
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
 
-    if (currentUser) {
-      const channel = supabase
-        .channel("notification-badge")
-        .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "notifications",
-            filter: `user_id=eq.${currentUser.id}`,
-          },
-          () => {
-            fetchUnreadCount(); // Refresh count on new notification
-          },
-        )
-        .on(
-          "postgres_changes",
-          {
-            event: "UPDATE",
-            schema: "public",
-            table: "notifications",
-            filter: `user_id=eq.${currentUser.id}`,
-          },
-          () => {
-            fetchUnreadCount(); // Refresh count when marked as read
-          },
-        )
-        .subscribe();
+      if (currentUser) {
+        const channel = supabase
+          .channel("notification-badge")
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "notifications",
+              filter: `user_id=eq.${currentUser.id}`,
+            },
+            () => {
+              fetchUnreadCount(); // Refresh count on new notification
+            },
+          )
+          .on(
+            "postgres_changes",
+            {
+              event: "UPDATE",
+              schema: "public",
+              table: "notifications",
+              filter: `user_id=eq.${currentUser.id}`,
+            },
+            () => {
+              fetchUnreadCount(); // Refresh count when marked as read
+            },
+          )
+          .subscribe();
 
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
+        return () => {
+          supabase.removeChannel(channel);
+        };
+      }
+    };
+
+    setupRealtime();
   }, [supabase]);
 
   return (
