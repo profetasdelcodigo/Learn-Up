@@ -48,28 +48,30 @@ export async function ensurePrivateRoom(friendId: string) {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
-  // Deterministic ID for 1v1
-  const sortedIds = [user.id, friendId].sort();
-  const roomId = `${sortedIds[0]}_${sortedIds[1]}`;
-
-  // Check if exists
-  const { data } = await supabase
+  // Check if a private room already exists between these two users
+  const { data: existingRooms } = await supabase
     .from("chat_rooms")
     .select("*")
-    .eq("id", roomId)
-    .single();
+    .eq("type", "private")
+    .contains("participants", [user.id, friendId]);
 
-  if (!data) {
-    // Create it
-    const { error } = await supabase.from("chat_rooms").insert({
-      id: roomId,
-      type: "private",
-      participants: [user.id, friendId],
-    });
-    if (error) throw error;
+  if (existingRooms && existingRooms.length > 0) {
+    return existingRooms[0].id;
   }
 
-  return roomId;
+  // Create new room
+  const { data: newRoom, error } = await supabase
+    .from("chat_rooms")
+    .insert({
+      type: "private",
+      participants: [user.id, friendId],
+      updated_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return newRoom.id;
 }
 
 export async function createGroup(name: string, participantIds: string[]) {
