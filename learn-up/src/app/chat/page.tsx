@@ -457,10 +457,14 @@ export default function ChatPage() {
       });
       stream.getTracks().forEach((t) => t.stop());
 
-      const url = await createDailyRoom();
-      setVideoUrl(url);
-      setShowVideo(true);
-      // await sendMessageAction(activeChat, `Started a call: ${url}`); // Maybe don't spam chat
+      const roomData = await createDailyRoom();
+      if (roomData && roomData.url) {
+        setVideoUrl(roomData.url);
+        setShowVideo(true);
+      } else {
+        console.error("No se pudo crear la sala");
+        addToast("Error al crear la sala de video", "error");
+      }
     } catch (e) {
       console.error(e);
       addToast(
