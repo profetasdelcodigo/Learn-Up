@@ -9,6 +9,27 @@ export interface ChatRoom {
   participants: string[];
   last_message?: string;
   updated_at: string; // ISO string
+  avatar_url?: string | null;
+  description?: string | null;
+  admins?: string[];
+}
+
+export interface Message {
+  id: string;
+  content: string;
+  user_id: string; // CORRECT: user_id
+  room_id: string;
+  created_at: string;
+  is_edited?: boolean;
+  is_deleted_for_everyone?: boolean;
+  deleted_for?: string[];
+  profiles?: {
+    full_name: string;
+    avatar_url: string | null;
+    school?: string;
+    grade?: string;
+    role?: string;
+  };
 }
 
 export async function getUserRooms() {
@@ -19,19 +40,10 @@ export async function getUserRooms() {
   if (!user) return [];
 
   // Fetch rooms where participants (JSONB array) contains user.id
-  // This requires a specific query syntax for JSONB containment
-  // Supabase/Postgrest syntax: participants.cs.['userid']?
-  // Or text search.
-  // Let's use the policy-filtered select if RLS is set up properly.
-  // "Users can view rooms they are in" policy exists.
-  // So a simple select should work IF they are participants.
-  // However, we stored participants as JSONB array.
-  // We need to filter manually or rely on RLS.
-  // RLS logic: `auth.uid()::text = ANY(select jsonb_array_elements_text(participants))`
-  // So:
   const { data, error } = await supabase
     .from("chat_rooms")
     .select("*")
+    .contains("participants", [user.id])
     .order("updated_at", { ascending: false });
 
   if (error) {
@@ -55,8 +67,11 @@ export async function ensurePrivateRoom(friendId: string) {
     .eq("type", "private")
     .contains("participants", [user.id, friendId]);
 
-  if (existingRooms && existingRooms.length > 0) {
-    return existingRooms[0].id;
+  // Filter strictly for 2 participants to avoid false positives if logic changes
+  const exactMatch = existingRooms?.find((r) => r.participants.length === 2);
+
+  if (exactMatch) {
+    return exactMatch.id;
   }
 
   // Create new room
@@ -82,17 +97,92 @@ export async function createGroup(name: string, participantIds: string[]) {
   if (!user) throw new Error("Unauthorized");
 
   const allParticipants = Array.from(new Set([user.id, ...participantIds]));
-  const roomId = crypto.randomUUID();
 
-  const { error } = await supabase.from("chat_rooms").insert({
-    id: roomId,
-    type: "group",
-    name,
-    participants: allParticipants,
-  });
+  const { data, error } = await supabase
+    .from("chat_rooms")
+    .insert({
+      type: "group",
+      name,
+      participants: allParticipants,
+      admins: [user.id],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
 
   if (error) throw error;
-  return roomId;
+  return data.id;
+}
+
+export async function getChatMessages(roomId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("chat_messages")
+    .select(
+      `
+      *,
+      profiles:user_id (full_name, avatar_url, role, school, grade)
+    `,
+    )
+    .eq("room_id", roomId)
+    .order("created_at", { ascending: true })
+    .limit(50);
+
+  if (error) throw error;
+  return data as Message[];
+}
+
+export async function sendMessage(roomId: string, content: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const { data, error } = await supabase
+    .from("chat_messages")
+    .insert({
+      room_id: roomId,
+      user_id: user.id, // CORRECT: user_id
+      content,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  // Update room updated_at and last_message
+  await supabase
+    .from("chat_rooms")
+    .update({
+      updated_at: new Date().toISOString(),
+      last_message: content.substring(0, 50),
+    })
+    .eq("id", roomId);
+
+  return data;
+}
+
+export async function markMessagesAsRead(roomId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return;
+
+  // Since chat_messages doesn't have an is_read column in the schema provided in PLANES,
+  // we will update the NOTIFICATIONS table to mark relevant notifications as read.
+
+  await supabase
+    .from("notifications")
+    .update({ is_read: true })
+    .eq("user_id", user.id) // My notifications
+    .like("title", `%${roomId}%`); // Heuristic or add metadata to notifications
+
+  // If we truly want read receipts, we need to alter the schema or add a separate table.
+  // For now, this stub is sufficient to prevent errors.
 }
 
 export async function updateMessage(messageId: string, newContent: string) {
@@ -184,4 +274,34 @@ export async function uploadChatMedia(file: File, roomId: string) {
   } = supabase.storage.from("chat-media").getPublicUrl(fileName);
 
   return publicUrl;
+}
+
+export async function leaveGroup(roomId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const { data: room, error: fetchError } = await supabase
+    .from("chat_rooms")
+    .select("participants")
+    .eq("id", roomId)
+    .single();
+
+  if (fetchError || !room) throw fetchError || new Error("Room not found");
+
+  const updatedParticipants = room.participants.filter(
+    (id: string) => id !== user.id,
+  );
+
+  const { error } = await supabase
+    .from("chat_rooms")
+    .update({
+      participants: updatedParticipants,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", roomId);
+
+  if (error) throw error;
 }

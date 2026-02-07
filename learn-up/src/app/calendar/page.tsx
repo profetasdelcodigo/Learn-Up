@@ -184,7 +184,7 @@ export default function CalendarPage() {
           if (targetUser) {
             await supabase.from("notifications").insert({
               user_id: targetUser.id,
-              type: "event_invite",
+              type: "calendar_event",
               title: "Invitación a Evento",
               message: `${user.email} te invitó a: ${formData.title}`,
               link: "/calendar",

@@ -10,6 +10,7 @@ import {
   BookOpen,
   MessageCircle,
   Bell,
+  X,
 } from "lucide-react";
 import BottomNav from "./BottomNav";
 import Logo from "./Logo";
@@ -86,6 +87,32 @@ export default function Sidebar() {
   const [unreadCount, setUnreadCount] = useState(0);
   const supabase = createClient();
 
+  // Toast Notification State
+  const [toasts, setToasts] = useState<
+    {
+      id: string;
+      message: string;
+      type: "info" | "success" | "error" | "warning";
+    }[]
+  >([]);
+
+  const addToast = (
+    message: string,
+    type: "info" | "success" | "error" | "warning" = "info",
+  ) => {
+    const id = Math.random().toString(36).substring(7);
+    setToasts((prev) => [...prev, { id, message, type }]);
+
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 5000);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
   useEffect(() => {
     const fetchUnreadCount = async () => {
       const {
@@ -112,7 +139,7 @@ export default function Sidebar() {
 
       if (currentUser) {
         const channel = supabase
-          .channel("notification-badge")
+          .channel("custom-filter-channel")
           .on(
             "postgres_changes",
             {
@@ -121,8 +148,14 @@ export default function Sidebar() {
               table: "notifications",
               filter: `user_id=eq.${currentUser.id}`,
             },
-            () => {
+            (payload) => {
               fetchUnreadCount(); // Refresh count on new notification
+              // Show Toast
+              const newNotification = payload.new as any;
+              addToast(
+                newNotification.message || "Tienes una nueva notificación",
+                "info",
+              );
             },
           )
           .on(
@@ -150,6 +183,23 @@ export default function Sidebar() {
 
   return (
     <>
+      <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className="pointer-events-auto bg-brand-gold text-brand-black px-4 py-3 rounded-xl shadow-lg font-medium flex items-center justify-between min-w-[300px] animate-in slide-in-from-right-5 fade-in duration-300"
+          >
+            <span>{toast.message}</span>
+            <button
+              onClick={() => removeToast(toast.id)}
+              className="ml-4 hover:bg-black/10 rounded-full p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+
       {/* Mobile Bottom Navigation */}
       <BottomNav />
 
