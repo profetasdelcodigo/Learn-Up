@@ -94,3 +94,94 @@ export async function createGroup(name: string, participantIds: string[]) {
   if (error) throw error;
   return roomId;
 }
+
+export async function updateMessage(messageId: string, newContent: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const { error } = await supabase
+    .from("chat_messages")
+    .update({
+      content: newContent,
+      is_edited: true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", messageId)
+    .eq("user_id", user.id); // Only allow editing own messages
+
+  if (error) throw error;
+}
+
+export async function deleteMessage(
+  messageId: string,
+  forEveryone: boolean = false,
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  if (forEveryone) {
+    // Delete for everyone - set flag
+    const { error } = await supabase
+      .from("chat_messages")
+      .update({
+        is_deleted_for_everyone: true,
+        content: "Este mensaje fue eliminado",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", messageId)
+      .eq("user_id", user.id); // Only message owner can delete for everyone
+
+    if (error) throw error;
+  } else {
+    // Delete for me - add to deleted_for array
+    const { data: message } = await supabase
+      .from("chat_messages")
+      .select("deleted_for")
+      .eq("id", messageId)
+      .single();
+
+    const deletedFor = message?.deleted_for || [];
+    if (!deletedFor.includes(user.id)) {
+      deletedFor.push(user.id);
+    }
+
+    const { error } = await supabase
+      .from("chat_messages")
+      .update({ deleted_for: deletedFor })
+      .eq("id", messageId);
+
+    if (error) throw error;
+  }
+}
+
+export async function uploadChatMedia(file: File, roomId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const fileExt = file.name.split(".").pop();
+  const fileName = `${roomId}/${user.id}/${Date.now()}.${fileExt}`;
+
+  const { data, error } = await supabase.storage
+    .from("chat-media")
+    .upload(fileName, file, {
+      cacheControl: "3600",
+      upsert: false,
+    });
+
+  if (error) throw error;
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("chat-media").getPublicUrl(fileName);
+
+  return publicUrl;
+}

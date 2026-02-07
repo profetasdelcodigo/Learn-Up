@@ -13,6 +13,23 @@ export async function createDailyRoom(params?: DailyRoomParams) {
     throw new Error("Daily API Key not configured");
   }
 
+  // 1. Check if room exists
+  const getResponse = await fetch(
+    `https://api.daily.co/v1/rooms/${params?.name}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+    },
+  );
+
+  if (getResponse.ok) {
+    const data = await getResponse.json();
+    return { url: data.url, name: data.name };
+  }
+
+  // 2. Create if not exists
   const response = await fetch("https://api.daily.co/v1/rooms", {
     method: "POST",
     headers: {
