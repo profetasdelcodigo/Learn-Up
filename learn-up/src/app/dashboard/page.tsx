@@ -9,7 +9,6 @@ import {
   Calendar,
   MessageCircle,
 } from "lucide-react";
-import Sidebar from "@/components/Sidebar";
 import Tutorial from "@/components/Tutorial";
 
 export default async function DashboardPage() {
@@ -30,9 +29,8 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <Sidebar />
       <Tutorial />
-      <div className="min-h-screen bg-brand-black md:pl-64">
+      <div className="min-h-screen bg-brand-black">
         <div className="p-4 md:p-8">
           <div className="max-w-7xl mx-auto">
             {/* Header */}
