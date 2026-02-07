@@ -12,8 +12,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-import WelcomeTutorial from "@/components/WelcomeTutorial";
-import ConditionalNav from "@/components/ConditionalNav";
+import MainLayout from "@/components/MainLayout";
 
 export const metadata: Metadata = {
   title: "Learn Up | Tu Tutor IA",
@@ -34,9 +33,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-brand-black text-white`}
       >
-        <WelcomeTutorial />
-        <main className="min-h-screen pb-20 md:pb-0">{children}</main>
-        <ConditionalNav />
+        <MainLayout>{children}</MainLayout>
       </body>
     </html>
   );
