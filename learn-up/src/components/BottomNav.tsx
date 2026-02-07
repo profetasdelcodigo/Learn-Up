@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Home, Brain, MessageCircle, BookOpen, User } from "lucide-react";
+import { Home, Brain, MessageCircle, Bell, User } from "lucide-react";
 
 export default function BottomNav() {
   const pathname = usePathname();
@@ -11,7 +11,7 @@ export default function BottomNav() {
     { name: "Inicio", href: "/dashboard", icon: Home },
     { name: "IA", href: "/dashboard/ai", icon: Brain },
     { name: "Chat", href: "/chat", icon: MessageCircle },
-    { name: "Biblioteca", href: "/library", icon: BookOpen },
+    { name: "Notif", href: "/notifications", icon: Bell, badge: true },
     { name: "Perfil", href: "/profile", icon: User },
   ];
 

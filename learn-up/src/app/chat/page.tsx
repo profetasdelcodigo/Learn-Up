@@ -982,28 +982,19 @@ export default function ChatPage() {
                       >
                         <Video className="w-5 h-5" />
                       </button>
-                      <button
-                        onClick={() => setShowWhiteboard(!showWhiteboard)}
-                        disabled={!isFriend}
-                        className={`p-2 rounded-full transition-colors ${
-                          !isFriend
-                            ? "text-gray-600 cursor-not-allowed"
-                            : showWhiteboard
+                      {showVideo && (
+                        <button
+                          onClick={() => setShowWhiteboard(!showWhiteboard)}
+                          className={`p-2 rounded-full transition-colors ${
+                            showWhiteboard
                               ? "text-brand-gold bg-brand-gold/10 hover:bg-brand-gold/20"
                               : "text-purple-400 hover:bg-gray-800"
-                        }`}
-                        title={
-                          !isFriend
-                            ? "Debes ser amigo para usar la pizarra"
-                            : "Pizarra"
-                        }
-                      >
-                        {!isFriend ? (
-                          <Lock className="w-5 h-5 text-brand-gold" />
-                        ) : (
+                          }`}
+                          title="Pizarra Compartida"
+                        >
                           <Edit3 className="w-5 h-5" />
-                        )}
-                      </button>
+                        </button>
+                      )}
                     </div>
                   </div>
 

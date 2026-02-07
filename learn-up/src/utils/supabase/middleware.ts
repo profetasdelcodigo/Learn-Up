@@ -29,19 +29,37 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // IMPORTANT: Avoid writing any logic between createServerClient and
-  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
-  // issues with users being randomly logged out.
+  // Refresh session to ensure cookie is up to date
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protected routes logic
+  // Define public routes
+  const publicRoutes = ["/", "/login"];
+  const authRoutes = ["/auth/callback", "/auth/confirm"];
+  const isPublicRoute = publicRoutes.includes(request.nextUrl.pathname);
+  const isAuthRoute = authRoutes.some((route) =>
+    request.nextUrl.pathname.startsWith(route),
+  );
+
+  // Redirect authenticated users away from public routes
+  if (session && isPublicRoute) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/dashboard";
+    return NextResponse.redirect(url);
+  }
+
+  // Protected routes logic - redirect to login if not authenticated
   if (
     !user &&
-    (request.nextUrl.pathname.startsWith("/dashboard") ||
-      request.nextUrl.pathname.startsWith("/onboarding"))
+    !isPublicRoute &&
+    !isAuthRoute &&
+    !request.nextUrl.pathname.startsWith("/_next") &&
+    !request.nextUrl.pathname.startsWith("/api")
   ) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";

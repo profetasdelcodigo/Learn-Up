@@ -21,6 +21,8 @@ export const getGroqCompletion = async (
     return await groq.chat.completions.create({
       messages: messages,
       model: model,
+      temperature: 0.8, // Increased for more natural, varied responses
+      max_tokens: 2000,
       response_format: jsonMode ? { type: "json_object" } : undefined,
     });
   } catch (error) {

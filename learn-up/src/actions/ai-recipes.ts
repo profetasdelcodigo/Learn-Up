@@ -1,6 +1,7 @@
 "use server";
 
 import { getGroqCompletion } from "@/lib/ai";
+import { searchRecipeImage } from "@/lib/unsplash";
 
 export interface Recipe {
   title: string;
@@ -63,24 +64,11 @@ REGLAS:
     }
 
     // Fetch Image from Unsplash
-    const unsplashKey = process.env.UNSPLASH_ACCESS_KEY;
-    if (unsplashKey && recipe.imageQuery) {
+    if (recipe.imageQuery) {
       try {
-        const unsplashRes = await fetch(
-          `https://api.unsplash.com/search/photos?query=${encodeURIComponent(
-            recipe.imageQuery,
-          )}&per_page=1&orientation=landscape`,
-          {
-            headers: {
-              Authorization: `Client-ID ${unsplashKey}`,
-            },
-          },
-        );
-        if (unsplashRes.ok) {
-          const unsplashData = await unsplashRes.json();
-          if (unsplashData.results && unsplashData.results.length > 0) {
-            recipe.imageUrl = unsplashData.results[0].urls.regular;
-          }
+        const imageUrl = await searchRecipeImage(recipe.imageQuery);
+        if (imageUrl) {
+          recipe.imageUrl = imageUrl;
         }
       } catch (imgErr) {
         console.error("Error fetching Unsplash image:", imgErr);

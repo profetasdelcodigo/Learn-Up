@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 import WelcomeTutorial from "@/components/WelcomeTutorial";
-import BottomNav from "@/components/BottomNav";
+import ConditionalNav from "@/components/ConditionalNav";
 
 export const metadata: Metadata = {
   title: "Learn Up | Tu Tutor IA",
@@ -36,7 +36,7 @@ export default function RootLayout({
       >
         <WelcomeTutorial />
         <main className="min-h-screen pb-20 md:pb-0">{children}</main>
-        <BottomNav />
+        <ConditionalNav />
       </body>
     </html>
   );
