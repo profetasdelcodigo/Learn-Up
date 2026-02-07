@@ -80,12 +80,12 @@ export async function sendFriendRequest(targetUserId: string) {
 
   // Notification for addressee
   await supabase.from("notifications").insert({
-    user_id: targetUserId,
-    sender_id: user.id, // Explicitly sending sender_id
-    type: "friend_request",
+    user_id: targetUserId, // Para quién es
+    sender_id: user.id, // Quién la envía
     title: "Nueva Solicitud de Amistad",
-    message: `${user.user_metadata.full_name || "Un usuario"} quiere conectar contigo`,
-    link: "/dashboard/notifications",
+    message: `${user.user_metadata.full_name || "Alguien"} quiere conectar contigo.`,
+    type: "friend_request",
+    is_read: false,
   });
 
   return { success: true };

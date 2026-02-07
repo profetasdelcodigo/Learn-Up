@@ -154,7 +154,7 @@ export default function Sidebar() {
       <BottomNav />
 
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex fixed left-0 top-0 h-screen w-64 bg-brand-black border-r border-brand-gold flex-col z-30">
+      <aside className="hidden md:flex w-64 h-full bg-brand-black border-r border-brand-gold flex-col">
         {/* Logo */}
         <div className="p-6 border-b border-gray-800">
           <Link href="/dashboard">
