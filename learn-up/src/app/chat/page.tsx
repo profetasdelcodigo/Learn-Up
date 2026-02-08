@@ -460,7 +460,7 @@ export default function ChatPage() {
       });
       stream.getTracks().forEach((t) => t.stop());
 
-      const roomData = await createDailyRoom();
+      const roomData = await createDailyRoom(activeChat);
       if (roomData && roomData.url) {
         setVideoUrl(roomData.url);
         setShowVideo(true);

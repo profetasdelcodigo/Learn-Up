@@ -5,7 +5,7 @@ interface DailyRoomParams {
   privacy?: "public" | "private";
 }
 
-export async function createDailyRoom(params?: DailyRoomParams) {
+export async function createDailyRoom(roomName: string) {
   const apiKey =
     process.env.DAILY_API_KEY || process.env.NEXT_PUBLIC_DAILY_API_KEY;
 
@@ -13,16 +13,18 @@ export async function createDailyRoom(params?: DailyRoomParams) {
     throw new Error("Daily API Key not configured");
   }
 
+  if (!roomName || roomName === "undefined") {
+    console.error("Nombre de sala inválido:", roomName);
+    throw new Error("Nombre de sala inválido");
+  }
+
   // 1. Check if room exists
-  const getResponse = await fetch(
-    `https://api.daily.co/v1/rooms/${params?.name}`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-      },
+  const getResponse = await fetch(`https://api.daily.co/v1/rooms/${roomName}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
     },
-  );
+  });
 
   if (getResponse.ok) {
     const data = await getResponse.json();
@@ -37,12 +39,12 @@ export async function createDailyRoom(params?: DailyRoomParams) {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      name: params?.name,
-      privacy: params?.privacy || "public", // Default to public for now as per plan
+      name: roomName,
+      privacy: "public",
       properties: {
         enable_chat: true,
         enable_screenshare: true,
-        exp: Math.round(Date.now() / 1000) + 3600, // 1 hour expiry default
+        exp: Math.round(Date.now() / 1000) + 3600, // 1 hour expiry
       },
     }),
   });
