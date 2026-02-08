@@ -126,6 +126,7 @@ export default function ChatPage() {
   const [showVideo, setShowVideo] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [showWhiteboard, setShowWhiteboard] = useState(false);
+  const [startWithVideo, setStartWithVideo] = useState(true);
 
   // Search State
   const [searchQuery, setSearchQuery] = useState("");
@@ -447,12 +448,13 @@ export default function ChatPage() {
     };
   };
 
-  const startCall = async () => {
+  const startCall = async (videoEnabled: boolean = true) => {
+    setStartWithVideo(videoEnabled);
     if (!activeChat) return;
     try {
       // Permissions check
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
+        video: videoEnabled,
         audio: true,
       });
       stream.getTracks().forEach((t) => t.stop());
