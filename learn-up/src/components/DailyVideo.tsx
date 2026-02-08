@@ -21,6 +21,7 @@ import {
   Maximize2,
   Minimize2,
   Users,
+  Edit2,
 } from "lucide-react";
 
 // --- Video Tile Component ---
@@ -109,15 +110,21 @@ function CallControls({
   onLeave,
   isMinimized,
   onToggleMinimize,
+  onToggleWhiteboard,
+  isWhiteboardOpen,
+  startWithVideo = true,
 }: {
   onLeave: () => void;
   isMinimized: boolean;
   onToggleMinimize: () => void;
+  onToggleWhiteboard?: () => void;
+  isWhiteboardOpen?: boolean;
+  startWithVideo?: boolean;
 }) {
   // @ts-ignore
   const callObject = useCallObject();
   const [isMicOn, setIsMicOn] = useState(true);
-  const [isCamOn, setIsCamOn] = useState(true);
+  const [isCamOn, setIsCamOn] = useState(startWithVideo);
 
   // Sync state with daily
   useDailyEvent("participant-updated", (evt: any) => {
@@ -159,6 +166,17 @@ function CallControls({
         )}
       </button>
 
+      {/* Whiteboard Toggle (Only if handler provided) */}
+      {onToggleWhiteboard && (
+        <button
+          onClick={onToggleWhiteboard}
+          className={`p-3 rounded-full transition-all ${isWhiteboardOpen ? "bg-brand-gold text-brand-black" : "bg-gray-700/50 hover:bg-gray-600/50 text-white"}`}
+          title="Pizarra Compartida"
+        >
+          <Edit2 className="w-5 h-5" />
+        </button>
+      )}
+
       <div className="w-px h-8 bg-gray-700 mx-2" />
 
       <button
@@ -186,9 +204,15 @@ function CallControls({
 export default function DailyVideo({
   roomUrl,
   onLeave,
+  onToggleWhiteboard,
+  isWhiteboardOpen,
+  startWithVideo = true,
 }: {
   roomUrl: string;
   onLeave: () => void;
+  onToggleWhiteboard?: () => void;
+  isWhiteboardOpen?: boolean;
+  startWithVideo?: boolean;
 }) {
   const [callObject, setCallObject] = useState<DailyCall | null>(null);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -198,6 +222,8 @@ export default function DailyVideo({
 
     const newCallObject = DailyIframe.createCallObject({
       url: roomUrl,
+      audioSource: true,
+      videoSource: startWithVideo,
     });
 
     newCallObject.join();
@@ -248,6 +274,9 @@ export default function DailyVideo({
               }}
               isMinimized={isMinimized}
               onToggleMinimize={() => setIsMinimized(!isMinimized)}
+              onToggleWhiteboard={onToggleWhiteboard}
+              isWhiteboardOpen={isWhiteboardOpen}
+              startWithVideo={startWithVideo}
             />
           </div>
         </motion.div>

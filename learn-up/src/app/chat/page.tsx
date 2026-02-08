@@ -686,9 +686,32 @@ export default function ChatPage() {
                   onLeave={() => {
                     setShowVideo(false);
                     setVideoUrl(null);
+                    setShowWhiteboard(false);
                   }}
+                  onToggleWhiteboard={() => setShowWhiteboard((prev) => !prev)}
+                  isWhiteboardOpen={showWhiteboard}
+                  startWithVideo={startWithVideo}
                 />
-                {/* Optional: Whiteboard overlay or sidebar logic could go here if DailyVideo component supports it */}
+                <AnimatePresence>
+                  {showWhiteboard && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      className="absolute inset-4 md:inset-12 z-[60] bg-white rounded-2xl shadow-2xl overflow-hidden border-2 border-brand-gold"
+                    >
+                      <div className="w-full h-full relative">
+                        <Whiteboard roomId={activeChat || "temp-room"} />
+                        <button
+                          onClick={() => setShowWhiteboard(false)}
+                          className="absolute top-4 right-4 p-2 bg-red-500/10 text-red-500 hover:bg-red-500/20 rounded-full z-10 transition-colors"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             ) : (
               <>
@@ -769,7 +792,14 @@ export default function ChatPage() {
                   {/* Header Actions */}
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={startCall}
+                      onClick={() => startCall(false)}
+                      className="p-2.5 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-brand-gold"
+                      title="Llamada de Voz"
+                    >
+                      <Phone className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => startCall(true)}
                       className="p-2.5 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-brand-gold"
                       title="Iniciar Videollamada"
                     >

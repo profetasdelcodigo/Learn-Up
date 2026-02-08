@@ -89,7 +89,11 @@ export async function ensurePrivateRoom(friendId: string) {
   return newRoom.id;
 }
 
-export async function createGroup(name: string, participantIds: string[]) {
+export async function createGroup(
+  name: string,
+  participantIds: string[],
+  avatar_url?: string | null,
+) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -105,6 +109,7 @@ export async function createGroup(name: string, participantIds: string[]) {
       name,
       participants: allParticipants,
       admins: [user.id],
+      avatar_url: avatar_url || null, // Add avatar_url
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
@@ -113,6 +118,42 @@ export async function createGroup(name: string, participantIds: string[]) {
 
   if (error) throw error;
   return data.id;
+}
+
+export async function updateGroup(
+  roomId: string,
+  name: string,
+  avatar_url?: string | null,
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  // Verify admin status (optional but recommended)
+  const { data: room } = await supabase
+    .from("chat_rooms")
+    .select("admins")
+    .eq("id", roomId)
+    .single();
+
+  if (!room?.admins?.includes(user.id)) {
+    throw new Error("Only admins can update group info");
+  }
+
+  const updates: any = {
+    name,
+    updated_at: new Date().toISOString(),
+  };
+  if (avatar_url !== undefined) updates.avatar_url = avatar_url;
+
+  const { error } = await supabase
+    .from("chat_rooms")
+    .update(updates)
+    .eq("id", roomId);
+
+  if (error) throw error;
 }
 
 export async function getChatMessages(roomId: string) {

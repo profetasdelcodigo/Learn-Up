@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { X, Users, Upload, Check } from "lucide-react";
-import { createGroup } from "@/actions/chat";
+import { useState, useRef } from "react";
+import { X, Users, Upload, Check, Camera } from "lucide-react";
+import { createGroup, updateGroup, uploadChatMedia } from "@/actions/chat";
 
 interface Friend {
   id: string;
@@ -27,6 +27,9 @@ export default function CreateGroupModal({
   const [groupName, setGroupName] = useState("");
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
 
@@ -38,16 +41,41 @@ export default function CreateGroupModal({
     );
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    }
+  };
+
   const handleCreate = async () => {
     if (!groupName.trim() || selectedFriends.length === 0) return;
 
     setIsCreating(true);
     try {
+      // 1. Create Group first to get ID
       const roomId = await createGroup(groupName.trim(), selectedFriends);
+
+      // 2. If photo selected, upload and update
+      if (selectedFile) {
+        try {
+          const avatarUrl = await uploadChatMedia(selectedFile, roomId);
+          await updateGroup(roomId, groupName.trim(), avatarUrl);
+        } catch (uploadError) {
+          console.error("Error uploading group photo:", uploadError);
+          // Continue even if photo fails, just warn or ignore
+        }
+      }
+
       onGroupCreated(roomId);
       onClose();
+      // Reset state
       setGroupName("");
       setSelectedFriends([]);
+      setSelectedFile(null);
+      setPreviewUrl(null);
     } catch (error) {
       console.error("Error creating group:", error);
       alert("Error al crear el grupo");
@@ -74,7 +102,38 @@ export default function CreateGroupModal({
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+        <div className="p-4 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+          {/* Photo Upload */}
+          <div className="flex flex-col items-center justify-center">
+            <div
+              className="relative w-24 h-24 rounded-full bg-gray-800 border-2 border-dashed border-gray-600 flex items-center justify-center cursor-pointer hover:border-brand-gold hover:bg-gray-800/50 transition-all overflow-hidden group"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {previewUrl ? (
+                <img
+                  src={previewUrl}
+                  alt="Preview"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="flex flex-col items-center text-gray-400 group-hover:text-brand-gold">
+                  <Camera className="w-8 h-8 mb-1" />
+                  <span className="text-[10px]">Foto</span>
+                </div>
+              )}
+            </div>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              accept="image/*"
+              className="hidden"
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              Opcional: Elige una foto
+            </p>
+          </div>
+
           {/* Group Name */}
           <div>
             <label className="block text-sm font-medium text-gray-400 mb-2">

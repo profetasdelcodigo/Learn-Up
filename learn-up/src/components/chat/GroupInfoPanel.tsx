@@ -1,7 +1,7 @@
-"use client";
-
-import { useState } from "react";
-import { X, Users, Edit2, LogOut, Upload } from "lucide-react";
+import { useState, useRef } from "react";
+import { X, Users, Edit2, LogOut, Upload, Loader2, Camera } from "lucide-react";
+import { updateGroup, uploadChatMedia } from "@/actions/chat";
+import { createClient } from "@/utils/supabase/client";
 
 interface GroupInfoPanelProps {
   isOpen: boolean;
@@ -11,6 +11,7 @@ interface GroupInfoPanelProps {
     name?: string;
     participants: string[];
     type: "group" | "private";
+    avatar_url?: string | null;
   };
   members: Array<{
     id: string;
@@ -32,12 +33,46 @@ export default function GroupInfoPanel({
 }: GroupInfoPanelProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [groupName, setGroupName] = useState(room.name || "");
+  const [isSaving, setIsSaving] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(
+    room.avatar_url || null,
+  );
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen || room.type !== "group") return null;
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+      // Auto-enable edit mode if not already
+      if (!isEditing) setIsEditing(true);
+    }
+  };
+
   const handleSave = async () => {
-    // TODO: Implement update group action
-    setIsEditing(false);
+    if (!groupName.trim()) return;
+    setIsSaving(true);
+    try {
+      let avatarUrl = room.avatar_url;
+
+      if (selectedFile) {
+        avatarUrl = await uploadChatMedia(selectedFile, room.id);
+      }
+
+      await updateGroup(room.id, groupName.trim(), avatarUrl);
+      setIsEditing(false);
+      setSelectedFile(null);
+      // Reload logic handled by page or realtime usually, but local state update:
+      // In a real app we might want to update the parent's room list or rely on realtime.
+    } catch (error) {
+      console.error("Error upgrading group:", error);
+      alert("Error al actualizar grupo");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -57,12 +92,34 @@ export default function GroupInfoPanel({
 
       {/* Group Photo */}
       <div className="p-6 flex flex-col items-center border-b border-gray-800">
-        <div className="w-24 h-24 rounded-full bg-brand-gold/20 border-2 border-brand-gold/50 flex items-center justify-center mb-4 relative group cursor-pointer">
-          <Users className="w-12 h-12 text-brand-gold" />
-          <div className="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-            <Upload className="w-6 h-6 text-white" />
-          </div>
+        <div
+          className="w-24 h-24 rounded-full bg-brand-gold/20 border-2 border-brand-gold/50 flex items-center justify-center mb-4 relative group cursor-pointer overflow-hidden"
+          onClick={() => isEditing && fileInputRef.current?.click()}
+        >
+          {previewUrl ? (
+            <img
+              src={previewUrl}
+              className="w-full h-full object-cover"
+              alt="Group"
+            />
+          ) : (
+            <Users className="w-12 h-12 text-brand-gold" />
+          )}
+
+          {isEditing && (
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+              <Camera className="w-6 h-6 text-white" />
+            </div>
+          )}
         </div>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileSelect}
+          accept="image/*"
+          className="hidden"
+          disabled={!isEditing}
+        />
 
         {/* Group Name */}
         {isEditing ? (
@@ -73,19 +130,30 @@ export default function GroupInfoPanel({
               onChange={(e) => setGroupName(e.target.value)}
               className="w-full px-4 py-2 bg-gray-900 border border-gray-800 rounded-xl text-white text-center focus:outline-none focus:border-brand-gold/50"
               maxLength={50}
+              autoFocus
             />
             <div className="flex gap-2">
               <button
-                onClick={() => setIsEditing(false)}
+                onClick={() => {
+                  setIsEditing(false);
+                  setGroupName(room.name || "");
+                  setPreviewUrl(room.avatar_url || null);
+                  setSelectedFile(null);
+                }}
                 className="flex-1 px-3 py-2 bg-gray-800 text-white rounded-lg text-sm"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSave}
-                className="flex-1 px-3 py-2 bg-brand-gold text-brand-black rounded-lg text-sm font-bold"
+                disabled={isSaving}
+                className="flex-1 px-3 py-2 bg-brand-gold text-brand-black rounded-lg text-sm font-bold flex items-center justify-center"
               >
-                Guardar
+                {isSaving ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  "Guardar"
+                )}
               </button>
             </div>
           </div>
