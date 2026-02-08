@@ -177,20 +177,27 @@ export async function getChatMessages(roomId: string) {
   return data as Message[];
 }
 
-export async function sendMessage(roomId: string, content: string) {
+export async function sendMessage(
+  roomId: string,
+  content: string,
+  id?: string,
+) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
+  const messageData: any = {
+    room_id: roomId,
+    user_id: user.id,
+    content,
+  };
+  if (id) messageData.id = id;
+
   const { data, error } = await supabase
     .from("chat_messages")
-    .insert({
-      room_id: roomId,
-      user_id: user.id, // CORRECT: user_id
-      content,
-    })
+    .insert(messageData)
     .select()
     .single();
 

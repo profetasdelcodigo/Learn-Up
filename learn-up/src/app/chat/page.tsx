@@ -148,7 +148,7 @@ export default function ChatPage() {
   // Toast notifications
   const [toasts, setToasts] = useState<Toast[]>([]);
   const addToast = (message: string, type: Toast["type"] = "info") => {
-    const id = Math.random().toString(36).substring(7);
+    const id = crypto.randomUUID();
     setToasts((prev) => [...prev, { id, message, type }]);
   };
   const removeToast = (id: string) => {
@@ -350,7 +350,7 @@ export default function ChatPage() {
     setInput("");
 
     // Optimistic update
-    const tempId = Math.random().toString();
+    const tempId = crypto.randomUUID();
     const tempMsg: Message = {
       id: tempId,
       content,
@@ -362,7 +362,7 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, tempMsg]);
 
     try {
-      await sendMessageAction(activeChat, content);
+      await sendMessageAction(activeChat, content, tempId);
     } catch (error) {
       console.error("Error sending message:", error);
       addToast("Error al enviar mensaje", "error");
@@ -812,7 +812,7 @@ export default function ChatPage() {
                 </div>
 
                 {/* Messages Area */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-[url('https://grainy-gradients.vercel.app/noise.svg')] bg-opacity-20">
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-[url('/grid-pattern.svg')] bg-opacity-5">
                   {messages.map((msg) => {
                     const isMe = msg.user_id === currentUserId;
                     return (
