@@ -74,6 +74,7 @@ interface Message {
   user_id: string;
   room_id: string;
   created_at: string;
+  updated_at?: string;
   is_edited?: boolean;
   is_deleted_for_everyone?: boolean;
   deleted_for?: string[];

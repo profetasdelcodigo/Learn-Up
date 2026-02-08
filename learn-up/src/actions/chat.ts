@@ -20,6 +20,7 @@ export interface Message {
   user_id: string; // CORRECT: user_id
   room_id: string;
   created_at: string;
+  updated_at?: string;
   is_edited?: boolean;
   is_deleted_for_everyone?: boolean;
   deleted_for?: string[];
@@ -100,7 +101,9 @@ export async function createGroup(
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
-  const allParticipants = Array.from(new Set([user.id, ...participantIds]));
+  const allParticipants = Array.from(
+    new Set([user.id, ...participantIds]),
+  ).filter(Boolean);
 
   const { data, error } = await supabase
     .from("chat_rooms")

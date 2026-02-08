@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import DailyIframe, { DailyCall } from "@daily-co/daily-js";
 import {
   DailyProvider,
@@ -214,25 +214,50 @@ export default function DailyVideo({
   isWhiteboardOpen?: boolean;
   startWithVideo?: boolean;
 }) {
-  const [callObject, setCallObject] = useState<DailyCall | null>(null);
+  const callObject = useMemo(() => {
+    return (
+      DailyIframe.getCallInstance() ||
+      DailyIframe.createCallObject({
+        url: roomUrl,
+        audioSource: true,
+        videoSource: startWithVideo,
+      })
+    );
+  }, [roomUrl, startWithVideo]);
+
   const [isMinimized, setIsMinimized] = useState(false);
 
   useEffect(() => {
-    if (!roomUrl) return;
+    if (!callObject) return;
 
-    const newCallObject = DailyIframe.createCallObject({
-      url: roomUrl,
-      audioSource: true,
-      videoSource: startWithVideo,
-    });
-
-    newCallObject.join();
-    setCallObject(newCallObject);
-
-    return () => {
-      newCallObject.destroy();
+    const joinCall = async () => {
+      // Only join if not already joined or joining
+      const state = callObject.meetingState();
+      if (
+        state !== "joined-meeting" &&
+        state !== "joining-meeting" &&
+        !state.includes("error")
+      ) {
+        try {
+          await callObject.join({ url: roomUrl });
+        } catch (e) {
+          console.error("Error joining call:", e);
+        }
+      }
     };
-  }, [roomUrl]);
+
+    joinCall();
+
+    // Cleanup function
+    return () => {
+      try {
+        callObject.leave();
+        callObject.destroy();
+      } catch (e) {
+        console.error("Error destroying call object:", e);
+      }
+    };
+  }, [callObject, roomUrl]);
 
   if (!callObject) return null;
 
