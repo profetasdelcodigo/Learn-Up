@@ -139,7 +139,7 @@ export default function Sidebar() {
 
       if (currentUser) {
         const channel = supabase
-          .channel("custom-filter-channel")
+          .channel("notifications")
           .on(
             "postgres_changes",
             {
@@ -201,7 +201,7 @@ export default function Sidebar() {
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <BottomNav />
+      <BottomNav unreadCount={unreadCount} />
 
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 h-full bg-brand-black border-r border-brand-gold flex-col">
