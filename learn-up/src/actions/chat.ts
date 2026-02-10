@@ -212,6 +212,46 @@ export async function sendMessage(
     })
     .eq("id", roomId);
 
+  // Send Notifications
+  try {
+    // 1. Get room participants
+    const { data: room } = await supabase
+      .from("chat_rooms")
+      .select("participants, type, name")
+      .eq("id", roomId)
+      .single();
+
+    if (room && room.participants) {
+      const recipients = room.participants.filter(
+        (id: string) => id !== user.id,
+      );
+
+      if (recipients.length > 0) {
+        // 2. Prepare notifications
+        const notifications = recipients.map((recipientId: string) => ({
+          user_id: recipientId,
+          type: "message",
+          title:
+            room.type === "group"
+              ? `Nuevo mensaje en ${room.name || "Grupo"}`
+              : "Nuevo mensaje",
+          message:
+            content.substring(0, 50) + (content.length > 50 ? "..." : ""),
+          sender_id: user.id,
+          is_read: false,
+          link: `/chat`, // Opcional: link to chat
+          created_at: new Date().toISOString(),
+        }));
+
+        // 3. Insert notifications
+        await supabase.from("notifications").insert(notifications);
+      }
+    }
+  } catch (e) {
+    console.error("Error sending notifications:", e);
+    // Don't fail the message if notification fails
+  }
+
   return data;
 }
 

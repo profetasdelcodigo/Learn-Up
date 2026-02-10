@@ -196,6 +196,28 @@ export default function ChatPage() {
       }
     };
     initData();
+
+    // 2. Realtime Subscription for Chat Rooms (List)
+    const channel = supabase
+      .channel("chat_rooms_list")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "chat_rooms",
+        },
+        async () => {
+          // Refresh rooms list when any room changes (filtered by RLS conceptually, but we re-fetch to be safe)
+          const updatedRooms = await getUserRooms();
+          setRooms(updatedRooms || []);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [router, supabase]);
 
   const handleSearch = async (query: string) => {

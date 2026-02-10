@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import DailyIframe, { DailyCall } from "@daily-co/daily-js";
 import {
   DailyProvider,
@@ -214,32 +214,35 @@ export default function DailyVideo({
   isWhiteboardOpen?: boolean;
   startWithVideo?: boolean;
 }) {
-  const callObject = useMemo(() => {
-    return (
-      DailyIframe.getCallInstance() ||
-      DailyIframe.createCallObject({
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [callObject, setCallObject] = useState<DailyCall | null>(null);
+
+  useEffect(() => {
+    // 1. Singleton Check
+    let instance = DailyIframe.getCallInstance();
+    if (!instance) {
+      instance = DailyIframe.createCallObject({
         url: roomUrl,
         audioSource: true,
         videoSource: startWithVideo,
-      })
-    );
-  }, [roomUrl, startWithVideo]);
+      });
+    }
 
-  const [isMinimized, setIsMinimized] = useState(false);
+    setCallObject(instance);
 
-  useEffect(() => {
-    if (!callObject) return;
-
+    // 2. Join Logic
     const joinCall = async () => {
-      // Only join if not already joined or joining
-      const state = callObject.meetingState();
+      if (!instance) return;
+      const state = instance.meetingState();
+
+      // Only join if we are not already in a meeting or joining one
       if (
         state !== "joined-meeting" &&
         state !== "joining-meeting" &&
         !state.includes("error")
       ) {
         try {
-          await callObject.join({ url: roomUrl });
+          await instance.join({ url: roomUrl });
         } catch (e) {
           console.error("Error joining call:", e);
         }
@@ -248,16 +251,16 @@ export default function DailyVideo({
 
     joinCall();
 
-    // Cleanup function
+    // 3. Cleanup
     return () => {
       try {
-        callObject.leave();
-        callObject.destroy();
+        instance?.leave();
+        instance?.destroy();
       } catch (e) {
         console.error("Error destroying call object:", e);
       }
     };
-  }, [callObject, roomUrl]);
+  }, [roomUrl]); // Only re-run if roomUrl changes
 
   if (!callObject) return null;
 
