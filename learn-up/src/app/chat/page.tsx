@@ -53,7 +53,7 @@ import CreateGroupModal from "@/components/chat/CreateGroupModal";
 import GroupInfoPanel from "@/components/chat/GroupInfoPanel";
 import ToastContainer, { Toast } from "@/components/ToastContainer";
 
-const JitsiMeet = dynamic(() => import("@/components/JitsiMeet"), {
+const VideoRoom = dynamic(() => import("@/components/VideoRoom"), {
   ssr: false,
   loading: () => null,
 });
@@ -534,7 +534,9 @@ export default function ChatPage() {
                 room.type === "group"
                   ? `Llamada en ${room.name || "Grupo"}`
                   : "Llamada entrante",
-              message: videoEnabled ? "Videollamada" : "Llamada de voz",
+              message: videoEnabled
+                ? "Videollamada en curso - Únete ahora"
+                : "Llamada de voz en curso",
               sender_id: currentUserId,
               is_read: false,
               link: `/chat`,
@@ -846,18 +848,13 @@ export default function ChatPage() {
           {activeChat ? (
             showVideo ? (
               <div className="w-full h-full relative">
-                <JitsiMeet
+                <VideoRoom
                   roomName={`learn-up-${activeChat}`}
-                  displayName={
-                    friends.find((f) => f.id === currentUserId)?.full_name ||
-                    "Usuario"
-                  }
-                  onClose={() => {
+                  username={currentProfile?.full_name || "Usuario"}
+                  onLeave={() => {
                     setShowVideo(false);
                     setShowWhiteboard(false);
                   }}
-                  onWhiteboardToggle={() => setShowWhiteboard((prev) => !prev)}
-                  showWhiteboard={showWhiteboard}
                 />
                 <AnimatePresence>
                   {showWhiteboard && (

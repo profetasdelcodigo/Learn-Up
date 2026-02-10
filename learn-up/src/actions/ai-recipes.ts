@@ -30,8 +30,7 @@ FORMATO JSON REQUERIDO:
   "title": "Nombre de la receta",
   "description": "Breve descripción atractiva",
   "ingredients": ["Ingrediente 1", "Ingrediente 2"],
-  "steps": ["Paso 1", "Paso 2"],
-  "imageQuery": "Término de búsqueda simple en inglés para encontrar una foto (ej: 'chicken salad')"
+  "steps": ["Paso 1", "Paso 2"]
 }
 
 REGLAS:
@@ -39,7 +38,6 @@ REGLAS:
 - Cantidades específicas en ingredientes
 - Pasos claros
 - Culturalmente apropiada
-- imageQuery debe ser en inglés para mejor resultados en Unsplash
 - Responde SOLO con el JSON válido`;
 
     const userPrompt = `Genera una receta deliciosa y saludable para: "${mealType}".`;
@@ -63,10 +61,11 @@ REGLAS:
       throw new Error("Receta inválida generada");
     }
 
-    // Fetch Image from Unsplash
-    if (recipe.imageQuery) {
+    // Fetch Image from Unsplash using the Title
+    if (recipe.title) {
       try {
-        const imageUrl = await searchRecipeImage(recipe.imageQuery);
+        // Append 'food' to context
+        const imageUrl = await searchRecipeImage(recipe.title);
         if (imageUrl) {
           recipe.imageUrl = imageUrl;
         }
