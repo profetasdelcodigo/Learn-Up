@@ -129,12 +129,17 @@ export default function ChatPage() {
   const [showWhiteboard, setShowWhiteboard] = useState(false);
   const [startWithVideo, setStartWithVideo] = useState(true);
 
+  // New Tab State
+  const [sidebarTab, setSidebarTab] = useState<"chats" | "friends" | "search">(
+    "chats",
+  );
+  // Local Filter
+  const [localFilter, setLocalFilter] = useState("");
   // Search State
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  // New Tab State
-  const [sidebarTab, setSidebarTab] = useState<"chats" | "friends">("chats");
+
   // Group Modal State
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [showGroupInfo, setShowGroupInfo] = useState(false);
@@ -158,6 +163,8 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const supabase = createClient();
+
+  // ... (scrollToBottom and initial useEffects remain same, skipping to keep context)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -233,6 +240,28 @@ export default function ChatPage() {
     }
   };
 
+  const handleSendRequest = async (targetId: string) => {
+    try {
+      const res = await sendFriendRequest(targetId);
+      if (res.success) {
+        addToast("Solicitud enviada", "success");
+        // Update local state to reflect pending status
+        setSearchResults((prev) =>
+          prev.map((u) =>
+            u.id === targetId ? { ...u, friendshipStatus: "pending" } : u,
+          ),
+        );
+      } else {
+        addToast(res.message || "Error al enviar solicitud", "info");
+      }
+    } catch (error) {
+      console.error(error);
+      addToast("Error al enviar solicitud", "error");
+    }
+  };
+
+  // ... (handleDeleteMessage, handleMediaUpload, handleEditMessage remain same)
+
   const handleDeleteMessage = async (messageId: string) => {
     // Simple confirm for MVP
     if (
@@ -303,14 +332,17 @@ export default function ChatPage() {
   // Search Logic (Debounce)
   useEffect(() => {
     const timer = setTimeout(async () => {
-      if (searchQuery.length > 2) {
+      // Only search globally if we are in search tab
+      if (sidebarTab === "search" && searchQuery.length > 2) {
         handleSearch(searchQuery);
-      } else {
+      } else if (sidebarTab === "search") {
         setSearchResults([]);
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, sidebarTab]);
+
+  // ... (loadMessages useEffect and others remain same)
 
   // Load Messages when activeChat changes
   useEffect(() => {
@@ -499,6 +531,19 @@ export default function ChatPage() {
     }
   };
 
+  // Local Filters
+  const filteredRooms = rooms.filter((room) => {
+    if (!localFilter) return true;
+    const info = getRoomInfo(room);
+    return info.name.toLowerCase().includes(localFilter.toLowerCase());
+  });
+
+  const filteredFriends = friends.filter((friend) => {
+    if (!localFilter) return true;
+    const name = friend.full_name || friend.username || "";
+    return name.toLowerCase().includes(localFilter.toLowerCase());
+  });
+
   return (
     <>
       <ToastContainer toasts={toasts} removeToast={removeToast} />
@@ -526,23 +571,14 @@ export default function ChatPage() {
               </button>
             </div>
 
-            {/* Search */}
-            <div className="relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-brand-gold transition-colors" />
-              <input
-                type="text"
-                placeholder="Buscar..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-gray-900/50 border border-gray-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold/50 transition-all"
-              />
-            </div>
-
             {/* Tabs */}
             <div className="flex p-1 bg-gray-900 rounded-xl">
               <button
-                onClick={() => setSidebarTab("chats")}
-                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
+                onClick={() => {
+                  setSidebarTab("chats");
+                  setLocalFilter("");
+                }}
+                className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all ${
                   sidebarTab === "chats"
                     ? "bg-brand-gold text-brand-black shadow-lg"
                     : "text-gray-400 hover:text-white"
@@ -551,8 +587,11 @@ export default function ChatPage() {
                 Conversaciones
               </button>
               <button
-                onClick={() => setSidebarTab("friends")}
-                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
+                onClick={() => {
+                  setSidebarTab("friends");
+                  setLocalFilter("");
+                }}
+                className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all ${
                   sidebarTab === "friends"
                     ? "bg-brand-gold text-brand-black shadow-lg"
                     : "text-gray-400 hover:text-white"
@@ -560,24 +599,68 @@ export default function ChatPage() {
               >
                 Amigos
               </button>
+              <button
+                onClick={() => {
+                  setSidebarTab("search");
+                  setLocalFilter("");
+                  setSearchQuery("");
+                }}
+                className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all ${
+                  sidebarTab === "search"
+                    ? "bg-brand-gold text-brand-black shadow-lg"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                Buscar
+              </button>
+            </div>
+
+            {/* Dynamic Search/Filter Bar */}
+            <div className="relative group">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-brand-gold transition-colors" />
+              {sidebarTab === "search" ? (
+                <input
+                  type="text"
+                  placeholder="Buscar @usuario..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-gray-900/50 border border-gray-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold/50 transition-all"
+                  autoFocus
+                />
+              ) : (
+                <input
+                  type="text"
+                  placeholder={
+                    sidebarTab === "chats"
+                      ? "Filtrar chats..."
+                      : "Filtrar amigos..."
+                  }
+                  value={localFilter}
+                  onChange={(e) => setLocalFilter(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-gray-900/50 border border-gray-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold/50 transition-all"
+                />
+              )}
             </div>
           </div>
 
           {/* Sidebar List */}
           <div className="flex-1 overflow-y-auto custom-scrollbar">
-            {isSearching ? (
+            {sidebarTab === "search" ? (
               <div className="p-2">
-                <p className="px-4 py-2 text-xs font-bold text-brand-gold uppercase tracking-wider">
-                  Resultados
-                </p>
+                {searchResults.length === 0 &&
+                  searchQuery.length > 2 &&
+                  !isSearching && (
+                    <div className="px-4 py-8 text-center text-gray-500 text-sm">
+                      No se encontraron usuarios
+                    </div>
+                  )}
                 {searchResults.map((user) => (
                   <div
                     key={user.id}
-                    className="p-3 hover:bg-white/5 bg-gray-900/40 rounded-xl cursor-pointer transition-all mx-2 mb-1 group"
-                    onClick={() => handleStartChat(user.id)}
+                    className="p-3 bg-gray-900/40 rounded-xl mx-2 mb-2 flex items-center justify-between"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center overflow-hidden">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <div className="w-10 h-10 rounded-full bg-gray-800 flex-shrink-0 flex items-center justify-center overflow-hidden">
                         {user.avatar_url ? (
                           <img
                             src={user.avatar_url}
@@ -587,27 +670,58 @@ export default function ChatPage() {
                           <Users className="w-5 h-5 text-gray-400" />
                         )}
                       </div>
-                      <div>
-                        <h3 className="font-bold text-white text-sm">
+                      <div className="min-w-0">
+                        <h3 className="font-bold text-white text-sm truncate">
                           {user.full_name}
                         </h3>
-                        <p className="text-xs text-gray-500">
-                          {user.school || user.username}
+                        <p className="text-xs text-gray-500 truncate bg-black/30 rounded px-1 inline-block">
+                          @{user.username}
                         </p>
                       </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div>
+                      {user.friendshipStatus === "accepted" ? (
+                        <button
+                          onClick={() => handleStartChat(user.id)}
+                          className="p-2 bg-brand-gold text-brand-black rounded-full hover:bg-white transition-colors"
+                          title="Enviar Mensaje"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                        </button>
+                      ) : user.friendshipStatus === "pending" ? (
+                        <button
+                          disabled
+                          className="px-3 py-1 bg-gray-800 text-gray-400 text-xs rounded-full cursor-not-allowed border border-gray-700"
+                        >
+                          Pendiente
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleSendRequest(user.id)}
+                          className="px-3 py-1 bg-brand-gold/10 text-brand-gold border border-brand-gold/50 text-xs rounded-full hover:bg-brand-gold hover:text-brand-black transition-all"
+                        >
+                          Agregar
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
             ) : sidebarTab === "chats" ? (
               <div className="p-2 space-y-1">
-                {rooms.length === 0 ? (
+                {filteredRooms.length === 0 ? (
                   <div className="px-4 py-12 text-center text-gray-400">
                     <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>No hay conversaciones</p>
+                    <p>
+                      {localFilter
+                        ? "No hay chats que coincidan"
+                        : "No hay conversaciones"}
+                    </p>
                   </div>
                 ) : (
-                  rooms.map((room) => {
+                  filteredRooms.map((room) => {
                     const info = getRoomInfo(room);
                     const isActive = activeChat === room.id;
                     return (
@@ -659,13 +773,17 @@ export default function ChatPage() {
               </div>
             ) : (
               <div className="p-2 space-y-1">
-                {friends.length === 0 ? (
+                {filteredFriends.length === 0 ? (
                   <div className="px-4 py-12 text-center text-gray-400">
                     <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>No tienes amigos agregados</p>
+                    <p>
+                      {localFilter
+                        ? "No hay amigos que coincidan"
+                        : "No tienes amigos agregados"}
+                    </p>
                   </div>
                 ) : (
-                  friends.map((friend) => (
+                  filteredFriends.map((friend) => (
                     <div
                       key={friend.id}
                       onClick={() => handleStartChat(friend.id)}
