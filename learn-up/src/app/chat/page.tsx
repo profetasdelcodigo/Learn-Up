@@ -29,7 +29,6 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
-import { createDailyRoom } from "@/actions/daily-video";
 import {
   searchUsers,
   sendFriendRequest,
@@ -54,7 +53,7 @@ import CreateGroupModal from "@/components/chat/CreateGroupModal";
 import GroupInfoPanel from "@/components/chat/GroupInfoPanel";
 import ToastContainer, { Toast } from "@/components/ToastContainer";
 
-const DailyVideo = dynamic(() => import("@/components/DailyVideo"), {
+const JitsiMeet = dynamic(() => import("@/components/JitsiMeet"), {
   ssr: false,
   loading: () => null,
 });
@@ -125,9 +124,7 @@ export default function ChatPage() {
   const [activeChat, setActiveChat] = useState<string | null>(null);
   const [mobileShowChat, setMobileShowChat] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [showWhiteboard, setShowWhiteboard] = useState(false);
-  const [startWithVideo, setStartWithVideo] = useState(true);
 
   // New Tab State
   const [sidebarTab, setSidebarTab] = useState<"chats" | "friends" | "search">(
@@ -504,7 +501,6 @@ export default function ChatPage() {
   };
 
   const startCall = async (videoEnabled: boolean = true) => {
-    setStartWithVideo(videoEnabled);
     if (!activeChat) return;
     try {
       // Permissions check
@@ -514,20 +510,46 @@ export default function ChatPage() {
       });
       stream.getTracks().forEach((t) => t.stop());
 
-      const roomData = await createDailyRoom(activeChat);
-      if (roomData && roomData.url) {
-        setVideoUrl(roomData.url);
-        setShowVideo(true);
-      } else {
-        console.error("No se pudo crear la sala");
-        addToast("Error al crear la sala de video", "error");
+      // Jitsi doesn't need room creation - just open the component
+      setShowVideo(true);
+
+      // Create notification for call
+      try {
+        const { data: room } = await supabase
+          .from("chat_rooms")
+          .select("participants, type, name")
+          .eq("id", activeChat)
+          .single();
+
+        if (room && room.participants) {
+          const recipients = room.participants.filter(
+            (id: string) => id !== currentUserId,
+          );
+
+          if (recipients.length > 0) {
+            const notifications = recipients.map((recipientId: string) => ({
+              user_id: recipientId,
+              type: "call",
+              title:
+                room.type === "group"
+                  ? `Llamada en ${room.name || "Grupo"}`
+                  : "Llamada entrante",
+              message: videoEnabled ? "Videollamada" : "Llamada de voz",
+              sender_id: currentUserId,
+              is_read: false,
+              link: `/chat`,
+              created_at: new Date().toISOString(),
+            }));
+
+            await supabase.from("notifications").insert(notifications);
+          }
+        }
+      } catch (e) {
+        console.error("Error creating call notification:", e);
       }
     } catch (e) {
       console.error(e);
-      addToast(
-        "No se pudo acceder a cámara/micrófono o error al iniciar llamada",
-        "error",
-      );
+      addToast("No se pudo acceder a cámara/micrófono", "error");
     }
   };
 
@@ -824,16 +846,18 @@ export default function ChatPage() {
           {activeChat ? (
             showVideo ? (
               <div className="w-full h-full relative">
-                <DailyVideo
-                  roomUrl={videoUrl || ""}
-                  onLeave={() => {
+                <JitsiMeet
+                  roomName={`learn-up-${activeChat}`}
+                  displayName={
+                    friends.find((f) => f.id === currentUserId)?.full_name ||
+                    "Usuario"
+                  }
+                  onClose={() => {
                     setShowVideo(false);
-                    setVideoUrl(null);
                     setShowWhiteboard(false);
                   }}
-                  onToggleWhiteboard={() => setShowWhiteboard((prev) => !prev)}
-                  isWhiteboardOpen={showWhiteboard}
-                  startWithVideo={startWithVideo}
+                  onWhiteboardToggle={() => setShowWhiteboard((prev) => !prev)}
+                  showWhiteboard={showWhiteboard}
                 />
                 <AnimatePresence>
                   {showWhiteboard && (

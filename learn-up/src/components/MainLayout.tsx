@@ -17,18 +17,27 @@ export default function MainLayout({
   const isPublicRoute =
     publicRoutes.includes(pathname) || pathname.startsWith("/auth/");
 
+  // Hide sidebar on chat page (has its own sidebar)
+  const isChatPage = pathname === "/chat";
+
   return (
     <div className="flex h-screen bg-brand-black overflow-hidden">
       <WelcomeTutorial />
 
-      {!isPublicRoute && (
+      {!isPublicRoute && !isChatPage && (
         <div className="hidden md:flex flex-shrink-0">
           <Sidebar />
         </div>
       )}
 
-      <main className="flex-1 overflow-y-auto bg-brand-black p-4 md:p-8 relative">
-        <div className="max-w-6xl mx-auto w-full">{children}</div>
+      <main
+        className={`flex-1 overflow-y-auto bg-brand-black ${isChatPage ? "p-0" : "p-4 md:p-8"} relative`}
+      >
+        <div
+          className={isChatPage ? "w-full h-full" : "max-w-6xl mx-auto w-full"}
+        >
+          {children}
+        </div>
       </main>
 
       {!isPublicRoute && (
