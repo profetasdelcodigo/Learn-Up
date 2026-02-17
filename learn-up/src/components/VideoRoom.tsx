@@ -12,7 +12,7 @@ import {
 } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { useEffect, useState } from "react";
-import { Track } from "livekit-client";
+import { Track, ConnectionState } from "livekit-client";
 import {
   Mic,
   MicOff,
@@ -30,12 +30,14 @@ interface VideoRoomProps {
   roomName: string;
   username: string;
   onLeave: () => void;
+  videoEnabled?: boolean; // New prop
 }
 
 export default function VideoRoom({
   roomName,
   username,
   onLeave,
+  videoEnabled = true, // Default to true
 }: VideoRoomProps) {
   const [token, setToken] = useState<string>("");
   const [showWhiteboard, setShowWhiteboard] = useState(false);
@@ -67,7 +69,7 @@ export default function VideoRoom({
 
   return (
     <LiveKitRoom
-      video={true}
+      video={videoEnabled} // Use prop
       audio={true}
       token={token}
       serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
@@ -78,8 +80,20 @@ export default function VideoRoom({
     >
       <div className="flex flex-col h-full relative">
         {/* Main Video Area */}
-        <div className="flex-1 relative">
-          <MyVideoConference />
+        <div className="flex-1 relative bg-black">
+          {!videoEnabled ? (
+            // Audio Only UI
+            <div className="absolute inset-0 flex items-center justify-center z-10">
+              <div className="w-32 h-32 rounded-full bg-gradient-to-br from-brand-gold to-brand-brown animate-pulse flex items-center justify-center shadow-[0_0_50px_rgba(212,175,55,0.3)]">
+                <span className="text-4xl font-bold text-brand-black">
+                  {username.charAt(0).toUpperCase()}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <MyVideoConference />
+          )}
+
           <RoomAudioRenderer />
 
           {/* Whiteboard Overlay */}
@@ -98,7 +112,8 @@ export default function VideoRoom({
                   >
                     <X className="w-5 h-5" />
                   </button>
-                  <Whiteboard roomId={roomName} />
+                  {/* Only mount if connected to avoid errors */}
+                  <WhiteboardWrapper roomId={roomName} />
                 </div>
               </motion.div>
             )}
@@ -112,6 +127,7 @@ export default function VideoRoom({
               onLeave={onLeave}
               onToggleWhiteboard={() => setShowWhiteboard(!showWhiteboard)}
               isWhiteboardOpen={showWhiteboard}
+              videoEnabled={videoEnabled} // Pass prop
             />
           </div>
         </div>
@@ -140,16 +156,25 @@ function CustomControlBar({
   onLeave,
   onToggleWhiteboard,
   isWhiteboardOpen,
+  videoEnabled = true,
 }: {
   onLeave: () => void;
   onToggleWhiteboard: () => void;
   isWhiteboardOpen: boolean;
+  videoEnabled?: boolean;
 }) {
   const { localParticipant } = useLocalParticipant();
   const room = useRoomContext();
   const [isMicOn, setIsMicOn] = useState(true);
   const [isCamOn, setIsCamOn] = useState(true);
   const [isScreenShare, setIsScreenShare] = useState(false);
+
+  useEffect(() => {
+    // If video is disabled by default, ensure cam is off state locally
+    if (!videoEnabled) {
+      setIsCamOn(false);
+    }
+  }, [videoEnabled]);
 
   const toggleMic = async () => {
     if (localParticipant) {
@@ -160,7 +185,7 @@ function CustomControlBar({
   };
 
   const toggleCam = async () => {
-    if (localParticipant) {
+    if (localParticipant && videoEnabled) {
       const definedState = !isCamOn;
       await localParticipant.setCameraEnabled(definedState);
       setIsCamOn(definedState);
@@ -193,17 +218,19 @@ function CustomControlBar({
         {isMicOn ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
       </button>
 
-      {/* Camera */}
-      <button
-        onClick={toggleCam}
-        className={`${buttonClass} ${isCamOn ? "bg-brand-black text-brand-gold hover:bg-brand-gold/10" : "bg-red-500/20 text-red-500 hover:bg-red-500/30"}`}
-      >
-        {isCamOn ? (
-          <Video className="w-6 h-6" />
-        ) : (
-          <VideoOff className="w-6 h-6" />
-        )}
-      </button>
+      {/* Camera - Only show if videoEnabled */}
+      {videoEnabled && (
+        <button
+          onClick={toggleCam}
+          className={`${buttonClass} ${isCamOn ? "bg-brand-black text-brand-gold hover:bg-brand-gold/10" : "bg-red-500/20 text-red-500 hover:bg-red-500/30"}`}
+        >
+          {isCamOn ? (
+            <Video className="w-6 h-6" />
+          ) : (
+            <VideoOff className="w-6 h-6" />
+          )}
+        </button>
+      )}
 
       {/* Screen Share */}
       <button
@@ -230,4 +257,17 @@ function CustomControlBar({
       </button>
     </div>
   );
+}
+
+function WhiteboardWrapper({ roomId }: { roomId: string }) {
+  const room = useRoomContext();
+  // Safe check if room exists and is connected
+  if (!room || room.state !== ConnectionState.Connected) {
+    return (
+      <div className="flex items-center justify-center h-full text-gray-500">
+        <p>Conectando a la sala...</p>
+      </div>
+    );
+  }
+  return <Whiteboard roomId={roomId} />;
 }

@@ -101,16 +101,23 @@ export async function createGroup(
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
-  const allParticipants = Array.from(
+  // Validate participants are UUIDs
+  const validParticipants = Array.from(
     new Set([user.id, ...participantIds]),
-  ).filter(Boolean);
+  ).filter((id) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id),
+  );
+
+  if (validParticipants.length < 2 && name !== "Me") {
+    // Allow "Me" chat for testing or self-notes if needed, but generally force >1
+  }
 
   const { data, error } = await supabase
     .from("chat_rooms")
     .insert({
       type: "group",
       name,
-      participants: allParticipants,
+      participants: validParticipants,
       admins: [user.id],
       avatar_url: avatar_url || null, // Add avatar_url
       created_at: new Date().toISOString(),
@@ -212,45 +219,53 @@ export async function sendMessage(
     })
     .eq("id", roomId);
 
-  // Send Notifications
-  try {
-    // 1. Get room participants
-    const { data: room } = await supabase
-      .from("chat_rooms")
-      .select("participants, type, name")
-      .eq("id", roomId)
-      .single();
+  // Send Notifications (Fire and Forget but with error logging)
+  (async () => {
+    try {
+      // 1. Get room participants
+      const { data: room } = await supabase
+        .from("chat_rooms")
+        .select("participants, type, name")
+        .eq("id", roomId)
+        .single();
 
-    if (room && room.participants) {
-      const recipients = room.participants.filter(
-        (id: string) => id !== user.id,
-      );
+      if (room && room.participants) {
+        // Ensure participants is an array
+        //        const participants = Array.isArray(room.participants) ? room.participants : [];
+        const recipients = room.participants.filter(
+          (id: string) => id !== user.id,
+        );
 
-      if (recipients.length > 0) {
-        // 2. Prepare notifications
-        const notifications = recipients.map((recipientId: string) => ({
-          user_id: recipientId,
-          type: "message",
-          title:
-            room.type === "group"
-              ? `Nuevo mensaje en ${room.name || "Grupo"}`
-              : "Nuevo mensaje",
-          message:
-            content.substring(0, 50) + (content.length > 50 ? "..." : ""),
-          sender_id: user.id,
-          is_read: false,
-          link: `/chat`, // Opcional: link to chat
-          created_at: new Date().toISOString(),
-        }));
+        if (recipients.length > 0) {
+          // 2. Prepare notifications
+          const notifications = recipients.map((recipientId: string) => ({
+            user_id: recipientId,
+            type: "message",
+            title:
+              room.type === "group"
+                ? `Nuevo mensaje en ${room.name || "Grupo"}`
+                : "Nuevo mensaje",
+            message:
+              content.substring(0, 50) + (content.length > 50 ? "..." : ""),
+            sender_id: user.id,
+            is_read: false,
+            link: `/chat`, // Opcional: link to chat
+            created_at: new Date().toISOString(),
+          }));
 
-        // 3. Insert notifications
-        await supabase.from("notifications").insert(notifications);
+          // 3. Insert notifications
+          const { error: notifError } = await supabase
+            .from("notifications")
+            .insert(notifications);
+
+          if (notifError)
+            console.error("Error inserting notifications:", notifError);
+        }
       }
+    } catch (e) {
+      console.error("Error sending notifications logic:", e);
     }
-  } catch (e) {
-    console.error("Error sending notifications:", e);
-    // Don't fail the message if notification fails
-  }
+  })();
 
   return data;
 }

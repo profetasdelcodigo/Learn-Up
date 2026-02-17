@@ -514,6 +514,9 @@ export default function ChatPage() {
     };
   };
 
+  // State to track if current call is video enabled
+  const [isVideoCall, setIsVideoCall] = useState(true);
+
   const startCall = async (videoEnabled: boolean = true) => {
     if (!activeChat) return;
     try {
@@ -525,6 +528,7 @@ export default function ChatPage() {
       stream.getTracks().forEach((t) => t.stop());
 
       // LiveKit handles room connection via token - just open the component
+      setIsVideoCall(videoEnabled); // Set state
       setShowVideo(true);
 
       // Create notification for call
@@ -869,6 +873,7 @@ export default function ChatPage() {
                     setShowVideo(false);
                     setShowWhiteboard(false);
                   }}
+                  videoEnabled={isVideoCall}
                 />
                 <AnimatePresence>
                   {showWhiteboard && (
