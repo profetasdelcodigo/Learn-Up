@@ -590,8 +590,8 @@ export default function ChatPage() {
     <>
       <ToastContainer toasts={toasts} removeToast={removeToast} />
 
-      {/* Mobile Layout Wrapper */}
-      <div className="flex h-screen bg-brand-black overflow-hidden relative">
+      {/* Mobile Layout Wrapper using dynamic viewport height */}
+      <div className="flex h-[100dvh] bg-brand-black overflow-hidden relative">
         {/* Sidebar */}
         <div
           className={`${
@@ -604,13 +604,22 @@ export default function ChatPage() {
               <h1 className="text-xl font-bold bg-gradient-to-r from-brand-gold via-white to-brand-gold bg-clip-text text-transparent">
                 Mensajes
               </h1>
-              <button
-                onClick={() => setShowCreateGroup(true)}
-                className="p-2 bg-brand-gold/10 text-brand-gold rounded-full hover:bg-brand-gold hover:text-brand-black transition-all shadow-lg hover:shadow-brand-gold/20"
-                title="Crear Nuevo Grupo"
-              >
-                <Plus className="w-5 h-5" />
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => router.push("/dashboard")}
+                  className="p-2 bg-gray-800 text-gray-400 rounded-full hover:bg-gray-700 hover:text-white transition-all shadow-lg"
+                  title="Volver al Dashboard"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setShowCreateGroup(true)}
+                  className="p-2 bg-brand-gold/10 text-brand-gold rounded-full hover:bg-brand-gold hover:text-brand-black transition-all shadow-lg hover:shadow-brand-gold/20"
+                  title="Crear Nuevo Grupo"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Tabs */}
@@ -1090,8 +1099,8 @@ export default function ChatPage() {
                   <div ref={messagesEndRef} />
                 </div>
 
-                {/* Input Area with Edit/Media */}
-                <div className="p-4 bg-brand-black border-t border-gray-800">
+                {/* Input Area with Sticky Bottom for Mobile - pb-8 for safe area fallback */}
+                <div className="p-4 bg-brand-black border-t border-gray-800 sticky bottom-0 z-30 pb-8 md:pb-4">
                   {editingMessageId && (
                     <div className="flex items-center justify-between bg-brand-gold/10 p-2 px-4 rounded-t-xl border border-brand-gold/20 text-xs mb-2">
                       <span className="text-brand-gold font-bold">

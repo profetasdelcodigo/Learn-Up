@@ -1,0 +1,28 @@
+{
+  "name": "Learn Up",
+  "short_name": "Learn Up",
+  "description": "Plataforma educativa integral y red social.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#D4AF37",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

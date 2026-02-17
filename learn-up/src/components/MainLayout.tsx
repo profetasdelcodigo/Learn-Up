@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
 import BottomNav from "./BottomNav";
 import WelcomeTutorial from "./WelcomeTutorial";
+import NotificationManager from "./NotificationManager";
 
 export default function MainLayout({
   children,
@@ -22,6 +23,7 @@ export default function MainLayout({
 
   return (
     <div className="flex h-screen bg-brand-black overflow-hidden">
+      <NotificationManager />
       <WelcomeTutorial />
 
       {!isPublicRoute && !isChatPage && (

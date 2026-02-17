@@ -225,6 +225,7 @@ export async function sendMessage(
     .from("chat_rooms")
     .update({
       updated_at: new Date().toISOString(),
+      last_message_at: new Date().toISOString(), // Add persistence field
       last_message: content.substring(0, 50),
     })
     .eq("id", roomId);
