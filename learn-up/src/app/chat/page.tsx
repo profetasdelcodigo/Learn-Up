@@ -103,9 +103,20 @@ interface ChatRoom {
   type: "private" | "group";
   name?: string;
   participants: string[];
+  participants_profiles?: {
+    id: string;
+    full_name: string;
+    avatar_url: string | null;
+    school?: string;
+    grade?: string;
+    role?: string;
+    username?: string;
+  }[];
   last_message?: string;
   updated_at: string;
-  avatar_url?: string | null; // Added to match actions/chat.ts potentially
+  avatar_url?: string | null;
+  description?: string | null;
+  admins?: string[];
 }
 
 export default function ChatPage() {
