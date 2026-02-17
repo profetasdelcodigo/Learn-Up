@@ -114,6 +114,9 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentProfile, setCurrentProfile] = useState<UserProfile | null>(
+    null,
+  );
 
   // Data State
   const [friends, setFriends] = useState<UserProfile[]>([]);
@@ -182,6 +185,17 @@ export default function ChatPage() {
         return;
       }
       setCurrentUserId(user.id);
+
+      // Fetch current user profile
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+
+      if (profile) {
+        setCurrentProfile(profile);
+      }
 
       // Load friends and rooms
       try {
@@ -510,7 +524,7 @@ export default function ChatPage() {
       });
       stream.getTracks().forEach((t) => t.stop());
 
-      // Jitsi doesn't need room creation - just open the component
+      // LiveKit handles room connection via token - just open the component
       setShowVideo(true);
 
       // Create notification for call
