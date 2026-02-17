@@ -61,6 +61,15 @@ export async function ensurePrivateRoom(friendId: string) {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
+  // Validate friendId is a UUID
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      friendId,
+    )
+  ) {
+    throw new Error("Invalid User ID");
+  }
+
   // Check if a private room already exists between these two users
   const { data: existingRooms } = await supabase
     .from("chat_rooms")
@@ -109,7 +118,8 @@ export async function createGroup(
   );
 
   if (validParticipants.length < 2 && name !== "Me") {
-    // Allow "Me" chat for testing or self-notes if needed, but generally force >1
+    // Check if we ended up with < 2 participants (meaning invalid UUIDs were filtered out)
+    throw new Error("Invalid participants detected");
   }
 
   const { data, error } = await supabase
@@ -230,36 +240,25 @@ export async function sendMessage(
         .single();
 
       if (room && room.participants) {
-        // Ensure participants is an array
-        //        const participants = Array.isArray(room.participants) ? room.participants : [];
         const recipients = room.participants.filter(
           (id: string) => id !== user.id,
         );
 
-        if (recipients.length > 0) {
-          // 2. Prepare notifications
-          const notifications = recipients.map((recipientId: string) => ({
-            user_id: recipientId,
-            type: "message",
+        // Explicitly insert for each recipient as requested
+        for (const recipientId of recipients) {
+          await supabase.from("notifications").insert({
+            user_id: recipientId, // Para quién
+            sender_id: user.id, // De quién
             title:
               room.type === "group"
-                ? `Nuevo mensaje en ${room.name || "Grupo"}`
-                : "Nuevo mensaje",
-            message:
-              content.substring(0, 50) + (content.length > 50 ? "..." : ""),
-            sender_id: user.id,
-            is_read: false,
-            link: `/chat`, // Opcional: link to chat
+                ? `Nuevo Mensaje en ${room.name}`
+                : "Nuevo Mensaje",
+            message: content.substring(0, 50),
+            type: "message",
+            link: `/chat`,
+            is_read: false, // Ensure default
             created_at: new Date().toISOString(),
-          }));
-
-          // 3. Insert notifications
-          const { error: notifError } = await supabase
-            .from("notifications")
-            .insert(notifications);
-
-          if (notifError)
-            console.error("Error inserting notifications:", notifError);
+          });
         }
       }
     } catch (e) {

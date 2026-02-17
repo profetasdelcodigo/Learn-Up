@@ -72,6 +72,7 @@ export default function VideoRoom({
       video={videoEnabled} // Use prop
       audio={true}
       token={token}
+      connect={true} // Explicitly connect only when mounted (user clicked call)
       serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
       data-lk-theme="default"
       style={{ height: "100%", backgroundColor: "#0A0A0A" }}
