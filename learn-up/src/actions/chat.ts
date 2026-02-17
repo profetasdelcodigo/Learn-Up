@@ -7,6 +7,15 @@ export interface ChatRoom {
   type: "private" | "group";
   name?: string;
   participants: string[];
+  participants_profiles?: {
+    id: string;
+    full_name: string;
+    avatar_url: string | null;
+    school?: string;
+    grade?: string;
+    role?: string;
+    username?: string;
+  }[];
   last_message?: string;
   updated_at: string; // ISO string
   avatar_url?: string | null;
@@ -41,7 +50,7 @@ export async function getUserRooms() {
   if (!user) return [];
 
   // Fetch rooms where participants (JSONB array) contains user.id
-  const { data, error } = await supabase
+  const { data: rooms, error } = await supabase
     .from("chat_rooms")
     .select("*")
     .contains("participants", [user.id])
@@ -51,7 +60,25 @@ export async function getUserRooms() {
     console.error("Error fetching rooms:", error);
     return [];
   }
-  return data as ChatRoom[];
+
+  // Fetch profiles for all participants to ensure Header has info even if not friends
+  const allParticipantIds = Array.from(
+    new Set(rooms.flatMap((r) => r.participants)),
+  );
+
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, full_name, avatar_url, school, grade, role, username")
+    .in("id", allParticipantIds);
+
+  // Attach profiles to rooms
+  const roomsWithProfiles = rooms.map((room) => ({
+    ...room,
+    participants_profiles:
+      profiles?.filter((p) => room.participants.includes(p.id)) || [],
+  }));
+
+  return roomsWithProfiles as (ChatRoom & { participants_profiles: any[] })[];
 }
 
 export async function ensurePrivateRoom(friendId: string) {

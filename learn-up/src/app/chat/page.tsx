@@ -920,13 +920,33 @@ export default function ChatPage() {
                     {(() => {
                       const activeRoom = rooms.find((r) => r.id === activeChat);
                       if (!activeRoom) return null;
-                      const info = getRoomInfo(activeRoom);
 
-                      // Identity Info logic
-                      const otherId = activeRoom.participants.find(
-                        (id) => id !== currentUserId,
-                      );
-                      const friend = friends.find((f) => f.id === otherId);
+                      // Use fetch profiles if available, fallback to existing logic
+                      let name = activeRoom.name;
+                      let avatarUrl = activeRoom.avatar_url;
+                      let statusInfo = "";
+
+                      if (activeRoom.type === "private") {
+                        const otherId = activeRoom.participants.find(
+                          (id) => id !== currentUserId,
+                        );
+                        // Try to find in room profiles first (more reliable)
+                        const profile = activeRoom.participants_profiles?.find(
+                          (p) => p.id === otherId,
+                        );
+                        // Fallback to friends list
+                        const friend = friends.find((f) => f.id === otherId);
+
+                        const target = profile || friend;
+
+                        if (target) {
+                          name = target.full_name;
+                          avatarUrl = target.avatar_url;
+                          if (target.school) {
+                            statusInfo = `${target.school} ${target.grade ? `| ${target.grade}` : ""}`;
+                          }
+                        }
+                      }
 
                       return (
                         <div
@@ -937,9 +957,9 @@ export default function ChatPage() {
                           }
                         >
                           <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden flex items-center justify-center">
-                            {info.avatar_url ? (
+                            {avatarUrl ? (
                               <img
-                                src={info.avatar_url}
+                                src={avatarUrl}
                                 className="w-full h-full object-cover"
                               />
                             ) : (
@@ -948,27 +968,18 @@ export default function ChatPage() {
                           </div>
                           <div>
                             <h2 className="font-bold text-white flex items-center gap-2">
-                              {info.name}
+                              {name}
                               {activeRoom.type === "group" && (
                                 <span className="text-[10px] px-1.5 py-0.5 bg-brand-gold/20 text-brand-gold rounded font-mono uppercase">
                                   GRUPO
                                 </span>
                               )}
                             </h2>
-                            {activeRoom.type === "private" &&
-                              friend &&
-                              friend.school && (
-                                <p className="text-xs text-gray-400 flex items-center gap-1">
-                                  <span className="text-brand-gold/80">
-                                    {friend.school}
-                                  </span>
-                                  {friend.grade && (
-                                    <span>
-                                      | {friend.grade} (Section {friend.role})
-                                    </span>
-                                  )}
-                                </p>
-                              )}
+                            {activeRoom.type === "private" && statusInfo && (
+                              <p className="text-xs text-brand-gold/80 flex items-center gap-1">
+                                {statusInfo}
+                              </p>
+                            )}
                             {activeRoom.type === "group" && (
                               <p className="text-xs text-gray-400">
                                 {activeRoom.participants.length} miembros • Toca

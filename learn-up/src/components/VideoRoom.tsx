@@ -148,7 +148,7 @@ function MyVideoConference() {
 
   return (
     <GridLayout tracks={tracks} style={{ height: "100%" }}>
-      <ParticipantTile />
+      <ParticipantTile style={{ height: "100%", width: "100%" }} />
     </GridLayout>
   );
 }
