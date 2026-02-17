@@ -9,7 +9,6 @@ import {
   Calendar,
   MessageCircle,
 } from "lucide-react";
-import Tutorial from "@/components/Tutorial";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -29,7 +28,6 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <Tutorial />
       <div className="min-h-screen bg-brand-black">
         <div className="p-4 md:p-8">
           <div className="max-w-7xl mx-auto">
