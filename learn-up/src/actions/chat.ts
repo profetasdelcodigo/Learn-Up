@@ -2,6 +2,28 @@
 
 import { createClient } from "@/utils/supabase/server";
 
+// ─── SAFETY HELPER ───────────────────────────────────────────────────────────
+// Supabase can return JSONB arrays as strings in some edge cases.
+// This helper always returns a clean string[].
+function safeParseArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter((v) => typeof v === "string");
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed))
+        return parsed.filter((v) => typeof v === "string");
+    } catch {}
+  }
+  return [];
+}
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isValidUUID(id: unknown): id is string {
+  return typeof id === "string" && UUID_REGEX.test(id);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface ChatRoom {
   id: string;
   type: "private" | "group";
@@ -89,12 +111,8 @@ export async function ensurePrivateRoom(friendId: string) {
   if (!user) throw new Error("Unauthorized");
 
   // Validate friendId is a UUID
-  if (
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      friendId,
-    )
-  ) {
-    throw new Error("Invalid User ID");
+  if (!isValidUUID(friendId)) {
+    throw new Error(`Invalid friendId - not a UUID: "${friendId}"`);
   }
 
   // Check if a private room already exists between these two users
@@ -137,16 +155,16 @@ export async function createGroup(
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
-  // Validate participants are UUIDs
-  const validParticipants = Array.from(
-    new Set([user.id, ...participantIds]),
-  ).filter((id) =>
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id),
-  );
+  // Validate participants are UUIDs — filter out ANY non-UUID value to prevent 22P02
+  const rawIds: unknown[] = [user.id, ...participantIds];
+  const validParticipants = Array.from(new Set(rawIds)).filter(
+    isValidUUID,
+  ) as string[];
 
-  if (validParticipants.length < 2 && name !== "Me") {
-    // Check if we ended up with < 2 participants (meaning invalid UUIDs were filtered out)
-    throw new Error("Invalid participants detected");
+  if (validParticipants.length < 2) {
+    throw new Error(
+      `Invalid participants: need at least 2 valid UUIDs, got ${validParticipants.length}`,
+    );
   }
 
   const { data, error } = await supabase
@@ -424,8 +442,10 @@ export async function leaveGroup(roomId: string) {
 
   if (fetchError || !room) throw fetchError || new Error("Room not found");
 
-  const updatedParticipants = room.participants.filter(
-    (id: string) => id !== user.id,
+  // safeParseArray prevents 22P02 if participants arrives as a JSON string
+  const currentParticipants = safeParseArray(room.participants);
+  const updatedParticipants = currentParticipants.filter(
+    (id) => id !== user.id,
   );
 
   const { error } = await supabase
