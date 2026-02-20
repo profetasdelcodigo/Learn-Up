@@ -66,41 +66,71 @@ export interface Message {
 
 export async function getUserRooms() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return [];
 
-  // Fetch rooms where participants (JSONB array) contains user.id
-  const { data: rooms, error } = await supabase
-    .from("chat_rooms")
-    .select("*")
-    .contains("participants", [user.id])
-    .order("updated_at", { ascending: false });
+    // Fetch rooms where participants (JSONB array) contains user.id
+    const { data: rooms, error } = await supabase
+      .from("chat_rooms")
+      .select("*")
+      .contains("participants", [user.id])
+      .order("updated_at", { ascending: false });
 
-  if (error) {
-    console.error("Error fetching rooms:", error);
+    if (error) {
+      console.error(
+        "[getUserRooms] Error fetching rooms:",
+        JSON.stringify(error),
+      );
+      return [];
+    }
+
+    if (!rooms || rooms.length === 0) return [];
+
+    // Normalise participants for every room — safeParseArray handles null/string/array
+    const normalizedRooms = rooms.map((room) => ({
+      ...room,
+      participants: safeParseArray(room.participants),
+    }));
+
+    // Collect all unique participant IDs across all rooms
+    const allParticipantIds = Array.from(
+      new Set(normalizedRooms.flatMap((r) => r.participants)),
+    ).filter(isValidUUID); // extra safety — only real UUIDs
+
+    // Fetch profiles for all participants to ensure Header has info even if not friends
+    const { data: profiles, error: profError } = await supabase
+      .from("profiles")
+      .select("id, full_name, avatar_url, school, grade, role, username")
+      .in(
+        "id",
+        allParticipantIds.length > 0
+          ? allParticipantIds
+          : ["00000000-0000-0000-0000-000000000000"],
+      );
+
+    if (profError) {
+      console.error(
+        "[getUserRooms] Error fetching profiles:",
+        JSON.stringify(profError),
+      );
+    }
+
+    // Attach profiles to rooms (safe with fallback empty array)
+    const roomsWithProfiles = normalizedRooms.map((room) => ({
+      ...room,
+      participants_profiles: (profiles || []).filter((p) =>
+        room.participants.includes(p.id),
+      ),
+    }));
+
+    return roomsWithProfiles as (ChatRoom & { participants_profiles: any[] })[];
+  } catch (err) {
+    console.error("[getUserRooms] Unexpected error:", err);
     return [];
   }
-
-  // Fetch profiles for all participants to ensure Header has info even if not friends
-  const allParticipantIds = Array.from(
-    new Set(rooms.flatMap((r) => r.participants)),
-  );
-
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id, full_name, avatar_url, school, grade, role, username")
-    .in("id", allParticipantIds);
-
-  // Attach profiles to rooms
-  const roomsWithProfiles = rooms.map((room) => ({
-    ...room,
-    participants_profiles:
-      profiles?.filter((p) => room.participants.includes(p.id)) || [],
-  }));
-
-  return roomsWithProfiles as (ChatRoom & { participants_profiles: any[] })[];
 }
 
 export async function ensurePrivateRoom(friendId: string) {

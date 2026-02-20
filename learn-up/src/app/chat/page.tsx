@@ -448,9 +448,12 @@ export default function ChatPage() {
 
   const handleStartChat = async (friendId: string) => {
     try {
-      // Check locally if room exists
+      // Check locally if room exists — null-safe participants check
       const existingRoom = rooms.find(
-        (r) => r.type === "private" && r.participants.includes(friendId),
+        (r) =>
+          r.type === "private" &&
+          Array.isArray(r.participants) &&
+          r.participants.includes(friendId),
       );
 
       if (existingRoom) {
@@ -517,11 +520,15 @@ export default function ChatPage() {
         status: null,
       };
     }
-    const otherId = room.participants.find((id) => id !== currentUserId);
+    // null-safe: participants may be empty after normalization
+    const participants = Array.isArray(room.participants)
+      ? room.participants
+      : [];
+    const otherId = participants.find((id) => id !== currentUserId);
     const friend = friends.find((f) => f.id === otherId);
     return {
       name: friend?.full_name || friend?.username || "Usuario",
-      avatar_url: friend?.avatar_url,
+      avatar_url: friend?.avatar_url ?? null,
       status: "online",
     };
   };
@@ -938,7 +945,13 @@ export default function ChatPage() {
                       let statusInfo = "";
 
                       if (activeRoom.type === "private") {
-                        const otherId = activeRoom.participants.find(
+                        // null-safe participants access
+                        const participants = Array.isArray(
+                          activeRoom.participants,
+                        )
+                          ? activeRoom.participants
+                          : [];
+                        const otherId = participants.find(
                           (id) => id !== currentUserId,
                         );
                         // Try to find in room profiles first (more reliable)
