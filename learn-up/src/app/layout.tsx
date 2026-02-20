@@ -13,6 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 import MainLayout from "@/components/MainLayout";
+import PushNotificationManager from "@/components/PushNotificationManager";
 
 export const metadata: Metadata = {
   title: "Learn Up | Tu Tutor IA",
@@ -32,7 +33,7 @@ export default function RootLayout({
     <html lang="es">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-brand-black text-white`}
-      >
+        <PushNotificationManager />
         <MainLayout>{children}</MainLayout>
       </body>
     </html>

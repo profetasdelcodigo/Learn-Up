@@ -73,10 +73,9 @@ export default function NotificationsPage() {
   };
 
   const markAsRead = async (id: string) => {
-    await supabase.from("notifications").update({ is_read: true }).eq("id", id);
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)),
-    );
+    // Delete notification instantly to auto-remove from section
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    await supabase.from("notifications").delete().eq("id", id);
   };
 
   const deleteNotification = async (id: string) => {

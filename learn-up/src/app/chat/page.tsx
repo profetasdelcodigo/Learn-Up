@@ -407,11 +407,23 @@ export default function ChatPage() {
             .eq("id", payload.new.id)
             .single();
 
-          if (data)
+          if (data) {
             setMessages((prev) => {
-              if (prev.find((m) => m.id === data.id)) return prev;
+              const index = prev.findIndex((m) => m.id === data.id);
+              if (index !== -1) {
+                // If the message is already there (optimistic), replace it with the DB version
+                const newMsgs = [...prev];
+                newMsgs[index] = data as any;
+                return newMsgs;
+              }
+              // Otherwise, add it
               return [...prev, data as any];
             });
+            // Force scroll to bottom on new message if we receive one
+            setTimeout(() => {
+              messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            }, 100);
+          }
         },
       )
       .subscribe();
@@ -434,6 +446,7 @@ export default function ChatPage() {
       user_id: currentUserId,
       room_id: activeChat,
       created_at: new Date().toISOString(),
+      profiles: (currentProfile as any) || undefined, // Optimistically attach our own profile
     };
 
     setMessages((prev) => [...prev, tempMsg]);
@@ -550,45 +563,17 @@ export default function ChatPage() {
       setIsVideoCall(videoEnabled); // Set state
       setShowVideo(true);
 
-      // Create notification for call
-      try {
-        const { data: room } = await supabase
-          .from("chat_rooms")
-          .select("participants, type, name")
-          .eq("id", activeChat)
-          .single();
-
-        if (room && room.participants) {
-          const recipients = room.participants.filter(
-            (id: string) => id !== currentUserId,
-          );
-
-          if (recipients.length > 0) {
-            const notifications = recipients.map((recipientId: string) => ({
-              user_id: recipientId,
-              type: "call",
-              title:
-                room.type === "group"
-                  ? `Llamada en ${room.name || "Grupo"}`
-                  : "Llamada entrante",
-              message: videoEnabled
-                ? "Videollamada en curso - Únete ahora"
-                : "Llamada de voz en curso",
-              sender_id: currentUserId,
-              is_read: false,
-              link: `/chat`,
-              created_at: new Date().toISOString(),
-            }));
-
-            await supabase.from("notifications").insert(notifications);
-          }
-        }
-      } catch (e) {
-        console.error("Error creating call notification:", e);
-      }
+      // Send a call offer message directly to the chat room
+      await sendMessageAction(
+        activeChat,
+        videoEnabled ? "[CALL_OFFER_VIDEO]" : "[CALL_OFFER_VOICE]",
+      );
     } catch (e) {
       console.error(e);
-      addToast("No se pudo acceder a cámara/micrófono", "error");
+      addToast(
+        "Error al acceder a los dispositivos. Revisa los permisos.",
+        "error",
+      );
     }
   };
 
@@ -1087,6 +1072,45 @@ export default function ChatPage() {
                                   controls
                                   className="rounded-lg max-w-full"
                                 />
+                              ) : msg.content === "[CALL_OFFER_VIDEO]" ||
+                                msg.content === "[CALL_OFFER_VOICE]" ? (
+                                <div className="flex flex-col gap-2 min-w-[200px] sm:min-w-[240px]">
+                                  <div className="flex items-center gap-2 font-bold mb-1">
+                                    {msg.content === "[CALL_OFFER_VIDEO]" ? (
+                                      <Video className="w-5 h-5 text-green-400" />
+                                    ) : (
+                                      <Phone className="w-5 h-5 text-green-400" />
+                                    )}
+                                    <span>
+                                      {msg.content === "[CALL_OFFER_VIDEO]"
+                                        ? "Videollamada Entrante"
+                                        : "Llamada de Voz Entrante"}
+                                    </span>
+                                  </div>
+                                  {!isMe ? (
+                                    <div className="flex gap-2 mt-2">
+                                      <button
+                                        onClick={() => {
+                                          setIsVideoCall(
+                                            msg.content ===
+                                              "[CALL_OFFER_VIDEO]",
+                                          );
+                                          setShowVideo(true);
+                                        }}
+                                        className="py-2 bg-green-600 hover:bg-green-500 rounded-xl text-white font-bold text-sm flex-1 transition-all shadow-lg hover:scale-105"
+                                      >
+                                        Aceptar
+                                      </button>
+                                      <button className="py-2 bg-red-600/80 hover:bg-red-500 rounded-xl text-white font-bold text-sm flex-1 transition-colors">
+                                        Rechazar
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <span className="text-sm opacity-70 italic border-l-2 pl-2 border-brand-gold mt-1 block">
+                                      Esperando respuesta...
+                                    </span>
+                                  )}
+                                </div>
                               ) : (
                                 <p className="whitespace-pre-wrap break-words leading-relaxed text-[15px]">
                                   {msg.content}

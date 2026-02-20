@@ -9,7 +9,7 @@ const withPWA = require("next-pwa")({
 });
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Configuración de PWA y rendimiento
 };
 
 export default withPWA(nextConfig);
