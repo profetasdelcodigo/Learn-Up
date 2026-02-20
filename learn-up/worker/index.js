@@ -1,5 +1,3 @@
-declare let self: ServiceWorkerGlobalScope;
-
 // Desactiva logs de workbox en dev
 self.__WB_DISABLE_DEV_LOGS = true;
 
