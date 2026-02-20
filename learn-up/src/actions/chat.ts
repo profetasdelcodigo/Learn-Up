@@ -112,35 +112,55 @@ export async function ensurePrivateRoom(friendId: string) {
 
   // Validate friendId is a UUID
   if (!isValidUUID(friendId)) {
-    throw new Error(`Invalid friendId - not a UUID: "${friendId}"`);
+    throw new Error(
+      `Invalid friendId - not a UUID: "${friendId}". Check caller.`,
+    );
   }
 
-  // Check if a private room already exists between these two users
-  const { data: existingRooms } = await supabase
+  // Step 1: Find rooms where current user is a participant
+  const { data: myRooms, error: fetchError } = await supabase
     .from("chat_rooms")
-    .select("*")
+    .select("id, participants, type")
     .eq("type", "private")
-    .contains("participants", [user.id, friendId]);
+    .contains("participants", [user.id]);
 
-  // Filter strictly for 2 participants to avoid false positives if logic changes
-  const exactMatch = existingRooms?.find((r) => r.participants.length === 2);
+  if (fetchError) {
+    console.error("[ensurePrivateRoom] Error fetching rooms:", fetchError);
+    throw fetchError;
+  }
+
+  // Step 2: In JS, find one where friendId is also a participant (exact 2-person room)
+  const exactMatch = (myRooms || []).find((r) => {
+    const parts = safeParseArray(r.participants);
+    return parts.length === 2 && parts.includes(friendId);
+  });
 
   if (exactMatch) {
     return exactMatch.id;
   }
 
-  // Create new room
-  const { data: newRoom, error } = await supabase
+  // Step 3: Create new private room with strictly validated array
+  const participants: string[] = [user.id, friendId]; // both already UUID-validated
+  const { data: newRoom, error: createError } = await supabase
     .from("chat_rooms")
     .insert({
       type: "private",
-      participants: [user.id, friendId],
+      participants,
       updated_at: new Date().toISOString(),
     })
-    .select()
+    .select("id")
     .single();
 
-  if (error) throw error;
+  if (createError) {
+    console.error(
+      "[ensurePrivateRoom] Error creating room:",
+      JSON.stringify(createError),
+      "| participants attempted:",
+      JSON.stringify(participants),
+    );
+    throw createError;
+  }
+
   return newRoom.id;
 }
 
