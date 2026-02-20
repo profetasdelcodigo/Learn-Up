@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Bell, Check, X, UserPlus, Calendar } from "lucide-react";
 import { motion } from "framer-motion";
+import ClientDate from "@/components/ClientDate";
 
 interface Notification {
   id: string;
@@ -145,9 +146,11 @@ export default function NotificationsPage() {
                       De: {notification.sender.full_name}
                     </p>
                   )}
-                  <p className="text-xs text-gray-600 mt-1">
-                    {new Date(notification.created_at).toLocaleString("es-ES")}
-                  </p>
+                  <ClientDate
+                    dateString={notification.created_at}
+                    format="long"
+                    className="text-xs text-gray-600 mt-1 block"
+                  />
                 </div>
 
                 <div className="flex gap-2">

@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
+import ClientDate from "@/components/ClientDate";
 import {
   searchUsers,
   sendFriendRequest,
@@ -815,12 +816,11 @@ export default function ChatPage() {
                                 {info.name}
                               </h3>
                               {room.updated_at && (
-                                <span className="text-[10px] text-gray-500">
-                                  {new Date(room.updated_at).toLocaleDateString(
-                                    undefined,
-                                    { month: "short", day: "numeric" },
-                                  )}
-                                </span>
+                                <ClientDate
+                                  dateString={room.updated_at}
+                                  format="short"
+                                  className="text-[10px] text-gray-500"
+                                />
                               )}
                             </div>
                             <p className="text-xs text-gray-400 truncate">
