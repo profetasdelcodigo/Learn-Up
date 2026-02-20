@@ -33,6 +33,7 @@ export default function RootLayout({
     <html lang="es">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-brand-black text-white`}
+      >
         <PushNotificationManager />
         <MainLayout>{children}</MainLayout>
       </body>
