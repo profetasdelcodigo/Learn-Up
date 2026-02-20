@@ -273,20 +273,28 @@ export async function updateGroup(
 
 export async function getChatMessages(roomId: string) {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("chat_messages")
-    .select(
-      `
+  try {
+    const { data, error } = await supabase
+      .from("chat_messages")
+      .select(
+        `
       *,
       profiles:user_id (full_name, avatar_url, role, school, grade)
     `,
-    )
-    .eq("room_id", roomId)
-    .order("created_at", { ascending: true })
-    .limit(50);
+      )
+      .eq("room_id", roomId)
+      .order("created_at", { ascending: true })
+      .limit(50);
 
-  if (error) throw error;
-  return data as Message[];
+    if (error) {
+      console.error("[getChatMessages] Error:", JSON.stringify(error));
+      return [];
+    }
+    return (data || []) as Message[];
+  } catch (err) {
+    console.error("[getChatMessages] Unexpected error:", err);
+    return [];
+  }
 }
 
 export async function sendMessage(
@@ -315,15 +323,24 @@ export async function sendMessage(
 
   if (error) throw error;
 
-  // Update room updated_at and last_message
-  await supabase
+  // Update room updated_at and last_message (both columns confirmed in schema)
+  const now = new Date().toISOString();
+  const { error: roomUpdateError } = await supabase
     .from("chat_rooms")
     .update({
-      updated_at: new Date().toISOString(),
-      last_message_at: new Date().toISOString(), // Add persistence field
-      last_message: content.substring(0, 50),
+      updated_at: now,
+      last_message_at: now,
+      last_message: content.substring(0, 100),
     })
     .eq("id", roomId);
+
+  if (roomUpdateError) {
+    console.error(
+      "[sendMessage] Room update error:",
+      JSON.stringify(roomUpdateError),
+    );
+    // Non-fatal: message was sent, just log the error
+  }
 
   // Send Notifications (Fire and Forget but with error logging)
   (async () => {
