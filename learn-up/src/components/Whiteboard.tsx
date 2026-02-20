@@ -16,7 +16,6 @@ export default function Whiteboard({ roomId }: { roomId: string }) {
     const timer = setTimeout(() => {
       if (editorRef.current) {
         try {
-          (editorRef.current as any).updateViewportScreenBounds();
           (editorRef.current as any).zoomToFit();
           window.dispatchEvent(new Event("resize")); // Force browser layout recalc
         } catch (e) {
@@ -28,7 +27,6 @@ export default function Whiteboard({ roomId }: { roomId: string }) {
     const timer2 = setTimeout(() => {
       if (editorRef.current) {
         try {
-          (editorRef.current as any).updateViewportScreenBounds();
           window.dispatchEvent(new Event("resize"));
         } catch (e) {
           console.error("Error updating viewport backup:", e);

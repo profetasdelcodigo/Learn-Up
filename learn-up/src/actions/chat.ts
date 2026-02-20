@@ -323,14 +323,12 @@ export async function sendMessage(
 
   if (error) throw error;
 
-  // Update room updated_at and last_message (both columns confirmed in schema)
+  // Update room updated_at
   const now = new Date().toISOString();
   const { error: roomUpdateError } = await supabase
     .from("chat_rooms")
     .update({
       updated_at: now,
-      last_message_at: now,
-      last_message: content.substring(0, 100),
     })
     .eq("id", roomId);
 
