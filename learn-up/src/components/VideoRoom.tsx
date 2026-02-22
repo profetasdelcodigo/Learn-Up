@@ -9,6 +9,7 @@ import {
   useTracks,
   useRoomContext,
   useLocalParticipant,
+  useDataChannel,
 } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { useEffect, useState } from "react";
@@ -22,15 +23,21 @@ import {
   PhoneOff,
   PenTool,
   X,
+  Youtube,
+  Play,
+  Ban,
 } from "lucide-react";
 import Whiteboard from "./Whiteboard"; // Assumes Whiteboard component exists
 import { motion, AnimatePresence } from "framer-motion";
+import ReactPlayer from "react-player";
 
 interface VideoRoomProps {
   roomName: string;
   username: string;
   onLeave: () => void;
   videoEnabled?: boolean; // New prop
+  role?: string;
+  isCreator?: boolean;
 }
 
 export default function VideoRoom({
@@ -38,9 +45,10 @@ export default function VideoRoom({
   username,
   onLeave,
   videoEnabled = true, // Default to true
+  role = "estudiante",
+  isCreator = false,
 }: VideoRoomProps) {
   const [token, setToken] = useState<string>("");
-  const [showWhiteboard, setShowWhiteboard] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -79,14 +87,91 @@ export default function VideoRoom({
       className="relative rounded-2xl overflow-hidden border-2 border-brand-gold/30 shadow-[0_0_30px_rgba(212,175,55,0.1)]"
       onDisconnected={onLeave}
     >
-      <div className="flex flex-col h-full relative">
-        {/* Main Video Area */}
-        <div className="flex-1 relative bg-black">
+      <VideoRoomInner
+        username={username}
+        roomName={roomName}
+        videoEnabled={videoEnabled}
+        onLeave={onLeave}
+        role={role}
+        isCreator={isCreator}
+      />
+    </LiveKitRoom>
+  );
+}
+
+function VideoRoomInner({
+  username,
+  roomName,
+  videoEnabled,
+  onLeave,
+  role,
+  isCreator,
+}: {
+  username: string;
+  roomName: string;
+  videoEnabled: boolean;
+  onLeave: () => void;
+  role: string;
+  isCreator: boolean;
+}) {
+  const [showWhiteboard, setShowWhiteboard] = useState(false);
+  const [sharedVideoUrl, setSharedVideoUrl] = useState<string | null>(null);
+  const [showVideoModal, setShowVideoModal] = useState(false);
+  const [videoInput, setVideoInput] = useState("");
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+
+  const canShareVideo = role === "profesor" || role === "admin" || isCreator;
+
+  // Setup Data Channel for syncing video play
+  const { send } = useDataChannel("video-share", (msg) => {
+    // Data channel msg handler
+    try {
+      const payload = new TextDecoder().decode(msg.payload);
+      const data = JSON.parse(payload);
+      if (data.type === "SHARE_VIDEO") {
+        setSharedVideoUrl(data.url);
+      } else if (data.type === "STOP_VIDEO") {
+        setSharedVideoUrl(null);
+      }
+    } catch (e) {
+      console.error("Error decoding data channel msg:", e);
+    }
+  });
+
+  const handleShareVideo = () => {
+    if (!canShareVideo) {
+      setIsAlertOpen(true);
+      return;
+    }
+    if (!videoInput) return;
+
+    const payload = JSON.stringify({ type: "SHARE_VIDEO", url: videoInput });
+    send(new TextEncoder().encode(payload), { reliable: true });
+    setSharedVideoUrl(videoInput);
+    setShowVideoModal(false);
+    setVideoInput("");
+  };
+
+  const handleStopVideo = () => {
+    if (!canShareVideo) return;
+    const payload = JSON.stringify({ type: "STOP_VIDEO" });
+    send(new TextEncoder().encode(payload), { reliable: true });
+    setSharedVideoUrl(null);
+  };
+
+  return (
+    <div className="flex flex-col h-full relative">
+      {/* Main Content Area (Split or Full Video) */}
+      <div className="flex-1 flex flex-col md:flex-row relative bg-black overflow-hidden">
+        {/* Video Area (Left column if whiteboard is open, full width otherwise) */}
+        <div
+          className={`relative transition-all duration-300 ${showWhiteboard || sharedVideoUrl ? "w-full md:w-1/3 border-b md:border-b-0 md:border-r border-brand-gold/20 h-[40%] md:h-full" : "w-full h-full"}`}
+        >
           {!videoEnabled ? (
             // Audio Only UI
-            <div className="absolute inset-0 flex items-center justify-center z-10">
-              <div className="w-32 h-32 rounded-full bg-gradient-to-br from-brand-gold to-brand-brown animate-pulse flex items-center justify-center shadow-[0_0_50px_rgba(212,175,55,0.3)]">
-                <span className="text-4xl font-bold text-brand-black">
+            <div className="absolute inset-0 flex items-center justify-center z-10 bg-black">
+              <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-brand-gold to-brand-brown animate-pulse flex items-center justify-center shadow-[0_0_50px_rgba(212,175,55,0.3)]">
+                <span className="text-3xl md:text-4xl font-bold text-brand-black">
                   {username.charAt(0).toUpperCase()}
                 </span>
               </div>
@@ -96,44 +181,144 @@ export default function VideoRoom({
           )}
 
           <RoomAudioRenderer />
+        </div>
 
-          {/* Whiteboard Overlay */}
-          <AnimatePresence>
-            {showWhiteboard && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="absolute inset-0 z-40 bg-white/95 backdrop-blur-sm"
-              >
-                <div className="relative w-full h-full">
+        {/* Whiteboard Panel (Right column) */}
+        <AnimatePresence>
+          {showWhiteboard && !sharedVideoUrl && (
+            <motion.div
+              initial={{ opacity: 0, width: 0 }}
+              animate={{ opacity: 1, width: "auto" }}
+              exit={{ opacity: 0, width: 0 }}
+              className="flex-1 relative h-[60%] md:h-full w-full bg-white z-20"
+            >
+              <div className="relative w-full h-full">
+                <button
+                  onClick={() => setShowWhiteboard(false)}
+                  className="absolute top-4 right-4 z-50 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+                <Whiteboard roomId={roomName} />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Shared Video Player */}
+        <AnimatePresence>
+          {sharedVideoUrl && (
+            <motion.div
+              initial={{ opacity: 0, width: 0 }}
+              animate={{ opacity: 1, width: "auto" }}
+              exit={{ opacity: 0, width: 0 }}
+              className="flex-1 relative h-[60%] md:h-full w-full bg-black z-20 flex items-center justify-center border-l-2 border-brand-gold"
+            >
+              <div className="w-full h-full relative group">
+                {canShareVideo && (
                   <button
-                    onClick={() => setShowWhiteboard(false)}
-                    className="absolute top-4 right-4 z-50 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
+                    onClick={handleStopVideo}
+                    className="absolute top-4 right-4 z-50 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
                   >
                     <X className="w-5 h-5" />
                   </button>
-                  {/* Only mount if connected to avoid errors */}
-                  <WhiteboardWrapper roomId={roomName} />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+                )}
+                {/* @ts-ignore */}
+                <ReactPlayer
+                  url={sharedVideoUrl}
+                  width="100%"
+                  height="100%"
+                  controls={canShareVideo}
+                  playing={true}
+                  style={{ position: "absolute", top: 0, left: 0 }}
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
-        {/* Custom Controls Container */}
-        <div className="absolute bottom-8 left-0 right-0 flex justify-center z-50 pointer-events-none">
-          <div className="pointer-events-auto">
-            <CustomControlBar
-              onLeave={onLeave}
-              onToggleWhiteboard={() => setShowWhiteboard(!showWhiteboard)}
-              isWhiteboardOpen={showWhiteboard}
-              videoEnabled={videoEnabled} // Pass prop
-            />
+      {/* Video Modal */}
+      {showVideoModal && (
+        <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-brand-gray border border-brand-gold/50 rounded-2xl w-full max-w-md p-6 shadow-2xl">
+            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+              <Youtube className="w-6 h-6 text-red-500" />
+              Compartir Video
+            </h3>
+            {canShareVideo ? (
+              <>
+                <input
+                  type="text"
+                  value={videoInput}
+                  onChange={(e) => setVideoInput(e.target.value)}
+                  placeholder="Pegar link de YouTube o video..."
+                  className="w-full bg-brand-black border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-gold mb-4"
+                />
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={() => setShowVideoModal(false)}
+                    className="px-5 py-2 hover:bg-white/10 text-gray-300 rounded-xl transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleShareVideo}
+                    className="px-5 py-2 bg-brand-gold text-brand-black font-bold rounded-xl transition-colors flex items-center gap-2"
+                  >
+                    <Play className="w-4 h-4" /> Reproducir
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-gray-300 mb-6 font-medium leading-relaxed">
+                  Solo los profesores o el creador de la sala pueden poner
+                  videos. Si quieres compartir un video, pídele permiso al
+                  creador de la llamada enviándole el link por el chat.
+                </p>
+                <div className="flex justify-center gap-3">
+                  <button
+                    onClick={() => setShowVideoModal(false)}
+                    className="px-6 py-2.5 bg-brand-gold text-brand-black font-bold rounded-full transition-colors flex items-center gap-2"
+                  >
+                    Entendido
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
+      )}
+
+      {/* Permission Denied Alert */}
+      {isAlertOpen && (
+        <div className="absolute top-10 left-1/2 -translate-x-1/2 z-[70] bg-red-500 text-white font-medium px-6 py-3 rounded-full flex items-center gap-3 shadow-2xl animate-in fade-in slide-in-from-top-10">
+          <Ban className="w-5 h-5" />
+          No tienes permisos para compartir videos. (Pide permiso al creador)
+          <button onClick={() => setIsAlertOpen(false)}>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Custom Controls Container */}
+      <div className="absolute bottom-8 left-0 right-0 flex justify-center z-50 pointer-events-none">
+        <div className="pointer-events-auto">
+          <CustomControlBar
+            onLeave={onLeave}
+            onToggleWhiteboard={() => {
+              if (sharedVideoUrl) handleStopVideo();
+              setShowWhiteboard(!showWhiteboard);
+            }}
+            isWhiteboardOpen={showWhiteboard}
+            videoEnabled={videoEnabled} // Pass prop
+            onToggleVideoModal={() => setShowVideoModal(true)}
+            isSharedVideoOpen={!!sharedVideoUrl}
+          />
+        </div>
       </div>
-    </LiveKitRoom>
+    </div>
   );
 }
 
@@ -158,11 +343,15 @@ function CustomControlBar({
   onToggleWhiteboard,
   isWhiteboardOpen,
   videoEnabled = true,
+  onToggleVideoModal,
+  isSharedVideoOpen,
 }: {
   onLeave: () => void;
   onToggleWhiteboard: () => void;
   isWhiteboardOpen: boolean;
   videoEnabled?: boolean;
+  onToggleVideoModal: () => void;
+  isSharedVideoOpen: boolean;
 }) {
   const { localParticipant } = useLocalParticipant();
   const room = useRoomContext();
@@ -249,6 +438,14 @@ function CustomControlBar({
         <PenTool className="w-6 h-6" />
       </button>
 
+      {/* YouTube Share Toggle */}
+      <button
+        onClick={onToggleVideoModal}
+        className={`${buttonClass} ${isSharedVideoOpen ? "bg-red-500/20 text-red-500" : "bg-brand-black text-brand-gold hover:bg-brand-gold/10"}`}
+      >
+        <Youtube className="w-6 h-6" />
+      </button>
+
       {/* Hangup */}
       <button
         onClick={handleLeave}
@@ -258,17 +455,4 @@ function CustomControlBar({
       </button>
     </div>
   );
-}
-
-function WhiteboardWrapper({ roomId }: { roomId: string }) {
-  const room = useRoomContext();
-  // Safe check if room exists and is connected
-  if (!room || room.state !== ConnectionState.Connected) {
-    return (
-      <div className="flex items-center justify-center h-full text-gray-500">
-        <p>Conectando a la sala...</p>
-      </div>
-    );
-  }
-  return <Whiteboard roomId={roomId} />;
 }

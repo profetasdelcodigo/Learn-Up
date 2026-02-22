@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import webpush from "@/utils/push";
 
 // ─── SAFETY HELPER ───────────────────────────────────────────────────────────
 // Supabase can return JSONB arrays as strings in some edge cases.
@@ -357,19 +358,67 @@ export async function sendMessage(
 
         // Explicitly insert for each recipient as requested
         for (const recipientId of recipients) {
+          const title =
+            room.type === "group"
+              ? `Nuevo Mensaje en ${room.name}`
+              : "Nuevo Mensaje";
+          const msgContent = content.substring(0, 50);
+
+          // Insert into in-app notifications
           await supabase.from("notifications").insert({
             user_id: recipientId, // Para quién
             sender_id: user.id, // De quién
-            title:
-              room.type === "group"
-                ? `Nuevo Mensaje en ${room.name}`
-                : "Nuevo Mensaje",
-            message: content.substring(0, 50),
+            title,
+            message: msgContent,
             type: "message",
             link: `/chat`,
             is_read: false, // Ensure default
             created_at: new Date().toISOString(),
           });
+
+          // Dispatch Native Web Push
+          const { data: subData } = await supabase
+            .from("push_subscriptions")
+            .select("subscription")
+            .eq("user_id", recipientId)
+            .single();
+
+          if (subData && subData.subscription) {
+            try {
+              // Get the sender's full name for the push notification
+              const { data: senderData } = await supabase
+                .from("profiles")
+                .select("full_name")
+                .eq("id", user.id)
+                .single();
+
+              const senderName = senderData?.full_name || "Alguien";
+              const pushTitle = content.includes("[CALL_OFFER_VIDEO]")
+                ? `Videollamada de: ${senderName}`
+                : content.includes("[CALL_OFFER_VOICE]")
+                  ? `Llamada de: ${senderName}`
+                  : `Nuevo mensaje de: ${senderName}`;
+
+              const filteredContent = content.startsWith("[CALL_OFFER")
+                ? "Entra para responder."
+                : msgContent;
+
+              await webpush.sendNotification(
+                subData.subscription,
+                JSON.stringify({
+                  title: pushTitle,
+                  message: filteredContent,
+                  link: "/chat",
+                }),
+              );
+            } catch (pushErr) {
+              console.error(
+                "Push delivery failed for user",
+                recipientId,
+                pushErr,
+              );
+            }
+          }
         }
       }
     } catch (e) {

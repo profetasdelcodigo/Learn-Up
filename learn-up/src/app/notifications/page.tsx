@@ -107,10 +107,10 @@ export default function NotificationsPage() {
   return (
     <div className="min-h-screen bg-brand-black text-white">
       {/* Centered container for desktop */}
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8 flex items-center gap-3">
+      <div className="max-w-2xl mx-auto px-4 py-8 flex flex-col items-center">
+        <h1 className="text-3xl font-bold mb-8 flex items-center justify-center gap-3 w-full border-b border-brand-gold/20 pb-4">
           <Bell className="w-8 h-8 text-brand-gold" />
-          Notificaciones
+          Centro de Notificaciones
         </h1>
 
         {notifications.length === 0 ? (
@@ -125,34 +125,32 @@ export default function NotificationsPage() {
                 key={notification.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`bg-brand-gray border ${notification.is_read ? "border-gray-800" : "border-brand-gold/30"} rounded-2xl p-4 flex items-start gap-4`}
+                className={`w-full bg-brand-gray border ${notification.is_read ? "border-gray-800" : "border-brand-gold/30"} rounded-2xl p-5 flex items-start gap-4 shadow-lg`}
               >
                 <div
-                  className={`p-3 rounded-full ${notification.is_read ? "bg-gray-800" : "bg-brand-gold/10"}`}
+                  className={`p-3 rounded-full mt-1 ${notification.is_read ? "bg-gray-800 text-gray-400" : "bg-brand-gold/10 text-brand-gold"}`}
                 >
                   {getIcon(notification.type)}
                 </div>
 
-                <div className="flex-1">
-                  <h3 className="font-semibold text-white mb-1">
-                    {notification.title}
+                <div className="flex-1 text-left">
+                  <h3 className="font-semibold text-white mb-1 text-lg">
+                    {notification.type === "message" ||
+                    notification.title === "Nuevo Mensaje"
+                      ? `Nuevo mensaje de: ${notification.sender?.full_name || "Usuario Desconocido"}`
+                      : notification.title}
                   </h3>
-                  <p className="text-sm text-gray-400 mb-2">
+                  <p className="text-sm text-gray-300 mb-3 leading-relaxed">
                     {notification.message}
                   </p>
-                  {notification.sender && (
-                    <p className="text-xs text-gray-500">
-                      De: {notification.sender.full_name}
-                    </p>
-                  )}
                   <ClientDate
                     dateString={notification.created_at}
                     format="long"
-                    className="text-xs text-gray-600 mt-1 block"
+                    className="text-xs text-gray-500 block font-medium"
                   />
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2 self-center ml-auto">
                   {!notification.is_read && (
                     <button
                       onClick={() => markAsRead(notification.id)}

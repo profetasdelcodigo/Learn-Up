@@ -23,6 +23,7 @@ import {
   Trash2,
   Edit2,
   Phone,
+  PhoneOff,
   Ban,
   CheckCheck,
   Plus,
@@ -548,6 +549,7 @@ export default function ChatPage() {
 
   // State to track if current call is video enabled
   const [isVideoCall, setIsVideoCall] = useState(true);
+  const [isCallCreator, setIsCallCreator] = useState(false);
 
   const startCall = async (videoEnabled: boolean = true) => {
     if (!activeChat) return;
@@ -561,6 +563,7 @@ export default function ChatPage() {
 
       // LiveKit handles room connection via token - just open the component
       setIsVideoCall(videoEnabled); // Set state
+      setIsCallCreator(true);
       setShowVideo(true);
 
       // Send a call offer message directly to the chat room
@@ -881,9 +884,15 @@ export default function ChatPage() {
                 <VideoRoom
                   roomName={`learn-up-${activeChat}`}
                   username={currentProfile?.full_name || "Usuario"}
-                  onLeave={() => {
+                  role={currentProfile?.role || "estudiante"}
+                  isCreator={isCallCreator}
+                  onLeave={async () => {
                     setShowVideo(false);
                     setShowWhiteboard(false);
+                    await sendMessageAction(
+                      activeChat,
+                      isVideoCall ? "[CALL_ENDED_VIDEO]" : "[CALL_ENDED_VOICE]",
+                    );
                   }}
                   videoEnabled={isVideoCall}
                 />
@@ -1095,13 +1104,24 @@ export default function ChatPage() {
                                             msg.content ===
                                               "[CALL_OFFER_VIDEO]",
                                           );
+                                          setIsCallCreator(false);
                                           setShowVideo(true);
                                         }}
                                         className="py-2 bg-green-600 hover:bg-green-500 rounded-xl text-white font-bold text-sm flex-1 transition-all shadow-lg hover:scale-105"
                                       >
                                         Aceptar
                                       </button>
-                                      <button className="py-2 bg-red-600/80 hover:bg-red-500 rounded-xl text-white font-bold text-sm flex-1 transition-colors">
+                                      <button
+                                        onClick={async () => {
+                                          await sendMessageAction(
+                                            activeChat as string,
+                                            msg.content === "[CALL_OFFER_VIDEO]"
+                                              ? "[CALL_REJECTED_VIDEO]"
+                                              : "[CALL_REJECTED_VOICE]",
+                                          );
+                                        }}
+                                        className="py-2 bg-red-600/80 hover:bg-red-500 rounded-xl text-white font-bold text-sm flex-1 transition-colors"
+                                      >
                                         Rechazar
                                       </button>
                                     </div>
@@ -1110,6 +1130,19 @@ export default function ChatPage() {
                                       Esperando respuesta...
                                     </span>
                                   )}
+                                </div>
+                              ) : msg.content.startsWith("[CALL_ENDED") ||
+                                msg.content.startsWith("[CALL_REJECTED") ? (
+                                <div className="flex items-center gap-2 text-sm italic opacity-80 min-w-[200px]">
+                                  <PhoneOff className="w-4 h-4 text-red-400" />
+                                  <span>
+                                    {msg.content.includes("VIDEO")
+                                      ? "Videollamada "
+                                      : "Llamada de Voz "}
+                                    {msg.content.includes("REJECTED")
+                                      ? "Rechazada"
+                                      : "Finalizada"}
+                                  </span>
                                 </div>
                               ) : (
                                 <p className="whitespace-pre-wrap break-words leading-relaxed text-[15px]">

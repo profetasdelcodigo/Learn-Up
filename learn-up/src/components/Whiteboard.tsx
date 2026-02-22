@@ -40,32 +40,38 @@ export default function Whiteboard({ roomId }: { roomId: string }) {
     };
   }, []);
 
-  const [isReady, setIsReady] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
-    // Delay rendering to ensure parent container has dimensions
-    // Fixes 'getBoundingClientRect' error
-    const timer = setTimeout(() => {
-      setIsReady(true);
-    }, 200);
-    return () => clearTimeout(timer);
+    if (!containerRef.current) return;
+
+    const observer = new ResizeObserver((entries) => {
+      const { width, height } = entries[0].contentRect;
+      setDimensions({ width, height });
+    });
+
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
   }, []);
 
-  if (!isReady) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-gold"></div>
-      </div>
-    );
-  }
+  const isReady = dimensions.width > 0 && dimensions.height > 0;
 
   return (
-    <div className="w-full h-full relative bg-white">
-      <Tldraw
-        onMount={handleMount}
-        persistenceKey={`room-${roomId}`} // Keep local persistence
-        options={{ maxPages: 1 }}
-      />
+    <div ref={containerRef} className="w-full h-full relative bg-white">
+      {!isReady ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-gold"></div>
+        </div>
+      ) : null}
+
+      {isReady && (
+        <Tldraw
+          onMount={handleMount}
+          persistenceKey={`room-${roomId}`} // Keep local persistence
+          options={{ maxPages: 1 }}
+        />
+      )}
     </div>
   );
 }

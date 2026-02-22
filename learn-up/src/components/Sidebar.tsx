@@ -148,14 +148,36 @@ export default function Sidebar() {
               table: "notifications",
               filter: `user_id=eq.${currentUser.id}`,
             },
-            (payload) => {
+            async (payload) => {
               fetchUnreadCount(); // Refresh count on new notification
               // Show Toast
               const newNotification = payload.new as any;
-              addToast(
-                newNotification.message || "Tienes una nueva notificación",
-                "info",
-              );
+              let toastMessage =
+                newNotification.message || "Tienes una nueva notificación";
+
+              if (newNotification.sender_id) {
+                const { data: senderProfile } = await supabase
+                  .from("profiles")
+                  .select("full_name")
+                  .eq("id", newNotification.sender_id)
+                  .single();
+
+                if (senderProfile) {
+                  const name = senderProfile.full_name || "Alguien";
+                  if (
+                    newNotification.type === "message" ||
+                    newNotification.title === "Nuevo Mensaje"
+                  ) {
+                    toastMessage = `Nuevo mensaje de: ${name}`;
+                  } else if (newNotification.type === "call") {
+                    toastMessage = `Llamada entrante de: ${name}`;
+                  } else {
+                    toastMessage = `${newNotification.title}: ${name}`;
+                  }
+                }
+              }
+
+              addToast(toastMessage, "info");
             },
           )
           .on(
