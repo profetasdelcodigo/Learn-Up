@@ -31,6 +31,8 @@ import Whiteboard from "./Whiteboard"; // Assumes Whiteboard component exists
 import { motion, AnimatePresence } from "framer-motion";
 import ReactPlayer from "react-player";
 
+const Player = ReactPlayer as any;
+
 interface VideoRoomProps {
   roomName: string;
   username: string;
@@ -224,8 +226,8 @@ function VideoRoomInner({
                   </button>
                 )}
                 {/* @ts-ignore */}
-                <ReactPlayer
-                  url={sharedVideoUrl}
+                <Player
+                  url={sharedVideoUrl as string}
                   width="100%"
                   height="100%"
                   controls={canShareVideo}
