@@ -119,7 +119,7 @@ export default function NotificationsPage() {
             <p className="text-gray-400">No tienes notificaciones</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="w-full max-w-2xl space-y-4">
             {notifications.map((notification) => (
               <motion.div
                 key={notification.id}
@@ -128,45 +128,52 @@ export default function NotificationsPage() {
                 className={`w-full bg-brand-gray border ${notification.is_read ? "border-gray-800" : "border-brand-gold/30"} rounded-2xl p-5 flex items-start gap-4 shadow-lg`}
               >
                 <div
-                  className={`p-3 rounded-full mt-1 ${notification.is_read ? "bg-gray-800 text-gray-400" : "bg-brand-gold/10 text-brand-gold"}`}
+                  className={`p-3 rounded-full mt-1 shrink-0 ${notification.is_read ? "bg-gray-800 text-gray-400" : "bg-brand-gold/10 text-brand-gold"}`}
                 >
                   {getIcon(notification.type)}
                 </div>
 
-                <div className="flex-1 text-left">
-                  <h3 className="font-semibold text-white mb-1 text-lg">
-                    {notification.type === "message" ||
-                    notification.title === "Nuevo Mensaje"
-                      ? `Nuevo mensaje de: ${notification.sender?.full_name || "Usuario Desconocido"}`
-                      : notification.title}
-                  </h3>
-                  <p className="text-sm text-gray-300 mb-3 leading-relaxed">
+                <div className="flex-1 text-left min-w-0">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 mb-2">
+                    <h3 className="font-semibold text-white text-lg truncate">
+                      {notification.type === "message" ||
+                      notification.title === "Nuevo Mensaje"
+                        ? `Nuevo mensaje de: ${notification.sender?.full_name || "Usuario Desconocido"}`
+                        : notification.title}
+                    </h3>
+                    <ClientDate
+                      dateString={notification.created_at}
+                      format="long"
+                      className="text-xs text-gray-500 font-medium sm:mt-1 shrink-0"
+                    />
+                  </div>
+
+                  <p className="text-sm text-gray-300 mb-4 leading-relaxed">
                     {notification.message}
                   </p>
-                  <ClientDate
-                    dateString={notification.created_at}
-                    format="long"
-                    className="text-xs text-gray-500 block font-medium"
-                  />
-                </div>
 
-                <div className="flex flex-col sm:flex-row gap-2 self-center ml-auto">
-                  {!notification.is_read && (
-                    <button
-                      onClick={() => markAsRead(notification.id)}
-                      className="p-2 hover:bg-green-500/10 rounded-full transition-colors"
-                      title="Marcar como leída"
-                    >
-                      <Check className="w-4 h-4 text-green-500" />
+                  <div className="flex flex-wrap items-center justify-between gap-3 mt-2">
+                    <button className="text-sm font-bold text-brand-gold hover:text-brand-gold/80 transition-colors">
+                      Ver detalles
                     </button>
-                  )}
-                  <button
-                    onClick={() => deleteNotification(notification.id)}
-                    className="p-2 hover:bg-red-500/10 rounded-full transition-colors"
-                    title="Eliminar"
-                  >
-                    <X className="w-4 h-4 text-red-500" />
-                  </button>
+
+                    <div className="flex items-center gap-2">
+                      {!notification.is_read && (
+                        <button
+                          onClick={() => markAsRead(notification.id)}
+                          className="px-3 py-1.5 bg-green-500/10 hover:bg-green-500/20 rounded-lg transition-colors flex items-center gap-1.5 text-xs text-green-500 font-bold"
+                        >
+                          <Check className="w-4 h-4" /> Leída
+                        </button>
+                      )}
+                      <button
+                        onClick={() => deleteNotification(notification.id)}
+                        className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition-colors flex items-center gap-1.5 text-xs text-red-500 font-bold"
+                      >
+                        <X className="w-4 h-4" /> Eliminar
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             ))}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -175,7 +175,7 @@ export default function ChatPage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   // ... (scrollToBottom and initial useEffects remain same, skipping to keep context)
 
@@ -393,12 +393,16 @@ export default function ChatPage() {
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*",
           schema: "public",
           table: "chat_messages",
           filter: `room_id=eq.${activeChat}`,
         },
         async (payload) => {
+          if (payload.eventType === "DELETE") {
+            setMessages((prev) => prev.filter((m) => m.id !== payload.old.id));
+            return;
+          }
           // Fetch full message with profile to ensure UI consistency
           const { data } = await supabase
             .from("chat_messages")
@@ -602,8 +606,8 @@ export default function ChatPage() {
         {/* Sidebar */}
         <div
           className={`${
-            mobileShowChat ? "hidden" : "flex"
-          } md:flex w-full md:w-80 border-r border-brand-gold/20 flex-col bg-brand-black/50 backdrop-blur-xl relative z-10`}
+            mobileShowChat || showVideo ? "hidden" : "flex"
+          } ${showVideo ? "md:hidden" : "md:flex"} w-full md:w-80 border-r border-brand-gold/20 flex-col bg-brand-black/50 backdrop-blur-xl relative z-10 transition-all duration-300`}
         >
           {/* Sidebar Header */}
           <div className="p-4 border-b border-gray-800 space-y-4">

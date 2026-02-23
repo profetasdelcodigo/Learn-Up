@@ -116,13 +116,19 @@ function VideoRoomInner({
   role: string;
   isCreator: boolean;
 }) {
-  const [showWhiteboard, setShowWhiteboard] = useState(false);
   const [sharedVideoUrl, setSharedVideoUrl] = useState<string | null>(null);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [videoInput, setVideoInput] = useState("");
   const [isAlertOpen, setIsAlertOpen] = useState(false);
 
   const canShareVideo = role === "profesor" || role === "admin" || isCreator;
+
+  const handleRequestPermission = (action: string) => {
+    // In a real app, send DataChannel message to admins
+    alert(
+      `Se envió una solicitud a los profesores y al creador para ${action}.`,
+    );
+  };
 
   // Setup Data Channel for syncing video play
   const { send } = useDataChannel("video-share", (msg) => {
@@ -163,15 +169,13 @@ function VideoRoomInner({
 
   return (
     <div className="flex flex-col h-full relative">
-      {/* Main Content Area (Split or Full Video) */}
+      {/* Main Content Area (Permanent Split View) */}
       <div className="flex-1 flex flex-col md:flex-row relative bg-black overflow-hidden">
-        {/* Video Area (Left column if whiteboard is open, full width otherwise) */}
-        <div
-          className={`relative transition-all duration-300 ${showWhiteboard || sharedVideoUrl ? "w-full md:w-1/3 border-b md:border-b-0 md:border-r border-brand-gold/20 h-[40%] md:h-full" : "w-full h-full"}`}
-        >
+        {/* Left Side: Video Participants Grid (Zoom-like gallery) */}
+        <div className="w-full md:w-80 lg:w-96 border-b md:border-b-0 md:border-r border-brand-gold/20 flex flex-col relative z-20 bg-brand-black shadow-2xl shrink-0 h-[40%] md:h-full">
           {!videoEnabled ? (
-            // Audio Only UI
-            <div className="absolute inset-0 flex items-center justify-center z-10 bg-black">
+            // Audio Only Initial UI
+            <div className="absolute inset-0 flex items-center justify-center z-10 bg-brand-black">
               <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-brand-gold to-brand-brown animate-pulse flex items-center justify-center shadow-[0_0_50px_rgba(212,175,55,0.3)]">
                 <span className="text-3xl md:text-4xl font-bold text-brand-black">
                   {username.charAt(0).toUpperCase()}
@@ -179,65 +183,63 @@ function VideoRoomInner({
               </div>
             </div>
           ) : (
-            <MyVideoConference />
+            <CustomVideoConference />
           )}
-
           <RoomAudioRenderer />
         </div>
 
-        {/* Whiteboard Panel (Right column) */}
-        <AnimatePresence>
-          {showWhiteboard && !sharedVideoUrl && (
-            <motion.div
-              initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: 1, width: "auto" }}
-              exit={{ opacity: 0, width: 0 }}
-              className="flex-1 relative h-[60%] md:h-full w-full bg-white z-20"
-            >
-              <div className="relative w-full h-full">
+        {/* Right Side: Presentation Area (Whiteboard or Shared Video) */}
+        <div className="flex-1 relative h-[60%] md:h-full w-full bg-white z-10 flex flex-col">
+          {sharedVideoUrl ? (
+            <div className="w-full h-full relative group bg-black">
+              {canShareVideo && (
                 <button
-                  onClick={() => setShowWhiteboard(false)}
-                  className="absolute top-4 right-4 z-50 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
+                  onClick={handleStopVideo}
+                  className="absolute top-4 right-4 z-50 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
                 >
                   <X className="w-5 h-5" />
                 </button>
+              )}
+              {/* @ts-ignore */}
+              <Player
+                url={sharedVideoUrl as string}
+                width="100%"
+                height="100%"
+                controls={canShareVideo}
+                playing={true}
+                style={{ position: "absolute", top: 0, left: 0 }}
+              />
+            </div>
+          ) : (
+            <div className="relative w-full h-full">
+              {/* Overlay blocking interaction if not privileged */}
+              {!canShareVideo && (
+                <>
+                  <div className="absolute top-4 left-4 z-40 bg-brand-black/90 text-brand-gold backdrop-blur-md px-4 py-2 border border-brand-gold/30 rounded-xl shadow-lg text-sm font-medium animate-pulse pointer-events-none">
+                    Modo de solo visualización
+                  </div>
+                  {/* Invisible overlay to catch clicks and trigger permission request */}
+                  <div
+                    className="absolute inset-0 z-30 cursor-pointer"
+                    onClick={() =>
+                      handleRequestPermission("interactuar con la pizarra")
+                    }
+                    title="Haz clic para solicitar permiso"
+                  />
+                </>
+              )}
+              <div
+                className={
+                  canShareVideo
+                    ? "pointer-events-auto w-full h-full"
+                    : "pointer-events-none w-full h-full"
+                }
+              >
                 <Whiteboard roomId={roomName} />
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
-
-        {/* Shared Video Player */}
-        <AnimatePresence>
-          {sharedVideoUrl && (
-            <motion.div
-              initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: 1, width: "auto" }}
-              exit={{ opacity: 0, width: 0 }}
-              className="flex-1 relative h-[60%] md:h-full w-full bg-black z-20 flex items-center justify-center border-l-2 border-brand-gold"
-            >
-              <div className="w-full h-full relative group">
-                {canShareVideo && (
-                  <button
-                    onClick={handleStopVideo}
-                    className="absolute top-4 right-4 z-50 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                )}
-                {/* @ts-ignore */}
-                <Player
-                  url={sharedVideoUrl as string}
-                  width="100%"
-                  height="100%"
-                  controls={canShareVideo}
-                  playing={true}
-                  style={{ position: "absolute", top: 0, left: 0 }}
-                />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        </div>
       </div>
 
       {/* Video Modal */}
@@ -305,18 +307,15 @@ function VideoRoomInner({
       )}
 
       {/* Custom Controls Container */}
-      <div className="absolute bottom-8 left-0 right-0 flex justify-center z-50 pointer-events-none">
+      <div className="absolute bottom-6 left-0 right-0 flex justify-center z-50 pointer-events-none">
         <div className="pointer-events-auto">
           <CustomControlBar
             onLeave={onLeave}
-            onToggleWhiteboard={() => {
-              if (sharedVideoUrl) handleStopVideo();
-              setShowWhiteboard(!showWhiteboard);
-            }}
-            isWhiteboardOpen={showWhiteboard}
             videoEnabled={videoEnabled} // Pass prop
             onToggleVideoModal={() => setShowVideoModal(true)}
+            onRequestPermission={handleRequestPermission}
             isSharedVideoOpen={!!sharedVideoUrl}
+            canShareVideo={canShareVideo}
           />
         </div>
       </div>
@@ -324,7 +323,7 @@ function VideoRoomInner({
   );
 }
 
-function MyVideoConference() {
+function CustomVideoConference() {
   const tracks = useTracks(
     [
       { source: Track.Source.Camera, withPlaceholder: true },
@@ -334,26 +333,32 @@ function MyVideoConference() {
   );
 
   return (
-    <GridLayout tracks={tracks} style={{ height: "100%" }}>
-      <ParticipantTile style={{ height: "100%", width: "100%" }} />
-    </GridLayout>
+    <div className="grid grid-cols-2 gap-3 p-3 h-full overflow-y-auto custom-scrollbar content-start bg-brand-black">
+      {tracks.map((track) => (
+        <ParticipantTile
+          key={track.participant.identity + track.source}
+          trackRef={track}
+          className="aspect-video w-full rounded-2xl overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.5)] border-[3px] border-gray-800 transition-all duration-300 data-[lk-speaking=true]:border-brand-gold relative group"
+        />
+      ))}
+    </div>
   );
 }
 
 function CustomControlBar({
   onLeave,
-  onToggleWhiteboard,
-  isWhiteboardOpen,
   videoEnabled = true,
   onToggleVideoModal,
+  onRequestPermission,
   isSharedVideoOpen,
+  canShareVideo,
 }: {
   onLeave: () => void;
-  onToggleWhiteboard: () => void;
-  isWhiteboardOpen: boolean;
   videoEnabled?: boolean;
   onToggleVideoModal: () => void;
+  onRequestPermission: (action: string) => void;
   isSharedVideoOpen: boolean;
+  canShareVideo: boolean;
 }) {
   const { localParticipant } = useLocalParticipant();
   const room = useRoomContext();
@@ -426,23 +431,23 @@ function CustomControlBar({
 
       {/* Screen Share */}
       <button
-        onClick={toggleScreen}
+        onClick={
+          canShareVideo
+            ? toggleScreen
+            : () => onRequestPermission("compartir pantalla")
+        }
         className={`${buttonClass} ${isScreenShare ? "bg-green-500/20 text-green-500" : "bg-brand-black text-brand-gold hover:bg-brand-gold/10"}`}
       >
         <Monitor className="w-6 h-6" />
       </button>
 
-      {/* Whiteboard Toggle */}
-      <button
-        onClick={onToggleWhiteboard}
-        className={`${buttonClass} ${isWhiteboardOpen ? "bg-brand-gold text-brand-black" : "bg-brand-black text-brand-gold hover:bg-brand-gold/10"}`}
-      >
-        <PenTool className="w-6 h-6" />
-      </button>
-
       {/* YouTube Share Toggle */}
       <button
-        onClick={onToggleVideoModal}
+        onClick={
+          canShareVideo
+            ? onToggleVideoModal
+            : () => onRequestPermission("compartir video")
+        }
         className={`${buttonClass} ${isSharedVideoOpen ? "bg-red-500/20 text-red-500" : "bg-brand-black text-brand-gold hover:bg-brand-gold/10"}`}
       >
         <Youtube className="w-6 h-6" />

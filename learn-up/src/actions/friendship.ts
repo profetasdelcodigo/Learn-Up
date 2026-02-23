@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import webpush from "@/utils/push";
 
 export async function searchUsers(query: string) {
   const supabase = await createClient();
@@ -79,14 +80,44 @@ export async function sendFriendRequest(targetUserId: string) {
   if (error) throw error;
 
   // Notification for addressee
+  const senderFullName = user.user_metadata?.full_name || "Alguien";
+  const notificationTitle = "Nueva Solicitud de Amistad";
+  const notificationMessage = `${senderFullName} quiere conectar contigo.`;
+
   await supabase.from("notifications").insert({
     user_id: targetUserId, // Para quién es
     sender_id: user.id, // Quién la envía
-    title: "Nueva Solicitud de Amistad",
-    message: `${user.user_metadata.full_name || "Alguien"} quiere conectar contigo.`,
+    title: notificationTitle,
+    message: notificationMessage,
     type: "friend_request",
     is_read: false,
   });
+
+  // Dispatch Native Web Push
+  const { data: subData } = await supabase
+    .from("push_subscriptions")
+    .select("subscription")
+    .eq("user_id", targetUserId)
+    .single();
+
+  if (subData && subData.subscription) {
+    try {
+      await webpush.sendNotification(
+        subData.subscription,
+        JSON.stringify({
+          title: notificationTitle,
+          message: notificationMessage,
+          link: "/notifications",
+        }),
+      );
+    } catch (pushErr) {
+      console.error(
+        "Push delivery failed for friend request",
+        targetUserId,
+        pushErr,
+      );
+    }
+  }
 
   return { success: true };
 }
@@ -119,13 +150,43 @@ export async function acceptFriendRequest(senderId: string) {
   if (error) throw error;
 
   // Also create a notification back to the requester saying "Request Accepted"
+  const acceptorName = user.user_metadata?.full_name || "Alguien";
+  const accTitle = "Solicitud Aceptada";
+  const accMessage = `${acceptorName} aceptó tu solicitud de amistad.`;
+
   await supabase.from("notifications").insert({
     user_id: senderId,
     type: "system",
-    title: "Solicitud Aceptada",
-    message: `${user.user_metadata?.full_name || "Alguien"} aceptó tu solicitud de amistad.`,
+    title: accTitle,
+    message: accMessage,
     link: "/chat",
   });
+
+  // Dispatch Native Web Push for Acceptance
+  const { data: subData } = await supabase
+    .from("push_subscriptions")
+    .select("subscription")
+    .eq("user_id", senderId)
+    .single();
+
+  if (subData && subData.subscription) {
+    try {
+      await webpush.sendNotification(
+        subData.subscription,
+        JSON.stringify({
+          title: accTitle,
+          message: accMessage,
+          link: "/chat",
+        }),
+      );
+    } catch (pushErr) {
+      console.error(
+        "Push delivery failed for friend request acceptance",
+        senderId,
+        pushErr,
+      );
+    }
+  }
 
   return { success: true };
 }
