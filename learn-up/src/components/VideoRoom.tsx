@@ -84,8 +84,8 @@ export default function VideoRoom({
 
   return (
     <LiveKitRoom
-      video={videoEnabled}
-      audio={true}
+      video={false}
+      audio={false}
       token={token}
       connect={true}
       serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
@@ -179,7 +179,7 @@ function ParticipantTileCard({
   );
 }
 
-// ─── Participants Panel (2-col grid, scrollable) ──────────────────────────────
+// ─── Participants Panel (2-col grid, scrollable — used for voice AND video) ───
 function ParticipantsGrid({ username }: { username: string }) {
   const participants = useParticipants();
 
@@ -488,6 +488,13 @@ function VideoRoomInner({
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [videoInput, setVideoInput] = useState("");
   const [permissionToast, setPermissionToast] = useState<string | null>(null);
+  // Permission request modal (for host)
+  const [permissionRequest, setPermissionRequest] = useState<{
+    from: string;
+    action: string;
+  } | null>(null);
+  // Whether this student was granted whiteboard permission by host
+  const [wbGranted, setWbGranted] = useState(false);
 
   const canShare = role === "profesor" || role === "admin" || isCreator;
 
@@ -513,8 +520,14 @@ function VideoRoomInner({
         // Host ended the call — everyone must leave
         onLeave();
       } else if (data.type === "PERMISSION_REQUEST" && canShare) {
-        // Host receives permission request from a student
-        showToast(`📩 ${data.from} solicita permiso para ${data.action}`);
+        // Host receives permission request from a student — show modal
+        setPermissionRequest({ from: data.from, action: data.action });
+      } else if (data.type === "PERMISSION_GRANTED") {
+        // Student receives grant — check if it's for them
+        if (data.to === username) {
+          setWbGranted(true);
+          showToast("✅ El profesor te dio permiso");
+        }
       }
     } catch {}
   });
@@ -528,6 +541,18 @@ function VideoRoomInner({
       { reliable: true },
     );
     showToast(`Solicitud enviada al profesor para ${action}`);
+  };
+
+  // Host grants permission to student
+  const grantPermission = (to: string) => {
+    send(
+      new TextEncoder().encode(
+        JSON.stringify({ type: "PERMISSION_GRANTED", to }),
+      ),
+      { reliable: true },
+    );
+    setPermissionRequest(null);
+    showToast(`✅ Permiso concedido a ${to}`);
   };
 
   const broadcastVideo = (url: string) => {
@@ -568,8 +593,40 @@ function VideoRoomInner({
     <div className="flex flex-col h-full bg-brand-black overflow-hidden">
       {/* ── Toast ── */}
       {permissionToast && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[70] bg-brand-gold text-brand-black font-semibold px-5 py-2.5 rounded-full shadow-2xl text-sm">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[70] bg-brand-gold text-brand-black font-semibold px-5 py-2.5 rounded-full shadow-2xl text-sm whitespace-nowrap">
           {permissionToast}
+        </div>
+      )}
+
+      {/* ── Permission Request Modal (host only) ── */}
+      {permissionRequest && (
+        <div className="absolute inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-zinc-900 border border-brand-gold/50 rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center">
+            <p className="text-2xl mb-2">📩</p>
+            <h3 className="text-white font-bold text-lg mb-1">
+              {permissionRequest.from}
+            </h3>
+            <p className="text-gray-400 text-sm mb-5">
+              solicita permiso para:{" "}
+              <span className="text-brand-gold font-semibold">
+                {permissionRequest.action}
+              </span>
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => grantPermission(permissionRequest.from)}
+                className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-colors"
+              >
+                ✓ Aceptar
+              </button>
+              <button
+                onClick={() => setPermissionRequest(null)}
+                className="flex-1 py-2.5 bg-red-600/80 hover:bg-red-500 text-white font-bold rounded-xl transition-colors"
+              >
+                ✕ Rechazar
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -591,23 +648,8 @@ function VideoRoomInner({
             </span>
           </div>
 
-          {videoEnabled ? (
-            <ParticipantsGrid username={username} />
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center gap-3 px-3">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-brand-gold to-brand-brown animate-pulse flex items-center justify-center shadow-[0_0_40px_rgba(212,175,55,0.3)]">
-                <span className="text-3xl font-bold text-brand-black">
-                  {username.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <span className="text-brand-gold text-sm font-medium">
-                {username}
-              </span>
-              <span className="text-gray-500 text-xs">
-                Llamada de voz activa
-              </span>
-            </div>
-          )}
+          {/* Always show the same 2-col participant grid for both voice and video */}
+          <ParticipantsGrid username={username} />
           <RoomAudioRenderer />
         </div>
 
@@ -674,8 +716,11 @@ function VideoRoomInner({
             ) : (
               /* Whiteboard — always shown by default */
               <div className="w-full h-full relative">
-                <CanvasWhiteboard roomId={roomName} enabled={canShare} />
-                {!canShare && (
+                <CanvasWhiteboard
+                  roomId={roomName}
+                  enabled={canShare || wbGranted}
+                />
+                {!canShare && !wbGranted && (
                   // Student overlay: click to send real permission request
                   <div
                     className="absolute inset-0 z-10 cursor-pointer"
@@ -798,35 +843,56 @@ function CustomControlBar({
 }) {
   const { localParticipant } = useLocalParticipant();
   const room = useRoomContext();
-  const [isMicOn, setIsMicOn] = useState(true);
-  const [isCamOn, setIsCamOn] = useState(videoEnabled);
+  const [isMicOn, setIsMicOn] = useState(false);
+  const [isCamOn, setIsCamOn] = useState(false);
   const [isScreenShare, setIsScreenShare] = useState(false);
+
+  // Enable mic on mount (safe — user already granted permission in startCall)
+  useEffect(() => {
+    if (!localParticipant) return;
+    localParticipant
+      .setMicrophoneEnabled(true)
+      .then(() => setIsMicOn(true))
+      .catch(() => {});
+    if (videoEnabled) {
+      localParticipant
+        .setCameraEnabled(true)
+        .then(() => setIsCamOn(true))
+        .catch(() => {});
+    }
+  }, [localParticipant, videoEnabled]);
 
   const toggleMic = async () => {
     if (!localParticipant) return;
     const next = !isMicOn;
-    await localParticipant.setMicrophoneEnabled(next);
-    setIsMicOn(next);
+    try {
+      await localParticipant.setMicrophoneEnabled(next);
+      setIsMicOn(next);
+    } catch {
+      // Permission denied — ignore silently
+    }
   };
 
   const toggleCam = async () => {
     if (!localParticipant || !videoEnabled) return;
     const next = !isCamOn;
-    await localParticipant.setCameraEnabled(next);
-    setIsCamOn(next);
+    try {
+      await localParticipant.setCameraEnabled(next);
+      setIsCamOn(next);
+    } catch {}
   };
 
   const toggleScreen = async () => {
     if (!localParticipant) return;
     if (!canShare) {
-      onRequestPermission(
-        "Solicitud enviada al profesor para compartir pantalla",
-      );
+      onRequestPermission("compartir pantalla");
       return;
     }
     const next = !isScreenShare;
-    await localParticipant.setScreenShareEnabled(next);
-    setIsScreenShare(next);
+    try {
+      await localParticipant.setScreenShareEnabled(next);
+      setIsScreenShare(next);
+    } catch {}
   };
 
   const handleLeave = () => {

@@ -27,6 +27,11 @@ import {
   Ban,
   CheckCheck,
   Plus,
+  Mic,
+  MicOff,
+  FileText,
+  Music,
+  StopCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
@@ -162,6 +167,16 @@ export default function ChatPage() {
   const [editContent, setEditContent] = useState("");
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Pending file preview (before send)
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+
+  // Audio recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordDuration, setRecordDuration] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Toast notifications
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -396,27 +411,6 @@ export default function ChatPage() {
     }
   };
 
-  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !activeChat) return;
-
-    setUploadingMedia(true);
-    try {
-      const mediaUrl = await uploadChatMedia(file, activeChat);
-      // Send message with media
-      const isImage = file.type.startsWith("image/");
-      const mediaType = isImage ? "image" : "video";
-      const content = `[${mediaType}]${mediaUrl}`;
-
-      await sendMessageAction(activeChat, content);
-    } catch (e) {
-      console.error("Error uploading media:", e);
-      addToast("Error al subir archivo", "error");
-    } finally {
-      setUploadingMedia(false);
-    }
-  };
-
   const handleEditMessage = async (id: string, content: string) => {
     try {
       await updateMessage(id, content);
@@ -546,6 +540,11 @@ export default function ChatPage() {
   }, [activeChat, supabase]);
 
   const sendMessage = async () => {
+    // If there's a pending file, upload it first
+    if (pendingFile) {
+      await uploadAndSendFile(pendingFile);
+      return;
+    }
     if (!input.trim() || !activeChat || !currentUserId) return;
     const content = input.trim();
     setInput("");
@@ -689,6 +688,93 @@ export default function ChatPage() {
         "error",
       );
     }
+  };
+
+  // ── File & Media handlers ──────────────────────────────────────────────────
+  const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPendingFile(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const uploadAndSendFile = async (file: File) => {
+    if (!activeChat || !currentUserId) return;
+    setUploadingMedia(true);
+    try {
+      const url = await uploadChatMedia(file, activeChat);
+      let content: string;
+      if (file.type.startsWith("image/")) {
+        content = `[image]${url}`;
+      } else if (file.type.startsWith("video/")) {
+        content = `[video]${url}`;
+      } else if (file.type.startsWith("audio/")) {
+        content = `[audio]${url}`;
+      } else {
+        content = `[file:${file.name}]${url}`;
+      }
+      await sendMessageAction(activeChat, content);
+    } catch {
+      addToast("Error al subir el archivo", "error");
+    } finally {
+      setUploadingMedia(false);
+      setPendingFile(null);
+    }
+  };
+
+  // ── Voice recording ────────────────────────────────────────────────────────
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      mr.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+      mr.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        if (!mediaRecorderRef.current) return; // was cancelled
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const af = new File([blob], `audio_${Date.now()}.webm`, {
+          type: "audio/webm",
+        });
+        await uploadAndSendFile(af);
+        mediaRecorderRef.current = null;
+      };
+      mr.start();
+      mediaRecorderRef.current = mr;
+      setIsRecording(true);
+      setRecordDuration(0);
+      recordTimerRef.current = setInterval(
+        () => setRecordDuration((d) => d + 1),
+        1000,
+      );
+    } catch {
+      addToast("No se pudo acceder al micrófono", "error");
+    }
+  };
+
+  const stopRecording = () => {
+    if (recordTimerRef.current) clearInterval(recordTimerRef.current);
+    mediaRecorderRef.current?.stop();
+    setIsRecording(false);
+    setRecordDuration(0);
+  };
+
+  const cancelRecording = () => {
+    if (recordTimerRef.current) clearInterval(recordTimerRef.current);
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.onstop = null;
+      try {
+        mediaRecorderRef.current.stream?.getTracks().forEach((t) => t.stop());
+      } catch {}
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {}
+      mediaRecorderRef.current = null;
+    }
+    setIsRecording(false);
+    setRecordDuration(0);
   };
 
   // Local Filters
@@ -1177,7 +1263,7 @@ export default function ChatPage() {
                               {msg.content.startsWith("[image]") ? (
                                 <img
                                   src={msg.content.replace("[image]", "")}
-                                  className="rounded-lg max-w-full cursor-pointer"
+                                  className="rounded-lg max-w-full cursor-pointer max-h-60 object-cover"
                                   onClick={() =>
                                     window.open(
                                       msg.content.replace("[image]", ""),
@@ -1190,8 +1276,35 @@ export default function ChatPage() {
                                 <video
                                   src={msg.content.replace("[video]", "")}
                                   controls
-                                  className="rounded-lg max-w-full"
+                                  className="rounded-lg max-w-full max-h-60"
                                 />
+                              ) : msg.content.startsWith("[audio]") ? (
+                                <div className="flex flex-col gap-1">
+                                  <p className="text-[10px] opacity-70 flex items-center gap-1 mb-1">
+                                    <span>🎤</span> Mensaje de voz
+                                  </p>
+                                  <audio
+                                    src={msg.content.replace("[audio]", "")}
+                                    controls
+                                    className="max-w-full"
+                                    style={{ height: 36 }}
+                                  />
+                                </div>
+                              ) : msg.content.startsWith("[file:") ? (
+                                <a
+                                  href={msg.content.replace(
+                                    /^\[file:[^\]]*\]/,
+                                    "",
+                                  )}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 text-sm underline"
+                                >
+                                  <span>📄</span>
+                                  {msg.content.match(
+                                    /^\[file:([^\]]+)\]/,
+                                  )?.[1] || "Archivo"}
+                                </a>
                               ) : msg.content === "[CALL_OFFER_VIDEO]" ||
                                 msg.content === "[CALL_OFFER_VOICE]" ? (
                                 <div className="flex flex-col gap-2 min-w-[200px] sm:min-w-[240px]">
@@ -1302,7 +1415,7 @@ export default function ChatPage() {
                   <div ref={messagesEndRef} />
                 </div>
 
-                {/* Input Area with Sticky Bottom for Mobile - pb-8 for safe area fallback */}
+                {/* ── Input Area ── */}
                 <div className="p-4 bg-brand-black border-t border-gray-800 sticky bottom-0 z-30 pb-8 md:pb-4">
                   {editingMessageId && (
                     <div className="flex items-center justify-between bg-brand-gold/10 p-2 px-4 rounded-t-xl border border-brand-gold/20 text-xs mb-2">
@@ -1319,7 +1432,65 @@ export default function ChatPage() {
                       </button>
                     </div>
                   )}
+
+                  {/* ── File preview bar ── */}
+                  {pendingFile && (
+                    <div className="flex items-center gap-2 bg-gray-900 px-3 py-2 rounded-xl border border-brand-gold/30 mb-2">
+                      {pendingFile.type.startsWith("image/") ? (
+                        <img
+                          src={URL.createObjectURL(pendingFile)}
+                          className="w-10 h-10 rounded-lg object-cover border border-gray-700"
+                          alt="preview"
+                        />
+                      ) : pendingFile.type.startsWith("video/") ? (
+                        <video
+                          src={URL.createObjectURL(pendingFile)}
+                          className="w-10 h-10 rounded-lg object-cover border border-gray-700"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center border border-gray-700 text-lg">
+                          {pendingFile.type.includes("pdf")
+                            ? "📄"
+                            : pendingFile.type.includes("audio")
+                              ? "🎵"
+                              : "📎"}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-xs font-medium truncate">
+                          {pendingFile.name}
+                        </p>
+                        <p className="text-gray-500 text-[10px]">
+                          {(pendingFile.size / 1024).toFixed(1)} KB
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setPendingFile(null)}
+                        className="p-1 hover:bg-red-500/20 rounded-full text-gray-400 hover:text-red-400 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* ── Voice recording indicator ── */}
+                  {isRecording && (
+                    <div className="flex items-center gap-3 bg-red-500/10 border border-red-500/30 px-3 py-2 rounded-xl mb-2">
+                      <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                      <span className="text-red-400 text-xs font-semibold flex-1">
+                        Grabando audio... {recordDuration}s
+                      </span>
+                      <button
+                        onClick={cancelRecording}
+                        className="text-red-400 hover:text-red-300 text-xs font-bold hover:underline"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  )}
+
                   <div className="relative flex items-end gap-2 bg-gray-900/50 p-2 rounded-2xl border border-gray-800 focus-within:border-brand-gold/50 transition-colors">
+                    {/* Paperclip — all file types */}
                     <button
                       className="p-3 text-gray-400 hover:text-brand-gold hover:bg-brand-gold/10 rounded-full transition-colors"
                       onClick={() => fileInputRef.current?.click()}
@@ -1330,7 +1501,7 @@ export default function ChatPage() {
                       type="file"
                       ref={fileInputRef}
                       className="hidden"
-                      accept="image/*,video/*"
+                      accept="image/*,video/*,audio/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,.docx"
                       onChange={handleMediaUpload}
                     />
 
@@ -1351,10 +1522,37 @@ export default function ChatPage() {
                           }
                         }
                       }}
-                      placeholder="Escribe un mensaje..."
-                      className="flex-1 bg-transparent border-none text-white placeholder-gray-500 min-h-[44px] max-h-32 py-3 px-2 focus:ring-0 resize-none custom-scrollbar leading-normal"
+                      placeholder={
+                        isRecording
+                          ? "Grabando audio..."
+                          : "Escribe un mensaje..."
+                      }
+                      disabled={isRecording}
+                      className="flex-1 bg-transparent border-none text-white placeholder-gray-500 min-h-[44px] max-h-32 py-3 px-2 focus:ring-0 resize-none custom-scrollbar leading-normal disabled:opacity-50"
                       rows={1}
                     />
+
+                    {/* Mic button — hold to record / tap to toggle */}
+                    {!editingMessageId && (
+                      <button
+                        onClick={isRecording ? stopRecording : startRecording}
+                        className={`p-3 rounded-full transition-colors ${
+                          isRecording
+                            ? "bg-red-500/20 text-red-400 animate-pulse"
+                            : "text-gray-400 hover:text-brand-gold hover:bg-brand-gold/10"
+                        }`}
+                        title={
+                          isRecording ? "Detener grabación" : "Grabar audio"
+                        }
+                      >
+                        {isRecording ? (
+                          <StopCircle className="w-5 h-5" />
+                        ) : (
+                          <Mic className="w-5 h-5" />
+                        )}
+                      </button>
+                    )}
+
                     <button
                       onClick={() =>
                         editingMessageId
@@ -1363,7 +1561,10 @@ export default function ChatPage() {
                       }
                       disabled={
                         uploadingMedia ||
-                        (editingMessageId ? !editContent : !input)
+                        isRecording ||
+                        (editingMessageId
+                          ? !editContent
+                          : !input && !pendingFile)
                       }
                       className="p-3 bg-brand-gold text-brand-black rounded-xl hover:bg-white transition-all disabled:opacity-50"
                     >
