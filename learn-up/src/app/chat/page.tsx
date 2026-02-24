@@ -199,27 +199,93 @@ export default function ChatPage() {
       }
       setCurrentUserId(user.id);
 
-      // Fetch current user profile
+      // Fetch current user profile — direct client query, no server round-trip
       const { data: profile } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
         .single();
 
-      if (profile) {
-        setCurrentProfile(profile);
-      }
+      if (profile) setCurrentProfile(profile);
 
-      // Load friends and rooms
       try {
-        const [friendsData, roomsData, requestsData] = await Promise.all([
-          getFriends(),
-          getUserRooms(),
-          getPendingRequests(),
+        // Fetch friends, rooms, and pending requests via direct client queries
+        const [
+          { data: friendships },
+          { data: myRooms },
+          { data: pendingReqs },
+        ] = await Promise.all([
+          supabase
+            .from("friendships")
+            .select("id, requester_id, addressee_id")
+            .eq("status", "accepted")
+            .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`),
+          supabase
+            .from("chat_rooms")
+            .select("*")
+            .contains("participants", JSON.stringify([user.id]))
+            .order("updated_at", { ascending: false }),
+          supabase
+            .from("friendships")
+            .select("id, created_at, requester_id")
+            .eq("status", "pending")
+            .eq("addressee_id", user.id),
         ]);
-        setFriends(friendsData || []);
-        setRooms(roomsData || []);
-        setPendingRequests(requestsData || []);
+
+        // Map friend IDs and fetch profiles
+        if (friendships && friendships.length > 0) {
+          const friendIds = friendships.map((f: any) =>
+            f.requester_id === user.id ? f.addressee_id : f.requester_id,
+          );
+          const { data: friendProfiles } = await supabase
+            .from("profiles")
+            .select("id, username, full_name, avatar_url, school, grade, role")
+            .in("id", friendIds);
+
+          const profileMap = new Map(
+            (friendProfiles || []).map((p: any) => [p.id, p]),
+          );
+          setFriends(
+            friendships.map((f: any) => {
+              const fid =
+                f.requester_id === user.id ? f.addressee_id : f.requester_id;
+              const p = profileMap.get(fid) as any;
+              return {
+                friendshipId: f.id,
+                id: fid,
+                username: p?.username || "Usuario",
+                full_name: p?.full_name || "Desconocido",
+                avatar_url: p?.avatar_url,
+                school: p?.school,
+                grade: p?.grade,
+                role: p?.role,
+              };
+            }),
+          );
+        }
+
+        if (myRooms) setRooms(myRooms as any);
+
+        if (pendingReqs && pendingReqs.length > 0) {
+          const reqIds = pendingReqs.map((r: any) => r.requester_id);
+          const { data: reqProfiles } = await supabase
+            .from("profiles")
+            .select("id, username, full_name, avatar_url")
+            .in("id", reqIds);
+          const reqProfileMap = new Map(
+            (reqProfiles || []).map((p: any) => [p.id, p]),
+          );
+          setPendingRequests(
+            pendingReqs.map((r: any) => ({
+              id: r.id,
+              created_at: r.created_at,
+              requester: reqProfileMap.get(r.requester_id) || {
+                id: r.requester_id,
+                full_name: "Desconocido",
+              },
+            })),
+          );
+        }
       } catch (error) {
         console.error("Error loading initial data:", error);
       } finally {
@@ -229,6 +295,16 @@ export default function ChatPage() {
     initData();
 
     // 2. Realtime Subscription for Chat Rooms (List)
+    // IMPORTANT: Use direct client query — NOT server action — to avoid round-trip latency
+    const refreshRooms = async (userId: string) => {
+      const { data: rooms } = await supabase
+        .from("chat_rooms")
+        .select("*")
+        .contains("participants", JSON.stringify([userId]))
+        .order("updated_at", { ascending: false });
+      if (rooms) setRooms(rooms as any);
+    };
+
     const channel = supabase
       .channel("chat_rooms_list")
       .on(
@@ -239,9 +315,10 @@ export default function ChatPage() {
           table: "chat_rooms",
         },
         async () => {
-          // Refresh rooms list when any room changes (filtered by RLS conceptually, but we re-fetch to be safe)
-          const updatedRooms = await getUserRooms();
-          setRooms(updatedRooms || []);
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+          if (user) refreshRooms(user.id);
         },
       )
       .subscribe();
