@@ -449,22 +449,35 @@ export default function ChatPage() {
   useEffect(() => {
     if (!activeChat) return;
 
-    const loadMessages = async () => {
-      setInitialLoading(true);
+    // Direct client query — no server round-trip
+    const loadMessagesForRoom = async (roomId: string) => {
       try {
-        const msgs = await getChatMessages(activeChat);
-        setMessages(msgs as any);
-        markMessagesAsRead(activeChat);
-      } catch (error) {
-        console.error("Error loading messages:", error);
-      } finally {
-        setInitialLoading(false);
+        const { data, error } = await supabase
+          .from("chat_messages")
+          .select(
+            `*, profiles:user_id (full_name, avatar_url, role, school, grade)`,
+          )
+          .eq("room_id", roomId)
+          .order("created_at", { ascending: true })
+          .limit(50);
+        if (!error && data) {
+          setMessages(data as any);
+        }
+      } catch (err) {
+        console.error("Error loading messages:", err);
       }
     };
 
-    loadMessages();
+    const init = async () => {
+      setInitialLoading(true);
+      await loadMessagesForRoom(activeChat);
+      markMessagesAsRead(activeChat);
+      setInitialLoading(false);
+    };
 
-    // Realtime subscription
+    init();
+
+    // ── Realtime subscription (primary) ──────────────────────────────────────
     const channel = supabase
       .channel(`room:${activeChat}`)
       .on(
@@ -493,15 +506,12 @@ export default function ChatPage() {
             setMessages((prev) => {
               const index = prev.findIndex((m) => m.id === data.id);
               if (index !== -1) {
-                // If the message is already there (optimistic), replace it with the DB version
                 const newMsgs = [...prev];
                 newMsgs[index] = data as any;
                 return newMsgs;
               }
-              // Otherwise, add it
               return [...prev, data as any];
             });
-            // Force scroll to bottom on new message if we receive one
             setTimeout(() => {
               messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
             }, 100);
@@ -510,8 +520,28 @@ export default function ChatPage() {
       )
       .subscribe();
 
+    // ── Polling fallback (30 s) — keeps messages current if WS stales ────────
+    const pollInterval = setInterval(() => {
+      loadMessagesForRoom(activeChat);
+    }, 30_000);
+
+    // ── Page Visibility API — re-fetch when user returns to the tab ──────────
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        loadMessagesForRoom(activeChat);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    // ── Window focus — re-fetch when window regains focus ────────────────────
+    const handleFocus = () => loadMessagesForRoom(activeChat);
+    window.addEventListener("focus", handleFocus);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(pollInterval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", handleFocus);
     };
   }, [activeChat, supabase]);
 
