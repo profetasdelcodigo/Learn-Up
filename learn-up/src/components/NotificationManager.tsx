@@ -1,15 +1,19 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 
+// Regex to filter system call tokens like [CALL_REJECTED_VOICE], [CALL_ENDED_VIDEO], etc.
+const SYSTEM_REGEX = /\[CALL_[A-Z_]+\]/;
+const isSystemMsg = (text?: string) => !!text && SYSTEM_REGEX.test(text);
+
 export default function NotificationManager() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
   useEffect(() => {
-    // 1. Request Permission on Mount
+    // 1. Request permission on mount
     const requestPermission = async () => {
       if (!("Notification" in window)) return;
       if (Notification.permission === "default") {
@@ -39,12 +43,16 @@ export default function NotificationManager() {
           (payload) => {
             const newNotif = payload.new;
 
-            // Trigger Native Notification if hidden
+            // Skip system call tokens — never show them as native notifications
+            if (isSystemMsg(newNotif.message) || isSystemMsg(newNotif.title))
+              return;
+
+            // Trigger Native Notification if the tab is hidden
             if (document.hidden && Notification.permission === "granted") {
               try {
                 const n = new Notification(newNotif.title || "Learn Up", {
                   body: newNotif.message,
-                  icon: "/favicon.svg", // Fallback icon
+                  icon: "/favicon.svg",
                   tag: newNotif.room_id || "general",
                 });
 

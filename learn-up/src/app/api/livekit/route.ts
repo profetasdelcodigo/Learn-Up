@@ -28,9 +28,18 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const at = new AccessToken(apiKey, apiSecret, { identity: username });
+  // TTL: 24 hours — prevents reconnect loops caused by short-lived tokens
+  const at = new AccessToken(apiKey, apiSecret, {
+    identity: username,
+    ttl: 86400, // 24 hours in seconds
+  });
 
-  at.addGrant({ roomJoin: true, room: room });
+  at.addGrant({
+    roomJoin: true,
+    room: room,
+    canPublish: true,
+    canSubscribe: true,
+  });
 
   return NextResponse.json({ token: await at.toJwt() });
 }

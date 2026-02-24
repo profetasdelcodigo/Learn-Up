@@ -496,7 +496,7 @@ function VideoRoomInner({
     setTimeout(() => setPermissionToast(null), 4000);
   };
 
-  // ── DataChannel: Video & Presentation State Sync ──────────────────────────
+  // ── DataChannel: Video & Presentation State Sync + End Call + Permission Req ─
   const { send } = useDataChannel("presentation", (msg) => {
     try {
       const data = JSON.parse(new TextDecoder().decode(msg.payload));
@@ -509,9 +509,26 @@ function VideoRoomInner({
       } else if (data.type === "SHOW_WHITEBOARD") {
         setPresentationMode("whiteboard");
         setSharedVideoUrl(null);
+      } else if (data.type === "CALL_ENDED") {
+        // Host ended the call — everyone must leave
+        onLeave();
+      } else if (data.type === "PERMISSION_REQUEST" && canShare) {
+        // Host receives permission request from a student
+        showToast(`📩 ${data.from} solicita permiso para ${data.action}`);
       }
     } catch {}
   });
+
+  // Send permission request to host via DataChannel
+  const sendPermissionRequest = (action: string) => {
+    send(
+      new TextEncoder().encode(
+        JSON.stringify({ type: "PERMISSION_REQUEST", from: username, action }),
+      ),
+      { reliable: true },
+    );
+    showToast(`Solicitud enviada al profesor para ${action}`);
+  };
 
   const broadcastVideo = (url: string) => {
     send(
@@ -656,22 +673,16 @@ function VideoRoomInner({
               </div>
             ) : (
               /* Whiteboard — always shown by default */
-              <div className="w-full h-full">
-                {canShare ? (
-                  <CanvasWhiteboard roomId={roomName} enabled={true} />
-                ) : (
-                  <>
-                    <CanvasWhiteboard roomId={roomName} enabled={false} />
-                    {/* Student overlay: click to request permission */}
-                    <div
-                      className="absolute inset-0 z-10 cursor-pointer"
-                      onClick={() =>
-                        showToast(
-                          "Se envió la solicitud al profesor para interactuar con la pizarra",
-                        )
-                      }
-                    />
-                  </>
+              <div className="w-full h-full relative">
+                <CanvasWhiteboard roomId={roomName} enabled={canShare} />
+                {!canShare && (
+                  // Student overlay: click to send real permission request
+                  <div
+                    className="absolute inset-0 z-10 cursor-pointer"
+                    onClick={() =>
+                      sendPermissionRequest("interactuar con la pizarra")
+                    }
+                  />
                 )}
               </div>
             )}
@@ -682,14 +693,24 @@ function VideoRoomInner({
       {/* ── Control Bar (bottom row, NOT overlapping content) ── */}
       <div className="shrink-0 flex justify-center py-3 bg-zinc-950 border-t border-brand-gold/10">
         <CustomControlBar
-          onLeave={onLeave}
+          onLeave={() => {
+            // If privileged (creator/teacher), broadcast CALL_ENDED to kick everyone
+            if (canShare) {
+              send(
+                new TextEncoder().encode(
+                  JSON.stringify({ type: "CALL_ENDED" }),
+                ),
+                { reliable: true },
+              );
+            }
+            onLeave();
+          }}
           videoEnabled={videoEnabled}
           onShareVideo={() => {
             if (canShare) setShowVideoModal(true);
-            else
-              showToast("Solo el profesor o el creador puede compartir videos");
+            else sendPermissionRequest("compartir video");
           }}
-          onRequestPermission={showToast}
+          onRequestPermission={sendPermissionRequest}
           isVideoOpen={presentationMode === "video"}
           canShare={canShare}
         />
