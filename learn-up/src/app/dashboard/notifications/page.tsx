@@ -1,9 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { motion } from "framer-motion";
-import { Bell, Check, Trash2, UserPlus, Calendar } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Bell,
+  Check,
+  Trash2,
+  UserPlus,
+  MessageSquare,
+  Phone,
+  Video,
+  Calendar,
+  X,
+} from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { acceptFriendRequest } from "@/actions/friendship";
@@ -18,40 +28,85 @@ interface Notification {
   link?: string;
   is_read: boolean;
   created_at: string;
-  sender_id?: string; // We might need this for friend requests if logic requires
+  sender_id?: string;
+  sender?: {
+    full_name: string;
+    avatar_url: string | null;
+  };
+}
+
+// Internal system message tokens that should never be displayed to users
+const INTERNAL_TOKENS = [
+  "[CALL_ENDED_VOICE]",
+  "[CALL_ENDED_VIDEO]",
+  "[CALL_STARTED]",
+  "???",
+];
+
+function cleanMessage(raw: string): string {
+  if (!raw || INTERNAL_TOKENS.some((t) => raw.includes(t))) return "";
+  return raw;
+}
+
+function getNotifIcon(type: string) {
+  switch (type) {
+    case "friend_request":
+      return <UserPlus className="w-5 h-5" />;
+    case "message":
+      return <MessageSquare className="w-5 h-5" />;
+    case "call":
+      return <Phone className="w-5 h-5" />;
+    case "video_call":
+      return <Video className="w-5 h-5" />;
+    case "calendar_event":
+      return <Calendar className="w-5 h-5" />;
+    default:
+      return <Bell className="w-5 h-5" />;
+  }
+}
+
+function getNotifColor(type: string): string {
+  switch (type) {
+    case "friend_request":
+      return "bg-purple-500/15 text-purple-400";
+    case "message":
+      return "bg-brand-gold/15 text-brand-gold";
+    case "call":
+      return "bg-green-500/15 text-green-400";
+    case "video_call":
+      return "bg-blue-500/15 text-blue-400";
+    default:
+      return "bg-brand-gold/15 text-brand-gold";
+  }
+}
+
+function getSenderName(notif: Notification): string {
+  return notif.sender?.full_name || "Alguien";
+}
+
+function getDisplayTitle(notif: Notification): string {
+  const name = getSenderName(notif);
+  switch (notif.type) {
+    case "friend_request":
+      return `Solicitud de amistad de ${name}`;
+    case "message":
+      return `Mensaje de ${name}`;
+    case "call":
+      return `Llamada de voz de ${name}`;
+    case "video_call":
+      return `Videollamada de ${name}`;
+    default:
+      return notif.title?.includes("[") ? "Notificación" : notif.title;
+  }
 }
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
-  useEffect(() => {
-    fetchNotifications();
-    const channel = supabase
-      .channel("public:notifications_page")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-        },
-        (payload) => {
-          // In a real app we'd filter by user_id here or in RLS
-          // For now, let's just refresh basic
-          fetchNotifications();
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -59,193 +114,193 @@ export default function NotificationsPage() {
 
     const { data } = await supabase
       .from("notifications")
-      .select("*")
+      .select(`*, sender:sender_id (full_name, avatar_url)`)
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
-    if (data) setNotifications(data);
+    if (data) {
+      // Filter out internal system notifications that have no readable message
+      const visible = (data as Notification[]).filter((n) => {
+        const msg = cleanMessage(n.message);
+        // Keep if it has a meaningful message OR is a typed notification
+        return (
+          msg.length > 0 ||
+          ["friend_request", "call", "video_call"].includes(n.type)
+        );
+      });
+      setNotifications(visible);
+    }
     setLoading(false);
-  };
+  }, [supabase]);
+
+  useEffect(() => {
+    fetchNotifications();
+
+    const channel = supabase
+      .channel("notifications_dashboard")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "notifications" },
+        () => fetchNotifications(),
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, fetchNotifications]);
 
   const markAllRead = async () => {
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return;
-
     await supabase
       .from("notifications")
       .update({ is_read: true })
       .eq("user_id", user.id);
-
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
   };
 
   const deleteNotification = async (id: string) => {
-    await supabase.from("notifications").delete().eq("id", id);
     setNotifications((prev) => prev.filter((n) => n.id !== id));
+    await supabase.from("notifications").delete().eq("id", id);
   };
 
   const handleAcceptRequest = async (notification: Notification) => {
-    // Logic: Notification usually implies a sender_id.
-    // We need the sender_id to call acceptFriendRequest.
-    // ERROR: The current notifications table MIGHT not have sender_id column?
-    // Checking table schema... The previous tool output showed 'sender_id' in a grep or schema logic?
-    // Wait, let's check schema.sql or migration.sql
-    // I will assume sender_id exists in notifications table as typically designed.
-    // If not, I'll rely on the notification data payload if I put it there.
-    // Update: migration_notifications.sql I created earlier didn't explicitly have sender_id?
-    // Let me enable sender_id in notifications if missing.
-    // Correction: My previous migration creation code in history:
-    // "user_id UUID..."
-    // It did NOT include sender_id in the create table statement!
-    // CRITICAL FIX: I need to add sender_id to notifications table or parse it from message/link?
-    // NO, proper way is to add the column.
-
-    // FALLBACK for now: If I can't easily add column without migration loop,
-    // I will assume the sender_id IS NOT AVAILABLE easily unless I parse it or look up pending requests.
-
-    // BETTTER LOGIC: If it's a friend request, I should just go fetch "Pending Requests"
-    // and match them?
-
-    // Let's TRY to see if I can find the pending request from `getPendingRequests` that matches?
-    // Or... I will assume for this step I'll try to implement it safely.
-
-    // REVISION: The User Prompt said "Allows accepting directly".
-    // I will implement a robust `acceptFriendRequest` that takes the SENDER ID.
-    // But I need the SENDER ID.
-    // I will add a column `sender_id` to notifications table just to be safe in a new migration step if needed,
-    // OR I will simply redirect them to /chat (Friends functionality) if I can't do it inline easily.
-    // BUT user said "directly from this section".
-
-    // Let's assume I will look up the sender from the friend_requests table where status=pending?
-    // Actually, `notification.sender_id` was in my `insert` calls in `friendship.ts`?
-    // Let's check `friendship.ts` insert call...
-    // `await supabase.from("notifications").insert({...})`
-    // I did NOT put sender_id there in the previous edit!
-
-    // OKAY, I will update `friendship.ts` to include `sender_id` in the notification insert,
-    // AND I will add the column in a migration.
-
-    // For now, to make progress, I will write the basic page, and then do the fix.
     try {
-      // Placeholder: if we have sender_id, use it.
       if (notification.sender_id) {
         await acceptFriendRequest(notification.sender_id);
-        // Update UI
-        fetchNotifications(); // Refresh
-        alert("Solicitud aceptada!");
+        await deleteNotification(notification.id);
       } else {
-        // Fallback
         router.push("/chat");
       }
     } catch (e) {
-      console.error(e);
-      alert("Error al aceptar.");
+      console.error("Error accepting friend request:", e);
     }
   };
 
   return (
     <div className="min-h-screen bg-brand-black p-4 md:p-8 md:pl-72 pb-24 md:pb-8">
-      <div className="max-w-4xl mx-auto mt-8 md:mt-0">
+      <div className="max-w-2xl mx-auto mt-8 md:mt-0">
         <BackButton className="mb-6" />
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            <Bell className="w-8 h-8 text-brand-gold" />
+
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8 border-b border-brand-gold/20 pb-4">
+          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+            <Bell className="w-7 h-7 text-brand-gold" />
             Centro de Notificaciones
           </h1>
           {notifications.some((n) => !n.is_read) && (
             <button
               onClick={markAllRead}
-              className="text-sm text-brand-gold hover:underline flex items-center gap-2"
+              className="text-xs text-brand-gold hover:text-white border border-brand-gold/30 hover:border-brand-gold px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5"
             >
-              <Check className="w-4 h-4" />
-              Marcar todas como leídas
+              <Check className="w-3.5 h-3.5" /> Marcar todas como leídas
             </button>
           )}
         </div>
 
         {loading ? (
-          <div className="text-gray-500">Cargando...</div>
-        ) : notifications.length === 0 ? (
-          <div className="text-center py-20 bg-brand-black/50 border border-gray-800 rounded-3xl">
-            <Bell className="w-16 h-16 text-gray-700 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg">No tienes notificaciones</p>
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-gold" />
           </div>
         ) : (
-          <div className="space-y-4">
-            {notifications.map((notif) => (
+          <AnimatePresence>
+            {notifications.length === 0 ? (
               <motion.div
-                key={notif.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`p-6 rounded-3xl border transition-all relative group flex gap-4 ${
-                  notif.is_read
-                    ? "bg-brand-black/40 border-gray-800"
-                    : "bg-brand-black/80 border-brand-gold/50 shadow-[0_0_15px_rgba(255,215,0,0.05)]"
-                }`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center py-20 border border-gray-800 rounded-3xl bg-brand-black/50"
               >
-                {/* Icon based on type */}
-                <div
-                  className={`mt-1 p-3 rounded-full ${notif.type === "friend_request" ? "bg-purple-500/10 text-purple-500" : "bg-brand-gold/10 text-brand-gold"}`}
-                >
-                  {notif.type === "friend_request" ? (
-                    <UserPlus className="w-6 h-6" />
-                  ) : (
-                    <Calendar className="w-6 h-6" />
-                  )}
-                </div>
-
-                <div className="flex-1">
-                  <div className="flex justify-between items-start">
-                    <h3
-                      className={`text-lg font-semibold mb-1 ${!notif.is_read ? "text-white" : "text-gray-400"}`}
-                    >
-                      {notif.title}
-                    </h3>
-                    <span className="text-xs text-gray-600">
-                      {formatDistanceToNow(new Date(notif.created_at), {
-                        locale: es,
-                        addSuffix: true,
-                      })}
-                    </span>
-                  </div>
-
-                  <p className="text-gray-400 mb-4 leading-relaxed">
-                    {notif.message}
-                  </p>
-
-                  {/* Actions Area */}
-                  <div className="flex items-center gap-3">
-                    {notif.type === "friend_request" && (
-                      <button
-                        onClick={() => handleAcceptRequest(notif)}
-                        className="bg-brand-gold text-brand-black px-4 py-2 rounded-full font-semibold text-sm hover:bg-white transition-colors"
-                      >
-                        Aceptar Solicitud
-                      </button>
-                    )}
-                    {notif.link && notif.type !== "friend_request" && (
-                      <button
-                        onClick={() => router.push(notif.link!)}
-                        className="text-brand-gold text-sm hover:underline"
-                      >
-                        Ver Detalles
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => deleteNotification(notif.id)}
-                  className="absolute top-4 right-4 p-2 text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Eliminar"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <Bell className="w-14 h-14 text-gray-700 mx-auto mb-4" />
+                <p className="text-gray-500 text-lg">
+                  No tienes notificaciones
+                </p>
               </motion.div>
-            ))}
-          </div>
+            ) : (
+              <div className="space-y-3">
+                {notifications.map((notif) => {
+                  const displayMsg = cleanMessage(notif.message);
+                  return (
+                    <motion.div
+                      key={notif.id}
+                      layout
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, x: -40 }}
+                      transition={{ duration: 0.2 }}
+                      className={`rounded-2xl border p-4 flex gap-3 transition-all ${
+                        notif.is_read
+                          ? "bg-brand-black/40 border-gray-800"
+                          : "bg-brand-black/80 border-brand-gold/40 shadow-[0_0_12px_rgba(212,175,55,0.06)]"
+                      }`}
+                    >
+                      {/* Icon */}
+                      <div
+                        className={`mt-0.5 p-2.5 rounded-full shrink-0 ${getNotifColor(notif.type)}`}
+                      >
+                        {getNotifIcon(notif.type)}
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        {/* Title row + timestamp */}
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <h3
+                            className={`font-semibold text-sm leading-tight ${notif.is_read ? "text-gray-400" : "text-white"}`}
+                          >
+                            {getDisplayTitle(notif)}
+                          </h3>
+                          <span className="text-xs text-gray-600 shrink-0 mt-0.5">
+                            {formatDistanceToNow(new Date(notif.created_at), {
+                              locale: es,
+                              addSuffix: true,
+                            })}
+                          </span>
+                        </div>
+
+                        {/* Message body — only if meaningful */}
+                        {displayMsg && (
+                          <p className="text-gray-400 text-sm mb-3 leading-relaxed truncate">
+                            {displayMsg}
+                          </p>
+                        )}
+
+                        {/* Action buttons row */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {notif.type === "friend_request" && (
+                            <button
+                              onClick={() => handleAcceptRequest(notif)}
+                              className="bg-brand-gold text-brand-black px-3 py-1.5 rounded-full font-semibold text-xs hover:bg-white transition-colors"
+                            >
+                              Aceptar Solicitud
+                            </button>
+                          )}
+                          {notif.link && notif.type !== "friend_request" && (
+                            <button
+                              onClick={() => router.push(notif.link!)}
+                              className="text-brand-gold text-xs font-bold hover:underline"
+                            >
+                              Ver detalles
+                            </button>
+                          )}
+                          {/* Delete button — INLINE, never overlapping */}
+                          <button
+                            onClick={() => deleteNotification(notif.id)}
+                            className="ml-auto p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </AnimatePresence>
         )}
       </div>
     </div>

@@ -356,25 +356,38 @@ export async function sendMessage(
           (id: string) => id !== user.id,
         );
 
+        // Internal system tokens — never create a notification for these
+        const SYSTEM_TOKENS = [
+          "[CALL_OFFER_VIDEO]",
+          "[CALL_OFFER_VOICE]",
+          "[CALL_ENDED_VOICE]",
+          "[CALL_ENDED_VIDEO]",
+          "[CALL_ACCEPTED]",
+          "[CALL_REJECTED]",
+        ];
+        const isSystemMsg = SYSTEM_TOKENS.some((t) => content.includes(t));
+
         // Explicitly insert for each recipient as requested
         for (const recipientId of recipients) {
           const title =
             room.type === "group"
               ? `Nuevo Mensaje en ${room.name}`
               : "Nuevo Mensaje";
-          const msgContent = content.substring(0, 50);
+          const msgContent = content.substring(0, 80);
 
-          // Insert into in-app notifications
-          await supabase.from("notifications").insert({
-            user_id: recipientId, // Para quién
-            sender_id: user.id, // De quién
-            title,
-            message: msgContent,
-            type: "message",
-            link: `/chat`,
-            is_read: false, // Ensure default
-            created_at: new Date().toISOString(),
-          });
+          // Skip in-app notification for system/call messages
+          if (!isSystemMsg) {
+            await supabase.from("notifications").insert({
+              user_id: recipientId,
+              sender_id: user.id,
+              title,
+              message: msgContent,
+              type: "message",
+              link: `/chat`,
+              is_read: false,
+              created_at: new Date().toISOString(),
+            });
+          }
 
           // Dispatch Native Web Push
           const { data: subData } = await supabase
@@ -481,37 +494,66 @@ export async function deleteMessage(
   if (!user) throw new Error("Unauthorized");
 
   if (forEveryone) {
-    // Delete for everyone - set flag
-    const { error } = await supabase
-      .from("chat_messages")
-      .update({
-        is_deleted_for_everyone: true,
-        content: "Este mensaje fue eliminado",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", messageId)
-      .eq("user_id", user.id); // Only message owner can delete for everyone
+    // Delete for everyone — try soft delete with flag, fall back to content-wipe
+    try {
+      const { error } = await supabase
+        .from("chat_messages")
+        .update({
+          is_deleted_for_everyone: true,
+          content: "Este mensaje fue eliminado",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", messageId)
+        .eq("user_id", user.id);
 
-    if (error) throw error;
-  } else {
-    // Delete for me - add to deleted_for array
-    const { data: message } = await supabase
-      .from("chat_messages")
-      .select("deleted_for")
-      .eq("id", messageId)
-      .single();
-
-    const deletedFor = message?.deleted_for || [];
-    if (!deletedFor.includes(user.id)) {
-      deletedFor.push(user.id);
+      if (
+        error &&
+        (error.code === "PGRST204" || error.message?.includes("column"))
+      ) {
+        // Column doesn't exist yet — fall back to just wiping the content
+        const { error: fallbackErr } = await supabase
+          .from("chat_messages")
+          .update({ content: "Este mensaje fue eliminado" })
+          .eq("id", messageId)
+          .eq("user_id", user.id);
+        if (fallbackErr) throw fallbackErr;
+      } else if (error) {
+        throw error;
+      }
+    } catch (e: any) {
+      if (e?.code !== "PGRST204") throw e;
     }
+  } else {
+    // Delete for me — try array column, fall back to physical delete
+    try {
+      const { data: message } = await supabase
+        .from("chat_messages")
+        .select("deleted_for")
+        .eq("id", messageId)
+        .single();
 
-    const { error } = await supabase
-      .from("chat_messages")
-      .update({ deleted_for: deletedFor })
-      .eq("id", messageId);
+      const deletedFor: string[] = Array.isArray(message?.deleted_for)
+        ? message.deleted_for
+        : [];
+      if (!deletedFor.includes(user.id)) deletedFor.push(user.id);
 
-    if (error) throw error;
+      const { error } = await supabase
+        .from("chat_messages")
+        .update({ deleted_for: deletedFor })
+        .eq("id", messageId);
+
+      if (
+        error &&
+        (error.code === "PGRST204" || error.message?.includes("column"))
+      ) {
+        // Column doesn't exist yet — just hard delete
+        await supabase.from("chat_messages").delete().eq("id", messageId);
+      } else if (error) {
+        throw error;
+      }
+    } catch (e: any) {
+      if (e?.code !== "PGRST204") throw e;
+    }
   }
 }
 
