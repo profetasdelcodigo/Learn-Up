@@ -3,15 +3,21 @@
 import {
   LiveKitRoom,
   RoomAudioRenderer,
-  useTracks,
-  useRoomContext,
   useLocalParticipant,
+  useRoomContext,
   useDataChannel,
   useParticipants,
+  useTracks,
+  VideoTrack,
 } from "@livekit/components-react";
 import "@livekit/components-styles";
-import { useEffect, useState } from "react";
-import { Track, RemoteParticipant, LocalParticipant } from "livekit-client";
+import { useEffect, useState, useRef, useCallback } from "react";
+import {
+  Track,
+  RemoteParticipant,
+  LocalParticipant,
+  TrackPublication,
+} from "livekit-client";
 import {
   Mic,
   MicOff,
@@ -23,12 +29,14 @@ import {
   Youtube,
   Play,
   Ban,
+  PenLine,
+  Eraser,
 } from "lucide-react";
-import Whiteboard from "./Whiteboard";
 import ReactPlayer from "react-player";
 
 const Player = ReactPlayer as any;
 
+// ─── Props ───────────────────────────────────────────────────────────────────
 interface VideoRoomProps {
   roomName: string;
   username: string;
@@ -38,6 +46,7 @@ interface VideoRoomProps {
   isCreator?: boolean;
 }
 
+// ─── Root Component ──────────────────────────────────────────────────────────
 export default function VideoRoom({
   roomName,
   username,
@@ -52,7 +61,7 @@ export default function VideoRoom({
     (async () => {
       try {
         const resp = await fetch(
-          `/api/livekit?room=${roomName}&username=${encodeURIComponent(username)}`,
+          `/api/livekit?room=${encodeURIComponent(roomName)}&username=${encodeURIComponent(username)}`,
         );
         const data = await resp.json();
         setToken(data.token);
@@ -65,7 +74,7 @@ export default function VideoRoom({
   if (!token) {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-brand-black border border-brand-gold/20 rounded-2xl gap-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-gold"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-gold" />
         <p className="text-brand-gold font-mono animate-pulse text-sm">
           Estableciendo conexión segura...
         </p>
@@ -97,134 +106,365 @@ export default function VideoRoom({
   );
 }
 
-// ─── Participant Tile with mic/cam status ────────────────────────────────────
-function ParticipantCard({
+// ─── Participant Tile ─────────────────────────────────────────────────────────
+function ParticipantTileCard({
   participant,
 }: {
   participant: RemoteParticipant | LocalParticipant;
 }) {
-  const cameraTrack = participant
-    .getTrackPublications()
-    .find((t) => t.source === Track.Source.Camera && t.track && !t.isMuted);
-
-  const isCamOn = !!cameraTrack;
-  const isMicOn = !participant.isMicrophoneEnabled
-    ? false
-    : participant.isMicrophoneEnabled;
-
+  const isLocal = participant instanceof LocalParticipant;
+  const isMicOn = participant.isMicrophoneEnabled;
+  const isCamOn = participant.isCameraEnabled;
   const isSpeaking = (participant as any).isSpeaking ?? false;
 
-  // Get avatar from participant metadata if available
-  const meta = participant.metadata
-    ? (() => {
-        try {
-          return JSON.parse(participant.metadata);
-        } catch {
-          return {};
-        }
-      })()
-    : {};
-  const avatarUrl = meta.avatar_url || null;
+  // Get camera track using LiveKit's useTracks (only works inside LiveKitRoom)
+  const allTracks = useTracks([
+    { source: Track.Source.Camera, withPlaceholder: true },
+  ]);
+  const myTrack = allTracks.find(
+    (t) => t.participant.identity === participant.identity,
+  );
 
   return (
     <div
-      className={`relative aspect-video rounded-xl overflow-hidden border-2 transition-all duration-200 ${
+      className={`relative flex-shrink-0 rounded-xl overflow-hidden border-2 transition-all duration-200 bg-brand-black ${
         isSpeaking
-          ? "border-brand-gold shadow-[0_0_16px_rgba(212,175,55,0.7)]"
+          ? "border-brand-gold shadow-[0_0_16px_rgba(212,175,55,0.6)]"
           : "border-gray-800"
-      } bg-brand-black`}
+      }`}
+      style={{ width: "100%", aspectRatio: "16/9" }}
     >
-      {isCamOn ? (
-        /* LiveKit attaches video to a track — use the attach API */
-        <video
-          ref={(el) => {
-            if (el && cameraTrack?.track) {
-              cameraTrack.track.attach(el);
-            }
-          }}
-          autoPlay
-          playsInline
-          muted={participant instanceof LocalParticipant}
+      {/* Camera or avatar */}
+      {myTrack && isCamOn ? (
+        <VideoTrack
+          trackRef={myTrack as any}
           className="w-full h-full object-cover"
         />
       ) : (
-        /* Camera off — show avatar / initials */
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-brand-black gap-2">
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt={participant.identity}
-              className="w-14 h-14 rounded-full object-cover border-2 border-brand-gold/40"
-            />
-          ) : (
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-brand-gold to-brand-brown flex items-center justify-center text-brand-black font-bold text-2xl select-none">
-              {participant.identity.charAt(0).toUpperCase()}
-            </div>
-          )}
-          <span className="text-white text-xs font-medium truncate max-w-[80%] text-center">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-brand-gold to-brand-brown flex items-center justify-center text-brand-black font-bold text-xl select-none">
+            {participant.identity.charAt(0).toUpperCase()}
+          </div>
+          <span className="text-white text-[10px] font-medium truncate max-w-[90%] text-center mt-0.5">
             {participant.identity}
           </span>
         </div>
       )}
 
-      {/* Status bar at bottom */}
-      <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-2 py-1.5 bg-gradient-to-t from-black/80 to-transparent">
-        <span className="text-white text-xs font-medium truncate max-w-[70%]">
+      {/* Bottom status bar */}
+      <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-1.5 py-1 bg-gradient-to-t from-black/80 to-transparent">
+        <span className="text-white text-[9px] font-medium truncate max-w-[60%]">
           {participant.identity}
-          {participant instanceof LocalParticipant && (
-            <span className="text-brand-gold ml-1">(Tú)</span>
-          )}
+          {isLocal && <span className="text-brand-gold ml-0.5">(Tú)</span>}
         </span>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5">
           {isMicOn ? (
-            <Mic className="w-3 h-3 text-green-400" />
+            <Mic className="w-2.5 h-2.5 text-green-400" />
           ) : (
-            <MicOff className="w-3 h-3 text-red-400" />
+            <MicOff className="w-2.5 h-2.5 text-red-400" />
           )}
           {isCamOn ? (
-            <Video className="w-3 h-3 text-green-400" />
+            <Video className="w-2.5 h-2.5 text-green-400" />
           ) : (
-            <VideoOff className="w-3 h-3 text-red-400" />
+            <VideoOff className="w-2.5 h-2.5 text-red-400" />
           )}
         </div>
       </div>
 
-      {/* Speaking glow ring */}
+      {/* Speaking ring */}
       {isSpeaking && (
-        <div className="absolute inset-0 rounded-xl ring-2 ring-brand-gold animate-pulse pointer-events-none" />
+        <div className="absolute inset-0 rounded-xl ring-1 ring-brand-gold animate-pulse pointer-events-none" />
       )}
     </div>
   );
 }
 
-// ─── Participants Grid (2 columns, scrollable) ───────────────────────────────
-function CustomVideoConference() {
+// ─── Participants Panel (2-col grid, scrollable) ──────────────────────────────
+function ParticipantsGrid({ username }: { username: string }) {
   const participants = useParticipants();
 
   if (participants.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-gray-500 text-sm">
-        Esperando participantes...
+      <div className="flex-1 flex items-center justify-center text-gray-500 text-xs text-center px-3">
+        Conectando a la sala...
       </div>
     );
   }
 
   return (
     <div
-      className="grid grid-cols-2 gap-2 p-3 h-full overflow-y-auto content-start scroll-smooth"
+      className="flex-1 overflow-y-auto p-2"
       style={{
         scrollbarWidth: "thin",
         scrollbarColor: "rgba(212,175,55,0.3) transparent",
       }}
     >
-      {participants.map((participant) => (
-        <ParticipantCard key={participant.identity} participant={participant} />
-      ))}
+      <div className="grid grid-cols-2 gap-2">
+        {participants.map((p) => (
+          <ParticipantTileCard key={p.identity} participant={p} />
+        ))}
+      </div>
     </div>
   );
 }
 
-// ─── Inner Room Component ────────────────────────────────────────────────────
+// ─── Simple Collaborative Canvas Whiteboard (no license required) ──────────────
+// Uses HTML5 Canvas + Supabase realtime to sync strokes
+interface Stroke {
+  pts: [number, number][];
+  color: string;
+  size: number;
+}
+
+function CanvasWhiteboard({
+  roomId,
+  enabled,
+}: {
+  roomId: string;
+  enabled: boolean;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [strokes, setStrokes] = useState<Stroke[]>([]);
+  const [currentStroke, setCurrentStroke] = useState<Stroke | null>(null);
+  const [color, setColor] = useState("#000000");
+  const [size, setSize] = useState(3);
+  const [tool, setTool] = useState<"pen" | "eraser">("pen");
+  const isDrawing = useRef(false);
+  const lastSent = useRef(0);
+
+  // Draw all strokes on canvas
+  const redraw = useCallback(
+    (allStrokes: Stroke[], current?: Stroke | null) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d")!;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      for (const stroke of allStrokes) {
+        if (stroke.pts.length < 2) continue;
+        ctx.beginPath();
+        ctx.strokeStyle = stroke.color;
+        ctx.lineWidth = stroke.size;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.moveTo(stroke.pts[0][0], stroke.pts[0][1]);
+        for (let i = 1; i < stroke.pts.length; i++) {
+          ctx.lineTo(stroke.pts[i][0], stroke.pts[i][1]);
+        }
+        ctx.stroke();
+      }
+
+      if (current && current.pts.length >= 2) {
+        ctx.beginPath();
+        ctx.strokeStyle = current.color;
+        ctx.lineWidth = current.size;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.moveTo(current.pts[0][0], current.pts[0][1]);
+        for (let i = 1; i < current.pts.length; i++) {
+          ctx.lineTo(current.pts[i][0], current.pts[i][1]);
+        }
+        ctx.stroke();
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    redraw(strokes, currentStroke);
+  }, [strokes, currentStroke, redraw]);
+
+  // Resize observer
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const obs = new ResizeObserver(() => {
+      if (!canvas.parentElement) return;
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight || 400;
+      redraw(strokes, currentStroke);
+    });
+    obs.observe(canvas.parentElement!);
+    return () => obs.disconnect();
+  }, [strokes, currentStroke, redraw]);
+
+  const getPos = (e: React.MouseEvent | React.TouchEvent): [number, number] => {
+    const canvas = canvasRef.current!;
+    const rect = canvas.getBoundingClientRect();
+    if ("touches" in e) {
+      return [
+        e.touches[0].clientX - rect.left,
+        e.touches[0].clientY - rect.top,
+      ];
+    }
+    return [
+      (e as React.MouseEvent).clientX - rect.left,
+      (e as React.MouseEvent).clientY - rect.top,
+    ];
+  };
+
+  const startStroke = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!enabled) return;
+    isDrawing.current = true;
+    const pos = getPos(e);
+    const newStroke: Stroke = {
+      pts: [pos],
+      color: tool === "eraser" ? "#ffffff" : color,
+      size: tool === "eraser" ? size * 5 : size,
+    };
+    setCurrentStroke(newStroke);
+  };
+
+  const continueStroke = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDrawing.current || !enabled || !currentStroke) return;
+    e.preventDefault();
+    const pos = getPos(e);
+    const updated = {
+      ...currentStroke,
+      pts: [...currentStroke.pts, pos],
+    };
+    setCurrentStroke(updated);
+
+    // Throttle broadcast via DataChannel (handled outside)
+    const now = Date.now();
+    if (now - lastSent.current > 50) {
+      lastSent.current = now;
+    }
+  };
+
+  const endStroke = () => {
+    if (!isDrawing.current || !currentStroke) return;
+    isDrawing.current = false;
+    if (currentStroke.pts.length > 1) {
+      setStrokes((prev) => [...prev, currentStroke]);
+    }
+    setCurrentStroke(null);
+  };
+
+  // DataChannel sync for whiteboard
+  const { send: sendWB } = useDataChannel("whiteboard", (msg) => {
+    try {
+      const data = JSON.parse(new TextDecoder().decode(msg.payload));
+      if (data.type === "STROKE") {
+        setStrokes((prev) => [...prev, data.stroke]);
+      } else if (data.type === "CLEAR") {
+        setStrokes([]);
+      }
+    } catch {}
+  });
+
+  const finishAndBroadcast = () => {
+    if (!isDrawing.current || !currentStroke) return;
+    isDrawing.current = false;
+    if (currentStroke.pts.length > 1) {
+      const stroke = currentStroke;
+      setStrokes((prev) => [...prev, stroke]);
+      sendWB(
+        new TextEncoder().encode(JSON.stringify({ type: "STROKE", stroke })),
+        { reliable: true },
+      );
+    }
+    setCurrentStroke(null);
+  };
+
+  const clearCanvas = () => {
+    setStrokes([]);
+    setCurrentStroke(null);
+    sendWB(new TextEncoder().encode(JSON.stringify({ type: "CLEAR" })), {
+      reliable: true,
+    });
+  };
+
+  const COLORS = [
+    "#000000",
+    "#ef4444",
+    "#3b82f6",
+    "#22c55e",
+    "#f59e0b",
+    "#8b5cf6",
+    "#ec4899",
+    "#ffffff",
+  ];
+
+  return (
+    <div className="w-full h-full flex flex-col bg-white relative">
+      {/* Toolbar — only shown if enabled */}
+      {enabled && (
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 border-b border-gray-200 flex-wrap shrink-0">
+          {/* Colors */}
+          <div className="flex gap-1">
+            {COLORS.map((c) => (
+              <button
+                key={c}
+                onClick={() => {
+                  setColor(c);
+                  setTool("pen");
+                }}
+                className={`w-5 h-5 rounded-full border-2 transition-all ${color === c && tool === "pen" ? "border-brand-gold scale-125" : "border-gray-400"}`}
+                style={{ backgroundColor: c }}
+              />
+            ))}
+          </div>
+          <div className="w-px h-4 bg-gray-300" />
+          {/* Size */}
+          <input
+            type="range"
+            min={1}
+            max={20}
+            value={size}
+            onChange={(e) => setSize(+e.target.value)}
+            className="w-16 h-1 accent-amber-500"
+          />
+          <div className="w-px h-4 bg-gray-300" />
+          {/* Tools */}
+          <button
+            onClick={() => setTool("pen")}
+            className={`p-1 rounded ${tool === "pen" ? "bg-brand-gold text-brand-black" : "text-gray-600 hover:bg-gray-200"}`}
+          >
+            <PenLine className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setTool("eraser")}
+            className={`p-1 rounded ${tool === "eraser" ? "bg-brand-gold text-brand-black" : "text-gray-600 hover:bg-gray-200"}`}
+          >
+            <Eraser className="w-4 h-4" />
+          </button>
+          <div className="w-px h-4 bg-gray-300" />
+          <button
+            onClick={clearCanvas}
+            className="text-xs text-red-500 font-bold hover:underline px-1"
+          >
+            Limpiar
+          </button>
+        </div>
+      )}
+
+      {/* Canvas */}
+      <div className="flex-1 relative overflow-hidden">
+        <canvas
+          ref={canvasRef}
+          className={`absolute inset-0 w-full h-full ${enabled ? "cursor-crosshair" : "cursor-not-allowed"}`}
+          onMouseDown={startStroke}
+          onMouseMove={continueStroke}
+          onMouseUp={finishAndBroadcast}
+          onMouseLeave={finishAndBroadcast}
+          onTouchStart={startStroke}
+          onTouchMove={continueStroke}
+          onTouchEnd={finishAndBroadcast}
+        />
+        {!enabled && (
+          <div className="absolute top-2 left-2 z-10 bg-brand-black/80 text-brand-gold text-xs font-bold px-2 py-1 rounded-full border border-brand-gold/30 pointer-events-none">
+            Solo visualización
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Inner Room (main layout) ─────────────────────────────────────────────────
 function VideoRoomInner({
   username,
   roomName,
@@ -240,6 +480,10 @@ function VideoRoomInner({
   role: string;
   isCreator: boolean;
 }) {
+  // "presentation" mode: "whiteboard" | "video" | "screenshare"
+  const [presentationMode, setPresentationMode] = useState<
+    "whiteboard" | "video" | "screenshare"
+  >("whiteboard");
   const [sharedVideoUrl, setSharedVideoUrl] = useState<string | null>(null);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [videoInput, setVideoInput] = useState("");
@@ -247,73 +491,95 @@ function VideoRoomInner({
 
   const canShare = role === "profesor" || role === "admin" || isCreator;
 
-  const handleRequestPermission = (action: string) => {
-    setPermissionToast(
-      `Se envió la solicitud a los profesores y al creador para: ${action}.`,
-    );
+  const showToast = (msg: string) => {
+    setPermissionToast(msg);
     setTimeout(() => setPermissionToast(null), 4000);
   };
 
-  // DataChannel for cross-participant video sync
-  const { send } = useDataChannel("video-share", (msg) => {
+  // ── DataChannel: Video & Presentation State Sync ──────────────────────────
+  const { send } = useDataChannel("presentation", (msg) => {
     try {
       const data = JSON.parse(new TextDecoder().decode(msg.payload));
-      if (data.type === "SHARE_VIDEO") setSharedVideoUrl(data.url);
-      else if (data.type === "STOP_VIDEO") setSharedVideoUrl(null);
-    } catch (e) {
-      console.error("DataChannel decode error:", e);
-    }
+      if (data.type === "SHARE_VIDEO") {
+        setSharedVideoUrl(data.url);
+        setPresentationMode("video");
+      } else if (data.type === "STOP_VIDEO") {
+        setSharedVideoUrl(null);
+        setPresentationMode("whiteboard");
+      } else if (data.type === "SHOW_WHITEBOARD") {
+        setPresentationMode("whiteboard");
+        setSharedVideoUrl(null);
+      }
+    } catch {}
   });
 
-  const handleShareVideo = () => {
-    if (!videoInput.trim()) return;
+  const broadcastVideo = (url: string) => {
     send(
-      new TextEncoder().encode(
-        JSON.stringify({ type: "SHARE_VIDEO", url: videoInput }),
-      ),
-      {
-        reliable: true,
-      },
+      new TextEncoder().encode(JSON.stringify({ type: "SHARE_VIDEO", url })),
+      { reliable: true },
     );
-    setSharedVideoUrl(videoInput);
+    setSharedVideoUrl(url);
+    setPresentationMode("video");
     setShowVideoModal(false);
     setVideoInput("");
   };
 
-  const handleStopVideo = () => {
+  const stopVideo = () => {
     send(new TextEncoder().encode(JSON.stringify({ type: "STOP_VIDEO" })), {
       reliable: true,
     });
     setSharedVideoUrl(null);
+    setPresentationMode("whiteboard");
   };
 
+  // ── Screen share track detection ──────────────────────────────────────────
+  const screenTracks = useTracks([
+    { source: Track.Source.ScreenShare, withPlaceholder: false },
+  ]);
+  const activeScreenTrack = screenTracks.length > 0 ? screenTracks[0] : null;
+
+  // When someone shares screen, show it in the right pane
+  useEffect(() => {
+    if (activeScreenTrack) {
+      setPresentationMode("screenshare");
+    } else if (presentationMode === "screenshare") {
+      setPresentationMode("whiteboard");
+    }
+  }, [activeScreenTrack]);
+
   return (
-    <div className="flex flex-col h-full relative bg-brand-black">
-      {/* Permission toast */}
+    <div className="flex flex-col h-full bg-brand-black overflow-hidden">
+      {/* ── Toast ── */}
       {permissionToast && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[70] bg-brand-gold text-brand-black font-semibold px-5 py-3 rounded-full shadow-2xl text-sm animate-bounce">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[70] bg-brand-gold text-brand-black font-semibold px-5 py-2.5 rounded-full shadow-2xl text-sm">
           {permissionToast}
         </div>
       )}
 
-      {/* Main split layout */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-        {/* LEFT: Participants (2-col scrollable grid) */}
-        <div className="w-full md:w-80 lg:w-96 shrink-0 h-[45%] md:h-full border-b md:border-b-0 md:border-r border-brand-gold/20 bg-zinc-950 flex flex-col">
+      {/* ── Main Content Row ── */}
+      <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
+        {/* LEFT: Participant tiles — 2-col grid, scrollable */}
+        <div
+          className="shrink-0 bg-zinc-950 flex flex-col border-brand-gold/20"
+          style={{
+            width: "100%",
+            maxWidth: "22rem",
+            borderRight: "1px solid rgba(212,175,55,0.15)",
+          }}
+        >
           {/* Header */}
-          <div className="flex items-center justify-between px-3 py-2 border-b border-brand-gold/10">
-            <span className="text-brand-gold text-xs font-bold uppercase tracking-wider">
+          <div className="px-3 py-2 border-b border-brand-gold/10 flex items-center justify-between shrink-0">
+            <span className="text-brand-gold text-[11px] font-bold uppercase tracking-widest">
               Participantes
             </span>
           </div>
 
           {videoEnabled ? (
-            <CustomVideoConference />
+            <ParticipantsGrid username={username} />
           ) : (
-            /* Audio-only: show avatar pulsing */
-            <div className="flex-1 flex flex-col items-center justify-center gap-3">
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-brand-gold to-brand-brown animate-pulse flex items-center justify-center shadow-[0_0_50px_rgba(212,175,55,0.3)]">
-                <span className="text-4xl font-bold text-brand-black">
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 px-3">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-brand-gold to-brand-brown animate-pulse flex items-center justify-center shadow-[0_0_40px_rgba(212,175,55,0.3)]">
+                <span className="text-3xl font-bold text-brand-black">
                   {username.charAt(0).toUpperCase()}
                 </span>
               </div>
@@ -328,64 +594,113 @@ function VideoRoomInner({
           <RoomAudioRenderer />
         </div>
 
-        {/* RIGHT: Presentation area (Whiteboard / Screen / Video) */}
-        <div className="flex-1 h-[55%] md:h-full relative bg-white">
-          {sharedVideoUrl ? (
-            <div className="w-full h-full relative group bg-black">
-              {canShare && (
+        {/* RIGHT: Presentation area */}
+        <div className="flex-1 flex flex-col overflow-hidden relative">
+          {/* Mode tabs — only for privileged users */}
+          {canShare && (
+            <div className="flex items-center gap-1 px-3 py-1.5 bg-zinc-900 border-b border-brand-gold/10 shrink-0">
+              <button
+                onClick={() => {
+                  setPresentationMode("whiteboard");
+                  send(
+                    new TextEncoder().encode(
+                      JSON.stringify({ type: "SHOW_WHITEBOARD" }),
+                    ),
+                    { reliable: true },
+                  );
+                }}
+                className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${presentationMode === "whiteboard" ? "bg-brand-gold text-brand-black" : "text-gray-400 hover:text-white"}`}
+              >
+                Pizarra
+              </button>
+              <button
+                onClick={() => setShowVideoModal(true)}
+                className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${presentationMode === "video" ? "bg-brand-gold text-brand-black" : "text-gray-400 hover:text-white"}`}
+              >
+                Video
+              </button>
+              {presentationMode === "video" && (
                 <button
-                  onClick={handleStopVideo}
-                  className="absolute top-4 right-4 z-50 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
+                  onClick={stopVideo}
+                  className="px-3 py-1 rounded-full text-xs font-bold text-red-400 hover:text-red-300 ml-auto"
                 >
-                  <X className="w-4 h-4" />
+                  ✕ Detener video
                 </button>
               )}
-              {/* @ts-ignore */}
-              <Player
-                url={sharedVideoUrl}
-                width="100%"
-                height="100%"
-                controls={canShare}
-                playing={true}
-                style={{ position: "absolute", top: 0, left: 0 }}
-              />
-            </div>
-          ) : (
-            <div className="relative w-full h-full">
-              {/* View-only badge + click interceptor for students */}
-              {!canShare && (
-                <>
-                  <div className="absolute top-3 left-3 z-40 bg-brand-black/90 text-brand-gold text-xs font-bold px-3 py-1.5 rounded-full border border-brand-gold/30 animate-pulse pointer-events-none">
-                    Solo visualización — Haz clic para solicitar permiso
-                  </div>
-                  <div
-                    className="absolute inset-0 z-30 cursor-pointer"
-                    onClick={() =>
-                      handleRequestPermission("interactuar con la pizarra")
-                    }
-                  />
-                </>
-              )}
-              <div
-                className={
-                  canShare
-                    ? "w-full h-full"
-                    : "w-full h-full pointer-events-none"
-                }
-              >
-                <Whiteboard roomId={roomName} />
-              </div>
             </div>
           )}
+
+          {/* Content */}
+          <div className="flex-1 relative overflow-hidden">
+            {presentationMode === "screenshare" && activeScreenTrack ? (
+              <div className="w-full h-full bg-black flex items-center justify-center">
+                <VideoTrack
+                  trackRef={activeScreenTrack as any}
+                  className="w-full h-full object-contain"
+                />
+                <div className="absolute top-3 left-3 bg-brand-black/80 text-brand-gold text-xs px-2 py-1 rounded-full border border-brand-gold/30">
+                  Pantalla compartida
+                </div>
+              </div>
+            ) : presentationMode === "video" && sharedVideoUrl ? (
+              <div className="w-full h-full bg-black">
+                {/* @ts-ignore */}
+                <Player
+                  url={sharedVideoUrl}
+                  width="100%"
+                  height="100%"
+                  controls={canShare}
+                  playing={true}
+                  style={{ position: "absolute", top: 0, left: 0 }}
+                />
+              </div>
+            ) : (
+              /* Whiteboard — always shown by default */
+              <div className="w-full h-full">
+                {canShare ? (
+                  <CanvasWhiteboard roomId={roomName} enabled={true} />
+                ) : (
+                  <>
+                    <CanvasWhiteboard roomId={roomName} enabled={false} />
+                    {/* Student overlay: click to request permission */}
+                    <div
+                      className="absolute inset-0 z-10 cursor-pointer"
+                      onClick={() =>
+                        showToast(
+                          "Se envió la solicitud al profesor para interactuar con la pizarra",
+                        )
+                      }
+                    />
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Video Share Modal */}
+      {/* ── Control Bar (bottom row, NOT overlapping content) ── */}
+      <div className="shrink-0 flex justify-center py-3 bg-zinc-950 border-t border-brand-gold/10">
+        <CustomControlBar
+          onLeave={onLeave}
+          videoEnabled={videoEnabled}
+          onShareVideo={() => {
+            if (canShare) setShowVideoModal(true);
+            else
+              showToast("Solo el profesor o el creador puede compartir videos");
+          }}
+          onRequestPermission={showToast}
+          isVideoOpen={presentationMode === "video"}
+          canShare={canShare}
+        />
+      </div>
+
+      {/* ── Video Share Modal ── */}
       {showVideoModal && (
         <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-brand-gray border border-brand-gold/50 rounded-2xl w-full max-w-md p-6 shadow-2xl">
-            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-              <Youtube className="w-6 h-6 text-red-500" /> Compartir Video
+          <div className="bg-zinc-900 border border-brand-gold/50 rounded-2xl w-full max-w-md p-6 shadow-2xl">
+            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+              <Youtube className="w-5 h-5 text-red-500" /> Compartir Video
             </h3>
             {canShare ? (
               <>
@@ -393,20 +708,26 @@ function VideoRoomInner({
                   type="text"
                   value={videoInput}
                   onChange={(e) => setVideoInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleShareVideo()}
-                  placeholder="Pegar link de YouTube o video..."
-                  className="w-full bg-brand-black border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-gold mb-4"
+                  onKeyDown={(e) =>
+                    e.key === "Enter" &&
+                    videoInput.trim() &&
+                    broadcastVideo(videoInput.trim())
+                  }
+                  placeholder="YouTube URL o link directo..."
+                  className="w-full bg-brand-black border border-gray-700 rounded-xl px-4 py-3 text-white placeholder:text-gray-600 focus:outline-none focus:border-brand-gold mb-4 text-sm"
                 />
                 <div className="flex gap-3 justify-end">
                   <button
                     onClick={() => setShowVideoModal(false)}
-                    className="px-5 py-2 hover:bg-white/10 text-gray-300 rounded-xl transition-colors"
+                    className="px-4 py-1.5 text-gray-400 hover:text-white text-sm"
                   >
                     Cancelar
                   </button>
                   <button
-                    onClick={handleShareVideo}
-                    className="px-5 py-2 bg-brand-gold text-brand-black font-bold rounded-xl flex items-center gap-2"
+                    onClick={() =>
+                      videoInput.trim() && broadcastVideo(videoInput.trim())
+                    }
+                    className="px-5 py-2 bg-brand-gold text-brand-black font-bold rounded-xl flex items-center gap-2 text-sm"
                   >
                     <Play className="w-4 h-4" /> Reproducir
                   </button>
@@ -415,16 +736,17 @@ function VideoRoomInner({
             ) : (
               <div className="text-center py-4">
                 <Ban className="w-10 h-10 text-red-400 mx-auto mb-3" />
-                <p className="text-gray-300 mb-4 text-sm leading-relaxed">
-                  Solo los profesores o el creador pueden compartir videos.
-                  Pídeles permiso.
+                <p className="text-gray-300 text-sm mb-4">
+                  Solo el profesor o el creador pueden compartir videos.
                 </p>
                 <button
                   onClick={() => {
                     setShowVideoModal(false);
-                    handleRequestPermission("compartir video");
+                    showToast(
+                      "Solicitud enviada al profesor para compartir video",
+                    );
                   }}
-                  className="px-6 py-2.5 bg-brand-gold text-brand-black font-bold rounded-full"
+                  className="px-6 py-2 bg-brand-gold text-brand-black font-bold rounded-full text-sm"
                 >
                   Enviar Solicitud
                 </button>
@@ -433,20 +755,6 @@ function VideoRoomInner({
           </div>
         </div>
       )}
-
-      {/* Controls */}
-      <div className="absolute bottom-5 left-0 right-0 flex justify-center z-50 pointer-events-none">
-        <div className="pointer-events-auto">
-          <CustomControlBar
-            onLeave={onLeave}
-            videoEnabled={videoEnabled}
-            onToggleVideoModal={() => setShowVideoModal(true)}
-            onRequestPermission={handleRequestPermission}
-            isSharedVideoOpen={!!sharedVideoUrl}
-            canShare={canShare}
-          />
-        </div>
-      </div>
     </div>
   );
 }
@@ -455,16 +763,16 @@ function VideoRoomInner({
 function CustomControlBar({
   onLeave,
   videoEnabled = true,
-  onToggleVideoModal,
+  onShareVideo,
   onRequestPermission,
-  isSharedVideoOpen,
+  isVideoOpen,
   canShare,
 }: {
   onLeave: () => void;
   videoEnabled?: boolean;
-  onToggleVideoModal: () => void;
-  onRequestPermission: (action: string) => void;
-  isSharedVideoOpen: boolean;
+  onShareVideo: () => void;
+  onRequestPermission: (msg: string) => void;
+  isVideoOpen: boolean;
   canShare: boolean;
 }) {
   const { localParticipant } = useLocalParticipant();
@@ -489,6 +797,12 @@ function CustomControlBar({
 
   const toggleScreen = async () => {
     if (!localParticipant) return;
+    if (!canShare) {
+      onRequestPermission(
+        "Solicitud enviada al profesor para compartir pantalla",
+      );
+      return;
+    }
     const next = !isScreenShare;
     await localParticipant.setScreenShareEnabled(next);
     setIsScreenShare(next);
@@ -500,14 +814,14 @@ function CustomControlBar({
   };
 
   const btn =
-    "p-3.5 rounded-full transition-all duration-200 hover:scale-110 shadow-lg border border-white/10 backdrop-blur-md flex items-center justify-center";
+    "p-3 rounded-full transition-all duration-200 hover:scale-110 border border-white/10 flex items-center justify-center";
 
   return (
-    <div className="flex items-center gap-3 bg-black/70 px-6 py-3.5 rounded-2xl border border-brand-gold/30 shadow-2xl backdrop-blur-xl">
+    <div className="flex items-center gap-2 bg-black/70 px-5 py-2.5 rounded-2xl border border-brand-gold/20 shadow-2xl backdrop-blur-xl">
       {/* Mic */}
       <button
         onClick={toggleMic}
-        title={isMicOn ? "Silenciar" : "Activar micrófono"}
+        title={isMicOn ? "Silenciar" : "Activar mic"}
         className={`${btn} ${isMicOn ? "bg-zinc-900 text-brand-gold" : "bg-red-500/20 text-red-400"}`}
       >
         {isMicOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
@@ -530,11 +844,7 @@ function CustomControlBar({
 
       {/* Screen Share */}
       <button
-        onClick={
-          canShare
-            ? toggleScreen
-            : () => onRequestPermission("compartir pantalla")
-        }
+        onClick={toggleScreen}
         title="Compartir pantalla"
         className={`${btn} ${isScreenShare ? "bg-green-500/20 text-green-400" : "bg-zinc-900 text-brand-gold"}`}
       >
@@ -543,25 +853,20 @@ function CustomControlBar({
 
       {/* Video Share */}
       <button
-        onClick={
-          canShare
-            ? onToggleVideoModal
-            : () => onRequestPermission("compartir video")
-        }
+        onClick={onShareVideo}
         title="Compartir video"
-        className={`${btn} ${isSharedVideoOpen ? "bg-red-500/20 text-red-400" : "bg-zinc-900 text-brand-gold"}`}
+        className={`${btn} ${isVideoOpen ? "bg-red-500/20 text-red-400" : "bg-zinc-900 text-brand-gold"}`}
       >
         <Youtube className="w-5 h-5" />
       </button>
 
-      {/* Divider */}
-      <div className="w-px h-8 bg-white/10 mx-1" />
+      <div className="w-px h-7 bg-white/10 mx-1" />
 
       {/* Hangup */}
       <button
         onClick={handleLeave}
         title="Colgar"
-        className="p-3.5 rounded-full bg-red-600 hover:bg-red-700 text-white transition-all hover:scale-110 shadow-[0_0_15px_rgba(220,38,38,0.5)] border-2 border-red-500"
+        className="p-3 rounded-full bg-red-600 hover:bg-red-700 text-white transition-all hover:scale-110 shadow-[0_0_12px_rgba(220,38,38,0.5)] border-2 border-red-500"
       >
         <PhoneOff className="w-5 h-5" />
       </button>
