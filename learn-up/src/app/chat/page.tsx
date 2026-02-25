@@ -452,10 +452,10 @@ export default function ChatPage() {
             `*, profiles:user_id (full_name, avatar_url, role, school, grade)`,
           )
           .eq("room_id", roomId)
-          .order("created_at", { ascending: true })
+          .order("created_at", { ascending: false })
           .limit(50);
         if (!error && data) {
-          setMessages(data as any);
+          setMessages((data as any).reverse());
         }
       } catch (err) {
         console.error("Error loading messages:", err);

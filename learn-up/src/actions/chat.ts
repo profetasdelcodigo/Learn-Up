@@ -284,14 +284,14 @@ export async function getChatMessages(roomId: string) {
     `,
       )
       .eq("room_id", roomId)
-      .order("created_at", { ascending: true })
+      .order("created_at", { ascending: false })
       .limit(50);
 
     if (error) {
       console.error("[getChatMessages] Error:", JSON.stringify(error));
       return [];
     }
-    return (data || []) as Message[];
+    return ((data || []) as Message[]).reverse();
   } catch (err) {
     console.error("[getChatMessages] Unexpected error:", err);
     return [];
