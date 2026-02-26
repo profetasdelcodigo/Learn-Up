@@ -35,6 +35,8 @@ import {
 } from "date-fns";
 import { es } from "date-fns/locale";
 import BackButton from "@/components/BackButton";
+import SharedCalendarDetail from "@/components/SharedCalendarDetail";
+import { createSharedCalendar } from "@/actions/shared-calendars";
 
 interface CalendarEvent {
   id: string;
@@ -86,6 +88,12 @@ export default function CalendarPage() {
   const [habits, setHabits] = useState<HabitActivity[]>([]);
   const [newHabitName, setNewHabitName] = useState("");
   const [habitLoading, setHabitLoading] = useState(false);
+  const [sharedCalendars, setSharedCalendars] = useState<any[]>([]);
+  const [selectedSharedCalendar, setSelectedSharedCalendar] = useState<
+    any | null
+  >(null);
+  const [showCreateSharedModal, setShowCreateSharedModal] = useState(false);
+  const [newSharedName, setNewSharedName] = useState("");
 
   const supabase = createClient();
 
@@ -107,15 +115,66 @@ export default function CalendarPage() {
 
   const loadEvents = async () => {
     try {
-      const { data, error } = await supabase
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: personalEvents } = await supabase
         .from("events")
         .select("*")
         .order("start_time");
-      if (!error && data) setEvents(data);
+
+      const { data: sCalendars } = await supabase
+        .from("shared_calendars")
+        .select("*")
+        .contains("members", [user.id]);
+
+      let formattedSharedEvents: any[] = [];
+      if (sCalendars) {
+        setSharedCalendars(sCalendars);
+        const cIds = sCalendars.map((c: any) => c.id);
+        if (cIds.length > 0) {
+          const { data: sEvents } = await supabase
+            .from("shared_calendar_events")
+            .select("*")
+            .in("calendar_id", cIds);
+          if (sEvents) {
+            formattedSharedEvents = sEvents.map((se: any) => ({
+              id: se.id,
+              title: `👥 ${se.title}`,
+              description: se.description,
+              start_time: se.start_time,
+              end_time: se.end_time,
+              user_id: se.created_by,
+              isShared: true,
+            }));
+          }
+        }
+      }
+      setEvents(
+        [...(personalEvents || []), ...formattedSharedEvents].sort(
+          (a: any, b: any) =>
+            new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
+        ),
+      );
     } catch (err) {
       console.error("Error loading events:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreateShared = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSharedName.trim()) return;
+    const res = await createSharedCalendar(newSharedName, []);
+    if (res.success) {
+      setShowCreateSharedModal(false);
+      setNewSharedName("");
+      loadEvents(); // Reload everything
+    } else {
+      alert("Error al crear calendario compartido.");
     }
   };
 
@@ -161,17 +220,15 @@ export default function CalendarPage() {
   const saveHabits = async (newHabits: HabitActivity[]) => {
     if (!currentUserId) return;
     const weekStart = getWeekStart(currentHabitWeek);
-    await supabase
-      .from("personal_habit_tracker")
-      .upsert(
-        {
-          user_id: currentUserId,
-          week_start: weekStart,
-          habits: newHabits,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id,week_start" },
-      );
+    await supabase.from("personal_habit_tracker").upsert(
+      {
+        user_id: currentUserId,
+        week_start: weekStart,
+        habits: newHabits,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,week_start" },
+    );
   };
 
   const addHabit = async () => {
@@ -451,11 +508,11 @@ export default function CalendarPage() {
             </div>
 
             {/* ── Habit Tracker ──────────────────────────────────────────────── */}
-            <div className="bg-gray-900/80 backdrop-blur-xl border border-purple-500/30 rounded-3xl p-6">
+            <div className="bg-gray-900/80 backdrop-blur-xl border border-brand-blue-glow/30 rounded-3xl p-6">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center">
-                    <Target className="w-5 h-5 text-purple-400" />
+                  <div className="w-10 h-10 rounded-xl bg-brand-blue-glow/10 border border-brand-blue-glow/30 flex items-center justify-center">
+                    <Target className="w-5 h-5 text-brand-blue-glow" />
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-white">
@@ -484,7 +541,7 @@ export default function CalendarPage() {
                   </button>
                   <button
                     onClick={() => setCurrentHabitWeek(new Date())}
-                    className="px-3 py-1 text-xs bg-purple-500/10 text-purple-400 border border-purple-500/30 rounded-full hover:bg-purple-500 hover:text-white transition-all"
+                    className="px-3 py-1 text-xs bg-brand-blue-glow/10 text-brand-blue-glow border border-brand-blue-glow/30 rounded-full hover:bg-brand-blue-glow hover:text-white transition-all"
                   >
                     Esta semana
                   </button>
@@ -521,11 +578,11 @@ export default function CalendarPage() {
                   onChange={(e) => setNewHabitName(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && addHabit()}
                   placeholder="Nueva actividad/hábito (Enter para agregar)"
-                  className="flex-1 px-4 py-2.5 bg-black/40 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors text-sm"
+                  className="flex-1 px-4 py-2.5 bg-black/40 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue-glow transition-colors text-sm"
                 />
                 <button
                   onClick={addHabit}
-                  className="px-4 py-2.5 bg-purple-500 text-white font-semibold rounded-xl hover:bg-purple-400 transition-all flex items-center gap-2 text-sm"
+                  className="px-4 py-2.5 bg-brand-blue-glow text-white font-semibold rounded-xl hover:bg-brand-blue-glow transition-all flex items-center gap-2 text-sm"
                 >
                   <Plus className="w-4 h-4" /> Agregar
                 </button>
@@ -586,8 +643,8 @@ export default function CalendarPage() {
                                   }
                                   className={`w-7 h-7 rounded-full border-2 flex items-center justify-center mx-auto transition-all ${
                                     habit.days[dayKey]
-                                      ? "bg-purple-500 border-purple-500 text-white"
-                                      : "border-gray-600 text-transparent hover:border-purple-400"
+                                      ? "bg-brand-blue-glow border-brand-blue-glow text-white"
+                                      : "border-gray-600 text-transparent hover:border-brand-blue-glow"
                                   }`}
                                 >
                                   {habit.days[dayKey] ? (
@@ -618,24 +675,69 @@ export default function CalendarPage() {
         )}
 
         {activeTab === "shared" && (
-          <div className="text-center py-16">
-            <div className="w-20 h-20 rounded-full bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center mx-auto mb-4">
-              <Users className="w-10 h-10 text-brand-gold" />
-            </div>
-            <h3 className="text-2xl font-bold text-white mb-2">
-              Calendarios Compartidos
-            </h3>
-            <p className="text-gray-400 mb-8 max-w-md mx-auto">
-              Crea un calendario compartido para planificar actividades con tus
-              amigos o compañeros y chatear sobre ellas.
-            </p>
-            <button className="px-8 py-3 bg-brand-gold text-brand-black font-bold rounded-full hover:bg-white transition-all flex items-center gap-2 mx-auto">
-              <Plus className="w-5 h-5" />
-              Crear Calendario Compartido
-            </button>
-            <p className="text-gray-500 text-xs mt-4">
-              Próximamente disponible
-            </p>
+          <div className="space-y-6">
+            {selectedSharedCalendar ? (
+              <SharedCalendarDetail
+                calendar={selectedSharedCalendar}
+                currentUserId={currentUserId!}
+                onBack={() => {
+                  setSelectedSharedCalendar(null);
+                  loadEvents();
+                }}
+              />
+            ) : (
+              <div className="bg-gray-900/80 backdrop-blur-xl border border-brand-gold/30 rounded-3xl p-8">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">
+                      Tus Calendarios Compartidos
+                    </h2>
+                    <p className="text-gray-400">
+                      Gestiona eventos, hábitos y comunícate.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowCreateSharedModal(true)}
+                    className="px-6 py-3 bg-brand-gold text-brand-black font-bold rounded-full hover:bg-white transition-all flex items-center gap-2"
+                  >
+                    <Plus className="w-5 h-5" /> Nuevo Grupo
+                  </button>
+                </div>
+                {sharedCalendars.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Users className="w-16 h-16 text-gray-700 mx-auto mb-4" />
+                    <h3 className="text-xl font-bold text-gray-300">
+                      Sin calendarios grupales
+                    </h3>
+                    <p className="text-gray-500">
+                      Crea un calendario para empezar a compartir eventos.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {sharedCalendars.map((c) => (
+                      <div
+                        key={c.id}
+                        onClick={() => setSelectedSharedCalendar(c)}
+                        className="bg-black/40 border border-gray-800 p-6 rounded-2xl hover:border-brand-gold/50 cursor-pointer transition-all flex items-start gap-4"
+                      >
+                        <div className="p-3 bg-brand-gold/10 rounded-full min-w-[48px] flex justify-center">
+                          <Users className="w-6 h-6 text-brand-gold" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-white text-lg">
+                            {c.name}
+                          </h3>
+                          <p className="text-sm text-gray-400">
+                            {c.members.length} Miembros
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -849,6 +951,59 @@ export default function CalendarPage() {
           )}
         </AnimatePresence>
       </div>
+
+      <AnimatePresence>
+        {showCreateSharedModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowCreateSharedModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-brand-black border border-brand-gold rounded-3xl p-8 max-w-md w-full"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-white">
+                  Nuevo Calendario
+                </h2>
+                <button
+                  onClick={() => setShowCreateSharedModal(false)}
+                  className="w-10 h-10 rounded-full border border-gray-700 flex items-center justify-center text-gray-400 hover:border-brand-gold hover:text-brand-gold"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <form onSubmit={handleCreateShared} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Nombre del Grupo/Calendario *
+                  </label>
+                  <input
+                    type="text"
+                    value={newSharedName}
+                    onChange={(e) => setNewSharedName(e.target.value)}
+                    className="w-full px-4 py-3 bg-brand-black border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold"
+                    placeholder="Ej: Grupo de Estudio"
+                    required
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-brand-gold text-brand-black font-bold rounded-full hover:bg-white transition-all"
+                >
+                  Crear Calendario
+                </button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

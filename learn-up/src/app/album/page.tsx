@@ -294,7 +294,7 @@ export default function AlbumPage() {
 
             {capturing ? (
               <div className="space-y-4">
-                <div className="relative bg-black rounded-3xl overflow-hidden aspect-video">
+                <div className="relative bg-black rounded-3xl overflow-hidden aspect-[4/3] md:aspect-video shadow-2xl shadow-emerald-900/20 border border-emerald-500/20 group">
                   <video
                     ref={videoRef}
                     autoPlay
@@ -302,47 +302,77 @@ export default function AlbumPage() {
                     muted
                     className="w-full h-full object-cover"
                   />
+                  {/* Grid Overlay for 'Dark Room' feel */}
+                  <div className="absolute inset-0 pointer-events-none grid grid-cols-3 grid-rows-3 opacity-30">
+                    <div className="border-r border-b border-white/20" />
+                    <div className="border-r border-b border-white/20" />
+                    <div className="border-b border-white/20" />
+                    <div className="border-r border-b border-white/20" />
+                    <div className="border-r border-b border-white/20" />
+                    <div className="border-b border-white/20" />
+                    <div className="border-r border-white/20" />
+                    <div className="border-r border-white/20" />
+                    <div />
+                  </div>
+
+                  {/* Corner brackets */}
+                  <div className="absolute top-8 left-8 w-8 h-8 border-t-2 border-l-2 border-emerald-500/50 pointer-events-none" />
+                  <div className="absolute top-8 right-8 w-8 h-8 border-t-2 border-r-2 border-emerald-500/50 pointer-events-none" />
+                  <div className="absolute bottom-24 left-8 w-8 h-8 border-b-2 border-l-2 border-emerald-500/50 pointer-events-none" />
+                  <div className="absolute bottom-24 right-8 w-8 h-8 border-b-2 border-r-2 border-emerald-500/50 pointer-events-none" />
+
                   {isRecording && (
-                    <div className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1 bg-red-500 rounded-full text-white text-sm font-bold animate-pulse">
-                      <span className="w-2 h-2 bg-white rounded-full" /> REC
+                    <div className="absolute top-6 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-1.5 bg-black/50 backdrop-blur-md rounded-full text-white text-sm font-bold border border-red-500/50 shadow-lg shadow-red-500/20 mt-4 md:mt-0 md:top-6 md:left-6 md:translate-x-0">
+                      <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_10px_#ef4444]" />{" "}
+                      REC
                     </div>
                   )}
+
+                  {/* Camera Controls Overlay */}
+                  <div className="absolute bottom-0 inset-x-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex flex-col items-center gap-4">
+                    <canvas ref={canvasRef} className="hidden" />
+                    <div className="flex gap-4 items-center justify-center w-full max-w-md mx-auto">
+                      {cameraMode === "photo" ? (
+                        <button
+                          onClick={takePhoto}
+                          disabled={uploading}
+                          className="w-16 h-16 rounded-full bg-white border-4 border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)] flex items-center justify-center hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                        >
+                          <div className="w-12 h-12 rounded-full border-2 border-black" />
+                        </button>
+                      ) : isRecording ? (
+                        <button
+                          onClick={stopRecording}
+                          className="w-16 h-16 rounded-full bg-black border-4 border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.4)] flex items-center justify-center hover:scale-105 active:scale-95 transition-all animate-pulse"
+                        >
+                          <div className="w-6 h-6 bg-red-500 rounded-sm" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={startRecording}
+                          className="w-16 h-16 rounded-full bg-white border-4 border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)] flex items-center justify-center hover:scale-105 active:scale-95 transition-all"
+                        >
+                          <div className="w-4 h-4 rounded-full bg-red-500" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   {uploading && (
-                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                      <Loader2 className="w-10 h-10 text-white animate-spin" />
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center z-10">
+                      <Loader2 className="w-12 h-12 text-emerald-500 animate-spin mb-4" />
+                      <p className="text-emerald-400 font-bold animate-pulse tracking-widest text-sm">
+                        REVELANDO...
+                      </p>
                     </div>
                   )}
                 </div>
-                <canvas ref={canvasRef} className="hidden" />
-                <div className="flex gap-3 justify-center">
-                  {cameraMode === "photo" ? (
-                    <button
-                      onClick={takePhoto}
-                      disabled={uploading}
-                      className="px-8 py-3 bg-emerald-500 text-white font-bold rounded-full hover:bg-emerald-400 transition-all disabled:opacity-50 flex items-center gap-2"
-                    >
-                      <Camera className="w-5 h-5" /> Tomar Foto
-                    </button>
-                  ) : isRecording ? (
-                    <button
-                      onClick={stopRecording}
-                      className="px-8 py-3 bg-red-500 text-white font-bold rounded-full hover:bg-red-400 transition-all flex items-center gap-2 animate-pulse"
-                    >
-                      ⏹ Detener Grabación
-                    </button>
-                  ) : (
-                    <button
-                      onClick={startRecording}
-                      className="px-8 py-3 bg-blue-500 text-white font-bold rounded-full hover:bg-blue-400 transition-all flex items-center gap-2"
-                    >
-                      <Video className="w-5 h-5" /> Iniciar Grabación
-                    </button>
-                  )}
+                <div className="flex justify-center mt-2">
                   <button
                     onClick={stopCamera}
-                    className="px-6 py-3 border border-gray-700 text-gray-400 rounded-full hover:bg-white/5 transition-all"
+                    className="px-6 py-2 border border-gray-700 text-gray-400 rounded-full hover:bg-white/5 transition-all text-sm"
                   >
-                    Cerrar Cámara
+                    Apagar Cámara
                   </button>
                 </div>
               </div>
@@ -450,15 +480,16 @@ export default function AlbumPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+              className="fixed inset-0 bg-black/95 backdrop-blur-xl z-50 flex items-center justify-center p-4"
               onClick={() => setSelectedMedia(null)}
             >
               <motion.div
-                initial={{ scale: 0.9 }}
-                animate={{ scale: 1 }}
-                exit={{ scale: 0.9 }}
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                transition={{ type: "spring", damping: 25, stiffness: 300 }}
                 onClick={(e) => e.stopPropagation()}
-                className="max-w-3xl w-full"
+                className="max-w-5xl w-full relative"
               >
                 {selectedMedia.file_type === "photo" && (
                   <img

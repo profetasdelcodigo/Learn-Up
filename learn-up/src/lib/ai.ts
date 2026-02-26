@@ -13,7 +13,10 @@ export const groq = new Groq({
 });
 
 export const getGroqCompletion = async (
-  messages: { role: "system" | "user" | "assistant"; content: string }[],
+  messages: {
+    role: "system" | "user" | "assistant";
+    content: string | any[];
+  }[],
   model: string = "llama-3.3-70b-versatile", // Switched to stable model ID
   jsonMode: boolean = false,
 ) => {

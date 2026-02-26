@@ -90,9 +90,9 @@ export default function WelcomeTutorial() {
             <motion.div
               initial={{ x: 20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
-              className="w-24 h-24 mx-auto bg-purple-500/10 rounded-full flex items-center justify-center border border-purple-500"
+              className="w-24 h-24 mx-auto bg-brand-blue-glow/10 rounded-full flex items-center justify-center border border-brand-blue-glow"
             >
-              <MessageCircle className="w-12 h-12 text-purple-500" />
+              <MessageCircle className="w-12 h-12 text-brand-blue-glow" />
             </motion.div>
             <h2 className="text-3xl font-bold text-white">
               Conecta y Colabora

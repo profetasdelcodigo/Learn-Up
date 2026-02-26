@@ -52,7 +52,7 @@ function getIcon(type: string) {
 function getColor(type: string) {
   switch (type) {
     case "friend_request":
-      return "bg-purple-500/15 text-purple-400 border-purple-500/20";
+      return "bg-brand-blue-glow/15 text-brand-blue-glow border-brand-blue-glow/20";
     case "message":
       return "bg-brand-gold/10 text-brand-gold border-brand-gold/20";
     case "call":

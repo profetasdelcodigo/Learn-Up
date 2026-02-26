@@ -415,7 +415,7 @@ function CanvasWhiteboard({
             max={20}
             value={size}
             onChange={(e) => setSize(+e.target.value)}
-            className="w-16 h-1 accent-amber-500"
+            className="w-16 h-1 accent-brand-gold"
           />
           <div className="w-px h-4 bg-gray-300" />
           {/* Tools */}

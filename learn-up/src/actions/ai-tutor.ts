@@ -1,18 +1,84 @@
 "use server";
 
-import { getGroqCompletion } from "@/lib/ai";
+import { getGroqCompletion, groq } from "@/lib/ai";
 import { createClient } from "@/utils/supabase/server";
+// @ts-ignore
+import pdfParse from "pdf-parse";
 
 const MODEL = "llama-3.3-70b-versatile";
+const VISION_MODEL = "llama-3.2-90b-vision-preview";
+
+// ── Media Parser ──────────────────────────────────────────────────────────────
+export async function parseMediaInput(url: string, type: string) {
+  try {
+    const response = await fetch(url);
+    const buffer = await response.arrayBuffer();
+
+    if (type === "document" || url.toLowerCase().endsWith(".pdf")) {
+      const data = await pdfParse(Buffer.from(buffer));
+      return data.text;
+    }
+
+    if (type === "audio") {
+      const blob = new Blob([buffer], { type: "audio/mpeg" });
+      const file = new File([blob], "audio.mp3", { type: "audio/mpeg" });
+      const transcription = await groq.audio.transcriptions.create({
+        file,
+        model: "whisper-large-v3",
+      });
+      return transcription.text;
+    }
+
+    return "";
+  } catch (err) {
+    console.error("Error parsing media:", err);
+    return "";
+  }
+}
+
+// ── Shared Builder ────────────────────────────────────────────────────────────
+async function buildUserMessage(
+  message: string,
+  mediaUrl?: string,
+  mediaType?: string,
+): Promise<{ content: string | any[]; model: string }> {
+  let finalMessageContent: string | any[] = message;
+  let finalModel = MODEL;
+
+  if (mediaUrl) {
+    if (mediaType === "image" || mediaUrl.match(/\.(jpeg|jpg|gif|png)$/i)) {
+      finalModel = VISION_MODEL;
+      finalMessageContent = [
+        { type: "text", text: message || "Analiza esta imagen." },
+        { type: "image_url", image_url: { url: mediaUrl } },
+      ];
+    } else {
+      const extractedText = await parseMediaInput(
+        mediaUrl,
+        mediaType || "document",
+      );
+      if (extractedText) {
+        finalMessageContent = `${message}\n\n[Contenido transcrito/extraído adjunto]:\n${extractedText}`;
+      }
+    }
+  }
+
+  return { content: finalMessageContent, model: finalModel };
+}
 
 // ── Profesor IA ───────────────────────────────────────────────────────────────
 export async function askProfessor(
   message: string,
-  history: { role: "user" | "assistant"; content: string }[] = [],
+  history: { role: "user" | "assistant"; content: string | any[] }[] = [],
+  mediaUrl?: string,
+  mediaType?: string,
 ): Promise<{ response: string; error?: string }> {
   try {
-    if (!message.trim())
-      return { response: "", error: "Por favor escribe una pregunta" };
+    if (!message.trim() && !mediaUrl)
+      return {
+        response: "",
+        error: "Por favor escribe una pregunta o envía un archivo",
+      };
 
     const systemPrompt = `Eres el "Profesor Mente", un tutor socrático con carisma, pasión genuina por enseñar y años de experiencia con estudiantes jóvenes. Sientes alegría real cuando un alumno entiende algo.
 
@@ -25,13 +91,16 @@ PERSONALIDAD:
 - Respuestas concisas pero COMPLETAS: explica bien, no parchea.
 - Siempre en Español. Emoji ocasional para dar vida.`;
 
+    const { content: finalMessageContent, model: finalModel } =
+      await buildUserMessage(message, mediaUrl, mediaType);
+
     const response = await getGroqCompletion(
       [
         { role: "system", content: systemPrompt },
         ...history,
-        { role: "user", content: message },
+        { role: "user", content: finalMessageContent },
       ],
-      MODEL,
+      finalModel,
     );
 
     return { response: response.choices[0]?.message?.content || "" };
@@ -39,7 +108,8 @@ PERSONALIDAD:
     console.error("Error en askProfessor:", error);
     return {
       response: "",
-      error: "Disculpa, tuve un problema. ¡Inténtalo de nuevo!",
+      error:
+        "Disculpa, tuve un problema al procesar tu solicitud. ¡Inténtalo de nuevo!",
     };
   }
 }
@@ -47,11 +117,16 @@ PERSONALIDAD:
 // ── Consejero IA ──────────────────────────────────────────────────────────────
 export async function askCounselor(
   problem: string,
-  history: { role: "user" | "assistant"; content: string }[] = [],
+  history: { role: "user" | "assistant"; content: string | any[] }[] = [],
+  mediaUrl?: string,
+  mediaType?: string,
 ): Promise<{ response: string; error?: string }> {
   try {
-    if (!problem.trim())
-      return { response: "", error: "Por favor describe tu situación" };
+    if (!problem.trim() && !mediaUrl)
+      return {
+        response: "",
+        error: "Por favor describe tu situación o envía un audio",
+      };
 
     const systemPrompt = `Eres "Alma", una consejera estudiantil con empatía profunda y calidez humana real. No suenas robótica; suenas como una amiga mayor muy comprensiva y sabia.
 
@@ -63,13 +138,16 @@ PERSONALIDAD:
 - Si detectas riesgo grave, con mucho tacto recomiendas apoyo profesional.
 - Respuestas concisas pero empáticas. Siempre en Español.`;
 
+    const { content: finalMessageContent, model: finalModel } =
+      await buildUserMessage(problem, mediaUrl, mediaType);
+
     const response = await getGroqCompletion(
       [
         { role: "system", content: systemPrompt },
         ...history,
-        { role: "user", content: problem },
+        { role: "user", content: finalMessageContent },
       ],
-      MODEL,
+      finalModel,
     );
 
     return { response: response.choices[0]?.message?.content || "" };
@@ -85,9 +163,17 @@ PERSONALIDAD:
 // ── Nutrirecetas ──────────────────────────────────────────────────────────────
 export async function generateRecipe(
   ingredients: string,
-  history: { role: "user" | "assistant"; content: string }[] = [],
+  history: { role: "user" | "assistant"; content: string | any[] }[] = [],
+  mediaUrl?: string,
+  mediaType?: string,
 ): Promise<{ response: string; error?: string }> {
   try {
+    if (!ingredients.trim() && !mediaUrl)
+      return {
+        response: "",
+        error: "Sube una foto de tus ingredientes o descríbelos",
+      };
+
     const systemPrompt = `Eres "Chef Nutre", un chef nutricionista entusiasta que ama crear recetas saludables y deliciosas con lo que tenga el estudiante.
 
 PERSONALIDAD:
@@ -97,13 +183,20 @@ PERSONALIDAD:
 - Puedes analizar fotos de ingredientes si se describen.
 - Siempre en Español. Emojis de comida permitidos 🍳🥗.`;
 
+    const { content: finalMessageContent, model: finalModel } =
+      await buildUserMessage(
+        `Ingredientes disponibles / solicitud: ${ingredients}`,
+        mediaUrl,
+        mediaType,
+      );
+
     const response = await getGroqCompletion(
       [
         { role: "system", content: systemPrompt },
         ...history,
-        { role: "user", content: `Ingredientes disponibles: ${ingredients}` },
+        { role: "user", content: finalMessageContent },
       ],
-      MODEL,
+      finalModel,
     );
 
     return { response: response.choices[0]?.message?.content || "" };
@@ -139,11 +232,15 @@ export interface ExamData {
 export async function generateRealExam(
   topic: string,
   difficulty: "básico" | "intermedio" | "avanzado" = "intermedio",
-  context?: string, // Additional context from uploaded file
+  context?: string,
+  mediaUrl?: string,
+  mediaType?: string,
 ): Promise<{ exam?: ExamData; error?: string }> {
   try {
-    if (!topic.trim())
-      return { error: "Por favor especifica el tema del examen" };
+    if (!topic.trim() && !mediaUrl)
+      return {
+        error: "Por favor especifica el tema del examen o sube un documento",
+      };
 
     const systemPrompt = `Eres un prestigioso evaluador académico. Tu tarea es crear exámenes completos y rigurosos tipo hoja en formato JSON.
 
@@ -202,23 +299,32 @@ REGLAS:
 - Adapta el nivel según la dificultad solicitada
 - Responde SOLO con el JSON válido sin texto adicional`;
 
-    const userPrompt = context
+    let userMessageText = context
       ? `Crea un examen completo sobre: "${topic}" con dificultad ${difficulty}.\n\nMaterial de referencia proporcionado por el estudiante:\n${context}`
       : `Crea un examen completo sobre: "${topic}" con dificultad ${difficulty}.`;
+
+    const { content: finalMessageContent, model: finalModel } =
+      await buildUserMessage(userMessageText, mediaUrl, mediaType);
 
     const response = await getGroqCompletion(
       [
         { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
+        { role: "user", content: finalMessageContent },
       ],
-      MODEL,
-      true, // JSON mode
+      finalModel,
+      !mediaUrl || mediaType !== "image", // Groq Vision model might not support constrained JSON mode perfectly, but let's try. Wait, Vision does NOT support JSON mode on groq!
+      // Workaround: We ask it to return raw JSON and we parse it
     );
 
     const content = response.choices[0]?.message?.content;
     if (!content) throw new Error("No content");
 
-    const exam = JSON.parse(content) as ExamData;
+    let parsedContent = content;
+    if (parsedContent.includes("```json")) {
+      parsedContent = parsedContent.split("```json")[1].split("```")[0];
+    }
+
+    const exam = JSON.parse(parsedContent) as ExamData;
     if (!exam.sections || exam.sections.length === 0)
       throw new Error("Invalid exam structure");
 
@@ -227,7 +333,7 @@ REGLAS:
     console.error("Error en generateRealExam:", error);
     return {
       error:
-        "Hubo un problema al generar el examen. Por favor intenta de nuevo.",
+        "Hubo un problema al generar el examen. Por favor asegúrate de subir documentos legibles.",
     };
   }
 }
@@ -308,47 +414,5 @@ Proporciona: puntuación obtenida, feedback por pregunta, y mensaje final motiva
       maxScore: 0,
       error: "Error al calificar el examen.",
     };
-  }
-}
-
-// ── Legacy Quiz (kept for compatibility) ─────────────────────────────────────
-export interface QuizQuestion {
-  question: string;
-  options: string[];
-  correctAnswer: number;
-}
-
-export interface Quiz {
-  topic: string;
-  difficulty: string;
-  questions: QuizQuestion[];
-}
-
-export async function generateQuiz(
-  topic: string,
-  difficulty: "fácil" | "medio" | "difícil" = "medio",
-): Promise<{ quiz?: Quiz; error?: string }> {
-  try {
-    const systemPrompt = `Genera un quiz en formato JSON. FORMATO:
-{"topic":"string","difficulty":"string","questions":[{"question":"string","options":["string","string","string","string"],"correctAnswer":0}]}
-REGLAS: 5 preguntas, 4 opciones cada una, correctAnswer = índice 0-3. Solo JSON.`;
-
-    const userPrompt = `Quiz sobre: "${topic}", dificultad: ${difficulty}.`;
-    const response = await getGroqCompletion(
-      [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      MODEL,
-      true,
-    );
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new Error("No content");
-    const quiz = JSON.parse(content) as Quiz;
-    if (!quiz.questions?.length) throw new Error("Invalid quiz");
-    return { quiz };
-  } catch (error: any) {
-    return { error: "Hubo un problema al generar el quiz." };
   }
 }

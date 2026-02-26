@@ -7,6 +7,7 @@ import {
   approveLibraryItem,
   rejectLibraryItem,
 } from "@/actions/library";
+import { getUserRooms, sendMessage as sendMessageAction } from "@/actions/chat";
 import { motion, AnimatePresence } from "framer-motion";
 import BackButton from "@/components/BackButton";
 import {
@@ -28,6 +29,7 @@ import {
   FileBadge,
   Video,
   ImageIcon,
+  Send,
 } from "lucide-react";
 
 interface LibraryItem {
@@ -58,6 +60,10 @@ export default function LibraryPage() {
   const [isDocente, setIsDocente] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [sharingItem, setSharingItem] = useState<LibraryItem | null>(null);
+  const [userRooms, setUserRooms] = useState<any[]>([]);
+  const [sharingToRooms, setSharingToRooms] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSection, setActiveSection] = useState<
@@ -195,14 +201,53 @@ export default function LibraryPage() {
   };
 
   const downloadItem = async (item: LibraryItem) => {
-    const res = await fetch(item.file_url);
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = item.title || "archivo";
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const res = await fetch(item.file_url);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = item.title || "archivo";
+      a.click();
+      URL.revokeObjectURL(url);
+
+      if (currentUserId) {
+        await supabase.from("user_media").insert({
+          user_id: currentUserId,
+          file_url: item.file_url,
+          file_type: item.file_type || "document",
+          source: "library",
+          title: item.title,
+        });
+      }
+    } catch (err) {
+      console.error("Error al descargar:", err);
+    }
+  };
+
+  const handleShareClick = async (item: LibraryItem) => {
+    setSharingItem(item);
+    setShowShareModal(true);
+    if (userRooms.length === 0) {
+      const rooms = await getUserRooms();
+      setUserRooms(rooms);
+    }
+  };
+
+  const confirmShareToRoom = async (roomId: string) => {
+    if (!sharingItem || !currentUserId) return;
+    setSharingToRooms(true);
+    try {
+      const msg = `📚 Te he compartido un material de la Biblioteca:\n\n*${sharingItem.title}*\n${sharingItem.file_url}`;
+      await sendMessageAction(roomId, msg);
+      alert("Enviado al chat con éxito");
+      setShowShareModal(false);
+      setSharingItem(null);
+    } catch (err) {
+      alert("Error al compartir material");
+    } finally {
+      setSharingToRooms(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -304,8 +349,8 @@ export default function LibraryPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
-              <BookOpen className="w-7 h-7 text-amber-400" />
+            <div className="w-14 h-14 rounded-2xl bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center">
+              <BookOpen className="w-7 h-7 text-brand-gold" />
             </div>
             <div>
               <h1 className="text-3xl font-black text-white">
@@ -327,8 +372,8 @@ export default function LibraryPage() {
 
         {/* Docente Pending Review Panel */}
         {isDocente && pendingItems.length > 0 && (
-          <div className="mb-8 bg-amber-500/5 border border-amber-500/30 rounded-3xl p-6">
-            <h2 className="text-lg font-bold text-amber-400 mb-4 flex items-center gap-2">
+          <div className="mb-8 bg-brand-gold/5 border border-brand-gold/30 rounded-3xl p-6">
+            <h2 className="text-lg font-bold text-brand-gold mb-4 flex items-center gap-2">
               <CheckCircle className="w-5 h-5" /> Materiales pendientes de
               revisión ({pendingItems.length})
             </h2>
@@ -353,7 +398,7 @@ export default function LibraryPage() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setReviewItem(item)}
-                      className="px-4 py-2 border border-amber-500/50 text-amber-400 rounded-full text-sm hover:bg-amber-500 hover:text-black transition-all"
+                      className="px-4 py-2 border border-brand-gold/50 text-brand-gold rounded-full text-sm hover:bg-brand-gold hover:text-black transition-all"
                     >
                       Revisar
                     </button>
@@ -421,10 +466,10 @@ export default function LibraryPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
-                className="bg-gray-900/80 border border-gray-800 rounded-2xl p-5 hover:border-amber-500/40 transition-all group"
+                className="bg-gray-900/80 border border-gray-800 rounded-2xl p-5 hover:border-brand-gold/40 transition-all group"
               >
                 <div className="flex items-start gap-3 mb-3">
-                  <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                  <div className="w-12 h-12 rounded-xl bg-brand-gold/10 border border-brand-gold/20 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
                     {FILE_ICON_MAP[item.file_type || "document"] ||
                       FILE_ICON_MAP.document}
                   </div>
@@ -433,7 +478,7 @@ export default function LibraryPage() {
                       {item.title}
                     </h3>
                     {item.subject && (
-                      <span className="text-xs text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">
+                      <span className="text-xs text-brand-gold bg-brand-gold/10 px-2 py-0.5 rounded-full">
                         {item.subject}
                       </span>
                     )}
@@ -463,13 +508,21 @@ export default function LibraryPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => openItem(item)}
-                    className="flex-1 py-2 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-xl text-xs font-semibold hover:bg-amber-500 hover:text-black transition-all flex items-center justify-center gap-1"
+                    className="flex-1 py-2 bg-brand-gold/10 text-brand-gold border border-brand-gold/30 rounded-xl text-xs font-semibold hover:bg-brand-gold hover:text-black transition-all flex items-center justify-center gap-1"
                   >
                     <ChevronRight className="w-3.5 h-3.5" /> Ver
                   </button>
                   <button
+                    onClick={() => handleShareClick(item)}
+                    className="p-2 bg-gray-800 text-brand-blue-glow rounded-xl hover:bg-brand-blue-glow hover:text-white transition-all flex items-center justify-center"
+                    title="Compartir en Chat"
+                  >
+                    <Share2 className="w-4 h-4" />
+                  </button>
+                  <button
                     onClick={() => downloadItem(item)}
-                    className="p-2 bg-gray-800 text-gray-400 rounded-xl hover:bg-gray-700 hover:text-white transition-all"
+                    className="p-2 bg-gray-800 text-gray-400 rounded-xl hover:bg-gray-700 hover:text-white transition-all flex items-center justify-center"
+                    title="Descargar"
                   >
                     <Download className="w-4 h-4" />
                   </button>
@@ -512,7 +565,7 @@ export default function LibraryPage() {
                     {reviewItem.title}
                   </h3>
                   {reviewItem.subject && (
-                    <p className="text-sm text-amber-400 mb-1">
+                    <p className="text-sm text-brand-gold mb-1">
                       Materia: {reviewItem.subject}
                     </p>
                   )}
@@ -530,7 +583,7 @@ export default function LibraryPage() {
                   href={reviewItem.file_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full py-2.5 mb-4 border border-amber-500/50 text-amber-400 rounded-xl text-sm font-medium hover:bg-amber-500/10 transition-all flex items-center justify-center gap-2"
+                  className="w-full py-2.5 mb-4 border border-brand-gold/50 text-brand-gold rounded-xl text-sm font-medium hover:bg-brand-gold/10 transition-all flex items-center justify-center gap-2"
                 >
                   <ChevronRight className="w-4 h-4" /> Abrir y revisar el
                   archivo
@@ -548,6 +601,73 @@ export default function LibraryPage() {
                   >
                     <CheckCircle className="w-4 h-4" /> Aprobar
                   </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Share Modal */}
+        <AnimatePresence>
+          {showShareModal && sharingItem && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={() => setShowShareModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 20 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-brand-black border border-brand-gold rounded-3xl p-8 max-w-md w-full max-h-[80vh] flex flex-col"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <Share2 className="w-5 h-5 text-brand-gold" /> Compartir en
+                    Chat
+                  </h2>
+                  <button
+                    onClick={() => setShowShareModal(false)}
+                    className="text-gray-400 hover:text-brand-gold"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="p-3 bg-gray-900 rounded-xl mb-4 border border-gray-800">
+                  <p className="text-sm text-white font-bold truncate">
+                    {sharingItem.title}
+                  </p>
+                </div>
+                <h3 className="text-sm text-gray-400 mb-2 font-semibold">
+                  Tus Chats:
+                </h3>
+                <div className="flex-1 overflow-y-auto space-y-2">
+                  {userRooms.length === 0 ? (
+                    <p className="text-gray-500 text-center text-sm py-4">
+                      No tienes chats activos.
+                    </p>
+                  ) : (
+                    userRooms.map((room) => (
+                      <button
+                        key={room.id}
+                        onClick={() => confirmShareToRoom(room.id)}
+                        disabled={sharingToRooms}
+                        className="w-full text-left p-3 bg-black/40 border border-gray-800 rounded-xl hover:border-brand-gold flex items-center justify-between group disabled:opacity-50 transition-colors"
+                      >
+                        <span className="text-white text-sm font-medium pr-2 truncate">
+                          {room.type === "group"
+                            ? room.name
+                            : room.participants_profiles?.filter(
+                                (p: any) => p.id !== currentUserId,
+                              )[0]?.full_name || "Chat Privado"}
+                        </span>
+                        <Send className="w-4 h-4 text-gray-600 group-hover:text-brand-gold flex-shrink-0 transition-colors" />
+                      </button>
+                    ))
+                  )}
                 </div>
               </motion.div>
             </motion.div>
@@ -582,7 +702,7 @@ export default function LibraryPage() {
                     <X className="w-5 h-5" />
                   </button>
                 </div>
-                <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-sm text-gray-300">
+                <div className="mb-4 p-3 bg-brand-gold/10 border border-brand-gold/30 rounded-2xl text-sm text-gray-300">
                   ℹ️ Tu aporte será revisado por el docente que selecciones
                   antes de publicarse.
                 </div>
@@ -636,7 +756,7 @@ export default function LibraryPage() {
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                       Docente Revisor *{" "}
-                      <span className="text-amber-400 text-xs">
+                      <span className="text-brand-gold text-xs">
                         (Obligatorio)
                       </span>
                     </label>

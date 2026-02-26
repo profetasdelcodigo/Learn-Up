@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { generateRealExam, gradeExam, ExamData } from "@/actions/ai-tutor";
 import BackButton from "@/components/BackButton";
+import { createClient } from "@/utils/supabase/client";
 
 type Phase = "setup" | "taking" | "grading" | "results";
 
@@ -35,16 +36,21 @@ export default function ExamenIAPage() {
     score: number;
     maxScore: number;
   } | null>(null);
-  const [uploadedFileContent, setUploadedFileContent] = useState("");
-  const [uploadedFileName, setUploadedFileName] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const supabase = createClient();
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadedFileName(file.name);
-    const text = await file.text();
-    setUploadedFileContent(text.slice(0, 3000)); // Limit context
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+    setFile(selectedFile);
+  };
+
+  const getMediaType = (file: File) => {
+    if (file.type.startsWith("image/")) return "image";
+    if (file.type.startsWith("video/")) return "video";
+    if (file.type.startsWith("audio/")) return "audio";
+    return "document";
   };
 
   const handleGenerateExam = async (e: React.FormEvent) => {
@@ -54,11 +60,36 @@ export default function ExamenIAPage() {
     setError("");
     setExam(null);
     setAnswers({});
+
     try {
+      let mediaUrl: string | undefined;
+      let mediaType: string | undefined;
+
+      if (file) {
+        mediaType = getMediaType(file);
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+          const filePath = `${user.id}/${Date.now()}_${file.name}`;
+          const { error: uploadErr } = await supabase.storage
+            .from("ai_media")
+            .upload(filePath, file);
+          if (!uploadErr) {
+            const { data } = supabase.storage
+              .from("ai_media")
+              .getPublicUrl(filePath);
+            mediaUrl = data.publicUrl;
+          }
+        }
+      }
+
       const result = await generateRealExam(
         topic.trim(),
         difficulty,
-        uploadedFileContent || undefined,
+        undefined, // context
+        mediaUrl,
+        mediaType,
       );
       if (result.error) {
         setError(result.error);
@@ -96,8 +127,7 @@ export default function ExamenIAPage() {
     setGradingResult(null);
     setError("");
     setTopic("");
-    setUploadedFileContent("");
-    setUploadedFileName("");
+    setFile(null);
   };
 
   const getAnswerKey = (sectionTitle: string, qIndex: number) =>
@@ -118,8 +148,8 @@ export default function ExamenIAPage() {
 
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-2xl bg-purple-500/10 border border-purple-500">
-            <GraduationCap className="w-8 h-8 text-purple-400" />
+          <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-2xl bg-brand-blue-glow/10 border border-brand-blue-glow">
+            <GraduationCap className="w-8 h-8 text-brand-blue-glow" />
           </div>
           <h1 className="text-4xl font-black text-white mb-2">Examen IA</h1>
           <p className="text-gray-400">
@@ -133,7 +163,7 @@ export default function ExamenIAPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-gray-900/80 border border-purple-500/40 rounded-3xl p-8"
+            className="bg-gray-900/80 border border-brand-blue-glow/40 rounded-3xl p-8"
           >
             <form onSubmit={handleGenerateExam} className="space-y-6">
               <div>
@@ -145,7 +175,7 @@ export default function ExamenIAPage() {
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
                   placeholder="Ej: Segunda Guerra Mundial, Álgebra Lineal, Ecosistemas..."
-                  className="w-full px-4 py-3 bg-black/40 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
+                  className="w-full px-4 py-3 bg-black/40 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue-glow transition-colors"
                   required
                 />
               </div>
@@ -161,7 +191,7 @@ export default function ExamenIAPage() {
                         key={level}
                         type="button"
                         onClick={() => setDifficulty(level)}
-                        className={`py-3 px-4 rounded-2xl font-semibold text-sm transition-all ${difficulty === level ? "bg-purple-500 text-white shadow-lg shadow-purple-500/20" : "bg-black/40 border border-gray-700 text-gray-400 hover:border-purple-500/50"}`}
+                        className={`py-3 px-4 rounded-2xl font-semibold text-sm transition-all ${difficulty === level ? "bg-brand-blue-glow text-white shadow-lg shadow-brand-blue-glow/20" : "bg-black/40 border border-gray-700 text-gray-400 hover:border-brand-blue-glow/50"}`}
                       >
                         {level === "básico"
                           ? "🟢 Básico"
@@ -179,48 +209,44 @@ export default function ExamenIAPage() {
                 <label className="block text-sm font-semibold text-gray-300 mb-2">
                   Subir material de referencia{" "}
                   <span className="text-gray-500 font-normal">
-                    (Opcional — la IA creará el examen basado en tu material)
+                    (Opcional — PDF, DOC, IMG)
                   </span>
                 </label>
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className={`w-full p-4 border-2 border-dashed rounded-2xl cursor-pointer transition-all text-center ${uploadedFileName ? "border-purple-500/50 bg-purple-500/5" : "border-gray-700 hover:border-purple-500/40 hover:bg-purple-500/5"}`}
+                  className={`w-full p-4 border-2 border-dashed rounded-2xl cursor-pointer transition-all text-center ${file ? "border-brand-blue-glow/50 bg-brand-blue-glow/5" : "border-gray-700 hover:border-brand-blue-glow/40 hover:bg-brand-blue-glow/5"}`}
                 >
-                  {uploadedFileName ? (
-                    <div className="flex items-center justify-center gap-2 text-purple-400">
+                  {file ? (
+                    <div className="flex items-center justify-center gap-2 text-brand-blue-glow">
                       <FileText className="w-5 h-5" />
-                      <span className="text-sm font-medium">
-                        {uploadedFileName}
-                      </span>
+                      <span className="text-sm font-medium">{file.name}</span>
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setUploadedFileName("");
-                          setUploadedFileContent("");
+                          setFile(null);
+                          if (fileInputRef.current)
+                            fileInputRef.current.value = "";
                         }}
-                        className="ml-2 text-gray-500 hover:text-red-400 text-xs"
+                        className="text-gray-400 hover:text-red-400 p-1"
                       >
-                        ✕ Quitar
+                        <XCircle className="w-4 h-4" />
                       </button>
                     </div>
                   ) : (
-                    <div className="text-gray-500">
-                      <Upload className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">
-                        Arrastra o haz clic para subir un archivo de texto, PDF,
-                        etc.
-                      </p>
+                    <div className="flex items-center justify-center gap-2 text-gray-400">
+                      <Upload className="w-5 h-5" />
+                      <span className="text-sm">Click para subir archivo</span>
                     </div>
                   )}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    accept=".pdf,.txt,.png,.jpg,.jpeg"
+                  />
                 </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".txt,.pdf,.doc,.docx,.md"
-                  className="hidden"
-                  onChange={handleFileUpload}
-                />
               </div>
 
               {error && (
@@ -233,7 +259,7 @@ export default function ExamenIAPage() {
               <button
                 type="submit"
                 disabled={loading || !topic.trim()}
-                className="w-full py-4 bg-purple-500 text-white font-bold rounded-full hover:bg-purple-400 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-lg"
+                className="w-full py-4 bg-brand-blue-glow text-white font-bold rounded-full hover:bg-brand-blue-glow transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-lg"
               >
                 {loading ? (
                   <>
@@ -264,7 +290,7 @@ export default function ExamenIAPage() {
             className="space-y-6"
           >
             {/* Exam Header */}
-            <div className="bg-gray-900/80 border border-purple-500/30 rounded-3xl p-6">
+            <div className="bg-gray-900/80 border border-brand-blue-glow/30 rounded-3xl p-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                 <div>
                   <h2 className="text-2xl font-bold text-white">
@@ -291,7 +317,7 @@ export default function ExamenIAPage() {
                 </div>
               </div>
               {exam.instructions && (
-                <div className="mt-4 p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl text-sm text-gray-300">
+                <div className="mt-4 p-3 bg-brand-blue-glow/10 border border-brand-blue-glow/20 rounded-xl text-sm text-gray-300">
                   📋 <strong>Instrucciones:</strong> {exam.instructions}
                 </div>
               )}
@@ -303,7 +329,7 @@ export default function ExamenIAPage() {
                 key={sIdx}
                 className="bg-gray-900/80 border border-gray-800 rounded-3xl p-6 space-y-6"
               >
-                <h3 className="text-lg font-bold text-purple-400 border-b border-gray-800 pb-3">
+                <h3 className="text-lg font-bold text-brand-blue-glow border-b border-gray-800 pb-3">
                   {section.title}
                 </h3>
                 {section.questions.map((q, qIdx) => {
@@ -312,7 +338,7 @@ export default function ExamenIAPage() {
                   return (
                     <div key={qIdx} className="space-y-3">
                       <div className="flex items-start gap-3">
-                        <span className="flex-shrink-0 w-7 h-7 rounded-full bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 text-xs font-bold">
+                        <span className="flex-shrink-0 w-7 h-7 rounded-full bg-brand-blue-glow/10 border border-brand-blue-glow/30 flex items-center justify-center text-brand-blue-glow text-xs font-bold">
                           {qIdx + 1}
                         </span>
                         <div className="flex-1">
@@ -339,7 +365,7 @@ export default function ExamenIAPage() {
                                     [answerKey]: optIdx,
                                   })
                                 }
-                                className={`w-full text-left px-4 py-3 rounded-xl border transition-all text-sm ${currentAnswer === optIdx ? "bg-purple-500/20 border-purple-500 text-white font-medium" : "bg-black/20 border-gray-700 text-gray-300 hover:border-purple-500/40"}`}
+                                className={`w-full text-left px-4 py-3 rounded-xl border transition-all text-sm ${currentAnswer === optIdx ? "bg-brand-blue-glow/20 border-brand-blue-glow text-white font-medium" : "bg-black/20 border-gray-700 text-gray-300 hover:border-brand-blue-glow/40"}`}
                               >
                                 {opt}
                               </button>
@@ -358,7 +384,7 @@ export default function ExamenIAPage() {
                             })
                           }
                           placeholder="Escribe tu respuesta aquí..."
-                          className="ml-10 w-[calc(100%-2.5rem)] px-4 py-3 bg-black/40 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors resize-none"
+                          className="ml-10 w-[calc(100%-2.5rem)] px-4 py-3 bg-black/40 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-brand-blue-glow transition-colors resize-none"
                           rows={4}
                         />
                       )}
@@ -375,7 +401,7 @@ export default function ExamenIAPage() {
                             })
                           }
                           placeholder="Completa el espacio..."
-                          className="ml-10 px-4 py-2.5 bg-black/40 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors w-64"
+                          className="ml-10 px-4 py-2.5 bg-black/40 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-brand-blue-glow transition-colors w-64"
                         />
                       )}
                     </div>
@@ -394,7 +420,7 @@ export default function ExamenIAPage() {
               <button
                 onClick={handleSubmitExam}
                 disabled={!allAnswered || loading}
-                className="flex-1 py-3 bg-purple-500 text-white font-bold rounded-full hover:bg-purple-400 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 py-3 bg-brand-blue-glow text-white font-bold rounded-full hover:bg-brand-blue-glow transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -412,7 +438,7 @@ export default function ExamenIAPage() {
         {/* GRADING PHASE */}
         {phase === "grading" && (
           <div className="text-center py-16">
-            <Loader2 className="w-16 h-16 text-purple-400 animate-spin mx-auto mb-4" />
+            <Loader2 className="w-16 h-16 text-brand-blue-glow animate-spin mx-auto mb-4" />
             <h3 className="text-2xl font-bold text-white mb-2">
               La IA está corrigiendo tu examen...
             </h3>
@@ -429,14 +455,14 @@ export default function ExamenIAPage() {
             animate={{ opacity: 1, scale: 1 }}
             className="space-y-6"
           >
-            <div className="bg-gray-900/80 border border-purple-500 rounded-3xl p-8 text-center">
-              <div className="inline-flex items-center justify-center w-20 h-20 mb-4 rounded-2xl bg-purple-500/20 border-2 border-purple-500">
-                <Star className="w-10 h-10 text-purple-400" />
+            <div className="bg-gray-900/80 border border-brand-blue-glow rounded-3xl p-8 text-center">
+              <div className="inline-flex items-center justify-center w-20 h-20 mb-4 rounded-2xl bg-brand-blue-glow/20 border-2 border-brand-blue-glow">
+                <Star className="w-10 h-10 text-brand-blue-glow" />
               </div>
               <h2 className="text-3xl font-black text-white mb-2">
                 ¡Examen Completado!
               </h2>
-              <div className="text-6xl font-black text-purple-400 my-4">
+              <div className="text-6xl font-black text-brand-blue-glow my-4">
                 {gradingResult.score}
                 <span className="text-3xl text-gray-500">
                   /{gradingResult.maxScore}
@@ -453,7 +479,7 @@ export default function ExamenIAPage() {
 
             <div className="bg-gray-900/80 border border-gray-800 rounded-3xl p-6">
               <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <GraduationCap className="w-5 h-5 text-purple-400" />{" "}
+                <GraduationCap className="w-5 h-5 text-brand-blue-glow" />{" "}
                 Retroalimentación del Profesor IA
               </h3>
               <div className="prose prose-invert prose-sm max-w-none">
@@ -465,7 +491,7 @@ export default function ExamenIAPage() {
 
             <button
               onClick={resetExam}
-              className="w-full py-3 bg-purple-500 text-white font-bold rounded-full hover:bg-purple-400 transition-all flex items-center justify-center gap-2"
+              className="w-full py-3 bg-brand-blue-glow text-white font-bold rounded-full hover:bg-brand-blue-glow transition-all flex items-center justify-center gap-2"
             >
               <RotateCcw className="w-5 h-5" /> Nuevo Examen
             </button>

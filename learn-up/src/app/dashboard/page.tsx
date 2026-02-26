@@ -109,9 +109,9 @@ export default async function DashboardPage() {
               </Link>
 
               <Link href="/ai/practica">
-                <div className="bg-gray-900/80 backdrop-blur-xl border border-purple-500/30 rounded-2xl p-6 hover:border-purple-500 hover:bg-purple-500/5 transition-all cursor-pointer group">
-                  <div className="w-12 h-12 mb-4 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center group-hover:scale-110 group-hover:border-purple-500 transition-all">
-                    <GraduationCap className="w-6 h-6 text-purple-400" />
+                <div className="bg-gray-900/80 backdrop-blur-xl border border-brand-blue-glow/30 rounded-2xl p-6 hover:border-brand-blue-glow hover:bg-brand-blue-glow/5 transition-all cursor-pointer group">
+                  <div className="w-12 h-12 mb-4 rounded-2xl bg-brand-blue-glow/10 border border-brand-blue-glow/30 flex items-center justify-center group-hover:scale-110 group-hover:border-brand-blue-glow transition-all">
+                    <GraduationCap className="w-6 h-6 text-brand-blue-glow" />
                   </div>
                   <h3 className="text-lg font-bold text-white mb-1">
                     Examen IA
@@ -176,9 +176,9 @@ export default async function DashboardPage() {
               </Link>
 
               <Link href="/library">
-                <div className="bg-gray-900/80 backdrop-blur-xl border border-amber-500/30 rounded-2xl p-6 hover:border-amber-500 hover:bg-amber-500/5 transition-all cursor-pointer group">
-                  <div className="w-12 h-12 mb-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center group-hover:scale-110 group-hover:border-amber-500 transition-all">
-                    <BookOpen className="w-6 h-6 text-amber-400" />
+                <div className="bg-gray-900/80 backdrop-blur-xl border border-brand-gold/30 rounded-2xl p-6 hover:border-brand-gold hover:bg-brand-gold/5 transition-all cursor-pointer group">
+                  <div className="w-12 h-12 mb-4 rounded-2xl bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center group-hover:scale-110 group-hover:border-brand-gold transition-all">
+                    <BookOpen className="w-6 h-6 text-brand-gold" />
                   </div>
                   <h3 className="text-lg font-bold text-white mb-1">
                     Biblioteca del Sabio
