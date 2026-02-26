@@ -44,6 +44,7 @@ export interface ChatRoom {
   avatar_url?: string | null;
   description?: string | null;
   admins?: string[];
+  only_admins_message?: boolean;
 }
 
 export interface Message {
@@ -199,6 +200,7 @@ export async function createGroup(
   name: string,
   participantIds: string[],
   avatar_url?: string | null,
+  description?: string | null,
 ) {
   const supabase = await createClient();
   const {
@@ -226,6 +228,8 @@ export async function createGroup(
       participants: validParticipants,
       admins: [user.id],
       avatar_url: avatar_url || null, // Add avatar_url
+      description: description || null,
+      only_admins_message: false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
@@ -238,8 +242,11 @@ export async function createGroup(
 
 export async function updateGroup(
   roomId: string,
-  name: string,
+  name?: string,
   avatar_url?: string | null,
+  description?: string | null,
+  only_admins_message?: boolean,
+  admins?: string[],
 ) {
   const supabase = await createClient();
   const {
@@ -254,15 +261,25 @@ export async function updateGroup(
     .eq("id", roomId)
     .single();
 
-  if (!room?.admins?.includes(user.id)) {
+  if (!room?.admins || !room.admins.includes(user.id)) {
     throw new Error("Only admins can update group info");
   }
 
   const updates: any = {
-    name,
     updated_at: new Date().toISOString(),
   };
+  if (name !== undefined) updates.name = name;
   if (avatar_url !== undefined) updates.avatar_url = avatar_url;
+  if (description !== undefined) updates.description = description;
+  if (only_admins_message !== undefined)
+    updates.only_admins_message = only_admins_message;
+  if (admins !== undefined) {
+    // make sure at least the current user remains an admin, or valid uuid check
+    const validAdmins = admins.filter(isValidUUID);
+    if (validAdmins.length > 0) {
+      updates.admins = validAdmins;
+    }
+  }
 
   const { error } = await supabase
     .from("chat_rooms")

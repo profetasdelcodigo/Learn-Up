@@ -58,6 +58,7 @@ import {
 import dynamic from "next/dynamic";
 import CreateGroupModal from "@/components/chat/CreateGroupModal";
 import GroupInfoPanel from "@/components/chat/GroupInfoPanel";
+import UserInfoPanel from "@/components/chat/UserInfoPanel";
 import ToastContainer, { Toast } from "@/components/ToastContainer";
 
 const VideoRoom = dynamic(() => import("@/components/VideoRoom"), {
@@ -162,10 +163,17 @@ export default function ChatPage() {
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [showGroupInfo, setShowGroupInfo] = useState(false);
 
+  // User Profile Modal State
+  const [showUserInfo, setShowUserInfo] = useState(false);
+  const [activeUserTarget, setActiveUserTarget] = useState<any>(null);
+
   // Message Actions State
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [uploadingMediaType, setUploadingMediaType] = useState<string | null>(
+    null,
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Pending file preview (before send)
@@ -701,6 +709,16 @@ export default function ChatPage() {
   const uploadAndSendFile = async (file: File) => {
     if (!activeChat || !currentUserId) return;
     setUploadingMedia(true);
+    if (file.type.startsWith("audio/")) {
+      setUploadingMediaType("audio");
+    } else if (file.type.startsWith("image/")) {
+      setUploadingMediaType("image");
+    } else if (file.type.startsWith("video/")) {
+      setUploadingMediaType("video");
+    } else {
+      setUploadingMediaType("file");
+    }
+
     try {
       const url = await uploadChatMedia(file, activeChat);
       let content: string;
@@ -718,6 +736,7 @@ export default function ChatPage() {
       addToast("Error al subir el archivo", "error");
     } finally {
       setUploadingMedia(false);
+      setUploadingMediaType(null);
       setPendingFile(null);
     }
   };
@@ -1134,6 +1153,7 @@ export default function ChatPage() {
                       let name = activeRoom.name;
                       let avatarUrl = activeRoom.avatar_url;
                       let statusInfo = "";
+                      let userTarget: any = null;
 
                       if (activeRoom.type === "private") {
                         // null-safe participants access
@@ -1152,13 +1172,13 @@ export default function ChatPage() {
                         // Fallback to friends list
                         const friend = friends.find((f) => f.id === otherId);
 
-                        const target = profile || friend;
+                        userTarget = profile || friend;
 
-                        if (target) {
-                          name = target.full_name;
-                          avatarUrl = target.avatar_url;
-                          if (target.school) {
-                            statusInfo = `${target.school} ${target.grade ? `| ${target.grade}` : ""}`;
+                        if (userTarget) {
+                          name = userTarget.full_name;
+                          avatarUrl = userTarget.avatar_url;
+                          if (userTarget.school) {
+                            statusInfo = `${userTarget.school} ${userTarget.grade ? `| ${userTarget.grade}` : ""}`;
                           }
                         }
                       }
@@ -1166,10 +1186,14 @@ export default function ChatPage() {
                       return (
                         <div
                           className="flex items-center gap-3 cursor-pointer hover:bg-white/5 p-2 rounded-xl transition-all"
-                          onClick={() =>
-                            activeRoom.type === "group" &&
-                            setShowGroupInfo(true)
-                          }
+                          onClick={() => {
+                            if (activeRoom.type === "group") {
+                              setShowGroupInfo(true);
+                            } else if (userTarget) {
+                              setActiveUserTarget(userTarget);
+                              setShowUserInfo(true);
+                            }
+                          }}
                         >
                           <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden flex items-center justify-center">
                             {avatarUrl ? (
@@ -1305,56 +1329,127 @@ export default function ChatPage() {
                                     /^\[file:([^\]]+)\]/,
                                   )?.[1] || "Archivo"}
                                 </a>
+                              ) : msg.content.includes("youtube.com/watch") ||
+                                msg.content.includes("youtu.be/") ? (
+                                (() => {
+                                  const regExp =
+                                    /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+                                  const match = msg.content.match(regExp);
+                                  const embedId =
+                                    match && match[2].length === 11
+                                      ? match[2]
+                                      : null;
+
+                                  if (embedId) {
+                                    return (
+                                      <div className="flex flex-col gap-2 w-full max-w-[320px]">
+                                        <div className="relative w-full aspect-video rounded-lg overflow-hidden">
+                                          <iframe
+                                            src={`https://www.youtube.com/embed/${embedId}`}
+                                            className="absolute top-0 left-0 w-full h-full"
+                                            title="YouTube Video"
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                            allowFullScreen
+                                          ></iframe>
+                                        </div>
+                                        {msg.content !==
+                                          `https://youtube.com/watch?v=${embedId}` &&
+                                          msg.content !==
+                                            `https://youtu.be/${embedId}` && (
+                                            <p className="whitespace-pre-wrap break-words leading-relaxed text-[15px]">
+                                              {msg.content}
+                                            </p>
+                                          )}
+                                      </div>
+                                    );
+                                  }
+                                  return (
+                                    <p className="whitespace-pre-wrap break-words leading-relaxed text-[15px]">
+                                      {msg.content}
+                                    </p>
+                                  );
+                                })()
                               ) : msg.content === "[CALL_OFFER_VIDEO]" ||
                                 msg.content === "[CALL_OFFER_VOICE]" ? (
-                                <div className="flex flex-col gap-2 min-w-[200px] sm:min-w-[240px]">
-                                  <div className="flex items-center gap-2 font-bold mb-1">
-                                    {msg.content === "[CALL_OFFER_VIDEO]" ? (
-                                      <Video className="w-5 h-5 text-green-400" />
-                                    ) : (
-                                      <Phone className="w-5 h-5 text-green-400" />
-                                    )}
-                                    <span>
-                                      {msg.content === "[CALL_OFFER_VIDEO]"
-                                        ? "Videollamada Entrante"
-                                        : "Llamada de Voz Entrante"}
-                                    </span>
-                                  </div>
-                                  {!isMe ? (
-                                    <div className="flex gap-2 mt-2">
-                                      <button
-                                        onClick={() => {
-                                          setIsVideoCall(
-                                            msg.content ===
-                                              "[CALL_OFFER_VIDEO]",
-                                          );
-                                          setIsCallCreator(false);
-                                          setShowVideo(true);
-                                        }}
-                                        className="py-2 bg-green-600 hover:bg-green-500 rounded-xl text-white font-bold text-sm flex-1 transition-all shadow-lg hover:scale-105"
-                                      >
-                                        Aceptar
-                                      </button>
-                                      <button
-                                        onClick={async () => {
-                                          await sendMessageAction(
-                                            activeChat as string,
-                                            msg.content === "[CALL_OFFER_VIDEO]"
-                                              ? "[CALL_REJECTED_VIDEO]"
-                                              : "[CALL_REJECTED_VOICE]",
-                                          );
-                                        }}
-                                        className="py-2 bg-red-600/80 hover:bg-red-500 rounded-xl text-white font-bold text-sm flex-1 transition-colors"
-                                      >
-                                        Rechazar
-                                      </button>
+                                (() => {
+                                  const isCallActive = !messages
+                                    .slice(messages.indexOf(msg) + 1)
+                                    .some(
+                                      (m) =>
+                                        m.content.startsWith("[CALL_ENDED") ||
+                                        m.content.startsWith("[CALL_REJECTED"),
+                                    );
+
+                                  return (
+                                    <div className="flex flex-col gap-2 min-w-[200px] sm:min-w-[240px]">
+                                      <div className="flex items-center gap-2 font-bold mb-1">
+                                        {msg.content ===
+                                        "[CALL_OFFER_VIDEO]" ? (
+                                          <Video
+                                            className={`w-5 h-5 ${isCallActive ? "text-green-400" : "text-gray-500"}`}
+                                          />
+                                        ) : (
+                                          <Phone
+                                            className={`w-5 h-5 ${isCallActive ? "text-green-400" : "text-gray-500"}`}
+                                          />
+                                        )}
+                                        <span
+                                          className={
+                                            isCallActive ? "" : "text-gray-400"
+                                          }
+                                        >
+                                          {msg.content === "[CALL_OFFER_VIDEO]"
+                                            ? "Videollamada Entrante"
+                                            : "Llamada de Voz Entrante"}
+                                        </span>
+                                      </div>
+                                      {!isMe ? (
+                                        isCallActive ? (
+                                          <div className="flex gap-2 mt-2">
+                                            <button
+                                              onClick={() => {
+                                                setIsVideoCall(
+                                                  msg.content ===
+                                                    "[CALL_OFFER_VIDEO]",
+                                                );
+                                                setIsCallCreator(false);
+                                                setShowVideo(true);
+                                              }}
+                                              className="py-2 bg-green-600 hover:bg-green-500 rounded-xl text-white font-bold text-sm flex-1 transition-all shadow-lg hover:scale-105"
+                                            >
+                                              Aceptar
+                                            </button>
+                                            <button
+                                              onClick={async () => {
+                                                await sendMessageAction(
+                                                  activeChat as string,
+                                                  msg.content ===
+                                                    "[CALL_OFFER_VIDEO]"
+                                                    ? "[CALL_REJECTED_VIDEO]"
+                                                    : "[CALL_REJECTED_VOICE]",
+                                                );
+                                              }}
+                                              className="py-2 bg-red-600/80 hover:bg-red-500 rounded-xl text-white font-bold text-sm flex-1 transition-colors"
+                                            >
+                                              Rechazar
+                                            </button>
+                                          </div>
+                                        ) : (
+                                          <div className="mt-2 py-2 bg-gray-800/50 rounded-xl text-gray-400 font-bold text-sm flex justify-center items-center gap-2 border border-gray-700">
+                                            <PhoneOff className="w-4 h-4" />{" "}
+                                            Llamada Finalizada
+                                          </div>
+                                        )
+                                      ) : (
+                                        <span className="text-sm opacity-70 italic border-l-2 pl-2 border-brand-gold mt-1 block">
+                                          {isCallActive
+                                            ? "Esperando respuesta..."
+                                            : "Llamada Terminada"}
+                                        </span>
+                                      )}
                                     </div>
-                                  ) : (
-                                    <span className="text-sm opacity-70 italic border-l-2 pl-2 border-brand-gold mt-1 block">
-                                      Esperando respuesta...
-                                    </span>
-                                  )}
-                                </div>
+                                  );
+                                })()
                               ) : msg.content.startsWith("[CALL_ENDED") ||
                                 msg.content.startsWith("[CALL_REJECTED") ? (
                                 <div className="flex items-center gap-2 text-sm italic opacity-80 min-w-[200px]">
@@ -1489,6 +1584,22 @@ export default function ChatPage() {
                     </div>
                   )}
 
+                  {/* ── File Upload indicator ── */}
+                  {uploadingMedia && uploadingMediaType && (
+                    <div className="flex items-center gap-3 bg-brand-gold/10 border border-brand-gold/30 px-3 py-2 rounded-xl mb-2">
+                      <Loader2 className="w-4 h-4 text-brand-gold animate-spin" />
+                      <span className="text-brand-gold text-xs font-semibold flex-1">
+                        {uploadingMediaType === "audio"
+                          ? "Enviando audio..."
+                          : uploadingMediaType === "image"
+                            ? "Enviando imagen..."
+                            : uploadingMediaType === "video"
+                              ? "Enviando video..."
+                              : "Enviando archivo..."}
+                      </span>
+                    </div>
+                  )}
+
                   <div className="relative flex items-end gap-2 bg-gray-900/50 p-2 rounded-2xl border border-gray-800 focus-within:border-brand-gold/50 transition-colors">
                     {/* Paperclip — all file types */}
                     <button
@@ -1613,6 +1724,14 @@ export default function ChatPage() {
             )} // Best effort members
             currentUserId={currentUserId!}
             onLeaveGroup={handleLeaveGroup}
+          />
+        )}
+
+        {showUserInfo && activeUserTarget && (
+          <UserInfoPanel
+            isOpen={showUserInfo}
+            onClose={() => setShowUserInfo(false)}
+            user={activeUserTarget}
           />
         )}
       </div>

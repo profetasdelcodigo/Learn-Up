@@ -25,6 +25,7 @@ export default function CreateGroupModal({
   onGroupCreated,
 }: CreateGroupModalProps) {
   const [groupName, setGroupName] = useState("");
+  const [description, setDescription] = useState("");
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -56,7 +57,12 @@ export default function CreateGroupModal({
     setIsCreating(true);
     try {
       // 1. Create Group first to get ID
-      const roomId = await createGroup(groupName.trim(), selectedFriends);
+      const roomId = await createGroup(
+        groupName.trim(),
+        selectedFriends,
+        null,
+        description.trim() ? description.trim() : null,
+      );
 
       // 2. If photo selected, upload and update
       if (selectedFile) {
@@ -135,18 +141,32 @@ export default function CreateGroupModal({
           </div>
 
           {/* Group Name */}
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">
-              Nombre del Grupo
-            </label>
-            <input
-              type="text"
-              value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
-              placeholder="Ej: Estudio de Matemáticas"
-              className="w-full px-4 py-3 bg-gray-900 border border-gray-800 rounded-xl text-white focus:outline-none focus:border-brand-gold/50"
-              maxLength={50}
-            />
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-2">
+                Nombre del Grupo
+              </label>
+              <input
+                type="text"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                placeholder="Ej: Estudio de Matemáticas"
+                className="w-full px-4 py-3 bg-gray-900 border border-gray-800 rounded-xl text-white focus:outline-none focus:border-brand-gold/50"
+                maxLength={50}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-2">
+                Descripción (Opcional)
+              </label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Ej: Grupo para organizarnos para los exámenes"
+                className="w-full px-4 py-3 bg-gray-900 border border-gray-800 rounded-xl text-white focus:outline-none focus:border-brand-gold/50 resize-none min-h-[80px]"
+                maxLength={200}
+              />
+            </div>
           </div>
 
           {/* Friend Selection */}
