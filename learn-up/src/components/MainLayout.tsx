@@ -13,20 +13,25 @@ export default function MainLayout({
 }) {
   const pathname = usePathname();
 
-  // Routes where navigation should be hidden
+  // Routes where navigation should be hidden entirely
   const publicRoutes = ["/", "/login", "/onboarding"];
   const isPublicRoute =
     publicRoutes.includes(pathname) || pathname.startsWith("/auth/");
 
-  // Hide sidebar on chat page (has its own sidebar)
+  // Chat page has its own sidebar
   const isChatPage = pathname === "/chat";
+
+  // Sidebar + BottomNav ONLY shown on Dashboard (home) and NOT on public/chat routes
+  const isDashboard = pathname === "/dashboard";
+  const showNav = !isPublicRoute && !isChatPage && isDashboard;
 
   return (
     <div className="flex h-screen bg-brand-black overflow-hidden">
       <NotificationManager />
       <WelcomeTutorial />
 
-      {!isPublicRoute && !isChatPage && (
+      {/* Desktop sidebar — only on dashboard */}
+      {showNav && (
         <div className="hidden md:flex flex-shrink-0">
           <Sidebar />
         </div>
@@ -42,7 +47,8 @@ export default function MainLayout({
         </div>
       </main>
 
-      {!isPublicRoute && (
+      {/* Mobile bottom nav — only on dashboard */}
+      {showNav && (
         <div className="md:hidden">
           <BottomNav />
         </div>

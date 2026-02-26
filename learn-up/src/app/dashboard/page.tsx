@@ -8,6 +8,10 @@ import {
   ChefHat,
   Calendar,
   MessageCircle,
+  Camera,
+  GraduationCap,
+  User,
+  Bell,
 } from "lucide-react";
 
 export default async function DashboardPage() {
@@ -26,179 +30,196 @@ export default async function DashboardPage() {
     .eq("id", user.id)
     .single();
 
+  const greeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Buenos días";
+    if (hour < 18) return "Buenas tardes";
+    return "Buenas noches";
+  };
+
   return (
-    <>
-      <div className="min-h-screen bg-brand-black">
-        <div className="p-4 md:p-8">
-          <div className="max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="bg-brand-black/80 backdrop-blur-xl border border-brand-gold rounded-3xl p-8 mb-8 mt-16 md:mt-0 relative flex justify-between items-center">
+    <div className="min-h-screen bg-brand-black">
+      <div className="p-4 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-8">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-brand-black via-brand-gold/5 to-brand-black border border-brand-gold/30 rounded-3xl p-8 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-brand-gold/10 via-transparent to-transparent pointer-events-none" />
+            <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
-                <h1 className="text-4xl font-bold text-white mb-2">
-                  Dashboard
+                <p className="text-brand-gold/70 text-sm font-medium uppercase tracking-widest mb-1">
+                  {greeting()},
+                </p>
+                <h1 className="text-4xl md:text-5xl font-black text-white mb-2">
+                  {profile?.full_name?.split(" ")[0] || "Estudiante"}
                 </h1>
-                <p className="text-gray-400">
-                  Bienvenido, {profile?.full_name || user.email}
+                <p className="text-gray-400 text-sm">
+                  {profile?.school && `${profile.school} · `}
+                  {profile?.grade || ""}
                 </p>
               </div>
-            </div>
-
-            {/* AI Tools Section */}
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold text-white mb-4 px-2">
-                🧠 Potencia tu mente
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* Professor AI */}
-                <Link href="/ai/profesor">
-                  <div className="bg-brand-black/80 backdrop-blur-xl border border-brand-gold rounded-3xl p-6 hover:bg-brand-gold/5 transition-all cursor-pointer group">
-                    <div className="w-12 h-12 mb-4 rounded-full bg-brand-gold/10 border border-brand-gold flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <BookOpen className="w-6 h-6 text-brand-gold" />
-                    </div>
-                    <h3 className="text-xl font-semibold text-white mb-2">
-                      Profesor IA
-                    </h3>
-                    <p className="text-gray-400 text-sm">
-                      Tu tutor socrático que te enseña a pensar
-                    </p>
-                  </div>
+              <div className="flex gap-3">
+                <Link
+                  href="/dashboard/notifications"
+                  className="p-3 bg-gray-900 border border-gray-700 rounded-2xl text-gray-400 hover:text-brand-gold hover:border-brand-gold transition-all"
+                >
+                  <Bell className="w-5 h-5" />
                 </Link>
-
-                {/* Practice Mode */}
-                <Link href="/ai/practica">
-                  <div className="bg-brand-black/80 backdrop-blur-xl border border-purple-500 rounded-3xl p-6 hover:bg-purple-500/5 transition-all cursor-pointer group">
-                    <div className="w-12 h-12 mb-4 rounded-full bg-purple-500/10 border border-purple-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <Brain className="w-6 h-6 text-purple-500" />
-                    </div>
-                    <h3 className="text-xl font-semibold text-white mb-2">
-                      Modo Práctica
-                    </h3>
-                    <p className="text-gray-400 text-sm">
-                      Genera quizzes personalizados para estudiar
-                    </p>
-                  </div>
+                <Link
+                  href="/dashboard/profile"
+                  className="flex items-center gap-3 px-4 py-3 bg-gray-900 border border-gray-700 rounded-2xl text-gray-300 hover:text-brand-gold hover:border-brand-gold transition-all"
+                >
+                  {profile?.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      className="w-7 h-7 rounded-full object-cover"
+                      alt="Avatar"
+                    />
+                  ) : (
+                    <User className="w-5 h-5" />
+                  )}
+                  <span className="text-sm font-medium hidden md:block">
+                    Mi Perfil
+                  </span>
                 </Link>
-
-                {/* Counselor AI */}
-                <Link href="/ai/consejero">
-                  <div className="bg-brand-black/80 backdrop-blur-xl border border-pink-500 rounded-3xl p-6 hover:bg-pink-500/5 transition-all cursor-pointer group">
-                    <div className="w-12 h-12 mb-4 rounded-full bg-pink-500/10 border border-pink-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <Heart className="w-6 h-6 text-pink-500" />
-                    </div>
-                    <h3 className="text-xl font-semibold text-white mb-2">
-                      Consejero IA
-                    </h3>
-                    <p className="text-gray-400 text-sm">
-                      Apoyo emocional cuando lo necesites
-                    </p>
-                  </div>
-                </Link>
-              </div>
-            </div>
-
-            {/* Productivity Section */}
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold text-white mb-4 px-2">
-                📚 Productividad
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* Calendar */}
-                <Link href="/calendar">
-                  <div className="bg-brand-black/80 backdrop-blur-xl border border-brand-gold rounded-3xl p-6 hover:bg-brand-gold/5 transition-all cursor-pointer group">
-                    <div className="w-12 h-12 mb-4 rounded-full bg-brand-gold/10 border border-brand-gold flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <Calendar className="w-6 h-6 text-brand-gold" />
-                    </div>
-                    <h3 className="text-xl font-semibold text-white mb-2">
-                      Hora de Actuar
-                    </h3>
-                    <p className="text-gray-400 text-sm">
-                      Agenda tus tareas y eventos
-                    </p>
-                  </div>
-                </Link>
-
-                {/* Chat */}
-                <Link href="/chat">
-                  <div className="bg-brand-black/80 backdrop-blur-xl border border-brand-gold rounded-3xl p-6 hover:bg-brand-gold/5 transition-all cursor-pointer group">
-                    <div className="w-12 h-12 mb-4 rounded-full bg-brand-gold/10 border border-brand-gold flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <MessageCircle className="w-6 h-6 text-brand-gold" />
-                    </div>
-                    <h3 className="text-xl font-semibold text-white mb-2">
-                      Aprendamos Juntos
-                    </h3>
-                    <p className="text-gray-400 text-sm">
-                      Chat en tiempo real con tu comunidad
-                    </p>
-                  </div>
-                </Link>
-
-                {/* Library */}
-                <Link href="/library">
-                  <div className="bg-brand-black/80 backdrop-blur-xl border border-brand-gold rounded-3xl p-6 hover:bg-brand-gold/5 transition-all cursor-pointer group">
-                    <div className="w-12 h-12 mb-4 rounded-full bg-brand-gold/10 border border-brand-gold flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <BookOpen className="w-6 h-6 text-brand-gold" />
-                    </div>
-                    <h3 className="text-xl font-semibold text-white mb-2">
-                      Mundo Lector
-                    </h3>
-                    <p className="text-gray-400 text-sm">
-                      Recursos educativos compartidos
-                    </p>
-                  </div>
-                </Link>
-              </div>
-            </div>
-
-            {/* Recipes Section */}
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold text-white mb-4 px-2">
-                🍳 Nutrirecetas
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* Recipe Generator */}
-                <Link href="/ai/recetas">
-                  <div className="bg-brand-black/80 backdrop-blur-xl border border-orange-500 rounded-3xl p-6 hover:bg-orange-500/5 transition-all cursor-pointer group">
-                    <div className="w-12 h-12 mb-4 rounded-full bg-orange-500/10 border border-orange-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <ChefHat className="w-6 h-6 text-orange-500" />
-                    </div>
-                    <h3 className="text-xl font-semibold text-white mb-2">
-                      Generar Receta
-                    </h3>
-                    <p className="text-gray-400 text-sm">
-                      Recetas saludables y deliciosas al instante
-                    </p>
-                  </div>
-                </Link>
-              </div>
-            </div>
-
-            {/* Profile */}
-            <div className="bg-brand-black/80 backdrop-blur-xl border border-gray-700 rounded-3xl p-8">
-              <h3 className="text-lg font-semibold text-brand-gold mb-3">
-                Tu Perfil
-              </h3>
-              <div className="space-y-1 text-sm text-gray-300">
-                <p>
-                  <span className="text-gray-500">Rol:</span> {profile?.role}
-                </p>
-                <p>
-                  <span className="text-gray-500">Colegio:</span>{" "}
-                  {profile?.school}
-                </p>
-                <p>
-                  <span className="text-gray-500">Grado:</span> {profile?.grade}
-                </p>
-                {profile?.section && (
-                  <p>
-                    <span className="text-gray-500">Sección:</span>{" "}
-                    {profile.section}
-                  </p>
-                )}
               </div>
             </div>
           </div>
+
+          {/* AI Section */}
+          <section>
+            <h2 className="text-2xl font-bold text-white mb-5 flex items-center gap-2">
+              <span className="w-8 h-8 rounded-xl bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center text-sm">
+                🧠
+              </span>
+              Potencia tu Mente
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              <Link href="/ai/profesor">
+                <div className="bg-gray-900/80 backdrop-blur-xl border border-brand-gold/30 rounded-2xl p-6 hover:border-brand-gold hover:bg-brand-gold/5 transition-all cursor-pointer group">
+                  <div className="w-12 h-12 mb-4 rounded-2xl bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center group-hover:scale-110 group-hover:border-brand-gold transition-all">
+                    <BookOpen className="w-6 h-6 text-brand-gold" />
+                  </div>
+                  <h3 className="text-lg font-bold text-white mb-1">
+                    Profesor IA
+                  </h3>
+                  <p className="text-gray-400 text-sm">
+                    Tu tutor que te enseña a pensar profundamente
+                  </p>
+                </div>
+              </Link>
+
+              <Link href="/ai/practica">
+                <div className="bg-gray-900/80 backdrop-blur-xl border border-purple-500/30 rounded-2xl p-6 hover:border-purple-500 hover:bg-purple-500/5 transition-all cursor-pointer group">
+                  <div className="w-12 h-12 mb-4 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center group-hover:scale-110 group-hover:border-purple-500 transition-all">
+                    <GraduationCap className="w-6 h-6 text-purple-400" />
+                  </div>
+                  <h3 className="text-lg font-bold text-white mb-1">
+                    Examen IA
+                  </h3>
+                  <p className="text-gray-400 text-sm">
+                    Exámenes reales con preguntas abiertas y cerradas
+                  </p>
+                </div>
+              </Link>
+
+              <Link href="/ai/consejero">
+                <div className="bg-gray-900/80 backdrop-blur-xl border border-pink-500/30 rounded-2xl p-6 hover:border-pink-500 hover:bg-pink-500/5 transition-all cursor-pointer group">
+                  <div className="w-12 h-12 mb-4 rounded-2xl bg-pink-500/10 border border-pink-500/30 flex items-center justify-center group-hover:scale-110 group-hover:border-pink-500 transition-all">
+                    <Heart className="w-6 h-6 text-pink-400" />
+                  </div>
+                  <h3 className="text-lg font-bold text-white mb-1">
+                    Consejero IA
+                  </h3>
+                  <p className="text-gray-400 text-sm">
+                    Apoyo emocional e inteligencia para tu bienestar
+                  </p>
+                </div>
+              </Link>
+            </div>
+          </section>
+
+          {/* Productivity Section */}
+          <section>
+            <h2 className="text-2xl font-bold text-white mb-5 flex items-center gap-2">
+              <span className="w-8 h-8 rounded-xl bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center text-sm">
+                📚
+              </span>
+              Mi Espacio
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              <Link href="/calendar">
+                <div className="bg-gray-900/80 backdrop-blur-xl border border-brand-gold/30 rounded-2xl p-6 hover:border-brand-gold hover:bg-brand-gold/5 transition-all cursor-pointer group">
+                  <div className="w-12 h-12 mb-4 rounded-2xl bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center group-hover:scale-110 group-hover:border-brand-gold transition-all">
+                    <Calendar className="w-6 h-6 text-brand-gold" />
+                  </div>
+                  <h3 className="text-lg font-bold text-white mb-1">
+                    Hora de Actuar
+                  </h3>
+                  <p className="text-gray-400 text-sm">
+                    Calendarios, habit tracker y planes compartidos
+                  </p>
+                </div>
+              </Link>
+
+              <Link href="/chat">
+                <div className="bg-gray-900/80 backdrop-blur-xl border border-cyan-500/30 rounded-2xl p-6 hover:border-cyan-500 hover:bg-cyan-500/5 transition-all cursor-pointer group">
+                  <div className="w-12 h-12 mb-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center group-hover:scale-110 group-hover:border-cyan-500 transition-all">
+                    <MessageCircle className="w-6 h-6 text-cyan-400" />
+                  </div>
+                  <h3 className="text-lg font-bold text-white mb-1">
+                    Aprendamos Juntos
+                  </h3>
+                  <p className="text-gray-400 text-sm">
+                    Chat en tiempo real con videollamadas
+                  </p>
+                </div>
+              </Link>
+
+              <Link href="/library">
+                <div className="bg-gray-900/80 backdrop-blur-xl border border-amber-500/30 rounded-2xl p-6 hover:border-amber-500 hover:bg-amber-500/5 transition-all cursor-pointer group">
+                  <div className="w-12 h-12 mb-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center group-hover:scale-110 group-hover:border-amber-500 transition-all">
+                    <BookOpen className="w-6 h-6 text-amber-400" />
+                  </div>
+                  <h3 className="text-lg font-bold text-white mb-1">
+                    Biblioteca del Sabio
+                  </h3>
+                  <p className="text-gray-400 text-sm">
+                    Material educativo revisado por docentes
+                  </p>
+                </div>
+              </Link>
+
+              <Link href="/ai/recetas">
+                <div className="bg-gray-900/80 backdrop-blur-xl border border-orange-500/30 rounded-2xl p-6 hover:border-orange-500 hover:bg-orange-500/5 transition-all cursor-pointer group">
+                  <div className="w-12 h-12 mb-4 rounded-2xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center group-hover:scale-110 group-hover:border-orange-500 transition-all">
+                    <ChefHat className="w-6 h-6 text-orange-400" />
+                  </div>
+                  <h3 className="text-lg font-bold text-white mb-1">
+                    Nutrirecetas
+                  </h3>
+                  <p className="text-gray-400 text-sm">
+                    Recetas saludables y deliciosas con IA
+                  </p>
+                </div>
+              </Link>
+
+              <Link href="/album">
+                <div className="bg-gray-900/80 backdrop-blur-xl border border-emerald-500/30 rounded-2xl p-6 hover:border-emerald-500 hover:bg-emerald-500/5 transition-all cursor-pointer group">
+                  <div className="w-12 h-12 mb-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center group-hover:scale-110 group-hover:border-emerald-500 transition-all">
+                    <Camera className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <h3 className="text-lg font-bold text-white mb-1">
+                    Álbum del Saber
+                  </h3>
+                  <p className="text-gray-400 text-sm">
+                    Tu cámara y galería de recuerdos educativos
+                  </p>
+                </div>
+              </Link>
+            </div>
+          </section>
         </div>
       </div>
-    </>
+    </div>
   );
 }

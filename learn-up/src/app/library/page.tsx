@@ -1,8 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { uploadLibraryFile } from "@/actions/library";
+import {
+  uploadLibraryFile,
+  approveLibraryItem,
+  rejectLibraryItem,
+} from "@/actions/library";
 import { motion, AnimatePresence } from "framer-motion";
 import BackButton from "@/components/BackButton";
 import {
@@ -11,154 +15,278 @@ import {
   X,
   Loader2,
   FileText,
-  ExternalLink,
+  Download,
+  Share2,
+  Star,
+  Clock,
+  Search,
+  User,
+  CheckCircle,
+  XCircle,
+  ChevronRight,
+  Sparkles,
+  FileBadge,
+  Video,
+  ImageIcon,
 } from "lucide-react";
 
 interface LibraryItem {
   id: string;
   title: string;
+  description?: string;
+  subject?: string;
   file_url: string;
+  file_type?: string;
   is_approved: boolean;
   created_at: string;
-  profiles?: {
-    full_name: string | null;
-  };
+  user_id: string;
+  reviewer_id?: string;
+  profiles?: { full_name: string | null; username: string | null };
 }
+
+const FILE_ICON_MAP: Record<string, React.ReactNode> = {
+  pdf: <FileBadge className="w-6 h-6 text-red-400" />,
+  video: <Video className="w-6 h-6 text-blue-400" />,
+  image: <ImageIcon className="w-6 h-6 text-green-400" />,
+  document: <FileText className="w-6 h-6 text-brand-gold" />,
+};
 
 export default function LibraryPage() {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [pendingItems, setPendingItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isDocente, setIsDocente] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeSection, setActiveSection] = useState<
+    "all" | "favorites" | "recents"
+  >("all");
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [recents, setRecents] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      return JSON.parse(localStorage.getItem("library_recents") || "[]");
+    }
+    return [];
+  });
+  const [docentes, setDocentes] = useState<
+    { id: string; full_name: string; username: string }[]
+  >([]);
+  const [reviewItem, setReviewItem] = useState<LibraryItem | null>(null); // docente review panel
   const [formData, setFormData] = useState({
     title: "",
+    description: "",
+    subject: "",
+    reviewer_username: "",
     file: null as File | null,
   });
 
   const supabase = createClient();
 
   useEffect(() => {
-    checkAdmin();
-    loadItems();
+    initialize();
   }, []);
 
-  const checkAdmin = async () => {
+  const initialize = async () => {
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (user) {
-      // Check if user is admin (hardcoded ID or role check)
-      // For this demo, let's assume a specific ID or check profiles 'role'
-      const { data } = await supabase
+      setCurrentUserId(user.id);
+      const { data: profile } = await supabase
         .from("profiles")
         .select("role")
         .eq("id", user.id)
         .single();
-      if (
-        data?.role === "admin" ||
-        user.id === "ab4384b2-b430-466d-965a-5026df4fb1b3"
-      ) {
-        // Replace with actual Admin ID if known
-        setIsAdmin(true);
-        loadPendingItems();
+      if (profile?.role === "docente" || profile?.role === "admin") {
+        setIsDocente(true);
+        await loadPendingItems(user.id);
+      }
+      await loadFavorites(user.id);
+    }
+    await loadItems();
+    await loadDocentes();
+
+    // Check URL for review param
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const reviewId = params.get("review");
+      if (reviewId) {
+        // Load that specific pending item
+        const { data } = await supabase
+          .from("library_items")
+          .select("*, profiles(full_name, username)")
+          .eq("id", reviewId)
+          .single();
+        if (data) setReviewItem(data as LibraryItem);
       }
     }
   };
 
-  const loadPendingItems = async () => {
-    const { data } = await supabase
-      .from("library_items")
-      .select(
-        `
-        id, title, file_url, is_approved, created_at,
-        profiles ( full_name )
-      `,
-      )
-      .eq("is_approved", false)
-      .order("created_at", { ascending: false });
-
-    if (data) setPendingItems(data as any);
-  };
-
-  const approveItem = async (id: string) => {
-    await supabase
-      .from("library_items")
-      .update({ is_approved: true })
-      .eq("id", id);
-    setPendingItems((prev) => prev.filter((i) => i.id !== id));
-    loadItems(); // Refresh public list
-    alert("Elemento aprobado");
-  };
-
   const loadItems = async () => {
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("library_items")
         .select(
-          `
-          id,
-          title,
-          file_url,
-          is_approved,
-          created_at,
-          is_approved,
-          created_at,
-          profiles (
-            full_name
-          )
-        `,
+          "id, title, description, subject, file_url, file_type, is_approved, created_at, user_id, profiles(full_name, username)",
         )
         .eq("is_approved", true)
         .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      setItems((data as any) || []);
+      if (data) setItems(data as any);
     } catch (err) {
-      console.error("Error loading library items:", err);
+      console.error("Error loading library:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setFormData({ ...formData, file });
+  const loadPendingItems = async (userId: string) => {
+    const { data } = await supabase
+      .from("library_items")
+      .select("*, profiles(full_name, username)")
+      .eq("reviewer_id", userId)
+      .eq("is_approved", false)
+      .order("created_at", { ascending: false });
+    if (data) setPendingItems(data as any);
+  };
+
+  const loadDocentes = async () => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, full_name, username")
+      .in("role", ["docente", "admin"]);
+    if (data) setDocentes(data as any);
+  };
+
+  const loadFavorites = async (userId: string) => {
+    const { data } = await supabase
+      .from("library_favorites")
+      .select("item_id")
+      .eq("user_id", userId);
+    if (data) setFavorites(data.map((f: any) => f.item_id));
+  };
+
+  const toggleFavorite = async (itemId: string) => {
+    if (!currentUserId) return;
+    if (favorites.includes(itemId)) {
+      await supabase
+        .from("library_favorites")
+        .delete()
+        .match({ user_id: currentUserId, item_id: itemId });
+      setFavorites((f) => f.filter((id) => id !== itemId));
+    } else {
+      await supabase
+        .from("library_favorites")
+        .insert({ user_id: currentUserId, item_id: itemId });
+      setFavorites((f) => [...f, itemId]);
     }
+  };
+
+  const openItem = (item: LibraryItem) => {
+    // Track recents in localStorage
+    const updated = [item.id, ...recents.filter((id) => id !== item.id)].slice(
+      0,
+      10,
+    );
+    setRecents(updated);
+    localStorage.setItem("library_recents", JSON.stringify(updated));
+    window.open(item.file_url, "_blank");
+  };
+
+  const downloadItem = async (item: LibraryItem) => {
+    const res = await fetch(item.file_url);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = item.title || "archivo";
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.file || !formData.title) return;
-
+    if (!formData.file || !formData.title || !formData.reviewer_username)
+      return;
     setUploading(true);
-
     try {
       const data = new FormData();
       data.append("file", formData.file);
       data.append("title", formData.title);
-
+      data.append("description", formData.description);
+      data.append("subject", formData.subject);
+      data.append("reviewer_username", formData.reviewer_username);
       const result = await uploadLibraryFile(data);
-
       if (result.success) {
         setShowModal(false);
-        setFormData({ title: "", file: null });
+        setFormData({
+          title: "",
+          description: "",
+          subject: "",
+          reviewer_username: "",
+          file: null,
+        });
         alert(
-          "¡Aporte enviado! Será revisado por un docente antes de publicarse.",
+          "¡Aporte enviado! El docente revisará tu material antes de publicarlo.",
         );
       } else {
-        alert(result.error || "Error al subir el archivo");
+        alert(result.error || "Error al subir");
       }
     } catch (err) {
-      console.error("Error uploading:", err);
-      alert("Error inesperado al subir el archivo");
+      alert("Error inesperado");
     } finally {
       setUploading(false);
     }
   };
+
+  const handleApprove = async (item: LibraryItem) => {
+    const result = await approveLibraryItem(item.id);
+    if (result.success) {
+      setPendingItems((p) => p.filter((i) => i.id !== item.id));
+      setReviewItem(null);
+      await loadItems();
+      alert("✅ Material aprobado y publicado.");
+    } else {
+      alert(result.error);
+    }
+  };
+
+  const handleReject = async (item: LibraryItem) => {
+    const reason = prompt("¿Motivo del rechazo? (Opcional)");
+    const result = await rejectLibraryItem(item.id, reason || undefined);
+    if (result.success) {
+      setPendingItems((p) => p.filter((i) => i.id !== item.id));
+      setReviewItem(null);
+      alert("❌ Material rechazado. El autor fue notificado.");
+    } else {
+      alert(result.error);
+    }
+  };
+
+  // Filter items
+  const filteredItems = items
+    .filter((item) => {
+      const q = searchQuery.toLowerCase();
+      const matchesSearch =
+        !q ||
+        item.title?.toLowerCase().includes(q) ||
+        item.description?.toLowerCase().includes(q) ||
+        item.subject?.toLowerCase().includes(q) ||
+        item.profiles?.username?.toLowerCase().includes(q) ||
+        item.profiles?.full_name?.toLowerCase().includes(q);
+
+      if (activeSection === "favorites")
+        return matchesSearch && favorites.includes(item.id);
+      if (activeSection === "recents")
+        return matchesSearch && recents.includes(item.id);
+      return matchesSearch;
+    })
+    .sort((a, b) => {
+      if (activeSection === "recents")
+        return recents.indexOf(a.id) - recents.indexOf(b.id);
+      return 0;
+    });
 
   if (loading) {
     return (
@@ -168,83 +296,263 @@ export default function LibraryPage() {
     );
   }
 
-  // ...
-
   return (
     <div className="min-h-screen bg-brand-black p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         <BackButton className="mb-6" />
+
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+              <BookOpen className="w-7 h-7 text-amber-400" />
+            </div>
             <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-12 h-12 rounded-full bg-brand-gold/10 border border-brand-gold flex items-center justify-center">
-                  <BookOpen className="w-6 h-6 text-brand-gold" />
-                </div>
-                <h1 className="text-4xl font-bold text-white">Mundo Lector</h1>
-              </div>
-              <p className="text-gray-400 ml-15">
-                Comparte y descubre recursos educativos de la comunidad
+              <h1 className="text-3xl font-black text-white">
+                Biblioteca del Sabio
+              </h1>
+              <p className="text-gray-400 text-sm">
+                Comparte y descubre recursos educativos aprobados por docentes
               </p>
             </div>
-            <button
-              onClick={() => setShowModal(true)}
-              className="px-6 py-3 bg-brand-gold text-brand-black font-semibold rounded-full hover:bg-brand-gold/90 transition-all flex items-center gap-2"
-            >
-              <Upload className="w-5 h-5" />
-              Subir Aporte
-            </button>
+          </div>
+          <button
+            onClick={() => setShowModal(true)}
+            className="px-6 py-3 bg-brand-gold text-brand-black font-bold rounded-full hover:bg-white transition-all flex items-center gap-2"
+          >
+            <Upload className="w-5 h-5" />
+            Subir Aporte
+          </button>
+        </div>
+
+        {/* Docente Pending Review Panel */}
+        {isDocente && pendingItems.length > 0 && (
+          <div className="mb-8 bg-amber-500/5 border border-amber-500/30 rounded-3xl p-6">
+            <h2 className="text-lg font-bold text-amber-400 mb-4 flex items-center gap-2">
+              <CheckCircle className="w-5 h-5" /> Materiales pendientes de
+              revisión ({pendingItems.length})
+            </h2>
+            <div className="space-y-3">
+              {pendingItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-4 bg-brand-black/60 rounded-2xl border border-gray-800"
+                >
+                  <div>
+                    <p className="font-semibold text-white">{item.title}</p>
+                    <p className="text-sm text-gray-400">
+                      Por: {item.profiles?.full_name || "Anónimo"} ·{" "}
+                      {new Date(item.created_at).toLocaleDateString("es-ES")}
+                    </p>
+                    {item.subject && (
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Materia: {item.subject}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setReviewItem(item)}
+                      className="px-4 py-2 border border-amber-500/50 text-amber-400 rounded-full text-sm hover:bg-amber-500 hover:text-black transition-all"
+                    >
+                      Revisar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Search + Sections */}
+        <div className="mb-6 space-y-4">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar por título, materia o @autor..."
+              className="w-full pl-12 pr-4 py-3.5 bg-gray-900 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
+            />
+          </div>
+          <div className="flex gap-2">
+            {(["all", "favorites", "recents"] as const).map((section) => (
+              <button
+                key={section}
+                onClick={() => setActiveSection(section)}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-1.5 ${activeSection === section ? "bg-brand-gold text-brand-black" : "bg-gray-900 text-gray-400 hover:text-white border border-gray-800"}`}
+              >
+                {section === "all" && <Sparkles className="w-3.5 h-3.5" />}
+                {section === "favorites" && <Star className="w-3.5 h-3.5" />}
+                {section === "recents" && <Clock className="w-3.5 h-3.5" />}
+                {section === "all"
+                  ? "Todo"
+                  : section === "favorites"
+                    ? "Favoritos"
+                    : "Recientes"}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Library Grid */}
-        {items.length === 0 ? (
-          <div className="bg-brand-black/80 backdrop-blur-xl border border-brand-gold rounded-3xl p-12 text-center">
-            <BookOpen className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+        {/* Items Grid */}
+        {filteredItems.length === 0 ? (
+          <div className="text-center py-16">
+            <BookOpen className="w-16 h-16 text-gray-700 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-400 mb-2">
-              No hay recursos disponibles aún
+              {activeSection === "favorites"
+                ? "Aún no tienes favoritos"
+                : activeSection === "recents"
+                  ? "No has visto nada aún"
+                  : "No hay recursos disponibles"}
             </h3>
-            <p className="text-gray-500">
-              ¡Sé el primero en compartir un recurso educativo!
+            <p className="text-gray-500 text-sm">
+              {activeSection === "all"
+                ? "¡Sé el primero en compartir un recurso educativo!"
+                : "Explora la biblioteca y añade a favoritos o abre archivos para verlos aquí."}
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-            {items.map((item) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredItems.map((item, i) => (
               <motion.div
                 key={item.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-brand-black/80 backdrop-blur-xl border border-brand-gold rounded-3xl p-6 hover:bg-brand-gold/5 transition-all group"
+                transition={{ delay: i * 0.05 }}
+                className="bg-gray-900/80 border border-gray-800 rounded-2xl p-5 hover:border-amber-500/40 transition-all group"
               >
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-12 h-12 rounded-2xl bg-brand-gold/10 border border-brand-gold flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <FileText className="w-6 h-6 text-brand-gold" />
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                    {FILE_ICON_MAP[item.file_type || "document"] ||
+                      FILE_ICON_MAP.document}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-semibold text-white mb-2 truncate">
+                    <h3 className="font-bold text-white truncate">
                       {item.title}
                     </h3>
-                    <p className="text-sm text-gray-400 mb-4">
-                      {item.profiles?.full_name || "Anónimo"} •{" "}
-                      {new Date(item.created_at).toLocaleDateString("es-ES")}
-                    </p>
-                    <a
-                      href={item.file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-brand-gold text-brand-black text-sm font-medium rounded-full hover:bg-brand-gold/90 transition-all"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      Ver Archivo
-                    </a>
+                    {item.subject && (
+                      <span className="text-xs text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">
+                        {item.subject}
+                      </span>
+                    )}
                   </div>
+                  <button
+                    onClick={() => toggleFavorite(item.id)}
+                    className={`p-1.5 rounded-lg transition-all ${favorites.includes(item.id) ? "text-yellow-400" : "text-gray-600 hover:text-yellow-400"}`}
+                  >
+                    <Star
+                      className={`w-4 h-4 ${favorites.includes(item.id) ? "fill-current" : ""}`}
+                    />
+                  </button>
+                </div>
+                {item.description && (
+                  <p className="text-sm text-gray-400 mb-3 line-clamp-2">
+                    {item.description}
+                  </p>
+                )}
+                <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
+                  <User className="w-3 h-3" />
+                  <span>@{item.profiles?.username || "anónimo"}</span>
+                  <span>·</span>
+                  <span>
+                    {new Date(item.created_at).toLocaleDateString("es-ES")}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => openItem(item)}
+                    className="flex-1 py-2 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-xl text-xs font-semibold hover:bg-amber-500 hover:text-black transition-all flex items-center justify-center gap-1"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" /> Ver
+                  </button>
+                  <button
+                    onClick={() => downloadItem(item)}
+                    className="p-2 bg-gray-800 text-gray-400 rounded-xl hover:bg-gray-700 hover:text-white transition-all"
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
                 </div>
               </motion.div>
             ))}
           </div>
         )}
+
+        {/* Review Modal (Docente) */}
+        <AnimatePresence>
+          {reviewItem && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={() => setReviewItem(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.9 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0.9 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-gray-900 border border-brand-gold rounded-3xl p-8 max-w-lg w-full"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-white">
+                    Revisar Material
+                  </h2>
+                  <button
+                    onClick={() => setReviewItem(null)}
+                    className="p-2 rounded-full border border-gray-700 text-gray-400 hover:border-white"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="p-4 bg-brand-black/60 rounded-2xl mb-4">
+                  <h3 className="font-bold text-white mb-1">
+                    {reviewItem.title}
+                  </h3>
+                  {reviewItem.subject && (
+                    <p className="text-sm text-amber-400 mb-1">
+                      Materia: {reviewItem.subject}
+                    </p>
+                  )}
+                  {reviewItem.description && (
+                    <p className="text-sm text-gray-300 mb-2">
+                      {reviewItem.description}
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-500">
+                    Por: {reviewItem.profiles?.full_name} (@
+                    {reviewItem.profiles?.username})
+                  </p>
+                </div>
+                <a
+                  href={reviewItem.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-2.5 mb-4 border border-amber-500/50 text-amber-400 rounded-xl text-sm font-medium hover:bg-amber-500/10 transition-all flex items-center justify-center gap-2"
+                >
+                  <ChevronRight className="w-4 h-4" /> Abrir y revisar el
+                  archivo
+                </a>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => handleReject(reviewItem)}
+                    className="flex-1 py-2.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded-xl font-bold hover:bg-red-500 hover:text-white transition-all flex items-center justify-center gap-2"
+                  >
+                    <XCircle className="w-4 h-4" /> Rechazar
+                  </button>
+                  <button
+                    onClick={() => handleApprove(reviewItem)}
+                    className="flex-1 py-2.5 bg-green-500/10 text-green-400 border border-green-500/30 rounded-xl font-bold hover:bg-green-500 hover:text-white transition-all flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle className="w-4 h-4" /> Aprobar
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Upload Modal */}
         <AnimatePresence>
@@ -261,9 +569,8 @@ export default function LibraryPage() {
                 animate={{ scale: 1, y: 0 }}
                 exit={{ scale: 0.9, y: 20 }}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-brand-black border border-brand-gold rounded-3xl p-8 max-w-md w-full"
+                className="bg-brand-black border border-brand-gold rounded-3xl p-8 max-w-md w-full max-h-[90vh] overflow-y-auto"
               >
-                {/* Modal Header */}
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold text-white">
                     Subir Aporte
@@ -275,19 +582,14 @@ export default function LibraryPage() {
                     <X className="w-5 h-5" />
                   </button>
                 </div>
-
-                <div className="mb-4 p-4 bg-brand-gold/10 border border-brand-gold/50 rounded-2xl">
-                  <p className="text-sm text-gray-300">
-                    ℹ️ Tu aporte será revisado por un docente antes de
-                    publicarse
-                  </p>
+                <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-sm text-gray-300">
+                  ℹ️ Tu aporte será revisado por el docente que selecciones
+                  antes de publicarse.
                 </div>
-
-                {/* Form */}
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Título del Recurso *
+                      Título *
                     </label>
                     <input
                       type="text"
@@ -295,44 +597,126 @@ export default function LibraryPage() {
                       onChange={(e) =>
                         setFormData({ ...formData, title: e.target.value })
                       }
-                      className="w-full px-4 py-3 bg-brand-black border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
-                      placeholder="Ej: Resumen de Historia del Perú"
+                      className="w-full px-4 py-3 bg-black/40 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold"
+                      placeholder="Ej: Resumen de Álgebra Cap. 1"
                       required
                     />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Archivo *
+                      Descripción
+                    </label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          description: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-3 bg-black/40 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold resize-none"
+                      placeholder="Breve descripción del material..."
+                      rows={2}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Materia
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.subject}
+                      onChange={(e) =>
+                        setFormData({ ...formData, subject: e.target.value })
+                      }
+                      className="w-full px-4 py-3 bg-black/40 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold"
+                      placeholder="Matemáticas, Historia, ..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Docente Revisor *{" "}
+                      <span className="text-amber-400 text-xs">
+                        (Obligatorio)
+                      </span>
                     </label>
                     <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                       <input
-                        type="file"
-                        onChange={handleFileChange}
-                        className="w-full px-4 py-3 bg-brand-black border border-gray-700 rounded-2xl text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-gold file:text-brand-black hover:file:bg-brand-gold/90 focus:outline-none focus:border-brand-gold transition-colors"
-                        accept=".pdf,.doc,.docx,.txt,.ppt,.pptx"
+                        type="text"
+                        value={formData.reviewer_username}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            reviewer_username: e.target.value,
+                          })
+                        }
+                        className="w-full pl-10 pr-4 py-3 bg-black/40 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold"
+                        placeholder="@usuario_del_docente"
                         required
                       />
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Formatos: PDF, DOC, DOCX, TXT, PPT, PPTX
+                    {docentes.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {docentes.map((d) => (
+                          <button
+                            key={d.id}
+                            type="button"
+                            onClick={() =>
+                              setFormData({
+                                ...formData,
+                                reviewer_username: d.username || "",
+                              })
+                            }
+                            className="px-3 py-1 text-xs bg-gray-800 text-gray-300 rounded-full hover:bg-brand-gold hover:text-black transition-all border border-gray-700"
+                          >
+                            @{d.username} ({d.full_name})
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Archivo *{" "}
+                      <span className="text-xs text-gray-500">
+                        (No se permiten audios)
+                      </span>
+                    </label>
+                    <input
+                      type="file"
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          file: e.target.files?.[0] || null,
+                        })
+                      }
+                      className="w-full px-4 py-3 bg-black/40 border border-gray-700 rounded-2xl text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-gold file:text-brand-black hover:file:bg-white focus:outline-none focus:border-brand-gold"
+                      accept=".pdf,.doc,.docx,.txt,.ppt,.pptx,.mp4,.webm,.png,.jpg,.jpeg,.gif"
+                      required
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Formatos: PDF, DOC, DOCX, TXT, PPT, MP4, WEBM, PNG, JPG.
+                      No se permiten audios.
                     </p>
                   </div>
-
                   <button
                     type="submit"
-                    disabled={uploading || !formData.file || !formData.title}
-                    className="w-full py-3 bg-brand-gold text-brand-black font-bold rounded-full hover:bg-brand-gold/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    disabled={
+                      uploading ||
+                      !formData.file ||
+                      !formData.title ||
+                      !formData.reviewer_username
+                    }
+                    className="w-full py-3 bg-brand-gold text-brand-black font-bold rounded-full hover:bg-white transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {uploading ? (
                       <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Subiendo...
+                        <Loader2 className="w-5 h-5 animate-spin" /> Subiendo...
                       </>
                     ) : (
                       <>
-                        <Upload className="w-5 h-5" />
-                        Subir Aporte
+                        <Upload className="w-5 h-5" /> Enviar para Revisión
                       </>
                     )}
                   </button>
@@ -341,47 +725,6 @@ export default function LibraryPage() {
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Admin Panel */}
-        {isAdmin && pendingItems.length > 0 && (
-          <div className="mt-12 border-t border-gray-800 pt-8">
-            <h2 className="text-2xl font-bold text-red-400 mb-6 flex items-center gap-2">
-              <span className="bg-red-500/10 p-2 rounded-lg">🛡️</span> Panel de
-              Administración
-            </h2>
-            <div className="grid gap-4">
-              {pendingItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="bg-gray-900/50 border border-gray-800 p-4 rounded-2xl flex items-center justify-between"
-                >
-                  <div>
-                    <h4 className="font-bold text-white">{item.title}</h4>
-                    <p className="text-sm text-gray-400">
-                      Por: {item.profiles?.full_name}
-                    </p>
-                    <a
-                      href={item.file_url}
-                      target="_blank"
-                      className="text-xs text-brand-gold hover:underline"
-                    >
-                      Ver archivo
-                    </a>
-                  </div>
-                  <button
-                    onClick={() => approveItem(item.id)}
-                    className="bg-green-500 text-black px-4 py-2 rounded-full font-bold text-sm hover:bg-white transition-colors"
-                  >
-                    Aprobar
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Back to Dashboard */}
-        <div className="mt-6 text-center"></div>
       </div>
     </div>
   );

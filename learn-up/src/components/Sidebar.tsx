@@ -11,6 +11,8 @@ import {
   MessageCircle,
   Bell,
   X,
+  Camera,
+  GraduationCap,
 } from "lucide-react";
 import BottomNav from "./BottomNav";
 import Logo from "./Logo";
@@ -29,7 +31,7 @@ const navigation = [
     icon: Brain,
     children: [
       { name: "Profesor IA", href: "/ai/profesor" },
-      { name: "Modo Práctica", href: "/ai/practica" },
+      { name: "Examen IA", href: "/ai/practica" },
       { name: "Consejero IA", href: "/ai/consejero" },
     ],
   },
@@ -44,15 +46,20 @@ const navigation = [
     icon: ChefHat,
   },
   {
-    name: "Biblioteca",
+    name: "Biblioteca del Sabio",
     href: "/library",
     icon: BookOpen,
+  },
+  {
+    name: "Álbum del Saber",
+    href: "/album",
+    icon: Camera,
   },
   {
     name: "Notificaciones",
     href: "/dashboard/notifications",
     icon: Bell,
-    showBadge: true, // Mark this item to show notification badge
+    showBadge: true,
   },
   {
     name: "Chat",
