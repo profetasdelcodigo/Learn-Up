@@ -2,8 +2,6 @@
 
 import { getGroqCompletion, groq } from "@/lib/ai";
 import { createClient } from "@/utils/supabase/server";
-// @ts-ignore
-import pdfParse from "pdf-parse";
 
 const MODEL = "llama-3.3-70b-versatile";
 const VISION_MODEL = "llama-3.2-90b-vision-preview";
@@ -15,6 +13,8 @@ export async function parseMediaInput(url: string, type: string) {
     const buffer = await response.arrayBuffer();
 
     if (type === "document" || url.toLowerCase().endsWith(".pdf")) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const pdfParse = require("pdf-parse");
       const data = await pdfParse(Buffer.from(buffer));
       return data.text;
     }
