@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import BackButton from "@/components/BackButton";
 import { createClient } from "@/utils/supabase/client";
+import { useRouter } from "next/navigation";
 import {
   getAiSessions,
   getAiMessages,
@@ -54,6 +55,7 @@ export default function AIChatComponent({
   aiType,
   onSubmitAction,
 }: AIChatProps) {
+  const router = useRouter();
   const [sessions, setSessions] = useState<any[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -216,7 +218,10 @@ export default function AIChatComponent({
     } catch (err) {
       setError("Ocurrió un error inesperado.");
     } finally {
-      if (newSession) loadSessions();
+      if (newSession) {
+        loadSessions();
+        router.refresh(); // Refresh Next.js server components if needed
+      }
       setLoading(false);
     }
   };

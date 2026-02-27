@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
-// @ts-ignore
-const withPWA = require("next-pwa")({
+// @ts-expect-error: next-pwa lacks type declaration file
+import withPWAInit from "next-pwa";
+
+const withPWA = withPWAInit({
   dest: "public",
   disable: process.env.NODE_ENV === "development",
   register: true,

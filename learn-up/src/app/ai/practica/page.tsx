@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   GraduationCap,
@@ -14,10 +14,17 @@ import {
   Clock,
   Star,
   AlertCircle,
+  Bot,
+  Menu,
+  PlusCircle,
+  Trash2,
+  X,
 } from "lucide-react";
 import { generateRealExam, gradeExam, ExamData } from "@/actions/ai-tutor";
 import BackButton from "@/components/BackButton";
 import { createClient } from "@/utils/supabase/client";
+import { useRouter } from "next/navigation";
+import { getAiSessions, deleteAiSession } from "@/actions/ai-history";
 
 type Phase = "setup" | "taking" | "grading" | "results";
 
@@ -39,6 +46,26 @@ export default function ExamenIAPage() {
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
+
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    loadSessions();
+  }, []);
+
+  const loadSessions = async () => {
+    const data = await getAiSessions("exam");
+    setSessions(data);
+  };
+
+  const handleDeleteSession = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    await deleteAiSession(id);
+    loadSessions();
+    router.refresh();
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -112,6 +139,8 @@ export default function ExamenIAPage() {
       const result = await gradeExam(exam, answers);
       setGradingResult(result);
       setPhase("results");
+      loadSessions(); // Reload sessions to show the newly saved exam
+      router.refresh(); // Refresh Next.js server components if needed
     } catch {
       setError("Error al calificar. Por favor intenta de nuevo.");
       setPhase("taking");
@@ -142,361 +171,429 @@ export default function ExamenIAPage() {
     : false;
 
   return (
-    <div className="min-h-screen bg-brand-black p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
-        <BackButton className="mb-6" />
-
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-2xl bg-brand-blue-glow/10 border border-brand-blue-glow">
-            <GraduationCap className="w-8 h-8 text-brand-blue-glow" />
-          </div>
-          <h1 className="text-4xl font-black text-white mb-2">Examen IA</h1>
-          <p className="text-gray-400">
-            Exámenes reales con preguntas abiertas, opción múltiple, análisis y
-            más. Evaluados por IA.
-          </p>
+    <div className="min-h-screen bg-brand-black flex flex-col md:flex-row">
+      {/* Sidebar History (Desktop) */}
+      <div
+        className={`fixed inset-y-0 left-0 z-40 w-64 bg-gray-900 border-r border-gray-800 transform ${showHistory ? "translate-x-0" : "-translate-x-full"} md:relative md:translate-x-0 transition-transform duration-300 ease-in-out`}
+      >
+        <div className="p-4 flex items-center justify-between border-b border-gray-800">
+          <h3 className="font-bold text-white flex items-center gap-2">
+            <Bot className="w-5 h-5 text-brand-blue-glow" /> Historial
+          </h3>
+          <button
+            className="md:hidden text-gray-400"
+            onClick={() => setShowHistory(false)}
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
-
-        {/* SETUP PHASE */}
-        {phase === "setup" && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-gray-900/80 border border-brand-blue-glow/40 rounded-3xl p-8"
+        <div className="p-4">
+          <button
+            onClick={resetExam}
+            className="w-full py-2.5 bg-brand-blue-glow/10 text-brand-blue-glow border border-brand-blue-glow/30 rounded-xl hover:bg-brand-blue-glow hover:text-white transition-all flex items-center justify-center gap-2 mb-4 font-semibold text-sm"
           >
-            <form onSubmit={handleGenerateExam} className="space-y-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-300 mb-2">
-                  ¿Sobre qué tema quieres ser examinado?
-                </label>
-                <input
-                  type="text"
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                  placeholder="Ej: Segunda Guerra Mundial, Álgebra Lineal, Ecosistemas..."
-                  className="w-full px-4 py-3 bg-black/40 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue-glow transition-colors"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-300 mb-3">
-                  Nivel de dificultad
-                </label>
-                <div className="grid grid-cols-3 gap-3">
-                  {(["básico", "intermedio", "avanzado"] as const).map(
-                    (level) => (
-                      <button
-                        key={level}
-                        type="button"
-                        onClick={() => setDifficulty(level)}
-                        className={`py-3 px-4 rounded-2xl font-semibold text-sm transition-all ${difficulty === level ? "bg-brand-blue-glow text-white shadow-lg shadow-brand-blue-glow/20" : "bg-black/40 border border-gray-700 text-gray-400 hover:border-brand-blue-glow/50"}`}
-                      >
-                        {level === "básico"
-                          ? "🟢 Básico"
-                          : level === "intermedio"
-                            ? "🟡 Intermedio"
-                            : "🔴 Avanzado"}
-                      </button>
-                    ),
-                  )}
-                </div>
-              </div>
-
-              {/* File Upload */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-300 mb-2">
-                  Subir material de referencia{" "}
-                  <span className="text-gray-500 font-normal">
-                    (Opcional — PDF, DOC, IMG)
-                  </span>
-                </label>
+            <PlusCircle className="w-4 h-4" /> Nuevo Examen
+          </button>
+          <div className="space-y-2 max-h-[calc(100vh-140px)] overflow-y-auto">
+            {sessions.length === 0 ? (
+              <p className="text-gray-500 text-xs text-center py-4">
+                No hay exámenes previos
+              </p>
+            ) : (
+              sessions.map((s) => (
                 <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`w-full p-4 border-2 border-dashed rounded-2xl cursor-pointer transition-all text-center ${file ? "border-brand-blue-glow/50 bg-brand-blue-glow/5" : "border-gray-700 hover:border-brand-blue-glow/40 hover:bg-brand-blue-glow/5"}`}
+                  key={s.id}
+                  className={`p-3 rounded-xl cursor-not-allowed flex justify-between items-center group transition-colors hover:bg-gray-800/50`}
+                  title="Los exámenes anteriores son de solo lectura directa por ahora"
                 >
-                  {file ? (
-                    <div className="flex items-center justify-center gap-2 text-brand-blue-glow">
-                      <FileText className="w-5 h-5" />
-                      <span className="text-sm font-medium">{file.name}</span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setFile(null);
-                          if (fileInputRef.current)
-                            fileInputRef.current.value = "";
-                        }}
-                        className="text-gray-400 hover:text-red-400 p-1"
-                      >
-                        <XCircle className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center gap-2 text-gray-400">
-                      <Upload className="w-5 h-5" />
-                      <span className="text-sm">Click para subir archivo</span>
-                    </div>
-                  )}
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileUpload}
-                    className="hidden"
-                    accept=".pdf,.txt,.png,.jpg,.jpeg"
-                  />
-                </div>
-              </div>
-
-              {error && (
-                <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-400 text-sm flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />{" "}
-                  {error}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading || !topic.trim()}
-                className="w-full py-4 bg-brand-blue-glow text-white font-bold rounded-full hover:bg-brand-blue-glow transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-lg"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" /> Generando tu
-                    examen...
-                  </>
-                ) : (
-                  <>
-                    <GraduationCap className="w-5 h-5" /> Generar Examen Real
-                  </>
-                )}
-              </button>
-              {loading && (
-                <p className="text-center text-gray-500 text-sm">
-                  La IA está formulando las preguntas. Esto puede tomar unos
-                  segundos... ⏳
-                </p>
-              )}
-            </form>
-          </motion.div>
-        )}
-
-        {/* TAKING EXAM PHASE */}
-        {phase === "taking" && exam && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="space-y-6"
-          >
-            {/* Exam Header */}
-            <div className="bg-gray-900/80 border border-brand-blue-glow/30 rounded-3xl p-6">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-                <div>
-                  <h2 className="text-2xl font-bold text-white">
-                    {exam.title}
-                  </h2>
-                  <p className="text-gray-400 text-sm">
-                    {exam.topic} · Dificultad: {exam.difficulty}
-                  </p>
-                </div>
-                <div className="flex gap-4 text-center">
-                  <div className="px-4 py-2 bg-black/40 rounded-xl">
-                    <p className="text-brand-gold font-bold text-lg">
-                      {exam.totalPoints}
+                  <div className="truncate pr-2 opacity-70">
+                    <p className="text-sm text-white truncate font-medium">
+                      {s.title}
                     </p>
-                    <p className="text-gray-500 text-xs">puntos</p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(s.updated_at).toLocaleDateString()}
+                    </p>
                   </div>
-                  <div className="px-4 py-2 bg-black/40 rounded-xl">
-                    <div className="flex items-center gap-1 text-brand-gold font-bold text-lg">
-                      <Clock className="w-4 h-4" />
-                      {exam.timeMinutes}
-                    </div>
-                    <p className="text-gray-500 text-xs">minutos</p>
-                  </div>
+                  <button
+                    onClick={(e) => handleDeleteSession(e, s.id)}
+                    className="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
-              </div>
-              {exam.instructions && (
-                <div className="mt-4 p-3 bg-brand-blue-glow/10 border border-brand-blue-glow/20 rounded-xl text-sm text-gray-300">
-                  📋 <strong>Instrucciones:</strong> {exam.instructions}
-                </div>
-              )}
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col h-screen overflow-y-auto relative p-4 md:p-8">
+        <div className="max-w-4xl mx-auto w-full">
+          <div className="flex items-center gap-4 mb-6">
+            <button
+              className="md:hidden text-gray-400 hover:text-white"
+              onClick={() => setShowHistory(true)}
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+            <BackButton />
+          </div>
+
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-2xl bg-brand-blue-glow/10 border border-brand-blue-glow">
+              <GraduationCap className="w-8 h-8 text-brand-blue-glow" />
             </div>
-
-            {/* Sections and Questions */}
-            {exam.sections.map((section, sIdx) => (
-              <div
-                key={sIdx}
-                className="bg-gray-900/80 border border-gray-800 rounded-3xl p-6 space-y-6"
-              >
-                <h3 className="text-lg font-bold text-brand-blue-glow border-b border-gray-800 pb-3">
-                  {section.title}
-                </h3>
-                {section.questions.map((q, qIdx) => {
-                  const answerKey = getAnswerKey(section.title, qIdx);
-                  const currentAnswer = answers[answerKey];
-                  return (
-                    <div key={qIdx} className="space-y-3">
-                      <div className="flex items-start gap-3">
-                        <span className="flex-shrink-0 w-7 h-7 rounded-full bg-brand-blue-glow/10 border border-brand-blue-glow/30 flex items-center justify-center text-brand-blue-glow text-xs font-bold">
-                          {qIdx + 1}
-                        </span>
-                        <div className="flex-1">
-                          <p className="text-white font-medium leading-relaxed">
-                            {q.question}
-                          </p>
-                          <span className="text-xs text-gray-500 mt-1 inline-block">
-                            {q.points} pt{q.points !== 1 ? "s" : ""}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Multiple Choice */}
-                      {(q.type === "multiple_choice" ||
-                        q.type === "true_false") &&
-                        q.options && (
-                          <div className="ml-10 space-y-2">
-                            {q.options.map((opt, optIdx) => (
-                              <button
-                                key={optIdx}
-                                onClick={() =>
-                                  setAnswers({
-                                    ...answers,
-                                    [answerKey]: optIdx,
-                                  })
-                                }
-                                className={`w-full text-left px-4 py-3 rounded-xl border transition-all text-sm ${currentAnswer === optIdx ? "bg-brand-blue-glow/20 border-brand-blue-glow text-white font-medium" : "bg-black/20 border-gray-700 text-gray-300 hover:border-brand-blue-glow/40"}`}
-                              >
-                                {opt}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-
-                      {/* Open Question */}
-                      {q.type === "open" && (
-                        <textarea
-                          value={(currentAnswer as string) || ""}
-                          onChange={(e) =>
-                            setAnswers({
-                              ...answers,
-                              [answerKey]: e.target.value,
-                            })
-                          }
-                          placeholder="Escribe tu respuesta aquí..."
-                          className="ml-10 w-[calc(100%-2.5rem)] px-4 py-3 bg-black/40 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-brand-blue-glow transition-colors resize-none"
-                          rows={4}
-                        />
-                      )}
-
-                      {/* Fill in the Blank */}
-                      {q.type === "fill_blank" && (
-                        <input
-                          type="text"
-                          value={(currentAnswer as string) || ""}
-                          onChange={(e) =>
-                            setAnswers({
-                              ...answers,
-                              [answerKey]: e.target.value,
-                            })
-                          }
-                          placeholder="Completa el espacio..."
-                          className="ml-10 px-4 py-2.5 bg-black/40 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-brand-blue-glow transition-colors w-64"
-                        />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-
-            <div className="flex gap-3">
-              <button
-                onClick={resetExam}
-                className="px-6 py-3 border border-gray-700 text-gray-400 rounded-full hover:bg-white/5 transition-all"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSubmitExam}
-                disabled={!allAnswered || loading}
-                className="flex-1 py-3 bg-brand-blue-glow text-white font-bold rounded-full hover:bg-brand-blue-glow transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <ChevronRight className="w-5 h-5" />
-                )}
-                {allAnswered
-                  ? "Entregar Examen"
-                  : "Responde todas las preguntas para entregar"}
-              </button>
-            </div>
-          </motion.div>
-        )}
-
-        {/* GRADING PHASE */}
-        {phase === "grading" && (
-          <div className="text-center py-16">
-            <Loader2 className="w-16 h-16 text-brand-blue-glow animate-spin mx-auto mb-4" />
-            <h3 className="text-2xl font-bold text-white mb-2">
-              La IA está corrigiendo tu examen...
-            </h3>
+            <h1 className="text-4xl font-black text-white mb-2">Examen IA</h1>
             <p className="text-gray-400">
-              Analizando tus respuestas y preparando retroalimentación detallada
+              Exámenes reales con preguntas abiertas, opción múltiple, análisis
+              y más. Evaluados por IA.
             </p>
           </div>
-        )}
 
-        {/* RESULTS PHASE */}
-        {phase === "results" && gradingResult && exam && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="space-y-6"
-          >
-            <div className="bg-gray-900/80 border border-brand-blue-glow rounded-3xl p-8 text-center">
-              <div className="inline-flex items-center justify-center w-20 h-20 mb-4 rounded-2xl bg-brand-blue-glow/20 border-2 border-brand-blue-glow">
-                <Star className="w-10 h-10 text-brand-blue-glow" />
+          {/* SETUP PHASE */}
+          {phase === "setup" && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-gray-900/80 border border-brand-blue-glow/40 rounded-3xl p-8"
+            >
+              <form onSubmit={handleGenerateExam} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-2">
+                    ¿Sobre qué tema quieres ser examinado?
+                  </label>
+                  <input
+                    type="text"
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                    placeholder="Ej: Segunda Guerra Mundial, Álgebra Lineal, Ecosistemas..."
+                    className="w-full px-4 py-3 bg-black/40 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue-glow transition-colors"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-3">
+                    Nivel de dificultad
+                  </label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {(["básico", "intermedio", "avanzado"] as const).map(
+                      (level) => (
+                        <button
+                          key={level}
+                          type="button"
+                          onClick={() => setDifficulty(level)}
+                          className={`py-3 px-4 rounded-2xl font-semibold text-sm transition-all ${difficulty === level ? "bg-brand-blue-glow text-white shadow-lg shadow-brand-blue-glow/20" : "bg-black/40 border border-gray-700 text-gray-400 hover:border-brand-blue-glow/50"}`}
+                        >
+                          {level === "básico"
+                            ? "🟢 Básico"
+                            : level === "intermedio"
+                              ? "🟡 Intermedio"
+                              : "🔴 Avanzado"}
+                        </button>
+                      ),
+                    )}
+                  </div>
+                </div>
+
+                {/* File Upload */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-2">
+                    Subir material de referencia{" "}
+                    <span className="text-gray-500 font-normal">
+                      (Opcional — PDF, DOC, IMG)
+                    </span>
+                  </label>
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`w-full p-4 border-2 border-dashed rounded-2xl cursor-pointer transition-all text-center ${file ? "border-brand-blue-glow/50 bg-brand-blue-glow/5" : "border-gray-700 hover:border-brand-blue-glow/40 hover:bg-brand-blue-glow/5"}`}
+                  >
+                    {file ? (
+                      <div className="flex items-center justify-center gap-2 text-brand-blue-glow">
+                        <FileText className="w-5 h-5" />
+                        <span className="text-sm font-medium">{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFile(null);
+                            if (fileInputRef.current)
+                              fileInputRef.current.value = "";
+                          }}
+                          className="text-gray-400 hover:text-red-400 p-1"
+                        >
+                          <XCircle className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center gap-2 text-gray-400">
+                        <Upload className="w-5 h-5" />
+                        <span className="text-sm">
+                          Click para subir archivo
+                        </span>
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      accept=".pdf,.txt,.png,.jpg,.jpeg"
+                    />
+                  </div>
+                </div>
+
+                {error && (
+                  <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-400 text-sm flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />{" "}
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading || !topic.trim()}
+                  className="w-full py-4 bg-brand-blue-glow text-white font-bold rounded-full hover:bg-brand-blue-glow transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-lg"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" /> Generando tu
+                      examen...
+                    </>
+                  ) : (
+                    <>
+                      <GraduationCap className="w-5 h-5" /> Generar Examen Real
+                    </>
+                  )}
+                </button>
+                {loading && (
+                  <p className="text-center text-gray-500 text-sm">
+                    La IA está formulando las preguntas. Esto puede tomar unos
+                    segundos... ⏳
+                  </p>
+                )}
+              </form>
+            </motion.div>
+          )}
+
+          {/* TAKING EXAM PHASE */}
+          {phase === "taking" && exam && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="space-y-6"
+            >
+              {/* Exam Header */}
+              <div className="bg-gray-900/80 border border-brand-blue-glow/30 rounded-3xl p-6">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">
+                      {exam.title}
+                    </h2>
+                    <p className="text-gray-400 text-sm">
+                      {exam.topic} · Dificultad: {exam.difficulty}
+                    </p>
+                  </div>
+                  <div className="flex gap-4 text-center">
+                    <div className="px-4 py-2 bg-black/40 rounded-xl">
+                      <p className="text-brand-gold font-bold text-lg">
+                        {exam.totalPoints}
+                      </p>
+                      <p className="text-gray-500 text-xs">puntos</p>
+                    </div>
+                    <div className="px-4 py-2 bg-black/40 rounded-xl">
+                      <div className="flex items-center gap-1 text-brand-gold font-bold text-lg">
+                        <Clock className="w-4 h-4" />
+                        {exam.timeMinutes}
+                      </div>
+                      <p className="text-gray-500 text-xs">minutos</p>
+                    </div>
+                  </div>
+                </div>
+                {exam.instructions && (
+                  <div className="mt-4 p-3 bg-brand-blue-glow/10 border border-brand-blue-glow/20 rounded-xl text-sm text-gray-300">
+                    📋 <strong>Instrucciones:</strong> {exam.instructions}
+                  </div>
+                )}
               </div>
-              <h2 className="text-3xl font-black text-white mb-2">
-                ¡Examen Completado!
-              </h2>
-              <div className="text-6xl font-black text-brand-blue-glow my-4">
-                {gradingResult.score}
-                <span className="text-3xl text-gray-500">
-                  /{gradingResult.maxScore}
-                </span>
+
+              {/* Sections and Questions */}
+              {exam.sections.map((section, sIdx) => (
+                <div
+                  key={sIdx}
+                  className="bg-gray-900/80 border border-gray-800 rounded-3xl p-6 space-y-6"
+                >
+                  <h3 className="text-lg font-bold text-brand-blue-glow border-b border-gray-800 pb-3">
+                    {section.title}
+                  </h3>
+                  {section.questions.map((q, qIdx) => {
+                    const answerKey = getAnswerKey(section.title, qIdx);
+                    const currentAnswer = answers[answerKey];
+                    return (
+                      <div key={qIdx} className="space-y-3">
+                        <div className="flex items-start gap-3">
+                          <span className="flex-shrink-0 w-7 h-7 rounded-full bg-brand-blue-glow/10 border border-brand-blue-glow/30 flex items-center justify-center text-brand-blue-glow text-xs font-bold">
+                            {qIdx + 1}
+                          </span>
+                          <div className="flex-1">
+                            <p className="text-white font-medium leading-relaxed">
+                              {q.question}
+                            </p>
+                            <span className="text-xs text-gray-500 mt-1 inline-block">
+                              {q.points} pt{q.points !== 1 ? "s" : ""}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Multiple Choice */}
+                        {(q.type === "multiple_choice" ||
+                          q.type === "true_false") &&
+                          q.options && (
+                            <div className="ml-10 space-y-2">
+                              {q.options.map((opt, optIdx) => (
+                                <button
+                                  key={optIdx}
+                                  onClick={() =>
+                                    setAnswers({
+                                      ...answers,
+                                      [answerKey]: optIdx,
+                                    })
+                                  }
+                                  className={`w-full text-left px-4 py-3 rounded-xl border transition-all text-sm ${currentAnswer === optIdx ? "bg-brand-blue-glow/20 border-brand-blue-glow text-white font-medium" : "bg-black/20 border-gray-700 text-gray-300 hover:border-brand-blue-glow/40"}`}
+                                >
+                                  {opt}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                        {/* Open Question */}
+                        {q.type === "open" && (
+                          <textarea
+                            value={(currentAnswer as string) || ""}
+                            onChange={(e) =>
+                              setAnswers({
+                                ...answers,
+                                [answerKey]: e.target.value,
+                              })
+                            }
+                            placeholder="Escribe tu respuesta aquí..."
+                            className="ml-10 w-[calc(100%-2.5rem)] px-4 py-3 bg-black/40 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-brand-blue-glow transition-colors resize-none"
+                            rows={4}
+                          />
+                        )}
+
+                        {/* Fill in the Blank */}
+                        {q.type === "fill_blank" && (
+                          <input
+                            type="text"
+                            value={(currentAnswer as string) || ""}
+                            onChange={(e) =>
+                              setAnswers({
+                                ...answers,
+                                [answerKey]: e.target.value,
+                              })
+                            }
+                            placeholder="Completa el espacio..."
+                            className="ml-10 px-4 py-2.5 bg-black/40 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-brand-blue-glow transition-colors w-64"
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={resetExam}
+                  className="px-6 py-3 border border-gray-700 text-gray-400 rounded-full hover:bg-white/5 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSubmitExam}
+                  disabled={!allAnswered || loading}
+                  className="flex-1 py-3 bg-brand-blue-glow text-white font-bold rounded-full hover:bg-brand-blue-glow transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <ChevronRight className="w-5 h-5" />
+                  )}
+                  {allAnswered
+                    ? "Entregar Examen"
+                    : "Responde todas las preguntas para entregar"}
+                </button>
               </div>
-              <p className="text-gray-400 text-lg">
-                puntos en respuestas objetivas
-              </p>
-              <p className="text-sm text-gray-500 mt-2">
-                Las preguntas abiertas se evalúan en la retroalimentación
+            </motion.div>
+          )}
+
+          {/* GRADING PHASE */}
+          {phase === "grading" && (
+            <div className="text-center py-16">
+              <Loader2 className="w-16 h-16 text-brand-blue-glow animate-spin mx-auto mb-4" />
+              <h3 className="text-2xl font-bold text-white mb-2">
+                La IA está corrigiendo tu examen...
+              </h3>
+              <p className="text-gray-400">
+                Analizando tus respuestas y preparando retroalimentación
                 detallada
               </p>
             </div>
+          )}
 
-            <div className="bg-gray-900/80 border border-gray-800 rounded-3xl p-6">
-              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <GraduationCap className="w-5 h-5 text-brand-blue-glow" />{" "}
-                Retroalimentación del Profesor IA
-              </h3>
-              <div className="prose prose-invert prose-sm max-w-none">
-                <p className="text-gray-300 whitespace-pre-wrap leading-relaxed">
-                  {gradingResult.feedback}
+          {/* RESULTS PHASE */}
+          {phase === "results" && gradingResult && exam && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="space-y-6"
+            >
+              <div className="bg-gray-900/80 border border-brand-blue-glow rounded-3xl p-8 text-center">
+                <div className="inline-flex items-center justify-center w-20 h-20 mb-4 rounded-2xl bg-brand-blue-glow/20 border-2 border-brand-blue-glow">
+                  <Star className="w-10 h-10 text-brand-blue-glow" />
+                </div>
+                <h2 className="text-3xl font-black text-white mb-2">
+                  ¡Examen Completado!
+                </h2>
+                <div className="text-6xl font-black text-brand-blue-glow my-4">
+                  {gradingResult.score}
+                  <span className="text-3xl text-gray-500">
+                    /{gradingResult.maxScore}
+                  </span>
+                </div>
+                <p className="text-gray-400 text-lg">
+                  puntos en respuestas objetivas
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Las preguntas abiertas se evalúan en la retroalimentación
+                  detallada
                 </p>
               </div>
-            </div>
 
-            <button
-              onClick={resetExam}
-              className="w-full py-3 bg-brand-blue-glow text-white font-bold rounded-full hover:bg-brand-blue-glow transition-all flex items-center justify-center gap-2"
-            >
-              <RotateCcw className="w-5 h-5" /> Nuevo Examen
-            </button>
-          </motion.div>
-        )}
+              <div className="bg-gray-900/80 border border-gray-800 rounded-3xl p-6">
+                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                  <GraduationCap className="w-5 h-5 text-brand-blue-glow" />{" "}
+                  Retroalimentación del Profesor IA
+                </h3>
+                <div className="prose prose-invert prose-sm max-w-none">
+                  <p className="text-gray-300 whitespace-pre-wrap leading-relaxed">
+                    {gradingResult.feedback}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={resetExam}
+                className="w-full py-3 bg-brand-blue-glow text-white font-bold rounded-full hover:bg-brand-blue-glow transition-all flex items-center justify-center gap-2"
+              >
+                <RotateCcw className="w-5 h-5" /> Nuevo Examen
+              </button>
+            </motion.div>
+          )}
+        </div>
       </div>
     </div>
   );

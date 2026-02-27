@@ -38,13 +38,9 @@ export default function MainLayout({
       )}
 
       <main
-        className={`flex-1 overflow-y-auto bg-brand-black ${isChatPage ? "p-0" : "p-4 md:p-8"} relative`}
+        className={`flex-1 overflow-y-auto bg-brand-black ${isChatPage ? "p-0" : "p-4 md:p-8"} relative w-full`}
       >
-        <div
-          className={isChatPage ? "w-full h-full" : "max-w-6xl mx-auto w-full"}
-        >
-          {children}
-        </div>
+        <div className="w-full h-full">{children}</div>
       </main>
 
       {/* Mobile bottom nav — only on dashboard */}

@@ -121,7 +121,7 @@ export default function CalendarPage() {
       if (!user) return;
 
       const { data: personalEvents } = await supabase
-        .from("events")
+        .from("calendar_events")
         .select("*")
         .order("start_time");
 
@@ -188,82 +188,132 @@ export default function CalendarPage() {
   };
 
   const loadHabits = async () => {
-    if (!currentUserId) {
+    let uid = currentUserId;
+    if (!uid) {
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) return;
-      const weekStart = getWeekStart(currentHabitWeek);
-      const { data } = await supabase
-        .from("personal_habit_tracker")
-        .select("habits")
-        .eq("user_id", user.id)
-        .eq("week_start", weekStart)
-        .maybeSingle();
-      setHabits((data?.habits as HabitActivity[]) || []);
-      return;
+      uid = user.id;
     }
+
     const weekStart = getWeekStart(currentHabitWeek);
     const { data } = await supabase
-      .from("personal_habit_tracker")
-      .select("habits")
-      .eq("user_id", currentUserId)
-      .eq("week_start", weekStart)
-      .maybeSingle();
-    setHabits((data?.habits as HabitActivity[]) || []);
+      .from("habit_entries")
+      .select("*")
+      .eq("user_id", uid)
+      .eq("week_start", weekStart);
+
+    if (data) {
+      // Map from DB row format to component HabitActivity format
+      const formattedHabits: HabitActivity[] = data.map((row: any) => {
+        // DB 'completed' is array of day indices (0=Mon, etc) or day string keys.
+        // We handle mapping those. Usually stored as `["Mon", "Tue"]` or similar in previous versions,
+        // but the migration says array of indices. We'll stick to string keys for UI.
+        const dayMap: Record<string, boolean> = {};
+        if (Array.isArray(row.completed)) {
+          row.completed.forEach((day: string) => {
+            dayMap[day] = true;
+          });
+        }
+        return {
+          id: row.id,
+          name: row.habit_name,
+          days: dayMap,
+        };
+      });
+      setHabits(formattedHabits);
+    } else {
+      setHabits([]);
+    }
   };
 
   useEffect(() => {
     loadHabits();
   }, [currentHabitWeek, currentUserId]);
 
-  const saveHabits = async (newHabits: HabitActivity[]) => {
+  const saveHabitToDb = async (habit: HabitActivity) => {
     if (!currentUserId) return;
     const weekStart = getWeekStart(currentHabitWeek);
-    await supabase.from("personal_habit_tracker").upsert(
-      {
-        user_id: currentUserId,
-        week_start: weekStart,
-        habits: newHabits,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id,week_start" },
-    );
+    const completedDays = Object.keys(habit.days).filter((d) => habit.days[d]);
+
+    // We update single row
+    const payload = {
+      id: habit.id,
+      user_id: currentUserId,
+      habit_name: habit.name,
+      week_start: weekStart,
+      completed: completedDays,
+    };
+
+    await supabase.from("habit_entries").upsert(payload, { onConflict: "id" });
   };
 
   const addHabit = async () => {
     if (!newHabitName.trim()) return;
     const newHabit: HabitActivity = {
-      id: crypto.randomUUID(),
+      id: crypto.randomUUID(), // Assume generating a new UUID for the row
       name: newHabitName.trim(),
       days: {},
     };
     const updated = [...habits, newHabit];
     setHabits(updated);
     setNewHabitName("");
-    await saveHabits(updated);
+
+    // Save to DB
+    if (!currentUserId) return;
+    const weekStart = getWeekStart(currentHabitWeek);
+    await supabase.from("habit_entries").insert({
+      id: newHabit.id,
+      user_id: currentUserId,
+      habit_name: newHabit.name,
+      week_start: weekStart,
+      completed: [],
+    });
   };
 
   const toggleHabitDay = async (habitId: string, dayKey: string) => {
-    const updated = habits.map((h) =>
-      h.id === habitId
-        ? { ...h, days: { ...h.days, [dayKey]: !h.days[dayKey] } }
-        : h,
-    );
+    let habitToUpdate: HabitActivity | undefined;
+
+    const updated = habits.map((h) => {
+      if (h.id === habitId) {
+        const toggledHabit = {
+          ...h,
+          days: { ...h.days, [dayKey]: !h.days[dayKey] },
+        };
+        habitToUpdate = toggledHabit;
+        return toggledHabit;
+      }
+      return h;
+    });
+
     setHabits(updated);
-    await saveHabits(updated);
+    if (habitToUpdate) {
+      await saveHabitToDb(habitToUpdate);
+    }
   };
 
   const deleteHabit = async (habitId: string) => {
     const updated = habits.filter((h) => h.id !== habitId);
     setHabits(updated);
-    await saveHabits(updated);
+
+    if (currentUserId) {
+      await supabase.from("habit_entries").delete().eq("id", habitId);
+    }
   };
 
   const clearHabits = async () => {
     if (!confirm("¿Borrar todos los hábitos de esta semana?")) return;
     setHabits([]);
-    await saveHabits([]);
+
+    if (currentUserId) {
+      const weekStart = getWeekStart(currentHabitWeek);
+      await supabase
+        .from("habit_entries")
+        .delete()
+        .eq("user_id", currentUserId)
+        .eq("week_start", weekStart);
+    }
   };
 
   const printHabits = () => {
@@ -308,7 +358,7 @@ export default function CalendarPage() {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
-      const { error } = await supabase.from("events").insert({
+      const { error } = await supabase.from("calendar_events").insert({
         title: formData.title,
         description: formData.description || null,
         start_time: formData.start,
