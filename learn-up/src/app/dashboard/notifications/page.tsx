@@ -116,6 +116,7 @@ export default function NotificationsPage() {
   }, [supabase]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchNotifications();
 
     const channel = supabase

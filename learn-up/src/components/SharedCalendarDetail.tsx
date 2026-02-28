@@ -158,22 +158,22 @@ export default function SharedCalendarDetail({
     loadHabits();
   }, [currentHabitWeek, calendar.id]);
 
-  const loadData = async () => {
+  async function loadData() {
     setLoading(true);
     await Promise.all([loadEvents(), loadMessages()]);
     setLoading(false);
-  };
+  }
 
-  const loadEvents = async () => {
+  async function loadEvents() {
     const { data } = await supabase
       .from("shared_calendar_events")
       .select("*, profiles(full_name, username)")
       .eq("calendar_id", calendar.id)
       .order("start_time", { ascending: true });
     if (data) setEvents(data as any);
-  };
+  }
 
-  const loadMessages = async () => {
+  async function loadMessages() {
     const { data } = await supabase
       .from("shared_calendar_messages")
       .select("*, profiles(full_name, username, avatar_url)")
@@ -186,9 +186,9 @@ export default function SharedCalendarDetail({
         100,
       );
     }
-  };
+  }
 
-  const loadHabits = async () => {
+  async function loadHabits() {
     const weekStart = getWeekStart(currentHabitWeek);
     const { data } = await supabase
       .from("shared_habit_tracker")
@@ -197,7 +197,7 @@ export default function SharedCalendarDetail({
       .eq("week_start", weekStart)
       .maybeSingle();
     setHabits((data?.habits as HabitActivity[]) || []);
-  };
+  }
 
   const saveHabits = async (newHabits: HabitActivity[]) => {
     const weekStart = getWeekStart(currentHabitWeek);

@@ -15,7 +15,7 @@ export default function WelcomeTutorial() {
     checkTutorialStatus();
   }, []);
 
-  const checkTutorialStatus = async () => {
+  async function checkTutorialStatus() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -30,7 +30,7 @@ export default function WelcomeTutorial() {
     if (data && !data.has_seen_tutorial) {
       setIsVisible(true);
     }
-  };
+  }
 
   const completeTutorial = async () => {
     const {

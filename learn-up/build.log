@@ -1,0 +1,62 @@
+
+> learn-up@0.1.0 build
+> next build --webpack
+
+▲ Next.js 16.1.6 (webpack)
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+> [PWA] Compile server
+> [PWA] Compile server
+> [PWA] Compile client (static)
+> [PWA] Custom worker found: C:\Users\profe\Learn Up\learn-up\worker\index.js
+> [PWA] Build custom worker: C:\Users\profe\Learn Up\learn-up\public\worker-3CojBcDrkJczw_koEvL0r.js
+> [PWA] Auto register service worker with: C:\Users\profe\Learn Up\learn-up\node_modules\next-pwa\register.js
+> [PWA] Service worker: C:\Users\profe\Learn Up\learn-up\public\sw.js
+> [PWA]   url: /sw.js
+> [PWA]   scope: /
+✓ Compiled successfully in 13.4s
+  Running TypeScript ...
+  Collecting page data using 7 workers ...
+⚠ Using edge runtime on a page currently disables static generation for that page
+Push notifications disabled: VAPID keys are missing.
+  Generating static pages using 7 workers (0/23) ...
+Push notifications disabled: VAPID keys are missing.
+  Generating static pages using 7 workers (5/23) 
+  Generating static pages using 7 workers (11/23) 
+  Generating static pages using 7 workers (17/23) 
+✓ Generating static pages using 7 workers (23/23) in 2.7s
+  Finalizing page optimization ...
+  Collecting build traces ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /ai/consejero
+├ ○ /ai/practica
+├ ○ /ai/profesor
+├ ○ /ai/recetas
+├ ○ /album
+├ ƒ /api/livekit
+├ ƒ /api/push
+├ ƒ /auth/callback
+├ ƒ /auth/signout
+├ ○ /calendar
+├ ○ /chat
+├ ƒ /dashboard
+├ ○ /dashboard/notifications
+├ ○ /dashboard/profile
+├ ƒ /icon
+├ ○ /library
+├ ○ /login
+├ ○ /notifications
+├ ○ /onboarding
+├ ○ /study
+└ ƒ /study/room/[roomId]
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

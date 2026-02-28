@@ -64,7 +64,7 @@ export default function Notifications() {
   // Filter hack for Realtime: Subscription receives ALL events if RLS allows,
   // but "postgres_changes" with filter `user_id=eq.X` works IF we know X.
   // Better approach: Subscribe generic, filter in callback.
-  const handleNewNotification = async (newNotif: Notification) => {
+  async function handleNewNotification(newNotif: Notification) {
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -73,9 +73,9 @@ export default function Notifications() {
       setUnreadCount((c) => c + 1);
       // Optional: Toast sound or popup
     }
-  };
+  }
 
-  const fetchNotifications = async () => {
+  async function fetchNotifications() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -95,7 +95,7 @@ export default function Notifications() {
       setNotifications(data);
       setUnreadCount(data.filter((n) => !n.is_read).length);
     }
-  };
+  }
 
   const markAsRead = async (id: string) => {
     await supabase.from("notifications").update({ is_read: true }).eq("id", id);

@@ -38,9 +38,9 @@ export default async function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-brand-black">
-      <div className="p-4 md:p-8">
-        <div className="max-w-7xl mx-auto space-y-8">
+    <div className="w-full min-h-screen bg-brand-black">
+      <div className="w-full">
+        <div className="w-full max-w-none space-y-8">
           {/* Header */}
           <div className="bg-gradient-to-r from-brand-black via-brand-gold/5 to-brand-black border border-brand-gold/30 rounded-3xl p-8 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-brand-gold/10 via-transparent to-transparent pointer-events-none" />
@@ -49,8 +49,8 @@ export default async function DashboardPage() {
                 <p className="text-brand-gold/70 text-sm font-medium uppercase tracking-widest mb-1">
                   {greeting()},
                 </p>
-                <h1 className="text-4xl md:text-5xl font-black text-white mb-2">
-                  {profile?.full_name?.split(" ")[0] || "Estudiante"}
+                <h1 className="text-4xl md:text-5xl font-black text-white mb-2 truncate max-w-full">
+                  {profile?.full_name || "Estudiante"}
                 </h1>
                 <p className="text-gray-400 text-sm">
                   {profile?.school && `${profile.school} · `}

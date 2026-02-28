@@ -409,8 +409,8 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="min-h-screen bg-brand-black p-4 md:p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="w-full min-h-screen bg-brand-black">
+      <div className="w-full max-w-none">
         <BackButton className="mb-6" />
 
         {/* Header */}

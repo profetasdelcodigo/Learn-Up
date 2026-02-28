@@ -59,6 +59,7 @@ export default function NotificationsPage() {
   }, [supabase]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadNotifications();
 
     // Subscribe to new notifications in real-time

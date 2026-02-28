@@ -299,7 +299,7 @@ REGLAS:
 - Adapta el nivel según la dificultad solicitada
 - Responde SOLO con el JSON válido sin texto adicional`;
 
-    let userMessageText = context
+    const userMessageText = context
       ? `Crea un examen completo sobre: "${topic}" con dificultad ${difficulty}.\n\nMaterial de referencia proporcionado por el estudiante:\n${context}`
       : `Crea un examen completo sobre: "${topic}" con dificultad ${difficulty}.`;
 
