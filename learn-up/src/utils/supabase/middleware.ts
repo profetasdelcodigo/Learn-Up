@@ -45,6 +45,10 @@ export async function updateSession(request: NextRequest) {
   const isAuthRoute = authRoutes.some((route) =>
     request.nextUrl.pathname.startsWith(route),
   );
+  const isOnboarding = request.nextUrl.pathname.startsWith("/onboarding");
+  const isBypass =
+    request.nextUrl.pathname.startsWith("/_next") ||
+    request.nextUrl.pathname.startsWith("/api");
 
   // Redirect authenticated users away from public routes
   if (session && isPublicRoute) {
@@ -54,20 +58,14 @@ export async function updateSession(request: NextRequest) {
   }
 
   // Protected routes logic - redirect to login if not authenticated
-  if (
-    !user &&
-    !isPublicRoute &&
-    !isAuthRoute &&
-    !request.nextUrl.pathname.startsWith("/_next") &&
-    !request.nextUrl.pathname.startsWith("/api")
-  ) {
+  if (!user && !isPublicRoute && !isAuthRoute && !isOnboarding && !isBypass) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  // Redirect to onboarding if user hasn't completed profile
-  if (user && request.nextUrl.pathname.startsWith("/dashboard")) {
+  // CRITICAL: Redirect to onboarding if profile incomplete (catches Google OAuth bypass)
+  if (user && !isPublicRoute && !isAuthRoute && !isOnboarding && !isBypass) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("username, role, school, grade")
@@ -85,19 +83,6 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
   }
-
-  // IMPORTANT: You *must* return the supabaseResponse object as it is. If you're
-  // creating a new response object with NextResponse.next() make sure to:
-  // 1. Pass the request in it, like so:
-  //    const myNewResponse = NextResponse.next({ request })
-  // 2. Copy over the cookies, like so:
-  //    myNewResponse.cookies.set(supabaseResponse.cookies)
-  // 3. Change the myNewResponse object to fit your needs, but avoid changing
-  //    the cookies!
-  // 4. Finally:
-  //    return myNewResponse
-  // If this is not done, you may be causing the browser and server to go out
-  // of sync and terminate the user's session prematurely.
 
   return supabaseResponse;
 }

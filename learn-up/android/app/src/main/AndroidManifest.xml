@@ -25,9 +25,29 @@
             android:launchMode="singleTask"
             android:exported="true">
 
+            <!-- App Launcher -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- HTTPS Deep Links: Intercepts Google OAuth callback from production URL -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="learn-up-qmgx.onrender.com"
+                    android:pathPrefix="/auth/callback" />
+            </intent-filter>
+
+            <!-- Custom Scheme Deep Links: Fallback for custom app URL scheme -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.learnup.app" />
             </intent-filter>
 
         </activity>

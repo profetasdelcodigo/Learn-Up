@@ -79,6 +79,14 @@ export async function uploadLibraryFile(
       .single();
 
     // Save reference to database
+    // Docentes and Admins are auto-approved; students need review
+    const { data: submitterRole } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    const isTeacher = ["docente", "admin"].includes(submitterRole?.role || "");
+
     const { data: newItem, error: dbError } = await supabase
       .from("library_items")
       .insert({
@@ -88,8 +96,8 @@ export async function uploadLibraryFile(
         file_url: publicUrl,
         file_type: fileType,
         user_id: user.id,
-        reviewer_id: reviewer.id,
-        is_approved: false,
+        reviewer_id: isTeacher ? user.id : reviewer.id,
+        is_approved: isTeacher, // Docentes self-approve
       })
       .select()
       .single();

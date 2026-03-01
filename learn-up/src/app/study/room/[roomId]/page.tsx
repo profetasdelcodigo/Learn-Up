@@ -302,9 +302,15 @@ export default function StudyRoomPage() {
                 : "h-0 md:w-0 overflow-hidden hidden"
           }`}
         >
-          {/* Tldraw Container */}
+          {/* Tldraw Container - Only mount when connected (has token) */}
           <div className="tldraw__editor w-full h-full bg-white relative">
-            <Tldraw persistenceKey={`room-${roomId}`} />
+            {token ? (
+              <Tldraw persistenceKey={`room-${roomId}`} />
+            ) : (
+              <div className="flex items-center justify-center h-full bg-gray-900">
+                <Loader2 className="w-8 h-8 text-brand-gold animate-spin" />
+              </div>
+            )}
           </div>
         </div>
       </div>
