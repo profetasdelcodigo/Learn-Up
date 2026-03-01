@@ -6,7 +6,7 @@ import { Sparkles, BookOpen, Users } from "lucide-react";
 
 export default function Home() {
   return (
-    <div className="relative h-screen w-screen bg-brand-black overflow-hidden">
+    <div className="fixed inset-0 bg-brand-black overflow-hidden">
       {/* Animated background glows */}
       <div className="absolute inset-0 overflow-hidden">
         <motion.div
@@ -119,7 +119,7 @@ export default function Home() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                Entrar
+                Inicia sesión
               </motion.button>
             </Link>
             <Link href="/login?mode=signup">
