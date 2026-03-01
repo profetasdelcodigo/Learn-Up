@@ -38,7 +38,7 @@ export default function MainLayout({
       )}
 
       <main
-        className={`flex-1 overflow-y-auto bg-brand-black ${isChatPage ? "p-0" : "p-4 md:p-8"} relative w-full`}
+        className={`flex-1 ${isPublicRoute ? "overflow-hidden" : "overflow-y-auto"} bg-brand-black ${isChatPage ? "p-0" : "p-4 md:p-8"} relative w-full`}
       >
         <div className="w-full h-full">{children}</div>
       </main>

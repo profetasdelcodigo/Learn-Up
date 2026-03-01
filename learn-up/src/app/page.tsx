@@ -6,7 +6,7 @@ import { Sparkles, BookOpen, Users } from "lucide-react";
 
 export default function Home() {
   return (
-    <div className="relative min-h-screen bg-brand-black">
+    <div className="relative h-screen w-screen bg-brand-black overflow-hidden">
       {/* Animated background glows */}
       <div className="absolute inset-0 overflow-hidden">
         <motion.div
@@ -38,7 +38,7 @@ export default function Home() {
       </div>
 
       {/* Main content */}
-      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4">
+      <div className="relative z-10 flex flex-col items-center justify-center h-full w-full px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
