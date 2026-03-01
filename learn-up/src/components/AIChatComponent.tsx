@@ -243,7 +243,6 @@ export default function AIChatComponent({
     } finally {
       if (newSession) {
         loadSessions();
-        router.refresh(); // Refresh Next.js server components if needed
       }
       setLoading(false);
     }

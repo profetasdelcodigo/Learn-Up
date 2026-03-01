@@ -30,7 +30,7 @@ import {
   createAiSession,
 } from "@/actions/ai-history";
 
-type Phase = "setup" | "taking" | "grading" | "results";
+type Phase = "setup" | "taking" | "grading" | "results" | "review";
 
 export default function ExamenIAPage() {
   const [phase, setPhase] = useState<Phase>("setup");
@@ -135,6 +135,26 @@ export default function ExamenIAPage() {
     }
   };
 
+  const loadSessionDetails = async (sessionId: string) => {
+    try {
+      setLoading(true);
+      const { getAiMessages } = await import("@/actions/ai-history");
+      const msgs = await getAiMessages(sessionId);
+      if (msgs && msgs.length > 0) {
+        const payload = JSON.parse(msgs[0].content);
+        setExam(payload.exam);
+        setAnswers(payload.answers || {});
+        setGradingResult(payload.gradingResult || null);
+        setPhase("results");
+        setShowHistory(false);
+      }
+    } catch (err) {
+      console.error("Error loading session:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmitExam = async () => {
     if (!exam) return;
     setLoading(true);
@@ -145,10 +165,23 @@ export default function ExamenIAPage() {
       setPhase("results");
 
       // Save the exam result into history
-      await createAiSession(
+      const { session } = await createAiSession(
         "exam",
         `${exam.topic} - Nota: ${result.score}/${result.maxScore}`,
       );
+
+      if (session) {
+        const { addAiMessage } = await import("@/actions/ai-history");
+        await addAiMessage(
+          session.id,
+          "assistant",
+          JSON.stringify({
+            exam,
+            answers,
+            gradingResult: result,
+          }),
+        );
+      }
 
       loadSessions(); // Reload sessions to show the newly saved exam
       router.refresh(); // Refresh Next.js server components if needed
@@ -214,10 +247,10 @@ export default function ExamenIAPage() {
               sessions.map((s) => (
                 <div
                   key={s.id}
-                  className={`p-3 rounded-xl cursor-not-allowed flex justify-between items-center group transition-colors hover:bg-gray-800/50`}
-                  title="Los exámenes anteriores son de solo lectura directa por ahora"
+                  onClick={() => loadSessionDetails(s.id)}
+                  className={`p-3 rounded-xl cursor-pointer flex justify-between items-center group transition-colors hover:bg-gray-800/50`}
                 >
-                  <div className="truncate pr-2 opacity-70">
+                  <div className="truncate pr-2">
                     <p className="text-sm text-white truncate font-medium">
                       {s.title}
                     </p>
@@ -389,7 +422,7 @@ export default function ExamenIAPage() {
           )}
 
           {/* TAKING EXAM PHASE */}
-          {phase === "taking" && exam && (
+          {(phase === "taking" || phase === "review") && exam && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -405,6 +438,11 @@ export default function ExamenIAPage() {
                     <p className="text-gray-400 text-sm">
                       {exam.topic} · Dificultad: {exam.difficulty}
                     </p>
+                    {phase === "review" && (
+                      <span className="inline-block mt-2 px-3 py-1 bg-brand-gold/20 text-brand-gold text-xs font-bold rounded-full border border-brand-gold/30">
+                        MODO REVISIÓN
+                      </span>
+                    )}
                   </div>
                   <div className="flex gap-4 text-center">
                     <div className="px-4 py-2 bg-black/40 rounded-xl">
@@ -441,6 +479,8 @@ export default function ExamenIAPage() {
                   {section.questions.map((q, qIdx) => {
                     const answerKey = getAnswerKey(section.title, qIdx);
                     const currentAnswer = answers[answerKey];
+                    const isReview = phase === "review";
+
                     return (
                       <div key={qIdx} className="space-y-3">
                         <div className="flex items-start gap-3">
@@ -462,53 +502,102 @@ export default function ExamenIAPage() {
                           q.type === "true_false") &&
                           q.options && (
                             <div className="ml-10 space-y-2">
-                              {q.options.map((opt, optIdx) => (
-                                <button
-                                  key={optIdx}
-                                  onClick={() =>
-                                    setAnswers({
-                                      ...answers,
-                                      [answerKey]: optIdx,
-                                    })
+                              {q.options.map((opt, optIdx) => {
+                                let btnColor =
+                                  "bg-black/20 border-gray-700 text-gray-300 hover:border-brand-blue-glow/40";
+                                if (currentAnswer === optIdx)
+                                  btnColor =
+                                    "bg-brand-blue-glow/20 border-brand-blue-glow text-white font-medium";
+
+                                if (isReview) {
+                                  // Highlight correct and wrong answers in review mode
+                                  if (q.correctAnswer === optIdx) {
+                                    btnColor =
+                                      "bg-green-500/20 border-green-500 text-green-300 font-bold";
+                                  } else if (currentAnswer === optIdx) {
+                                    btnColor =
+                                      "bg-red-500/20 border-red-500 text-red-300 font-bold line-through";
+                                  } else {
+                                    btnColor =
+                                      "bg-black/20 border-gray-800 text-gray-600";
                                   }
-                                  className={`w-full text-left px-4 py-3 rounded-xl border transition-all text-sm ${currentAnswer === optIdx ? "bg-brand-blue-glow/20 border-brand-blue-glow text-white font-medium" : "bg-black/20 border-gray-700 text-gray-300 hover:border-brand-blue-glow/40"}`}
-                                >
-                                  {opt}
-                                </button>
-                              ))}
+                                }
+
+                                return (
+                                  <button
+                                    key={optIdx}
+                                    disabled={isReview}
+                                    onClick={() =>
+                                      setAnswers({
+                                        ...answers,
+                                        [answerKey]: optIdx,
+                                      })
+                                    }
+                                    className={`w-full text-left px-4 py-3 rounded-xl border transition-all text-sm ${btnColor} ${isReview ? "cursor-default" : ""}`}
+                                  >
+                                    {opt}
+                                  </button>
+                                );
+                              })}
                             </div>
                           )}
 
                         {/* Open Question */}
                         {q.type === "open" && (
-                          <textarea
-                            value={(currentAnswer as string) || ""}
-                            onChange={(e) =>
-                              setAnswers({
-                                ...answers,
-                                [answerKey]: e.target.value,
-                              })
-                            }
-                            placeholder="Escribe tu respuesta aquí..."
-                            className="ml-10 w-[calc(100%-2.5rem)] px-4 py-3 bg-black/40 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-brand-blue-glow transition-colors resize-none"
-                            rows={4}
-                          />
+                          <div className="ml-10">
+                            <textarea
+                              value={(currentAnswer as string) || ""}
+                              onChange={(e) =>
+                                setAnswers({
+                                  ...answers,
+                                  [answerKey]: e.target.value,
+                                })
+                              }
+                              disabled={isReview}
+                              placeholder="Escribe tu respuesta aquí..."
+                              className="w-[calc(100%-2.5rem)] px-4 py-3 bg-black/40 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-brand-blue-glow transition-colors resize-none disabled:opacity-75 disabled:cursor-not-allowed"
+                              rows={4}
+                            />
+                            {isReview && q.correctAnswer && (
+                              <div className="mt-2 p-3 bg-gray-800/50 border border-gray-700 rounded-xl text-sm">
+                                <span className="text-gray-400 font-semibold block mb-1">
+                                  Respuesta Esperada:
+                                </span>
+                                <span className="text-white whitespace-pre-wrap">
+                                  {q.correctAnswer}
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         )}
 
                         {/* Fill in the Blank */}
                         {q.type === "fill_blank" && (
-                          <input
-                            type="text"
-                            value={(currentAnswer as string) || ""}
-                            onChange={(e) =>
-                              setAnswers({
-                                ...answers,
-                                [answerKey]: e.target.value,
-                              })
-                            }
-                            placeholder="Completa el espacio..."
-                            className="ml-10 px-4 py-2.5 bg-black/40 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-brand-blue-glow transition-colors w-64"
-                          />
+                          <div className="ml-10">
+                            <input
+                              type="text"
+                              value={(currentAnswer as string) || ""}
+                              onChange={(e) =>
+                                setAnswers({
+                                  ...answers,
+                                  [answerKey]: e.target.value,
+                                })
+                              }
+                              disabled={isReview}
+                              placeholder="Completa el espacio..."
+                              className="px-4 py-2.5 bg-black/40 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-brand-blue-glow transition-colors w-64 disabled:opacity-75 disabled:cursor-not-allowed"
+                            />
+                            {isReview && q.correctAnswer && (
+                              <div className="mt-2 text-sm text-gray-400">
+                                <span className="font-semibold">
+                                  Respuesta Correcta:
+                                </span>{" "}
+                                <span className="text-green-400 font-bold">
+                                  {q.correctAnswer}
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                     );
@@ -517,26 +606,37 @@ export default function ExamenIAPage() {
               ))}
 
               <div className="flex gap-3">
-                <button
-                  onClick={resetExam}
-                  className="px-6 py-3 border border-gray-700 text-gray-400 rounded-full hover:bg-white/5 transition-all"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleSubmitExam}
-                  disabled={!allAnswered || loading}
-                  className="flex-1 py-3 bg-brand-blue-glow text-white font-bold rounded-full hover:bg-brand-blue-glow transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {loading ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <ChevronRight className="w-5 h-5" />
-                  )}
-                  {allAnswered
-                    ? "Entregar Examen"
-                    : "Responde todas las preguntas para entregar"}
-                </button>
+                {phase === "review" ? (
+                  <button
+                    onClick={() => setPhase("results")}
+                    className="flex-1 py-3 bg-gray-800 text-white font-bold rounded-full hover:bg-gray-700 border border-gray-700 transition-all flex items-center justify-center gap-2"
+                  >
+                    Volver a Resultados
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={resetExam}
+                      className="px-6 py-3 border border-gray-700 text-gray-400 rounded-full hover:bg-white/5 transition-all"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleSubmitExam}
+                      disabled={!allAnswered || loading}
+                      className="flex-1 py-3 bg-brand-blue-glow text-white font-bold rounded-full hover:bg-brand-blue-glow transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {loading ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <ChevronRight className="w-5 h-5" />
+                      )}
+                      {allAnswered
+                        ? "Entregar Examen"
+                        : "Responde todas las preguntas para entregar"}
+                    </button>
+                  </>
+                )}
               </div>
             </motion.div>
           )}
@@ -596,12 +696,20 @@ export default function ExamenIAPage() {
                 </div>
               </div>
 
-              <button
-                onClick={resetExam}
-                className="w-full py-3 bg-brand-blue-glow text-white font-bold rounded-full hover:bg-brand-blue-glow transition-all flex items-center justify-center gap-2"
-              >
-                <RotateCcw className="w-5 h-5" /> Nuevo Examen
-              </button>
+              <div className="flex flex-col md:flex-row gap-3">
+                <button
+                  onClick={() => setPhase("review")}
+                  className="w-full md:flex-1 py-3 bg-gray-800 text-white font-bold rounded-full hover:bg-gray-700 border border-gray-700 transition-all flex items-center justify-center gap-2"
+                >
+                  <FileText className="w-5 h-5" /> Ver Mis Respuestas
+                </button>
+                <button
+                  onClick={resetExam}
+                  className="w-full md:flex-1 py-3 bg-brand-blue-glow text-white font-bold rounded-full hover:bg-brand-blue-glow transition-all flex items-center justify-center gap-2"
+                >
+                  <RotateCcw className="w-5 h-5" /> Hacer Otro Examen
+                </button>
+              </div>
             </motion.div>
           )}
         </div>

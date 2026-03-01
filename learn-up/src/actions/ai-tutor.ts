@@ -47,6 +47,7 @@ async function buildUserMessage(
 
   if (mediaUrl) {
     if (mediaType === "image" || mediaUrl.match(/\.(jpeg|jpg|gif|png)$/i)) {
+      // Groq vision models do NOT support system prompts natively. We handle this in getGroqCompletion.
       finalModel = VISION_MODEL;
       finalMessageContent = [
         { type: "text", text: message || "Analiza esta imagen." },
@@ -105,7 +106,11 @@ PERSONALIDAD:
 
     return { response: response.choices[0]?.message?.content || "" };
   } catch (error: any) {
-    console.error("Error en askProfessor:", error);
+    console.error(
+      "Error en askProfessor:",
+      error.message || error,
+      error.response?.data,
+    );
     return {
       response: "",
       error:
@@ -181,7 +186,12 @@ PERSONALIDAD:
 - Siempre incluyes: nombre del plato, ingredientes exactos, pasos claros, tiempo de prep, y valor nutricional aproximado.
 - Si los ingredientes son limitados, haces magia culinaria con lo que hay.
 - Puedes analizar fotos de ingredientes si se describen.
-- Siempre en Español. Emojis de comida permitidos 🍳🥗.`;
+- Siempre en Español. Emojis de comida permitidos 🍳🥗.
+
+INSTRUCCIÓN ESPECIAL:
+- Al final de tu respuesta, SIEMPRE debes incluir una imagen representativa del plato principal usando Markdown, con el siguiente formato exacto:
+![Plato Recomendado](https://source.unsplash.com/800x600/?nombre_del_plato_en_ingles_sin_espacios_separado_por_comas)
+Por ejemplo, si recomiendas pollo asado: ![Plato Recomendado](https://source.unsplash.com/800x600/?roasted,chicken,food)`;
 
     const { content: finalMessageContent, model: finalModel } =
       await buildUserMessage(
