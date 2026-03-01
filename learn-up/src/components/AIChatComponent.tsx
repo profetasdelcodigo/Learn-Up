@@ -80,10 +80,10 @@ export default function AIChatComponent({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  const loadSessions = async () => {
+  const loadSessions = async (shouldLoadMessages: boolean = true) => {
     const data = await getAiSessions(aiType);
     setSessions(data);
-    if (data.length > 0 && !currentSessionId) {
+    if (shouldLoadMessages && data.length > 0 && !currentSessionId) {
       loadSessionMessages(data[0].id);
     }
   };
@@ -174,7 +174,6 @@ export default function AIChatComponent({
     }
 
     let mediaUrl: string | undefined;
-    let base64Image: string | undefined;
 
     // 3. Upload file if exists
     if (file) {
@@ -195,15 +194,6 @@ export default function AIChatComponent({
         }
       }
 
-      if (mediaType === "image") {
-        base64Image = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.readAsDataURL(file);
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = (error) => reject(error);
-        });
-      }
-
       setUploadingMedia(false);
       setFile(null);
     }
@@ -218,13 +208,10 @@ export default function AIChatComponent({
         content: m.content,
       }));
 
-      const actionMediaUrl =
-        mediaType === "image" && base64Image ? base64Image : mediaUrl;
-
       const result = await onSubmitAction(
         userMessage,
         historyForGroq,
-        actionMediaUrl,
+        mediaUrl,
         mediaType,
       );
 
@@ -242,7 +229,7 @@ export default function AIChatComponent({
       setError("Ocurrió un error inesperado.");
     } finally {
       if (newSession) {
-        loadSessions();
+        loadSessions(false);
       }
       setLoading(false);
     }
