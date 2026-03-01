@@ -24,7 +24,11 @@ export const getGroqCompletion = async (
     // WORKAROUND: Groq Vision models do not support the "system" role natively.
     // If we're using a vision model, we must merge the system prompt into the first user message.
     let finalMessages = [...messages];
-    if (model.includes("vision")) {
+    if (
+      model.includes("vision") ||
+      model.includes("pixtral") ||
+      model.includes("llama-4")
+    ) {
       const systemMsg = finalMessages.find((m) => m.role === "system");
       finalMessages = finalMessages.filter((m) => m.role !== "system");
 
