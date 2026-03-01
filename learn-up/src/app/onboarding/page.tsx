@@ -21,6 +21,7 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [user, setUser] = useState<any>(null);
+  const [isNewUser, setIsNewUser] = useState(false);
 
   const [formData, setFormData] = useState({
     username: "",
@@ -71,6 +72,11 @@ export default function OnboardingPage() {
           full_name: user.user_metadata?.full_name || "",
           username: emailName,
         }));
+      }
+
+      // Determine if they are essentially a new user completing onboarding
+      if (!profile || (!profile.username && !profile.role && !profile.school)) {
+        setIsNewUser(true);
       }
 
       if (
@@ -210,6 +216,33 @@ export default function OnboardingPage() {
               </h1>
               <p className="text-gray-400">Completa tu perfil para comenzar</p>
             </div>
+
+            {/* New User Welcome Banner */}
+            {isNewUser && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="mb-6 p-4 bg-brand-gold/10 border border-brand-gold/30 rounded-2xl flex items-start gap-3"
+              >
+                <div className="p-2 bg-brand-gold/20 rounded-full flex-shrink-0 mt-0.5">
+                  <Sparkles className="w-5 h-5 text-brand-gold" />
+                </div>
+                <div>
+                  <h3 className="text-white font-bold mb-1 text-sm">
+                    Casi listo para unirte
+                  </h3>
+                  <p className="text-gray-300 text-xs leading-relaxed">
+                    Detectamos que{" "}
+                    {user?.app_metadata?.provider === "google"
+                      ? "iniciaste sesión con Google pero "
+                      : ""}
+                    aún no tenías una cuenta configurada. ¡Esta es tu
+                    oportunidad para registrarte! Completa tus datos abajo para
+                    activar tu cuenta.
+                  </p>
+                </div>
+              </motion.div>
+            )}
 
             {/* Error message */}
             {error && (
