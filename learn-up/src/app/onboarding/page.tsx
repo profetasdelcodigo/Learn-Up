@@ -47,11 +47,13 @@ export default function OnboardingPage() {
       setUser(user);
 
       // Check if profile already complete
-      const { data: profile } = await supabase
+      const { data } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
-        .maybeSingle();
+        .limit(1);
+
+      const profile = data?.[0] || null;
 
       // Prefill data if exists
       if (profile) {

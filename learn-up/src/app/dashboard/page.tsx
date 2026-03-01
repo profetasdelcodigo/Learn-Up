@@ -24,11 +24,13 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  const { data: profile } = await supabase
+  const { data } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", user.id)
-    .single();
+    .limit(1);
+
+  const profile = data?.[0] || null;
 
   const greeting = () => {
     const hour = new Date().getHours();
