@@ -128,39 +128,57 @@ export default function AIChatComponent({
     e.preventDefault();
     if ((!input.trim() && !file) || loading) return;
 
+    const userMessage = input.trim();
+    if (!userMessage && !file) return;
+
+    // 1. Update UI instantly
+    const mediaType = file ? getMediaType(file) : undefined;
+    const clientSideUserMsg: Message = {
+      role: "user",
+      content: userMessage,
+      media_url: file ? URL.createObjectURL(file) : undefined, // Preview local
+      media_type: mediaType,
+    };
+    setMessages((prev) => [...prev, clientSideUserMsg]);
+    setInput("");
+    setError("");
+    setLoading(true);
+
     let sessionId = currentSessionId;
     let newSession = false;
 
+    // 2. Ensure session exists
     if (!sessionId) {
-      const { session } = await createAiSession(
-        aiType,
-        input.trim().substring(0, 30) || "Sesión con Archivo",
-      );
-      if (session) {
-        sessionId = session.id;
-        setCurrentSessionId(session.id);
-        newSession = true;
+      try {
+        const { session, error: sErr } = await createAiSession(
+          aiType,
+          userMessage.substring(0, 30) || "Nueva Sesión",
+        );
+        if (sErr) throw new Error(sErr);
+        if (session) {
+          sessionId = session.id;
+          setCurrentSessionId(session.id);
+          newSession = true;
+        }
+      } catch (err: any) {
+        setError("Error al iniciar sesión de IA. Verifica tu conexión.");
+        setLoading(false);
+        return;
       }
     }
 
     if (!sessionId) {
       setError("Error al crear sesión.");
+      setLoading(false);
       return;
     }
 
-    const userMessage = input.trim();
-    setInput("");
-    setError("");
-    setLoading(true);
-
     let mediaUrl: string | undefined;
-    let mediaType: string | undefined;
     let base64Image: string | undefined;
 
-    // Upload file if exists
+    // 3. Upload file if exists
     if (file) {
       setUploadingMedia(true);
-      mediaType = getMediaType(file);
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -190,16 +208,7 @@ export default function AIChatComponent({
       setFile(null);
     }
 
-    // Update UI instantly
-    const newUserMsg: Message = {
-      role: "user",
-      content: userMessage,
-      media_url: mediaUrl,
-      media_type: mediaType,
-    };
-    setMessages((prev) => [...prev, newUserMsg]);
-
-    // Save user message to DB
+    // 4. Save user message to DB
     await addAiMessage(sessionId, "user", userMessage, mediaUrl, mediaType);
 
     try {
