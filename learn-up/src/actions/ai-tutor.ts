@@ -4,7 +4,7 @@ import { getGroqCompletion, groq } from "@/lib/ai";
 import { createClient } from "@/utils/supabase/server";
 
 const MODEL = "llama-3.3-70b-versatile";
-const VISION_MODEL = "llama-4-scout-17b-16e-instruct";
+const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 
 // ── Media Parser ──────────────────────────────────────────────────────────────
 export async function parseMediaInput(url: string, type: string) {
