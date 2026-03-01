@@ -21,6 +21,17 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+        debug {
+            // Name the debug APK something meaningful
+        }
+    }
+    // Rename APK output file
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            def vName = variant.versionName
+            def buildType = variant.buildType.name
+            outputFileName = "LearnUp-${buildType}-v${vName}.apk"
+        }
     }
 }
 
