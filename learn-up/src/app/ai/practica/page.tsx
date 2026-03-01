@@ -24,7 +24,11 @@ import { generateRealExam, gradeExam, ExamData } from "@/actions/ai-tutor";
 import BackButton from "@/components/BackButton";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
-import { getAiSessions, deleteAiSession } from "@/actions/ai-history";
+import {
+  getAiSessions,
+  deleteAiSession,
+  createAiSession,
+} from "@/actions/ai-history";
 
 type Phase = "setup" | "taking" | "grading" | "results";
 
@@ -139,6 +143,13 @@ export default function ExamenIAPage() {
       const result = await gradeExam(exam, answers);
       setGradingResult(result);
       setPhase("results");
+
+      // Save the exam result into history
+      await createAiSession(
+        "exam",
+        `${exam.topic} - Nota: ${result.score}/${result.maxScore}`,
+      );
+
       loadSessions(); // Reload sessions to show the newly saved exam
       router.refresh(); // Refresh Next.js server components if needed
     } catch {

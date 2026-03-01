@@ -90,14 +90,23 @@ export default function AlbumPage() {
   };
 
   const stopCamera = () => {
-    if (cameraStream) cameraStream.getTracks().forEach((t) => t.stop());
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((t) => {
+        t.stop();
+        cameraStream.removeTrack(t);
+      });
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+      videoRef.current.pause();
+    }
     setCameraStream(null);
     setCapturing(false);
     setIsRecording(false);
   };
 
   const takePhoto = async () => {
-    if (!videoRef.current || !canvasRef.current) return;
+    if (!videoRef.current || !canvasRef.current || !cameraStream) return;
     const canvas = canvasRef.current;
     canvas.width = videoRef.current.videoWidth;
     canvas.height = videoRef.current.videoHeight;
@@ -120,8 +129,16 @@ export default function AlbumPage() {
   const startRecording = () => {
     if (!cameraStream) return;
     const chunks: BlobPart[] = [];
-    const recorder = new MediaRecorder(cameraStream);
-    recorder.ondataavailable = (e) => chunks.push(e.data);
+    const options = { mimeType: "video/webm;codecs=vp8,opus" };
+
+    // Check for browser support
+    const recorder = MediaRecorder.isTypeSupported(options.mimeType)
+      ? new MediaRecorder(cameraStream, options)
+      : new MediaRecorder(cameraStream);
+
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunks.push(e.data);
+    };
     recorder.onstop = async () => {
       const blob = new Blob(chunks, { type: "video/webm" });
       await uploadMedia(
@@ -137,7 +154,9 @@ export default function AlbumPage() {
   };
 
   const stopRecording = () => {
-    mediaRecorder?.stop();
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+      mediaRecorder.stop();
+    }
     setIsRecording(false);
   };
 

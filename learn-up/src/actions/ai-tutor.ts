@@ -244,6 +244,11 @@ export async function generateRealExam(
 
     const systemPrompt = `Eres un prestigioso evaluador académico. Tu tarea es crear exámenes completos y rigurosos tipo hoja en formato JSON.
 
+REGLA ESTRICTA DE PUNTUACIÓN:
+- Asigna EXACTAMENTE 10 puntos a cada pregunta ("points": 10).
+- Si generas 5 preguntas, el "totalPoints" debe ser 50.
+- El "totalPoints" debe ser la suma exacta de los puntos de todas las preguntas (ej. 50, 100, etc.).
+
 FORMATO JSON REQUERIDO:
 {
   "title": "string",

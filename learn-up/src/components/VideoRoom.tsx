@@ -841,44 +841,34 @@ function CustomControlBar({
   isVideoOpen: boolean;
   canShare: boolean;
 }) {
-  const { localParticipant } = useLocalParticipant();
+  const {
+    localParticipant,
+    isMicrophoneEnabled,
+    isCameraEnabled,
+    isScreenShareEnabled,
+  } = useLocalParticipant();
   const room = useRoomContext();
-  const [isMicOn, setIsMicOn] = useState(false);
-  const [isCamOn, setIsCamOn] = useState(false);
-  const [isScreenShare, setIsScreenShare] = useState(false);
 
   // Enable mic on mount (safe — user already granted permission in startCall)
   useEffect(() => {
     if (!localParticipant) return;
-    localParticipant
-      .setMicrophoneEnabled(true)
-      .then(() => setIsMicOn(true))
-      .catch(() => {});
+    localParticipant.setMicrophoneEnabled(true).catch(() => {});
     if (videoEnabled) {
-      localParticipant
-        .setCameraEnabled(true)
-        .then(() => setIsCamOn(true))
-        .catch(() => {});
+      localParticipant.setCameraEnabled(true).catch(() => {});
     }
   }, [localParticipant, videoEnabled]);
 
   const toggleMic = async () => {
     if (!localParticipant) return;
-    const next = !isMicOn;
     try {
-      await localParticipant.setMicrophoneEnabled(next);
-      setIsMicOn(next);
-    } catch {
-      // Permission denied — ignore silently
-    }
+      await localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled);
+    } catch {}
   };
 
   const toggleCam = async () => {
     if (!localParticipant || !videoEnabled) return;
-    const next = !isCamOn;
     try {
-      await localParticipant.setCameraEnabled(next);
-      setIsCamOn(next);
+      await localParticipant.setCameraEnabled(!isCameraEnabled);
     } catch {}
   };
 
@@ -888,10 +878,8 @@ function CustomControlBar({
       onRequestPermission("compartir pantalla");
       return;
     }
-    const next = !isScreenShare;
     try {
-      await localParticipant.setScreenShareEnabled(next);
-      setIsScreenShare(next);
+      await localParticipant.setScreenShareEnabled(!isScreenShareEnabled);
     } catch {}
   };
 
@@ -908,20 +896,24 @@ function CustomControlBar({
       {/* Mic */}
       <button
         onClick={toggleMic}
-        title={isMicOn ? "Silenciar" : "Activar mic"}
-        className={`${btn} ${isMicOn ? "bg-zinc-900 text-brand-gold" : "bg-red-500/20 text-red-400"}`}
+        title={isMicrophoneEnabled ? "Silenciar" : "Activar mic"}
+        className={`${btn} ${isMicrophoneEnabled ? "bg-zinc-900 text-brand-gold" : "bg-red-500/20 text-red-400"}`}
       >
-        {isMicOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+        {isMicrophoneEnabled ? (
+          <Mic className="w-5 h-5" />
+        ) : (
+          <MicOff className="w-5 h-5" />
+        )}
       </button>
 
       {/* Cam */}
       {videoEnabled && (
         <button
           onClick={toggleCam}
-          title={isCamOn ? "Apagar cámara" : "Activar cámara"}
-          className={`${btn} ${isCamOn ? "bg-zinc-900 text-brand-gold" : "bg-red-500/20 text-red-400"}`}
+          title={isCameraEnabled ? "Apagar cámara" : "Activar cámara"}
+          className={`${btn} ${isCameraEnabled ? "bg-zinc-900 text-brand-gold" : "bg-red-500/20 text-red-400"}`}
         >
-          {isCamOn ? (
+          {isCameraEnabled ? (
             <Video className="w-5 h-5" />
           ) : (
             <VideoOff className="w-5 h-5" />
@@ -933,16 +925,16 @@ function CustomControlBar({
       <button
         onClick={toggleScreen}
         title="Compartir pantalla"
-        className={`${btn} ${isScreenShare ? "bg-green-500/20 text-green-400" : "bg-zinc-900 text-brand-gold"}`}
+        className={`${btn} ${isScreenShareEnabled ? "bg-green-500/20 text-green-400" : "bg-zinc-900 text-gray-500"}`}
       >
         <Monitor className="w-5 h-5" />
       </button>
 
-      {/* Video Share */}
+      {/* Video Share (YouTube) */}
       <button
         onClick={onShareVideo}
         title="Compartir video"
-        className={`${btn} ${isVideoOpen ? "bg-red-500/20 text-red-400" : "bg-zinc-900 text-brand-gold"}`}
+        className={`${btn} ${isVideoOpen ? "bg-brand-gold text-brand-black" : "bg-zinc-900 text-brand-gold"}`}
       >
         <Youtube className="w-5 h-5" />
       </button>

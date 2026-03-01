@@ -155,6 +155,7 @@ export default function AIChatComponent({
 
     let mediaUrl: string | undefined;
     let mediaType: string | undefined;
+    let base64Image: string | undefined;
 
     // Upload file if exists
     if (file) {
@@ -175,6 +176,16 @@ export default function AIChatComponent({
           mediaUrl = data.publicUrl;
         }
       }
+
+      if (mediaType === "image") {
+        base64Image = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = (error) => reject(error);
+        });
+      }
+
       setUploadingMedia(false);
       setFile(null);
     }
@@ -198,10 +209,13 @@ export default function AIChatComponent({
         content: m.content,
       }));
 
+      const actionMediaUrl =
+        mediaType === "image" && base64Image ? base64Image : mediaUrl;
+
       const result = await onSubmitAction(
         userMessage,
         historyForGroq,
-        mediaUrl,
+        actionMediaUrl,
         mediaType,
       );
 

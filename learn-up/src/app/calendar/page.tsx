@@ -94,6 +94,8 @@ export default function CalendarPage() {
   >(null);
   const [showCreateSharedModal, setShowCreateSharedModal] = useState(false);
   const [newSharedName, setNewSharedName] = useState("");
+  const [friends, setFriends] = useState<{ id: string; name: string }[]>([]);
+  const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
 
   const supabase = createClient();
 
@@ -102,12 +104,40 @@ export default function CalendarPage() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (user) setCurrentUserId(user.id);
+      if (user) {
+        setCurrentUserId(user.id);
+        loadFriends(user.id);
+      }
       await loadEvents();
       await loadHabits();
     };
     init();
   }, []);
+
+  const loadFriends = async (userId: string) => {
+    try {
+      const { data } = await supabase
+        .from("friends_with_profiles")
+        .select("friend_id, friend_name")
+        .eq("user_id", userId);
+
+      if (data && data.length > 0) {
+        setFriends(
+          data.map((f: any) => ({ id: f.friend_id, name: f.friend_name })),
+        );
+      } else {
+        const { data: pData } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .neq("id", userId);
+        setFriends(
+          pData?.map((p: any) => ({ id: p.id, name: p.full_name })) || [],
+        );
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   useEffect(() => {
     loadEvents();
@@ -168,10 +198,11 @@ export default function CalendarPage() {
   const handleCreateShared = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSharedName.trim()) return;
-    const res = await createSharedCalendar(newSharedName, []);
+    const res = await createSharedCalendar(newSharedName, selectedFriends);
     if (res.success) {
       setShowCreateSharedModal(false);
       setNewSharedName("");
+      setSelectedFriends([]);
       loadEvents(); // Reload everything
     } else {
       alert("Error al crear calendario compartido.");
@@ -462,7 +493,17 @@ export default function CalendarPage() {
                   <ChevronLeft className="w-5 h-5" />
                 </button>
                 <div className="flex items-center gap-3">
-                  <h2 className="text-2xl font-bold text-white capitalize">
+                  <h2
+                    onClick={() => {
+                      setPickerDate({
+                        year: currentMonth.getFullYear(),
+                        month: currentMonth.getMonth(),
+                        day: currentMonth.getDate(),
+                      });
+                      setShowDatePicker(true);
+                    }}
+                    className="text-2xl font-bold text-white capitalize cursor-pointer hover:text-brand-gold transition-colors"
+                  >
                     {format(currentMonth, "MMMM yyyy", { locale: es })}
                   </h2>
                   <button
@@ -537,10 +578,14 @@ export default function CalendarPage() {
                         {format(day, "d")}
                       </div>
                       <div className="space-y-0.5">
-                        {dayEvents.slice(0, 2).map((event) => (
+                        {dayEvents.slice(0, 2).map((event: any) => (
                           <div
                             key={event.id}
-                            className="text-[9px] bg-brand-gold text-brand-black px-1 rounded truncate font-medium"
+                            className={`text-[9px] px-1 rounded truncate font-medium ${
+                              event.isShared
+                                ? "bg-blue-600/30 text-blue-400 border border-blue-500/20"
+                                : "bg-brand-gold text-brand-black"
+                            }`}
                           >
                             {event.title}
                           </div>
@@ -1043,6 +1088,39 @@ export default function CalendarPage() {
                     required
                   />
                 </div>
+
+                {friends.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2 mt-4">
+                      Seleccionar Miembros (Opcional)
+                    </label>
+                    <div className="max-h-48 overflow-y-auto space-y-2 border border-gray-800 rounded-xl p-3 bg-black/40 custom-scrollbar">
+                      {friends.map((f) => (
+                        <label
+                          key={f.id}
+                          className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedFriends.includes(f.id)}
+                            onChange={(e) => {
+                              if (e.target.checked)
+                                setSelectedFriends([...selectedFriends, f.id]);
+                              else
+                                setSelectedFriends(
+                                  selectedFriends.filter((id) => id !== f.id),
+                                );
+                            }}
+                            className="w-4 h-4 rounded border-gray-700 text-brand-gold focus:ring-brand-gold focus:ring-offset-0 bg-transparent accent-brand-gold"
+                          />
+                          <span className="text-sm text-gray-300 font-medium">
+                            {f.name}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <button
                   type="submit"
                   className="w-full py-3 bg-brand-gold text-brand-black font-bold rounded-full hover:bg-white transition-all"

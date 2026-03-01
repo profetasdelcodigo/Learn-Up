@@ -825,7 +825,7 @@ export default function ChatPage() {
           <div className="p-4 border-b border-gray-800 space-y-4">
             <div className="flex items-center justify-between">
               <h1 className="text-xl font-bold bg-gradient-to-r from-brand-gold via-white to-brand-gold bg-clip-text text-transparent">
-                Mensajes
+                Aprendamos Juntos
               </h1>
               <div className="flex gap-2">
                 <button
@@ -1511,7 +1511,7 @@ export default function ChatPage() {
                 </div>
 
                 {/* ── Input Area ── */}
-                <div className="p-4 bg-brand-black border-t border-gray-800 sticky bottom-0 z-30 pb-8 md:pb-4">
+                <div className="p-4 bg-brand-black border-t border-gray-800 fixed bottom-0 left-0 w-full md:sticky md:bottom-0 md:w-auto z-40 pb-[max(1rem,env(safe-area-inset-bottom))] md:pb-4">
                   {editingMessageId && (
                     <div className="flex items-center justify-between bg-brand-gold/10 p-2 px-4 rounded-t-xl border border-brand-gold/20 text-xs mb-2">
                       <span className="text-brand-gold font-bold">

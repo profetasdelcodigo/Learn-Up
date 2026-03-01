@@ -6,7 +6,7 @@ import { Sparkles, BookOpen, Users } from "lucide-react";
 
 export default function Home() {
   return (
-    <div className="relative min-h-screen bg-brand-black overflow-hidden">
+    <div className="relative min-h-screen bg-brand-black">
       {/* Animated background glows */}
       <div className="absolute inset-0 overflow-hidden">
         <motion.div
@@ -113,7 +113,7 @@ export default function Home() {
             transition={{ duration: 0.8, delay: 0.8 }}
             className="flex flex-col sm:flex-row gap-4 justify-center"
           >
-            <Link href="/login">
+            <Link href="/login?mode=signin">
               <motion.button
                 className="px-8 py-4 bg-brand-gold text-brand-black font-semibold rounded-full hover:bg-brand-gold/90 transition-all"
                 whileHover={{ scale: 1.05 }}

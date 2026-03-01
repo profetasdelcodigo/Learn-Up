@@ -33,6 +33,7 @@ const navigation = [
       { name: "Profesor IA", href: "/ai/profesor" },
       { name: "Examen IA", href: "/ai/practica" },
       { name: "Consejero IA", href: "/ai/consejero" },
+      { name: "Aprendamos Juntos", href: "/chat" },
     ],
   },
   {
@@ -46,7 +47,7 @@ const navigation = [
     icon: ChefHat,
   },
   {
-    name: "Biblioteca del Sabio",
+    name: "Biblioteca",
     href: "/library",
     icon: BookOpen,
   },
@@ -60,11 +61,6 @@ const navigation = [
     href: "/dashboard/notifications",
     icon: Bell,
     showBadge: true,
-  },
-  {
-    name: "Chat",
-    href: "/chat",
-    icon: MessageCircle,
   },
   {
     name: "Mi Perfil",

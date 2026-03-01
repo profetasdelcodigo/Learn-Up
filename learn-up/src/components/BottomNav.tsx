@@ -14,7 +14,7 @@ export default function BottomNav({ unreadCount = 0 }: BottomNavProps) {
   const navItems = [
     { name: "Inicio", href: "/dashboard", icon: Home },
     { name: "IA", href: "/ai/profesor", icon: Brain },
-    { name: "Chat", href: "/chat", icon: MessageCircle },
+    { name: "Aprendamos", href: "/chat", icon: MessageCircle },
     {
       name: "Notif",
       href: "/dashboard/notifications",

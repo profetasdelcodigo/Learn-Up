@@ -52,7 +52,10 @@ function LoginForm() {
         router.push("/dashboard");
       }
     } catch (err: any) {
-      if (!isSignup && err.message === "Invalid login credentials") {
+      if (isSignup && err.message === "User already registered") {
+        router.push("/login?mode=signin");
+        setError("El correo ya está registrado. Por favor, inicia sesión.");
+      } else if (!isSignup && err.message === "Invalid login credentials") {
         setError(
           "Correo o contraseña incorrectos. Si no tienes cuenta, regístrate.",
         );
@@ -72,7 +75,7 @@ function LoginForm() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: "https://learn-up-qmgx.onrender.com/auth/callback",
         },
       });
       if (error) throw error;

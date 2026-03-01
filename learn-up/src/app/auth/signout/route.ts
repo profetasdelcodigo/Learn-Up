@@ -13,7 +13,8 @@ export async function POST(request: Request) {
     await supabase.auth.signOut();
   }
 
-  return NextResponse.redirect(new URL("/", request.url), {
+  const PRODUCTION_URL = "https://learn-up-qmgx.onrender.com";
+  return NextResponse.redirect(`${PRODUCTION_URL}/`, {
     status: 302,
   });
 }

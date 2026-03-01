@@ -70,11 +70,16 @@ export async function updateSession(request: NextRequest) {
   if (user && request.nextUrl.pathname.startsWith("/dashboard")) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role, school, grade")
+      .select("username, role, school, grade")
       .eq("id", user.id)
       .single();
 
-    if (!profile?.role || !profile?.school || !profile?.grade) {
+    if (
+      !profile?.username ||
+      !profile?.role ||
+      !profile?.school ||
+      !profile?.grade
+    ) {
       const url = request.nextUrl.clone();
       url.pathname = "/onboarding";
       return NextResponse.redirect(url);
