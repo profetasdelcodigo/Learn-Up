@@ -15,9 +15,9 @@ function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  // Username is now handled in Onboarding
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
   const supabase = createClient();
 
@@ -25,24 +25,37 @@ function LoginForm() {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setSuccessMsg("");
 
     try {
       if (isSignup) {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            // Username is collected in /onboarding
             data: {},
-            emailRedirectTo: `${window.location.origin}/auth/callback?next=/onboarding`,
+            emailRedirectTo: `https://learn-up-qmgx.onrender.com/auth/callback?next=/onboarding`,
           },
         });
+
         if (error) throw error;
-        // Immediate redirect might not work if confirmation is managed, but explicit message is better
-        // The router.push will happen, but user is unauthenticated usually if confirm needed.
-        // User requested: "Evita que el sistema pida confirmación if not strict".
-        // That is a Supabase Dashboard setting (Disable Confirm Email). Code can't force it.
-        router.push("/onboarding");
+
+        // If user already existed, signUp returns identities: []
+        if (data?.user && data.user.identities?.length === 0) {
+          setError("Este correo ya está registrado. Por favor, inicia sesión.");
+          setLoading(false);
+          return;
+        }
+
+        // If email confirmation is disabled in Supabase, session is immediately available
+        if (data?.session) {
+          router.push("/onboarding");
+        } else {
+          // Confirmation email sent
+          setSuccessMsg(
+            "¡Registro exitoso! Revisa tu correo para confirmar tu cuenta.",
+          );
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -52,15 +65,23 @@ function LoginForm() {
         router.push("/dashboard");
       }
     } catch (err: any) {
-      if (isSignup && err.message === "User already registered") {
-        router.push("/login?mode=signin");
-        setError("El correo ya está registrado. Por favor, inicia sesión.");
-      } else if (!isSignup && err.message === "Invalid login credentials") {
-        setError(
-          "Correo o contraseña incorrectos. Si no tienes cuenta, regístrate.",
-        );
+      const msg = err.message || "";
+      if (
+        msg === "User already registered" ||
+        msg.includes("already registered")
+      ) {
+        setError("Este correo ya está registrado. Usa 'Inicia sesión'.");
+      } else if (
+        msg === "Invalid login credentials" ||
+        msg.includes("Invalid login credentials")
+      ) {
+        setError("Correo o contraseña incorrectos.");
+      } else if (msg.includes("Email not confirmed")) {
+        setError("Confirma tu correo antes de iniciar sesión.");
+      } else if (msg.includes("Password should be at least")) {
+        setError("La contraseña debe tener al menos 6 caracteres.");
       } else {
-        setError(err.message || "Ocurrió un error");
+        setError(msg || "Ocurrió un error inesperado.");
       }
     } finally {
       setLoading(false);
@@ -70,7 +91,6 @@ function LoginForm() {
   const handleGoogleAuth = async () => {
     setLoading(true);
     setError("");
-
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -86,14 +106,20 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen bg-brand-black flex flex-col lg:flex-row overflow-hidden">
-      {/* Left Side - Branding (Visible on Desktop) */}
+    /* Fixed full-screen container — independent of MainLayout overflow */
+    <div className="fixed inset-0 bg-brand-black flex flex-col lg:flex-row">
+      {/* Left Side — Branding (hidden on mobile) */}
       <div className="hidden lg:flex lg:w-1/2 relative flex-col items-center justify-center p-12 overflow-hidden border-r border-brand-gold/20 bg-gradient-to-br from-brand-black to-brand-brown/10">
-        <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <motion.div
             className="absolute top-1/4 -left-1/4 w-[500px] h-[500px] bg-brand-gold opacity-10 rounded-full blur-[100px]"
-            animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.15, 0.1] }}
+            animate={{ scale: [1, 1.2, 1], opacity: [0.08, 0.14, 0.08] }}
             transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <motion.div
+            className="absolute bottom-1/4 right-0 w-[400px] h-[400px] bg-brand-gold opacity-5 rounded-full blur-[80px]"
+            animate={{ scale: [1, 1.3, 1], opacity: [0.05, 0.1, 0.05] }}
+            transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
           />
         </div>
 
@@ -117,10 +143,10 @@ function LoginForm() {
         </motion.div>
       </div>
 
-      {/* Right Side - Auth Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 relative bg-brand-black">
-        {/* Mobile-only background glow */}
-        <div className="absolute inset-0 overflow-hidden lg:hidden">
+      {/* Right Side — Auth Form (scrollable) */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center relative bg-brand-black overflow-y-auto">
+        {/* Mobile background glow */}
+        <div className="absolute inset-0 overflow-hidden lg:hidden pointer-events-none">
           <motion.div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-72 h-72 bg-brand-gold opacity-10 rounded-full blur-[60px]" />
         </div>
 
@@ -128,9 +154,9 @@ function LoginForm() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="relative z-10 w-full max-w-md"
+          className="relative z-10 w-full max-w-md p-6 sm:p-10 my-auto"
         >
-          <div className="bg-brand-black/60 lg:bg-brand-black/40 backdrop-blur-xl border border-brand-gold/30 lg:border-brand-gold/50 rounded-3xl p-8 sm:p-10 shadow-2xl">
+          <div className="bg-gray-900/60 backdrop-blur-xl border border-brand-gold/30 rounded-3xl p-8 sm:p-10 shadow-2xl">
             {/* Header */}
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-white mb-2">
@@ -152,10 +178,23 @@ function LoginForm() {
               </motion.div>
             )}
 
+            {/* Success message */}
+            {successMsg && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-6 p-4 bg-green-500/10 border border-green-500/50 rounded-2xl text-green-400 text-sm"
+              >
+                {successMsg}
+              </motion.div>
+            )}
+
             {/* Google OAuth */}
             <button
+              type="button"
               onClick={handleGoogleAuth}
               disabled={loading}
+              id="google-auth-btn"
               className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-white text-gray-900 font-medium rounded-full hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-6"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -189,16 +228,22 @@ function LoginForm() {
             {/* Email/Password form */}
             <form onSubmit={handleEmailAuth} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label
+                  htmlFor="email-input"
+                  className="block text-sm font-medium text-gray-300 mb-2"
+                >
                   Correo Electrónico
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                   <input
+                    id="email-input"
+                    name="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                    autoComplete="email"
                     className="w-full pl-12 pr-4 py-3 bg-brand-black border border-gray-700 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
                     placeholder="tu@email.com"
                   />
@@ -206,17 +251,25 @@ function LoginForm() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label
+                  htmlFor="password-input"
+                  className="block text-sm font-medium text-gray-300 mb-2"
+                >
                   Contraseña
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                   <input
+                    id="password-input"
+                    name="password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     minLength={6}
+                    autoComplete={
+                      isSignup ? "new-password" : "current-password"
+                    }
                     className="w-full pl-12 pr-4 py-3 bg-brand-black border border-gray-700 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
                     placeholder="••••••••"
                   />
@@ -226,6 +279,7 @@ function LoginForm() {
               <button
                 type="submit"
                 disabled={loading}
+                id="submit-auth-btn"
                 className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-brand-gold text-brand-black font-semibold rounded-full hover:bg-brand-gold/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
@@ -254,7 +308,7 @@ function LoginForm() {
             <div className="mt-4 text-center">
               <Link
                 href="/"
-                className="text-sm text-gray-500 hover:text-gray-400 transition-colors"
+                className="text-sm text-gray-500 hover:text-gray-300 transition-colors"
               >
                 ← Volver al inicio
               </Link>
@@ -270,7 +324,7 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="relative min-h-screen bg-brand-black overflow-hidden flex items-center justify-center">
+        <div className="fixed inset-0 bg-brand-black flex items-center justify-center">
           <Loader2 className="w-8 h-8 text-brand-gold animate-spin" />
         </div>
       }
