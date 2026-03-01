@@ -152,10 +152,11 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-brand-black flex flex-col lg:flex-row overflow-hidden">
+    /* Fixed full-screen container — independent of MainLayout overflow */
+    <div className="fixed inset-0 bg-brand-black flex flex-col lg:flex-row">
       {/* Left Side - Branding (Visible on Desktop) */}
       <div className="hidden lg:flex lg:w-1/2 relative flex-col items-center justify-center p-12 overflow-hidden border-r border-brand-gold/20 bg-gradient-to-br from-brand-black to-brand-brown/10">
-        <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <motion.div
             className="absolute top-1/4 -left-1/4 w-[500px] h-[500px] bg-brand-gold opacity-10 rounded-full blur-[100px]"
             animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.15, 0.1] }}
@@ -180,10 +181,10 @@ export default function OnboardingPage() {
         </motion.div>
       </div>
 
-      {/* Right Side - Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 relative bg-brand-black">
+      {/* Right Side - Form (scrollable) */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center relative bg-brand-black overflow-y-auto">
         {/* Mobile-only background glow */}
-        <div className="absolute inset-0 overflow-hidden lg:hidden">
+        <div className="absolute inset-0 overflow-hidden lg:hidden pointer-events-none">
           <motion.div className="absolute top-1/4 right-1/4 w-72 h-72 bg-brand-blue-glow opacity-10 rounded-full blur-[60px]" />
         </div>
 
@@ -191,7 +192,7 @@ export default function OnboardingPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="relative z-10 w-full max-w-2xl"
+          className="relative z-10 w-full max-w-2xl p-6 sm:p-12 my-auto"
         >
           <div className="bg-brand-black/60 lg:bg-brand-black/40 backdrop-blur-xl border border-brand-gold/30 lg:border-brand-gold/50 rounded-3xl p-8 md:p-12 shadow-2xl">
             {/* Header */}
