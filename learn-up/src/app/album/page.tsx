@@ -71,6 +71,12 @@ export default function AlbumPage() {
     }
   };
 
+  useEffect(() => {
+    if (capturing && cameraStream && videoRef.current) {
+      videoRef.current.srcObject = cameraStream;
+    }
+  }, [capturing, cameraStream]);
+
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -78,9 +84,6 @@ export default function AlbumPage() {
         audio: cameraMode === "video",
       });
       setCameraStream(stream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
       setCapturing(true);
     } catch (err) {
       alert(
@@ -91,14 +94,10 @@ export default function AlbumPage() {
 
   const stopCamera = () => {
     if (cameraStream) {
-      cameraStream.getTracks().forEach((t) => {
-        t.stop();
-        cameraStream.removeTrack(t);
-      });
+      cameraStream.getTracks().forEach((t) => t.stop());
     }
     if (videoRef.current) {
       videoRef.current.srcObject = null;
-      videoRef.current.pause();
     }
     setCameraStream(null);
     setCapturing(false);
