@@ -394,7 +394,7 @@ export default function AIChatComponent({
         {/* Input */}
         <div className="p-4 border-t border-gray-800 bg-brand-black">
           {file && (
-            <div className="mb-3 flex items-center gap-2 p-2 bg-gray-900 rounded-xl border border-brand-gold/30 inline-flex">
+            <div className="mb-3 flex items-center gap-2 p-2 bg-gray-900 rounded-xl border border-brand-gold/30">
               {getMediaType(file) === "image" ? (
                 <ImageIcon className="w-4 h-4 text-brand-gold" />
               ) : (
