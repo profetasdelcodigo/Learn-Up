@@ -1,7 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
-import { useState } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
@@ -18,14 +17,27 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [sugggestSignup, setSuggestSignup] = useState(false);
 
   const supabase = createClient();
+
+  // Pre-fill email if coming from a failed login attempt
+  useEffect(() => {
+    if (isSignup) {
+      const savedEmail = sessionStorage.getItem("prefill_email");
+      if (savedEmail) {
+        setEmail(savedEmail);
+        sessionStorage.removeItem("prefill_email");
+      }
+    }
+  }, [isSignup]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
     setSuccessMsg("");
+    setSuggestSignup(false);
 
     try {
       if (isSignup) {
@@ -75,7 +87,12 @@ function LoginForm() {
         msg === "Invalid login credentials" ||
         msg.includes("Invalid login credentials")
       ) {
-        setError("Correo o contraseña incorrectos.");
+        if (!isSignup) {
+          setError("Correo o contraseña incorrectos.");
+          setSuggestSignup(true);
+        } else {
+          setError("Correo o contraseña incorrectos.");
+        }
       } else if (msg.includes("Email not confirmed")) {
         setError("Confirma tu correo antes de iniciar sesión.");
       } else if (msg.includes("Password should be at least")) {
@@ -175,6 +192,23 @@ function LoginForm() {
                 className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-2xl text-red-400 text-sm"
               >
                 {error}
+                {sugggestSignup && (
+                  <div className="mt-3 pt-3 border-t border-red-500/30">
+                    <p className="text-gray-400 text-xs mb-2">
+                      ¿No tienes cuenta con ese correo?
+                    </p>
+                    <a
+                      href={`/login?mode=signup`}
+                      onClick={() => {
+                        // Store email in sessionStorage so signup form can pre-fill it
+                        sessionStorage.setItem("prefill_email", email);
+                      }}
+                      className="inline-block px-4 py-1.5 bg-brand-gold text-brand-black text-xs font-semibold rounded-full hover:bg-brand-gold/90 transition-colors"
+                    >
+                      Crear cuenta nueva
+                    </a>
+                  </div>
+                )}
               </motion.div>
             )}
 
