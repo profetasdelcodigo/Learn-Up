@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 // @ts-expect-error: next-pwa lacks type declaration file
 import withPWAInit from "next-pwa";
@@ -11,7 +12,8 @@ const withPWA = withPWAInit({
 });
 
 const nextConfig: NextConfig = {
-  // Configuración de PWA y rendimiento
+  // Silencia el warning de workspace root en Render
+  outputFileTracingRoot: path.join(__dirname, "../../"),
 };
 
 export default withPWA(nextConfig);

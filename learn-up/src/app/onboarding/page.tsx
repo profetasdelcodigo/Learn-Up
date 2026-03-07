@@ -234,11 +234,11 @@ export default function OnboardingPage() {
                     Casi listo para unirte
                   </h3>
                   <p className="text-gray-300 text-xs leading-relaxed">
-                    Detectamos que{" "}
+                    Detectamos que iniciaste sesión con{" "}
                     {user?.app_metadata?.provider === "google"
-                      ? "iniciaste sesión con Google pero "
-                      : ""}
-                    aún no tenías una cuenta configurada. ¡Esta es tu
+                      ? "Google"
+                      : "tu correo electrónico"}{" "}
+                    pero aún no tenías una cuenta configurada. ¡Esta es tu
                     oportunidad para registrarte! Completa tus datos abajo para
                     activar tu cuenta.
                   </p>
