@@ -1,0 +1,119 @@
+﻿8588dfb HEAD@{0}: commit: chore: Add package-lock.json to lock dependency versions.
+19d36c2 HEAD@{1}: reset: moving to 19d36c2
+a8af0e1 HEAD@{2}: commit: feat: Implement initial application structure with dashboard, login, and home pages, global styles, and navigation components.
+852e510 HEAD@{3}: commit: fix(lint): update Tailwind v4 class names - bg-gradient ÔåÆ bg-linear, flex-shrink-0 ÔåÆ shrink-0
+46bc88a HEAD@{4}: commit: feat(ui): Apply Cosmic Aurora Design System - Complete visual overhaul
+19d36c2 HEAD@{5}: commit: feat: Implement a new login and signup page with email/password and Google OAuth authentication using Supabase.
+88a1ba4 HEAD@{6}: commit: fix(ui): polish login/signup layout to avoid black-split and fixed button cutting on mobile
+d00e0a0 HEAD@{7}: commit: fix(ai): update Groq system-message blocker to support llama-4 and pixtral model formats
+7de1bd3 HEAD@{8}: commit: chore(diagnostic): add temporary api route to test available Groq models in prod
+4108988 HEAD@{9}: commit: fix(ai): correct Groq Vision model ID with meta-llama namespace to resolve 404
+619209e HEAD@{10}: commit: fix(ai): update Groq Vision API model to llama-4-scout-17b-16e-instruct after old 3.2 model decommission
+e7b904a HEAD@{11}: commit: fix(ai): remove bug causing chat flicker on new sessions, use Supabase CDN public link instead of base64 for Groq Vision
+d4ea61c HEAD@{12}: commit: fix(ai): delete test file causing build errors and update to active vision model
+7bc9827 HEAD@{13}: commit: fix(ai): resolve flickering on send, fix vision model rejections, add review mode to exams history, add images to recipe bot
+f12397d HEAD@{14}: commit: fix(console): replace maybeSingle and single with limit(1) to avoid 406 network errors when user profile does not exist yet
+6fb5076 HEAD@{15}: commit: feat: show welcome message to new users in onboarding
+72e2973 HEAD@{16}: commit: fix: onboarding page layout to full-screen
+3d28816 HEAD@{17}: commit: fix: login page layout and auth logic
+a0fb8a8 HEAD@{18}: commit: fix: remove scrollbar gutter dark strip on landing, rename button to Inicia sesion
+620cf80 HEAD@{19}: commit: fix: landing page full-screen, no scroll, no dark margins
+8b19ce0 HEAD@{20}: commit: fix: rename APK output to LearnUp, add deep links to AndroidManifest
+2220918 HEAD@{21}: commit: fix: auth loop, deep-links, fullbleed layout, library auto-approve, Tldraw conditional
+75cf7d0 HEAD@{22}: commit: Fix camera reactivation bug and definitive schema repair
+2bc7854 HEAD@{23}: commit: chore: critical production fixes for horizontal scroll, AI chat reliability, and database synchronization
+7bf1dc4 HEAD@{24}: commit: feat: Add basic Android project configuration to .idea/misc.xml.
+5abbf02 HEAD@{25}: commit: chore: add initial Android Studio project configuration file.
+70068a5 HEAD@{26}: commit: feat: Implement PWA support including service worker, push notifications, and updated app icons.
+992309e HEAD@{27}: commit: feat: Establish initial application architecture with authentication, navigation, AI features, and real-time communication.
+e126155 HEAD@{28}: commit: feat: implement comprehensive notifications page with Supabase integration, real-time updates, and UI for managing alerts.
+21a9482 HEAD@{29}: commit: feat: implement AI-powered exam generation, taking, and grading with session history and media upload capabilities.
+5c97a4d HEAD@{30}: reset: moving to 5c97a4d
+5c97a4d HEAD@{31}: reset: moving to 5c97a4d
+64cb328 HEAD@{32}: commit: feat: introduce AI tutor, shared calendars, user media management, and social networking features with a comprehensive database migration and supporting frontend.
+4f00d8f HEAD@{33}: commit: feat: Add an Album page with camera and media management, a `SharedCalendarDetail` component, and `ai-history` actions.
+5c97a4d HEAD@{34}: reset: moving to 5c97a4d
+1ef4970 HEAD@{35}: commit: chore: Initialize Android project configuration with JDK 21.
+5528b4f HEAD@{36}: commit: feat: Implement core application structure, bottom navigation, settings page with profile management, and new pages for chat, calendar, and AI features.
+5c97a4d HEAD@{37}: commit: feat: Introduce AI tutor, counselor, recipe, and exam generation functionalities with media input support.
+0450036 HEAD@{38}: commit: feat: Introduce AI integration, video conferencing, and core application features including calendar, dashboard, and Supabase migrations.
+f1bbf91 HEAD@{39}: commit: feat: add initial Android application manifest with core permissions and activity configuration.
+0d0817a HEAD@{40}: commit: feat: Initialize Capacitor Android project and core application files.
+ff905e8 HEAD@{41}: commit: feat: implement a new chat system with private and group messaging capabilities, including dedicated UI components and database migrations.
+7207144 HEAD@{42}: commit: feat: Implement real-time chat functionality with private and group messaging, friend management, media support, and video/whiteboard integration.
+28b2ace HEAD@{43}: commit: feat: implement chat page with video room and service worker.
+48f9850 HEAD@{44}: commit: feat: Add real-time notifications page with friend request and call management, integrating LiveKit and service workers.
+1f877f5 HEAD@{45}: commit: feat: Implement PWA service workers for push notifications and precaching, add new chat and notifications pages, and apply database security and performance hardening.
+703cc3a HEAD@{46}: commit: feat: Implement LiveKit video conferencing with participant management and a collaborative whiteboard.
+4799476 HEAD@{47}: commit: feat: Introduce push notifications and enhance chat message management with new database columns and actions.
+401dfd9 HEAD@{48}: commit: feat: Add service worker for PWA, implement chat and notifications pages, and introduce a VideoRoom component.
+2347e7d HEAD@{49}: commit: feat: Implement real-time notifications, a LiveKit video conferencing room with screen sharing and YouTube integration, a new chat page, and PWA support.
+c12c5ca HEAD@{50}: commit: feat: add LiveKit video conferencing room with whiteboard and video sharing capabilities.
+3639854 HEAD@{51}: commit: feat(video,ui,push): Added react-player sync in VideoRoom; Implemented call ended chat markers; Reworked login/onboarding desktop layouts to fix black borders border; Fixed push notification specificity; Resolved whiteboard container resize issues
+6090540 HEAD@{52}: commit: Fix: Ignore VAPID initialization during build if keys are missing
+df698db HEAD@{53}: commit: Fix: Rename service worker to pure JS to avoid typing build errors on Render
+d2c6597 HEAD@{54}: commit: Fix: layout bracket
+43070f3 HEAD@{55}: commit (amend): Feat: Performance tweaks, Chat optimistic sync fix, auto-removed notifications, and incoming Calls UI
+2da3ccc HEAD@{56}: commit: Feat: Performance tweaks, Chat optimistic sync fix, auto-removed notifications, and incoming Calls UI
+6e8bdf7 HEAD@{57}: commit: Fix: Remove non-existent last_message column updates in chat.ts and fix Whiteboard DOM bounds error
+8200da2 HEAD@{58}: commit: Fix: stringify array for .contains queries on jsonb columns to fix 500 error
+92acc0f HEAD@{59}: commit: Fix: Make Whiteboard independent of study_groups to prevent crashes. Phase 26 Complete.
+fcf8d79 HEAD@{60}: commit: Fix: Phase 25 - getChatMessages try/catch, sendMessage room update logging, docs updated
+e661279 HEAD@{61}: commit: Fix: Error 500 - null-safe participants in getUserRooms, getRoomInfo, handleStartChat
+b630508 HEAD@{62}: commit: Fix: Error 418 hydration - ClientDate component for safe locale date rendering
+ce7cf4b HEAD@{63}: commit: Fix: Error 500 on ensurePrivateRoom - 2-step JSONB lookup, full error logging
+0b9c2ea HEAD@{64}: commit: Fix: 22P02 - safeParseArray + isValidUUID guard for all participants writes
+65c7df7 HEAD@{65}: commit: Fix: Correct AI tools route in BottomNav from /dashboard/ai to /ai/profesor
+d120f6b HEAD@{66}: commit: Fix: TypeScript errors in chat page - add type annotations
+fde164e HEAD@{67}: commit: Phase 20: Rescue Mission - Chat data integrity, profile joins, video/whiteboard stability
+6b918ee HEAD@{68}: commit: Fix: Removed incompatible react-joyride and legacy Tutorial component
+9ec3b7f HEAD@{69}: commit: Fix: Forzando Webpack para build compatible
+7051a6e HEAD@{70}: commit: feat: implement real-time chat functionality and PWA support with new dependencies and core components.
+e83fa94 HEAD@{71}: commit: feat: Implement chat server actions, video room, and whiteboard components.
+fd65a70 HEAD@{72}: commit: feat: Implement core chat functionality with room management, messaging, media uploads, and a video room component.
+494f3fd HEAD@{73}: commit: Fix: Agregando estilos de LiveKit a package.json
+c26d9dc HEAD@{74}: commit: feat: add study room page with LiveKit video conferencing and Tldraw whiteboard, and a chat page with real-time messaging and friend management.
+6a32326 HEAD@{75}: commit: feat: Introduce LiveKit video conferencing with custom controls and whiteboard, and add AI recipe generation functionality.
+aaea250 HEAD@{76}: commit: feat: Implement a new chat page with real-time messaging, Jitsi video conferencing, and whiteboard integration, alongside a new MainLayout component.
+1aae729 HEAD@{77}: commit: feat: Implement a comprehensive chat page with real-time messaging, friend management, group chats, video calls, and whiteboard functionality.
+271fbcc HEAD@{78}: commit: feat: implement desktop sidebar and mobile bottom navigation components with real-time notification badges and toast alerts.
+397a2a2 HEAD@{79}: commit: feat: Implement a complete chat system including server actions for room and message management, a client-side chat UI, and a video component.
+d5d8a88 HEAD@{80}: commit: feat: implement a comprehensive real-time chat system with friend management, group chats, video calls, and whiteboard integration.
+be732f9 HEAD@{81}: commit: feat: Add real-time chat page with messaging, video calls, whiteboards, and friend/group management.
+6c61779 HEAD@{82}: commit: 1.4
+91a86a3 HEAD@{83}: commit: 1.3
+8556d42 HEAD@{84}: commit: feat: Add video call functionality and chat group creation with member selection and avatar upload.
+615933d HEAD@{85}: commit: feat: introduce a full-featured chat page including real-time messaging, friend and group management, media uploads, and video/whiteboard capabilities.
+3692044 HEAD@{86}: commit: feat: Implement chat functionality with server actions and a calendar page with event and habit tracking.
+e486465 HEAD@{87}: commit: feat: add dashboard page featuring AI tools, productivity links, and user profile details.
+35edb2f HEAD@{88}: commit: 1.2
+bd71574 HEAD@{89}: commit: feat: Implement root layout with a new `MainLayout` component for global structure and conditional navigation.
+8a4bc7a HEAD@{90}: commit: feat: Develop a complete chat application integrating real-time messaging, video conferencing, collaborative whiteboard, and friend request management.
+e5dbb67 HEAD@{91}: commit: 1.1
+77ff8e3 HEAD@{92}: commit: 21
+a8ad702 HEAD@{93}: commit: 22
+48ad169 HEAD@{94}: commit: 21
+e07de80 HEAD@{95}: commit: 20
+8e33660 HEAD@{96}: commit: 19
+23e51ae HEAD@{97}: commit: Fix: Instalando dependencias de estilos faltantes
+bb34825 HEAD@{98}: commit: 19
+dc0cc52 HEAD@{99}: commit: 18
+d0a37a1 HEAD@{100}: commit: 17
+951c384 HEAD@{101}: commit: 17
+2830c57 HEAD@{102}: commit: 16
+52d7ea6 HEAD@{103}: commit: 15
+4b69ef5 HEAD@{104}: commit: 14
+af9d18d HEAD@{105}: commit: 13
+c14f6f8 HEAD@{106}: commit: 12
+52785d6 HEAD@{107}: commit: 11
+6b0b623 HEAD@{108}: commit: 10
+7889ff3 HEAD@{109}: commit: 9
+6e49591 HEAD@{110}: commit: 8
+e15b10f HEAD@{111}: commit: 8
+f38ac61 HEAD@{112}: commit: 7
+0bd823c HEAD@{113}: commit: 6
+912f9ff HEAD@{114}: commit: 5
+d85b077 HEAD@{115}: commit: 4
+550c99d HEAD@{116}: commit: 3
+4e6cb8a HEAD@{117}: commit: Antigravity
+fb8c7c2 HEAD@{118}: commit (initial): Mi primer commit de Antigravity.
