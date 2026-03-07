@@ -312,7 +312,7 @@ export default function AlbumPage() {
 
             {capturing ? (
               <div className="space-y-4">
-                <div className="relative bg-black rounded-3xl overflow-hidden aspect-[4/3] md:aspect-video shadow-2xl shadow-emerald-900/20 border border-emerald-500/20 group">
+                <div className="relative bg-black rounded-3xl overflow-hidden aspect-4/3 md:aspect-video shadow-2xl shadow-emerald-900/20 border border-emerald-500/20 group">
                   <video
                     ref={videoRef}
                     autoPlay
@@ -347,7 +347,7 @@ export default function AlbumPage() {
                   )}
 
                   {/* Camera Controls Overlay */}
-                  <div className="absolute bottom-0 inset-x-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex flex-col items-center gap-4">
+                  <div className="absolute bottom-0 inset-x-0 p-6 bg-linear-to-t from-black/80 via-black/40 to-transparent flex flex-col items-center gap-4">
                     <canvas ref={canvasRef} className="hidden" />
                     <div className="flex gap-4 items-center justify-center w-full max-w-md mx-auto">
                       {cameraMode === "photo" ? (

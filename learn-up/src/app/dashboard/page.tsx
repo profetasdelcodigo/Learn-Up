@@ -44,8 +44,8 @@ export default async function DashboardPage() {
       <div className="w-full">
         <div className="w-full max-w-none space-y-8">
           {/* Header */}
-          <div className="bg-gradient-to-r from-brand-black via-brand-gold/5 to-brand-black border border-brand-gold/30 rounded-3xl p-8 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-brand-gold/10 via-transparent to-transparent pointer-events-none" />
+          <div className="bg-linear-to-r from-brand-black via-brand-gold/5 to-brand-black border border-brand-gold/30 rounded-3xl p-8 relative overflow-hidden">
+            <div className="absolute inset-0 bg-linear-to-br from-brand-gold/10 via-transparent to-transparent pointer-events-none" />
             <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
                 <p className="text-brand-gold/70 text-sm font-medium uppercase tracking-widest mb-1">

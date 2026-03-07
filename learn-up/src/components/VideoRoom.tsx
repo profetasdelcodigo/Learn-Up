@@ -127,7 +127,7 @@ function ParticipantTileCard({
 
   return (
     <div
-      className={`relative flex-shrink-0 rounded-xl overflow-hidden border-2 transition-all duration-200 bg-brand-black ${
+      className={`relative shrink-0 rounded-xl overflow-hidden border-2 transition-all duration-200 bg-brand-black ${
         isSpeaking
           ? "border-brand-gold shadow-[0_0_16px_rgba(212,175,55,0.6)]"
           : "border-gray-800"
@@ -142,7 +142,7 @@ function ParticipantTileCard({
         />
       ) : (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-brand-gold to-brand-brown flex items-center justify-center text-brand-black font-bold text-xl select-none">
+          <div className="w-12 h-12 rounded-full bg-linear-to-br from-brand-gold to-brand-brown flex items-center justify-center text-brand-black font-bold text-xl select-none">
             {participant.identity.charAt(0).toUpperCase()}
           </div>
           <span className="text-white text-[10px] font-medium truncate max-w-[90%] text-center mt-0.5">
@@ -152,7 +152,7 @@ function ParticipantTileCard({
       )}
 
       {/* Bottom status bar */}
-      <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-1.5 py-1 bg-gradient-to-t from-black/80 to-transparent">
+      <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-1.5 py-1 bg-linear-to-t from-black/80 to-transparent">
         <span className="text-white text-[9px] font-medium truncate max-w-[60%]">
           {participant.identity}
           {isLocal && <span className="text-brand-gold ml-0.5">(Tú)</span>}
@@ -593,14 +593,14 @@ function VideoRoomInner({
     <div className="flex flex-col h-full bg-brand-black overflow-hidden">
       {/* ── Toast ── */}
       {permissionToast && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[70] bg-brand-gold text-brand-black font-semibold px-5 py-2.5 rounded-full shadow-2xl text-sm whitespace-nowrap">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-70 bg-brand-gold text-brand-black font-semibold px-5 py-2.5 rounded-full shadow-2xl text-sm whitespace-nowrap">
           {permissionToast}
         </div>
       )}
 
       {/* ── Permission Request Modal (host only) ── */}
       {permissionRequest && (
-        <div className="absolute inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div className="absolute inset-0 z-80 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="bg-zinc-900 border border-brand-gold/50 rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center">
             <p className="text-2xl mb-2">📩</p>
             <h3 className="text-white font-bold text-lg mb-1">
@@ -763,7 +763,7 @@ function VideoRoomInner({
 
       {/* ── Video Share Modal ── */}
       {showVideoModal && (
-        <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div className="absolute inset-0 z-60 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-zinc-900 border border-brand-gold/50 rounded-2xl w-full max-w-md p-6 shadow-2xl">
             <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
               <Youtube className="w-5 h-5 text-red-500" /> Compartir Video

@@ -32,7 +32,7 @@ export default function MainLayout({
 
       {/* Desktop sidebar — only on dashboard */}
       {showNav && (
-        <div className="hidden md:flex flex-shrink-0">
+        <div className="hidden md:flex shrink-0">
           <Sidebar />
         </div>
       )}

@@ -390,7 +390,7 @@ export default function ExamenIAPage() {
 
                 {error && (
                   <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-400 text-sm flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />{" "}
+                    <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />{" "}
                     {error}
                   </div>
                 )}
@@ -484,7 +484,7 @@ export default function ExamenIAPage() {
                     return (
                       <div key={qIdx} className="space-y-3">
                         <div className="flex items-start gap-3">
-                          <span className="flex-shrink-0 w-7 h-7 rounded-full bg-brand-blue-glow/10 border border-brand-blue-glow/30 flex items-center justify-center text-brand-blue-glow text-xs font-bold">
+                          <span className="shrink-0 w-7 h-7 rounded-full bg-brand-blue-glow/10 border border-brand-blue-glow/30 flex items-center justify-center text-brand-blue-glow text-xs font-bold">
                             {qIdx + 1}
                           </span>
                           <div className="flex-1">

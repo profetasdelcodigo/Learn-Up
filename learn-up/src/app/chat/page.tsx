@@ -814,7 +814,7 @@ export default function ChatPage() {
       <ToastContainer toasts={toasts} removeToast={removeToast} />
 
       {/* Mobile Layout Wrapper using dynamic viewport height */}
-      <div className="flex h-[100dvh] bg-brand-black overflow-hidden relative">
+      <div className="flex h-dvh bg-brand-black overflow-hidden relative">
         {/* Sidebar */}
         <div
           className={`${
@@ -824,7 +824,7 @@ export default function ChatPage() {
           {/* Sidebar Header */}
           <div className="p-4 border-b border-gray-800 space-y-4">
             <div className="flex items-center justify-between">
-              <h1 className="text-xl font-bold bg-gradient-to-r from-brand-gold via-white to-brand-gold bg-clip-text text-transparent">
+              <h1 className="text-xl font-bold bg-linear-to-r from-brand-gold via-white to-brand-gold bg-clip-text text-transparent">
                 Aprendamos Juntos
               </h1>
               <div className="flex gap-2">
@@ -934,7 +934,7 @@ export default function ChatPage() {
                     className="p-3 bg-gray-900/40 rounded-xl mx-2 mb-2 flex items-center justify-between"
                   >
                     <div className="flex items-center gap-3 overflow-hidden">
-                      <div className="w-10 h-10 rounded-full bg-gray-800 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                      <div className="w-10 h-10 rounded-full bg-gray-800 shrink-0 flex items-center justify-center overflow-hidden">
                         {user.avatar_url ? (
                           <img
                             src={user.avatar_url}
@@ -1118,7 +1118,7 @@ export default function ChatPage() {
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.95 }}
-                      className="absolute inset-4 md:inset-12 z-[60] bg-white rounded-2xl shadow-2xl overflow-hidden border-2 border-brand-gold"
+                      className="absolute inset-4 md:inset-12 z-60 bg-white rounded-2xl shadow-2xl overflow-hidden border-2 border-brand-gold"
                     >
                       <div className="w-full h-full relative">
                         <Whiteboard roomId={activeChat || "temp-room"} />
@@ -1356,7 +1356,7 @@ export default function ChatPage() {
                                           `https://youtube.com/watch?v=${embedId}` &&
                                           msg.content !==
                                             `https://youtu.be/${embedId}` && (
-                                            <p className="whitespace-pre-wrap break-words leading-relaxed text-[15px]">
+                                            <p className="whitespace-pre-wrap wrap-break-word leading-relaxed text-[15px]">
                                               {msg.content}
                                             </p>
                                           )}
@@ -1364,7 +1364,7 @@ export default function ChatPage() {
                                     );
                                   }
                                   return (
-                                    <p className="whitespace-pre-wrap break-words leading-relaxed text-[15px]">
+                                    <p className="whitespace-pre-wrap wrap-break-word leading-relaxed text-[15px]">
                                       {msg.content}
                                     </p>
                                   );
@@ -1464,7 +1464,7 @@ export default function ChatPage() {
                                   </span>
                                 </div>
                               ) : (
-                                <p className="whitespace-pre-wrap break-words leading-relaxed text-[15px]">
+                                <p className="whitespace-pre-wrap wrap-break-word leading-relaxed text-[15px]">
                                   {msg.content}
                                 </p>
                               )}

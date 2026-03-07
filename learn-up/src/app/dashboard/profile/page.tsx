@@ -164,7 +164,7 @@ export default function ProfilePage() {
           {/* LEFT: Avatar & Academic */}
           <div className="md:col-span-1 space-y-6">
             <div className="bg-gray-900 rounded-3xl p-6 border border-gray-800 text-center relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-br from-brand-gold/20 to-transparent" />
+              <div className="absolute top-0 left-0 w-full h-24 bg-linear-to-br from-brand-gold/20 to-transparent" />
 
               <div className="relative inline-block mb-4 mt-8">
                 <div className="w-28 h-28 rounded-full bg-brand-black border-2 border-brand-gold flex items-center justify-center overflow-hidden">
@@ -322,7 +322,7 @@ export default function ProfilePage() {
               <h3 className="text-lg font-semibold mb-6">Redes Sociales</h3>
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
                     <Linkedin className="w-5 h-5 text-blue-400" />
                   </div>
                   <input
@@ -336,7 +336,7 @@ export default function ProfilePage() {
                   />
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gray-700/30 flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-gray-700/30 flex items-center justify-center shrink-0">
                     <TikTokIcon className="w-5 h-5 text-gray-300" />
                   </div>
                   <input
@@ -350,7 +350,7 @@ export default function ProfilePage() {
                   />
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-pink-500/10 flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-pink-500/10 flex items-center justify-center shrink-0">
                     <Instagram className="w-5 h-5 text-pink-400" />
                   </div>
                   <input

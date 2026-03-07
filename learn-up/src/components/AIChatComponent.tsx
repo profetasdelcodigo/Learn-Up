@@ -423,7 +423,7 @@ export default function AIChatComponent({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="p-3 rounded-full bg-gray-900 text-gray-400 hover:text-brand-gold hover:bg-gray-800 transition-colors flex-shrink-0 border border-gray-800 items-center justify-center flex"
+              className="p-3 rounded-full bg-gray-900 text-gray-400 hover:text-brand-gold hover:bg-gray-800 transition-colors shrink-0 border border-gray-800 items-center justify-center flex"
             >
               <Paperclip className="w-5 h-5" />
             </button>
@@ -438,7 +438,7 @@ export default function AIChatComponent({
             <button
               type="submit"
               disabled={loading || uploadingMedia || (!input.trim() && !file)}
-              className="px-5 py-3 bg-brand-gold text-brand-black rounded-full hover:bg-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0 font-bold"
+              className="px-5 py-3 bg-brand-gold text-brand-black rounded-full hover:bg-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shrink-0 font-bold"
             >
               {loading || uploadingMedia ? (
                 <Loader2 className="w-5 h-5 animate-spin" />

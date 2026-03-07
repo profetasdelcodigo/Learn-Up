@@ -159,7 +159,7 @@ export default function StudyRoomPage() {
       className="flex flex-col overflow-hidden"
     >
       {/* Header */}
-      <div className="flex-shrink-0 h-16 bg-brand-black border-b border-brand-gold flex items-center justify-between px-4 z-10">
+      <div className="shrink-0 h-16 bg-brand-black border-b border-brand-gold flex items-center justify-between px-4 z-10">
         <div className="flex items-center gap-4">
           <button
             onClick={() => router.push("/dashboard")}

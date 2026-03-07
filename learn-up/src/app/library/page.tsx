@@ -469,7 +469,7 @@ export default function LibraryPage() {
                 className="bg-gray-900/80 border border-gray-800 rounded-2xl p-5 hover:border-brand-gold/40 transition-all group"
               >
                 <div className="flex items-start gap-3 mb-3">
-                  <div className="w-12 h-12 rounded-xl bg-brand-gold/10 border border-brand-gold/20 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                  <div className="w-12 h-12 rounded-xl bg-brand-gold/10 border border-brand-gold/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                     {FILE_ICON_MAP[item.file_type || "document"] ||
                       FILE_ICON_MAP.document}
                   </div>
@@ -664,7 +664,7 @@ export default function LibraryPage() {
                                 (p: any) => p.id !== currentUserId,
                               )[0]?.full_name || "Chat Privado"}
                         </span>
-                        <Send className="w-4 h-4 text-gray-600 group-hover:text-brand-gold flex-shrink-0 transition-colors" />
+                        <Send className="w-4 h-4 text-gray-600 group-hover:text-brand-gold shrink-0 transition-colors" />
                       </button>
                     ))
                   )}

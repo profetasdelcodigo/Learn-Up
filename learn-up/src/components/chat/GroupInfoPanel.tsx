@@ -247,7 +247,7 @@ export default function GroupInfoPanel({
               {isCurrentUserAdmin && (
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="p-1 hover:bg-white/10 rounded-full transition-colors flex-shrink-0"
+                  className="p-1 hover:bg-white/10 rounded-full transition-colors shrink-0"
                 >
                   <Edit2 className="w-4 h-4 text-gray-400" />
                 </button>
@@ -281,7 +281,7 @@ export default function GroupInfoPanel({
               key={member.id}
               className="flex items-center gap-3 p-3 bg-gray-900/50 rounded-xl"
             >
-              <div className="w-10 h-10 rounded-full bg-gray-800 border border-gray-700 overflow-hidden flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-gray-800 border border-gray-700 overflow-hidden flex items-center justify-center shrink-0">
                 {member.avatar_url ? (
                   <img
                     src={member.avatar_url}
@@ -296,12 +296,12 @@ export default function GroupInfoPanel({
                 <p className="text-white font-medium text-sm truncate flex items-center gap-2">
                   {member.full_name || member.username}
                   {member.id === currentUserId && (
-                    <span className="text-xs text-brand-gold flex-shrink-0">
+                    <span className="text-xs text-brand-gold shrink-0">
                       (Tú)
                     </span>
                   )}
                   {groupAdmins.includes(member.id) && (
-                    <span className="text-[10px] uppercase font-bold text-brand-gold border border-brand-gold px-1.5 rounded-sm flex-shrink-0">
+                    <span className="text-[10px] uppercase font-bold text-brand-gold border border-brand-gold px-1.5 rounded-sm shrink-0">
                       Admin
                     </span>
                   )}
@@ -319,7 +319,7 @@ export default function GroupInfoPanel({
                       ? "Quitar admin"
                       : "Hacer admin"
                   }
-                  className={`p-2 rounded-lg transition-colors flex-shrink-0 ${
+                  className={`p-2 rounded-lg transition-colors shrink-0 ${
                     groupAdmins.includes(member.id)
                       ? "text-brand-gold hover:bg-brand-red hover:text-white"
                       : "text-gray-500 hover:text-brand-gold hover:bg-gray-800"

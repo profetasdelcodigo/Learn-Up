@@ -109,7 +109,7 @@ function LoginForm() {
     /* Fixed full-screen container — independent of MainLayout overflow */
     <div className="fixed inset-0 bg-brand-black flex flex-col lg:flex-row">
       {/* Left Side — Branding (hidden on mobile) */}
-      <div className="hidden lg:flex lg:w-1/2 relative flex-col items-center justify-center p-12 overflow-hidden border-r border-brand-gold/20 bg-gradient-to-br from-brand-black to-brand-brown/10">
+      <div className="hidden lg:flex lg:w-1/2 relative flex-col items-center justify-center p-12 overflow-hidden border-r border-brand-gold/20 bg-linear-to-br from-brand-black to-brand-brown/10">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <motion.div
             className="absolute top-1/4 -left-1/4 w-[500px] h-[500px] bg-brand-gold opacity-10 rounded-full blur-[100px]"

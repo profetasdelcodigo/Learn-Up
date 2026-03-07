@@ -2,7 +2,7 @@ import { Sparkles } from "lucide-react";
 
 export default function Loading() {
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-brand-black">
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-brand-black">
       <div className="flex flex-col items-center gap-6">
         <div className="relative flex items-center justify-center w-24 h-24 rounded-3xl border border-brand-gold/50 bg-brand-black/50 backdrop-blur-md shadow-[0_0_30px_rgba(212,175,55,0.2)]">
           {/* Outer Rotating Glow */}
