@@ -226,81 +226,90 @@ export default function CalendarPage() {
 
   // ── Habit Tracker ─────────────────────────────────────────────────────────────
   const getWeekStart = (date: Date) => {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    const day = d.getDay();
-    d.setDate(d.getDate() - day);
-    return format(d, "yyyy-MM-dd");
+    return format(startOfWeek(date, { weekStartsOn: 0 }), "yyyy-MM-dd");
   };
 
   const loadHabits = async () => {
-    let uid = currentUserId;
-    if (!uid) {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-      uid = user.id;
-    }
+    try {
+      let uid = currentUserId;
+      if (!uid) {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) return;
+        uid = user.id;
+      }
 
-    const weekStart = getWeekStart(currentHabitWeek);
+      const weekStart = getWeekStart(currentHabitWeek);
 
-    // 1. Personal habits
-    const { data: personalData } = await supabase
-      .from("habit_entries")
-      .select("*")
-      .eq("user_id", uid)
-      .eq("week_start", weekStart);
-
-    let formattedHabits: HabitActivity[] = [];
-
-    if (personalData) {
-      formattedHabits = personalData.map((row: any) => {
-        const dayMap: Record<string, boolean> = {};
-        if (Array.isArray(row.completed)) {
-          row.completed.forEach((day: string) => {
-            dayMap[day] = true;
-          });
-        }
-        return {
-          id: row.id,
-          name: row.habit_name,
-          days: dayMap,
-        };
-      });
-    }
-
-    // 2. Shared habits
-    const { data: sCalendars } = await supabase
-      .from("shared_calendars")
-      .select("id, name")
-      .contains("members", [uid]);
-
-    if (sCalendars && sCalendars.length > 0) {
-      const cIds = sCalendars.map((c: any) => c.id);
-      const { data: sharedHabitsData } = await supabase
-        .from("shared_habit_tracker")
+      // 1. Personal habits
+      const { data: personalData, error: personalError } = await supabase
+        .from("habit_entries")
         .select("*")
-        .in("calendar_id", cIds)
+        .eq("user_id", uid)
         .eq("week_start", weekStart);
 
-      if (sharedHabitsData) {
-        sharedHabitsData.forEach((sht: any) => {
-          const cal = sCalendars.find((c: any) => c.id === sht.calendar_id);
-          if (sht.habits && Array.isArray(sht.habits)) {
-            const translatedHabits = sht.habits.map((h: any) => ({
-              ...h,
-              isShared: true,
-              calendar_id: sht.calendar_id,
-              group_name: cal?.name || "Grupo",
-            }));
-            formattedHabits = [...formattedHabits, ...translatedHabits];
+      if (personalError)
+        console.error("Error cargando habitos personales:", personalError);
+
+      let formattedHabits: HabitActivity[] = [];
+      if (personalData) {
+        formattedHabits = personalData.map((row: any) => {
+          const dayMap: Record<string, boolean> = {};
+          if (Array.isArray(row.completed)) {
+            row.completed.forEach((day: string) => {
+              dayMap[day] = true;
+            });
           }
+          return {
+            id: row.id,
+            name: row.habit_name,
+            days: dayMap,
+          };
         });
       }
-    }
 
-    setHabits(formattedHabits);
+      // 2. Shared habits
+      const { data: sCalendars, error: scError } = await supabase
+        .from("shared_calendars")
+        .select("id, name")
+        .contains("members", [uid]);
+
+      if (scError)
+        console.error("Error cargando shared calendars for habits:", scError);
+
+      if (sCalendars && sCalendars.length > 0) {
+        const cIds = sCalendars.map((c: any) => c.id);
+        const { data: sharedHabitsData, error: shError } = await supabase
+          .from("shared_habit_tracker")
+          .select("calendar_id, habits")
+          .in("calendar_id", cIds)
+          .eq("week_start", weekStart);
+
+        if (shError)
+          console.error("Error cargando habitos compartidos:", shError);
+
+        if (sharedHabitsData) {
+          sharedHabitsData.forEach((row: any) => {
+            const cal = sCalendars.find((c: any) => c.id === row.calendar_id);
+            if (row.habits && Array.isArray(row.habits)) {
+              row.habits.forEach((sh: HabitActivity) => {
+                formattedHabits.push({
+                  ...sh,
+                  isShared: true,
+                  calendar_id: row.calendar_id,
+                  group_name: cal ? cal.name : "Grupo",
+                });
+              });
+            }
+          });
+        }
+      }
+
+      setHabits(formattedHabits);
+    } catch (err) {
+      console.error("Critical error in loadHabits:", err);
+    }
   };
 
   useEffect(() => {
@@ -312,23 +321,19 @@ export default function CalendarPage() {
     const weekStart = getWeekStart(currentHabitWeek);
 
     if (habit.isShared && habit.calendar_id) {
-      // Find all shared habits for this calendar
       const calHabits = habits.filter(
         (h) => h.calendar_id === habit.calendar_id,
       );
-      // Ensure the updated habit is in calHabits with its new state
       const updatedCalHabits = calHabits.map((h) =>
         h.id === habit.id ? habit : h,
       );
-
-      // Strip UI-only metadata before saving
       const dbHabits = updatedCalHabits.map((h) => ({
         id: h.id,
         name: h.name,
         days: h.days,
       }));
 
-      await supabase.from("shared_habit_tracker").upsert(
+      const { error } = await supabase.from("shared_habit_tracker").upsert(
         {
           calendar_id: habit.calendar_id,
           week_start: weekStart,
@@ -338,6 +343,7 @@ export default function CalendarPage() {
         },
         { onConflict: "calendar_id,week_start" },
       );
+      if (error) console.error("Error saving shared habit:", error);
     } else {
       const completedDays = Object.keys(habit.days).filter(
         (d) => habit.days[d],
@@ -349,16 +355,17 @@ export default function CalendarPage() {
         week_start: weekStart,
         completed: completedDays,
       };
-      await supabase
+      const { error } = await supabase
         .from("habit_entries")
         .upsert(payload, { onConflict: "id" });
+      if (error) console.error("Error saving personal habit:", error);
     }
   };
 
   const addHabit = async () => {
     if (!newHabitName.trim()) return;
     const newHabit: HabitActivity = {
-      id: crypto.randomUUID(), // Assume generating a new UUID for the row
+      id: crypto.randomUUID(),
       name: newHabitName.trim(),
       days: {},
     };
@@ -369,13 +376,18 @@ export default function CalendarPage() {
     // Save to DB
     if (!currentUserId) return;
     const weekStart = getWeekStart(currentHabitWeek);
-    await supabase.from("habit_entries").insert({
+    const { error } = await supabase.from("habit_entries").insert({
       id: newHabit.id,
       user_id: currentUserId,
       habit_name: newHabit.name,
       week_start: weekStart,
       completed: [],
     });
+
+    if (error) {
+      console.error("Error inserting habit:", error);
+      alert("No se pudo persistir el hábito. Revisa tu consola.");
+    }
   };
 
   const toggleHabitDay = async (habitId: string, dayKey: string) => {

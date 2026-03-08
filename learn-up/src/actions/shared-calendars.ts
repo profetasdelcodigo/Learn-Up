@@ -54,7 +54,6 @@ export async function addSharedEvent(
       .insert({
         calendar_id: calendarId,
         title,
-        description,
         start_time: start,
         end_time: end,
         created_by: user.id,

@@ -26,7 +26,19 @@ import {
   sendSharedMessage,
   deleteSharedEvent,
 } from "@/actions/shared-calendars";
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks } from "date-fns";
+import {
+  format,
+  startOfWeek,
+  endOfWeek,
+  addWeeks,
+  subWeeks,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  isSameDay,
+  addMonths,
+  subMonths,
+} from "date-fns";
 import { es } from "date-fns/locale";
 
 interface SharedCalendar {
@@ -78,6 +90,12 @@ export default function SharedCalendarDetail({
   const [events, setEvents] = useState<SharedEvent[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Calendar logic
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [showDayModal, setShowDayModal] = useState(false);
+  const [selectedDayEvents, setSelectedDayEvents] = useState<SharedEvent[]>([]);
 
   // Chat state
   const [newMessage, setNewMessage] = useState("");
@@ -165,12 +183,17 @@ export default function SharedCalendarDetail({
   }
 
   async function loadEvents() {
-    const { data } = await supabase
-      .from("shared_calendar_events")
-      .select("*, profiles(full_name, username)")
-      .eq("calendar_id", calendar.id)
-      .order("start_time", { ascending: true });
-    if (data) setEvents(data as any);
+    try {
+      const { data, error } = await supabase
+        .from("shared_calendar_events")
+        .select("*, profiles(full_name, username)")
+        .eq("calendar_id", calendar.id)
+        .order("start_time", { ascending: true });
+      if (error) throw error;
+      if (data) setEvents(data as any);
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   async function loadMessages() {
@@ -189,14 +212,21 @@ export default function SharedCalendarDetail({
   }
 
   async function loadHabits() {
-    const weekStart = getWeekStart(currentHabitWeek);
-    const { data } = await supabase
-      .from("shared_habit_tracker")
-      .select("habits")
-      .eq("calendar_id", calendar.id)
-      .eq("week_start", weekStart)
-      .maybeSingle();
-    setHabits((data?.habits as HabitActivity[]) || []);
+    try {
+      const weekStart = getWeekStart(currentHabitWeek);
+      const { data, error } = await supabase
+        .from("shared_habit_tracker")
+        .select("habits")
+        .eq("calendar_id", calendar.id)
+        .eq("week_start", weekStart)
+        .maybeSingle();
+      if (error && error.code !== "PGRST116") {
+        console.error("Shared habits load error:", error);
+      }
+      setHabits((data?.habits as HabitActivity[]) || []);
+    } catch (err) {
+      console.error("Fetch shared habits error:", err);
+    }
   }
 
   const saveHabits = async (newHabits: HabitActivity[]) => {
@@ -229,7 +259,8 @@ export default function SharedCalendarDetail({
       setEventData({ title: "", description: "", start: "", end: "" });
       loadEvents();
     } else {
-      alert("Error al crear el evento");
+      console.error("Backend error creating event:", result.error);
+      alert("Error al crear el evento: " + result.error);
     }
     setEventSubmitting(false);
   };
@@ -328,6 +359,29 @@ export default function SharedCalendarDetail({
     await saveHabits(updated);
   };
 
+  const handleDayClick = (day: Date) => {
+    const dayEvts = getEventsForDay(day);
+    if (dayEvts.length > 0) {
+      setSelectedDay(day);
+      setSelectedDayEvents(dayEvts);
+      setShowDayModal(true);
+    } else {
+      setEventData({
+        ...eventData,
+        start: format(day, "yyyy-MM-dd'T'12:00"),
+        end: format(day, "yyyy-MM-dd'T'13:00"),
+      });
+      setShowEventModal(true);
+    }
+  };
+
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(currentMonth);
+  const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+
+  const getEventsForDay = (day: Date) =>
+    events.filter((event) => isSameDay(new Date(event.start_time), day));
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-12">
@@ -380,74 +434,94 @@ export default function SharedCalendarDetail({
         </button>
       </div>
 
-      {/* Events Tab */}
+      {/* Events Tab - Unificado al grid de Calendario Personal */}
       {activeSubTab === "events" && (
-        <div className="flex-1 flex flex-col">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-bold text-white">Próximos Eventos</h3>
+        <div className="flex-1 flex flex-col bg-gray-900/80 backdrop-blur-xl border border-brand-gold/30 rounded-3xl p-6">
+          <div className="flex justify-between items-center mb-6">
             <button
-              onClick={() => setShowEventModal(true)}
-              className="px-4 py-2 bg-brand-gold/10 text-brand-gold border border-brand-gold/30 rounded-xl font-semibold hover:bg-brand-gold hover:text-brand-black transition-all flex items-center gap-2 text-sm"
+              onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+              className="p-2 rounded-full border border-gray-700 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
             >
-              <Plus className="w-4 h-4" /> Nuevo Evento Grupal
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-3 cursor-pointer select-none group">
+              <h2 className="text-xl font-bold text-white group-hover:text-brand-gold transition-colors">
+                {format(currentMonth, "MMMM yyyy", { locale: es }).replace(
+                  /^\w/,
+                  (c) => c.toUpperCase(),
+                )}
+              </h2>
+            </div>
+            <button
+              onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+              className="p-2 rounded-full border border-gray-700 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
+            >
+              <ChevronRight className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="space-y-3 flex-1 overflow-y-auto">
-            {events.length === 0 ? (
-              <p className="text-gray-500 text-sm text-center py-8">
-                No hay eventos próximos en este calendario.
-              </p>
-            ) : (
-              events.map((ev) => (
+          <div className="flex-1 min-h-[500px] flex flex-col pointer-events-auto">
+            <div className="grid grid-cols-7 gap-2 mb-2">
+              {DAY_KEYS.map((d) => (
                 <div
-                  key={ev.id}
-                  className="bg-black/40 border border-gray-800 p-4 rounded-2xl flex items-start gap-4 hover:border-brand-gold/40 transition-colors"
+                  key={d}
+                  className="text-center font-bold text-gray-500 text-sm"
                 >
-                  <div className="bg-brand-gold/10 px-3 py-2 rounded-xl text-center min-w-[70px]">
-                    <div className="text-brand-gold font-bold text-lg">
-                      {new Date(ev.start_time).getDate()}
-                    </div>
-                    <div className="text-gray-400 text-xs uppercase">
-                      {new Date(ev.start_time).toLocaleString("es-ES", {
-                        month: "short",
-                      })}
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-bold text-white">{ev.title}</h4>
-                    {ev.description && (
-                      <p className="text-sm text-gray-400 mt-1">
-                        {ev.description}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />{" "}
-                        {new Date(ev.start_time).toLocaleTimeString("es-ES", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                      <span>Por: @{ev.profiles?.username || "anónimo"}</span>
-                    </div>
-                  </div>
-                  {ev.created_by === currentUserId && (
-                    <button
-                      onClick={async () => {
-                        if (confirm("¿Eliminar evento grupal?")) {
-                          await deleteSharedEvent(ev.id);
-                          loadEvents();
-                        }
-                      }}
-                      className="p-2 text-gray-500 hover:text-red-400 bg-gray-800 rounded-lg"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
+                  {d}
                 </div>
-              ))
-            )}
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7 gap-2 flex-1">
+              {Array.from({ length: monthStart.getDay() }).map((_, idx) => (
+                <div
+                  key={`empty-${idx}`}
+                  className="p-2 bg-gray-900/30 rounded-2xl border border-gray-800/50"
+                />
+              ))}
+
+              {daysInMonth.map((day) => {
+                const dayEvents = getEventsForDay(day);
+                const isSelected = selectedDay && isSameDay(day, selectedDay);
+                const isCurrentDay = isSameDay(day, new Date());
+
+                return (
+                  <div
+                    key={day.toISOString()}
+                    onClick={() => handleDayClick(day)}
+                    className={`min-h-[100px] p-2 rounded-2xl transition-all cursor-pointer border flex flex-col gap-1 
+                      ${isCurrentDay ? "bg-brand-gold/10 border-brand-gold" : "bg-black/40 border-gray-800 hover:border-gray-600"}
+                      ${isSelected ? "ring-2 ring-brand-gold" : ""}
+                    `}
+                  >
+                    <div className="flex justify-between items-start">
+                      <span
+                        className={`text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full
+                        ${isCurrentDay ? "bg-brand-gold text-brand-black" : "text-gray-300"}`}
+                      >
+                        {format(day, "d")}
+                      </span>
+                    </div>
+
+                    <div className="space-y-0.5">
+                      {dayEvents.slice(0, 3).map((event: any) => (
+                        <div
+                          key={event.id}
+                          className="text-[10px] px-1 rounded truncate font-medium bg-blue-600/30 text-blue-400 border border-blue-500/20"
+                        >
+                          {event.title}
+                        </div>
+                      ))}
+                      {dayEvents.length > 3 && (
+                        <div className="text-[9px] text-gray-500">
+                          +{dayEvents.length - 3} más
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -743,6 +817,122 @@ export default function SharedCalendarDetail({
                   {eventSubmitting ? "Creando..." : "Guardar Evento"}
                 </button>
               </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de Detalle de Día de Grupo */}
+      <AnimatePresence>
+        {showDayModal && selectedDay && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowDayModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-gray-900 border border-brand-gold/30 rounded-3xl p-6 sm:p-8 max-w-lg w-full max-h-[80vh] flex flex-col"
+            >
+              <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-800">
+                <div>
+                  <h2 className="text-2xl font-bold text-white tracking-tight">
+                    {format(selectedDay, "d 'de' MMMM, yyyy", { locale: es })}
+                  </h2>
+                  <p className="text-brand-gold font-medium mt-1">
+                    {selectedDayEvents.length}{" "}
+                    {selectedDayEvents.length === 1
+                      ? "evento programado"
+                      : "eventos programados"}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setEventData({
+                        ...eventData,
+                        start: format(selectedDay, "yyyy-MM-dd'T'12:00"),
+                        end: format(selectedDay, "yyyy-MM-dd'T'13:00"),
+                      });
+                      setShowDayModal(false);
+                      setShowEventModal(true);
+                    }}
+                    className="p-2.5 text-brand-black bg-brand-gold hover:bg-white rounded-full transition-colors flex items-center justify-center w-10 h-10"
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => setShowDayModal(false)}
+                    className="p-2.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-full transition-colors self-start w-10 h-10"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-y-auto pr-2 space-y-4 flex-1 custom-scrollbar">
+                {selectedDayEvents.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    No hay eventos programados en este día.
+                  </div>
+                ) : (
+                  selectedDayEvents.map((ev) => (
+                    <div
+                      key={ev.id}
+                      className="bg-blue-900/10 border-blue-500/20 border p-5 rounded-2xl flex flex-col"
+                    >
+                      <div className="flex justify-between items-start mb-3 gap-4">
+                        <h3 className="font-bold text-lg text-white leading-tight">
+                          {ev.title}
+                        </h3>
+                        {ev.created_by === currentUserId && (
+                          <button
+                            onClick={async () => {
+                              if (confirm("¿Eliminar evento grupal?")) {
+                                await deleteSharedEvent(ev.id);
+                                await loadEvents();
+                                setShowDayModal(false);
+                              }
+                            }}
+                            className="text-gray-500 hover:text-red-400 p-1 bg-gray-800 rounded"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+
+                      {ev.description && (
+                        <p className="text-gray-400 text-sm mb-4 leading-relaxed">
+                          {ev.description}
+                        </p>
+                      )}
+
+                      <div className="flex items-center justify-between text-sm font-semibold mt-auto flex-wrap gap-2">
+                        <div className="px-3 py-1.5 rounded-lg flex items-center gap-2 bg-blue-400 text-blue-950">
+                          <Clock className="w-4 h-4" />
+                          {new Date(ev.start_time).toLocaleTimeString("es-ES", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                          {" - "}
+                          {new Date(ev.end_time).toLocaleTimeString("es-ES", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </div>
+                        <span className="text-gray-400 text-xs">
+                          Por {ev.profiles?.username || "anónimo"}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </motion.div>
           </motion.div>
         )}
