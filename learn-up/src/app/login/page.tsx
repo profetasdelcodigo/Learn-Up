@@ -32,6 +32,47 @@ function LoginForm() {
     }
   }, [isSignup]);
 
+  const handleQuickSignup = async () => {
+    if (!email || !password) {
+      setSuggestSignup(false);
+      setError("Ingresa tu correo y contraseña para crear la cuenta.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    setSuggestSignup(false);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `https://learn-up-qmgx.onrender.com/auth/callback?next=/onboarding`,
+        },
+      });
+      if (error) throw error;
+      if (data?.user && data.user.identities?.length === 0) {
+        setError("Este correo ya está registrado. Por favor, inicia sesión.");
+        return;
+      }
+      if (data?.session) {
+        router.push("/onboarding");
+      } else {
+        setSuccessMsg(
+          "¡Cuenta creada! Revisa tu correo para confirmar tu cuenta y acceder.",
+        );
+      }
+    } catch (err: any) {
+      const msg = err.message || "";
+      if (msg.includes("Password should be at least")) {
+        setError("La contraseña debe tener al menos 6 caracteres.");
+      } else {
+        setError(msg || "Ocurrió un error al crear la cuenta.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -195,18 +236,20 @@ function LoginForm() {
                 {sugggestSignup && (
                   <div className="mt-3 pt-3 border-t border-red-500/30">
                     <p className="text-gray-400 text-xs mb-2">
-                      ¿No tienes cuenta con ese correo?
+                      ¿No tienes cuenta con ese correo? Usa la contraseña que
+                      escribiste.
                     </p>
-                    <a
-                      href={`/login?mode=signup`}
-                      onClick={() => {
-                        // Store email in sessionStorage so signup form can pre-fill it
-                        sessionStorage.setItem("prefill_email", email);
-                      }}
-                      className="inline-block px-4 py-1.5 bg-brand-gold text-brand-black text-xs font-semibold rounded-full hover:bg-brand-gold/90 transition-colors"
+                    <button
+                      type="button"
+                      onClick={handleQuickSignup}
+                      disabled={loading}
+                      className="inline-flex items-center gap-2 px-4 py-1.5 bg-brand-gold text-brand-black text-xs font-semibold rounded-full hover:bg-brand-gold/90 transition-colors disabled:opacity-50"
                     >
+                      {loading ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : null}
                       Crear cuenta nueva
-                    </a>
+                    </button>
                   </div>
                 )}
               </motion.div>
