@@ -124,11 +124,7 @@ export default function SharedCalendarDetail({
   const [newHabitName, setNewHabitName] = useState("");
 
   const getWeekStart = (date: Date) => {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    const day = d.getDay();
-    d.setDate(d.getDate() - day);
-    return format(d, "yyyy-MM-dd");
+    return format(startOfWeek(date, { weekStartsOn: 0 }), "yyyy-MM-dd");
   };
 
   useEffect(() => {
@@ -186,7 +182,7 @@ export default function SharedCalendarDetail({
     try {
       const { data, error } = await supabase
         .from("shared_calendar_events")
-        .select("*, profiles(full_name, username)")
+        .select("*")
         .eq("calendar_id", calendar.id)
         .order("start_time", { ascending: true });
       if (error) throw error;
@@ -361,18 +357,9 @@ export default function SharedCalendarDetail({
 
   const handleDayClick = (day: Date) => {
     const dayEvts = getEventsForDay(day);
-    if (dayEvts.length > 0) {
-      setSelectedDay(day);
-      setSelectedDayEvents(dayEvts);
-      setShowDayModal(true);
-    } else {
-      setEventData({
-        ...eventData,
-        start: format(day, "yyyy-MM-dd'T'12:00"),
-        end: format(day, "yyyy-MM-dd'T'13:00"),
-      });
-      setShowEventModal(true);
-    }
+    setSelectedDay(day);
+    setSelectedDayEvents(dayEvts);
+    setShowDayModal(true);
   };
 
   const monthStart = startOfMonth(currentMonth);
@@ -457,6 +444,39 @@ export default function SharedCalendarDetail({
               className="p-2 rounded-full border border-gray-700 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
             >
               <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="flex items-center gap-3 bg-gray-900/50 p-2 rounded-2xl w-fit mb-4">
+            <button
+              onClick={() => {
+                const head = document.head.innerHTML;
+                const printWindow = window.open("", "_blank");
+                if (printWindow) {
+                  printWindow.document.write(
+                    "<html><head>" + head + "</head><body>",
+                  );
+                  const calendarHtml = document.querySelector(
+                    ".pointer-events-auto",
+                  )?.innerHTML;
+                  printWindow.document.write("<h1>" + calendar.name + "</h1>");
+                  if (calendarHtml) printWindow.document.write(calendarHtml);
+                  printWindow.document.write("</body></html>");
+                  printWindow.document.close();
+                  setTimeout(() => {
+                    printWindow.print();
+                  }, 500);
+                }
+              }}
+              className="px-4 py-2 bg-gray-800 text-gray-300 border border-gray-700 rounded-xl hover:bg-gray-700 hover:text-white transition-all text-sm font-semibold flex items-center gap-2"
+            >
+              Imprimir
+            </button>
+            <button
+              onClick={() => setShowEventModal(true)}
+              className="px-4 py-2 bg-brand-gold text-brand-black rounded-xl hover:bg-white transition-all text-sm font-semibold flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Nuevo Evento
             </button>
           </div>
 
@@ -926,7 +946,10 @@ export default function SharedCalendarDetail({
                           })}
                         </div>
                         <span className="text-gray-400 text-xs">
-                          Por {ev.profiles?.username || "anónimo"}
+                          Por{" "}
+                          {ev.created_by === currentUserId
+                            ? "ti"
+                            : "un miembro"}
                         </span>
                       </div>
                     </div>
