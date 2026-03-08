@@ -17,7 +17,6 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
-  const [sugggestSignup, setSuggestSignup] = useState(false);
 
   const supabase = createClient();
 
@@ -32,53 +31,11 @@ function LoginForm() {
     }
   }, [isSignup]);
 
-  const handleQuickSignup = async () => {
-    if (!email || !password) {
-      setSuggestSignup(false);
-      setError("Ingresa tu correo y contraseña para crear la cuenta.");
-      return;
-    }
-    setLoading(true);
-    setError("");
-    setSuggestSignup(false);
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `https://learn-up-qmgx.onrender.com/auth/callback?next=/onboarding`,
-        },
-      });
-      if (error) throw error;
-      if (data?.user && data.user.identities?.length === 0) {
-        setError("Este correo ya está registrado. Por favor, inicia sesión.");
-        return;
-      }
-      if (data?.session) {
-        router.push("/onboarding");
-      } else {
-        setSuccessMsg(
-          "¡Cuenta creada! Revisa tu correo para confirmar tu cuenta y acceder.",
-        );
-      }
-    } catch (err: any) {
-      const msg = err.message || "";
-      if (msg.includes("Password should be at least")) {
-        setError("La contraseña debe tener al menos 6 caracteres.");
-      } else {
-        setError(msg || "Ocurrió un error al crear la cuenta.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
     setSuccessMsg("");
-    setSuggestSignup(false);
 
     try {
       if (isSignup) {
@@ -110,11 +67,49 @@ function LoginForm() {
           );
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
-        if (error) throw error;
+
+        if (signInError) {
+          if (
+            signInError.message === "Invalid login credentials" ||
+            signInError.message.includes("Invalid login credentials")
+          ) {
+            // Attempt silent signup to see if user just doesn't exist
+            const { data: signUpData, error: signUpError } =
+              await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                  data: {},
+                  emailRedirectTo: `https://learn-up-qmgx.onrender.com/auth/callback?next=/onboarding`,
+                },
+              });
+
+            if (signUpError) throw signUpError;
+
+            if (signUpData?.user && signUpData.user.identities?.length === 0) {
+              // User actually exists, so it was truly a wrong password
+              throw new Error("Correo o contraseña incorrectos.");
+            }
+
+            // Successfully created new account
+            if (signUpData?.session) {
+              router.push("/onboarding");
+              return;
+            } else {
+              setSuccessMsg(
+                "¡Cuenta creada! Revisa tu correo para confirmar tu cuenta antes de continuar.",
+              );
+              setLoading(false);
+              return;
+            }
+          }
+          throw signInError;
+        }
+
         router.push("/dashboard");
       }
     } catch (err: any) {
@@ -126,14 +121,10 @@ function LoginForm() {
         setError("Este correo ya está registrado. Usa 'Inicia sesión'.");
       } else if (
         msg === "Invalid login credentials" ||
-        msg.includes("Invalid login credentials")
+        msg.includes("Invalid login credentials") ||
+        msg.includes("Correo o contraseña incorrectos")
       ) {
-        if (!isSignup) {
-          setError("Correo o contraseña incorrectos.");
-          setSuggestSignup(true);
-        } else {
-          setError("Correo o contraseña incorrectos.");
-        }
+        setError("Correo o contraseña incorrectos.");
       } else if (msg.includes("Email not confirmed")) {
         setError("Confirma tu correo antes de iniciar sesión.");
       } else if (msg.includes("Password should be at least")) {
@@ -233,25 +224,6 @@ function LoginForm() {
                 className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-2xl text-red-400 text-sm"
               >
                 {error}
-                {sugggestSignup && (
-                  <div className="mt-3 pt-3 border-t border-red-500/30">
-                    <p className="text-gray-400 text-xs mb-2">
-                      ¿No tienes cuenta con ese correo? Usa la contraseña que
-                      escribiste.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={handleQuickSignup}
-                      disabled={loading}
-                      className="inline-flex items-center gap-2 px-4 py-1.5 bg-brand-gold text-brand-black text-xs font-semibold rounded-full hover:bg-brand-gold/90 transition-colors disabled:opacity-50"
-                    >
-                      {loading ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : null}
-                      Crear cuenta nueva
-                    </button>
-                  </div>
-                )}
               </motion.div>
             )}
 
