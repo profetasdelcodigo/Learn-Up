@@ -231,16 +231,15 @@ export default function OnboardingPage() {
                 </div>
                 <div>
                   <h3 className="text-white font-bold mb-1 text-sm">
-                    Casi listo para unirte
+                    Estás a un paso de terminar
                   </h3>
                   <p className="text-gray-300 text-xs leading-relaxed">
-                    Detectamos que iniciaste sesión con{" "}
+                    Tu cuenta con{" "}
                     {user?.app_metadata?.provider === "google"
                       ? "Google"
-                      : "tu correo electrónico"}{" "}
-                    pero aún no tenías una cuenta configurada. ¡Esta es tu
-                    oportunidad para registrarte! Completa tus datos abajo para
-                    activar tu cuenta.
+                      : "correo electrónico"}{" "}
+                    ha sido creada y verificada. Completa tus datos abajo para
+                    configurar tu perfil y acceder a la plataforma.
                   </p>
                 </div>
               </motion.div>
