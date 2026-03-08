@@ -89,13 +89,17 @@ function LoginForm() {
               });
 
             if (signUpError) {
+              // If the user already exists, it means the signIn failed because of a WRONG PASSWORD.
+              // Supabase can return 422 or 400 for existing users on signUp depending on settings.
               if (
-                signUpError.message === "User already registered" ||
-                signUpError.message.includes("already registered")
+                signUpError.message?.includes("already registered") ||
+                signUpError.message?.includes("User already registered") ||
+                signUpError.status === 422 ||
+                signUpError.status === 400
               ) {
-                // If the user already exists, it means the signIn failed because of a WRONG PASSWORD.
                 throw new Error("Correo o contraseña incorrectos.");
               }
+              // If it's a completely different error (network, etc), rethrow it
               throw signUpError;
             }
 
