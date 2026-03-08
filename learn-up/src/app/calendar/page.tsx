@@ -45,12 +45,18 @@ interface CalendarEvent {
   start_time: string;
   end_time: string;
   user_id: string;
+  isShared?: boolean;
+  group_name?: string;
+  members_count?: number;
 }
 
 interface HabitActivity {
   id: string;
   name: string;
   days: Record<string, boolean>; // "Mon", "Tue", etc.
+  isShared?: boolean;
+  calendar_id?: string;
+  group_name?: string;
 }
 
 const DAY_KEYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
@@ -82,6 +88,10 @@ export default function CalendarPage() {
 
   // Selected day events
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [showDayModal, setShowDayModal] = useState(false);
+  const [selectedDayEvents, setSelectedDayEvents] = useState<CalendarEvent[]>(
+    [],
+  );
 
   // Habit Tracker
   const [currentHabitWeek, setCurrentHabitWeek] = useState(new Date());
@@ -170,15 +180,20 @@ export default function CalendarPage() {
             .select("*")
             .in("calendar_id", cIds);
           if (sEvents) {
-            formattedSharedEvents = sEvents.map((se: any) => ({
-              id: se.id,
-              title: `👥 ${se.title}`,
-              description: se.description,
-              start_time: se.start_time,
-              end_time: se.end_time,
-              user_id: se.created_by,
-              isShared: true,
-            }));
+            formattedSharedEvents = sEvents.map((se: any) => {
+              const cal = sCalendars.find((c: any) => c.id === se.calendar_id);
+              return {
+                id: se.id,
+                title: se.title,
+                description: se.description,
+                start_time: se.start_time,
+                end_time: se.end_time,
+                user_id: se.created_by,
+                isShared: true,
+                group_name: cal ? cal.name : "Grupo",
+                members_count: cal ? cal.members?.length || 0 : 0,
+              };
+            });
           }
         }
       }
@@ -229,18 +244,18 @@ export default function CalendarPage() {
     }
 
     const weekStart = getWeekStart(currentHabitWeek);
-    const { data } = await supabase
+
+    // 1. Personal habits
+    const { data: personalData } = await supabase
       .from("habit_entries")
       .select("*")
       .eq("user_id", uid)
       .eq("week_start", weekStart);
 
-    if (data) {
-      // Map from DB row format to component HabitActivity format
-      const formattedHabits: HabitActivity[] = data.map((row: any) => {
-        // DB 'completed' is array of day indices (0=Mon, etc) or day string keys.
-        // We handle mapping those. Usually stored as `["Mon", "Tue"]` or similar in previous versions,
-        // but the migration says array of indices. We'll stick to string keys for UI.
+    let formattedHabits: HabitActivity[] = [];
+
+    if (personalData) {
+      formattedHabits = personalData.map((row: any) => {
         const dayMap: Record<string, boolean> = {};
         if (Array.isArray(row.completed)) {
           row.completed.forEach((day: string) => {
@@ -253,10 +268,39 @@ export default function CalendarPage() {
           days: dayMap,
         };
       });
-      setHabits(formattedHabits);
-    } else {
-      setHabits([]);
     }
+
+    // 2. Shared habits
+    const { data: sCalendars } = await supabase
+      .from("shared_calendars")
+      .select("id, name")
+      .contains("members", [uid]);
+
+    if (sCalendars && sCalendars.length > 0) {
+      const cIds = sCalendars.map((c: any) => c.id);
+      const { data: sharedHabitsData } = await supabase
+        .from("shared_habit_tracker")
+        .select("*")
+        .in("calendar_id", cIds)
+        .eq("week_start", weekStart);
+
+      if (sharedHabitsData) {
+        sharedHabitsData.forEach((sht: any) => {
+          const cal = sCalendars.find((c: any) => c.id === sht.calendar_id);
+          if (sht.habits && Array.isArray(sht.habits)) {
+            const translatedHabits = sht.habits.map((h: any) => ({
+              ...h,
+              isShared: true,
+              calendar_id: sht.calendar_id,
+              group_name: cal?.name || "Grupo",
+            }));
+            formattedHabits = [...formattedHabits, ...translatedHabits];
+          }
+        });
+      }
+    }
+
+    setHabits(formattedHabits);
   };
 
   useEffect(() => {
@@ -266,18 +310,49 @@ export default function CalendarPage() {
   const saveHabitToDb = async (habit: HabitActivity) => {
     if (!currentUserId) return;
     const weekStart = getWeekStart(currentHabitWeek);
-    const completedDays = Object.keys(habit.days).filter((d) => habit.days[d]);
 
-    // We update single row
-    const payload = {
-      id: habit.id,
-      user_id: currentUserId,
-      habit_name: habit.name,
-      week_start: weekStart,
-      completed: completedDays,
-    };
+    if (habit.isShared && habit.calendar_id) {
+      // Find all shared habits for this calendar
+      const calHabits = habits.filter(
+        (h) => h.calendar_id === habit.calendar_id,
+      );
+      // Ensure the updated habit is in calHabits with its new state
+      const updatedCalHabits = calHabits.map((h) =>
+        h.id === habit.id ? habit : h,
+      );
 
-    await supabase.from("habit_entries").upsert(payload, { onConflict: "id" });
+      // Strip UI-only metadata before saving
+      const dbHabits = updatedCalHabits.map((h) => ({
+        id: h.id,
+        name: h.name,
+        days: h.days,
+      }));
+
+      await supabase.from("shared_habit_tracker").upsert(
+        {
+          calendar_id: habit.calendar_id,
+          week_start: weekStart,
+          habits: dbHabits,
+          updated_by: currentUserId,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "calendar_id,week_start" },
+      );
+    } else {
+      const completedDays = Object.keys(habit.days).filter(
+        (d) => habit.days[d],
+      );
+      const payload = {
+        id: habit.id,
+        user_id: currentUserId,
+        habit_name: habit.name,
+        week_start: weekStart,
+        completed: completedDays,
+      };
+      await supabase
+        .from("habit_entries")
+        .upsert(payload, { onConflict: "id" });
+    }
   };
 
   const addHabit = async () => {
@@ -325,6 +400,16 @@ export default function CalendarPage() {
   };
 
   const deleteHabit = async (habitId: string) => {
+    const habitToDel = habits.find((h) => h.id === habitId);
+    if (!habitToDel) return;
+
+    if (habitToDel.isShared) {
+      alert(
+        "No puedes eliminar un hábito grupal desde tu vista personal. Hazlo directamente desde el calendario compartido.",
+      );
+      return;
+    }
+
     const updated = habits.filter((h) => h.id !== habitId);
     setHabits(updated);
 
@@ -334,8 +419,16 @@ export default function CalendarPage() {
   };
 
   const clearHabits = async () => {
-    if (!confirm("¿Borrar todos los hábitos de esta semana?")) return;
-    setHabits([]);
+    if (
+      !confirm(
+        "¿Borrar todos los hábitos personales de esta semana? (Los hábitos grupales se mantendrán)",
+      )
+    )
+      return;
+
+    // Solo borramos los personales localmente
+    const shared = habits.filter((h) => h.isShared);
+    setHabits(shared);
 
     if (currentUserId) {
       const weekStart = getWeekStart(currentHabitWeek);
@@ -415,13 +508,19 @@ export default function CalendarPage() {
     events.filter((event) => isSameDay(new Date(event.start_time), day));
 
   const handleDayClick = (day: Date) => {
-    setSelectedDay(day);
-    setPickerDate({
-      year: day.getFullYear(),
-      month: day.getMonth(),
-      day: day.getDate(),
-    });
-    setShowDatePicker(true);
+    const dayEvts = getEventsForDay(day);
+    if (dayEvts.length > 0) {
+      setSelectedDay(day);
+      setSelectedDayEvents(dayEvts);
+      setShowDayModal(true);
+    } else {
+      setFormData({
+        ...formData,
+        start: format(day, "yyyy-MM-dd'T'12:00"),
+        end: format(day, "yyyy-MM-dd'T'13:00"),
+      });
+      setShowModal(true);
+    }
   };
 
   const applyDatePicker = () => {
@@ -587,6 +686,7 @@ export default function CalendarPage() {
                                 : "bg-brand-gold text-brand-black"
                             }`}
                           >
+                            {event.isShared && "👥 "}
                             {event.title}
                           </div>
                         ))}
@@ -720,10 +820,15 @@ export default function CalendarPage() {
                             className="border-t border-gray-800/50 hover:bg-white/2 transition-colors"
                           >
                             <td className="py-3 px-3">
-                              <span className="text-white text-sm font-medium">
+                              <span className="text-white text-sm font-medium flex items-center gap-1.5">
+                                {habit.isShared && (
+                                  <span title={`Grupo: ${habit.group_name}`}>
+                                    <Users className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                                  </span>
+                                )}
                                 {habit.name}
                               </span>
-                              <span className="ml-2 text-xs text-gray-500">
+                              <span className="ml-[22px] text-xs text-gray-500">
                                 {completed}/{DAY_KEYS.length}
                               </span>
                             </td>
@@ -1045,8 +1150,92 @@ export default function CalendarPage() {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
 
+        {/* Day Detail Modal */}
+        <AnimatePresence>
+          {showDayModal && selectedDay && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={() => setShowDayModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 20 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-gray-900 border border-brand-gold/30 rounded-3xl p-6 sm:p-8 max-w-lg w-full max-h-[80vh] flex flex-col"
+              >
+                <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-800">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white tracking-tight">
+                      {format(selectedDay, "d 'de' MMMM, yyyy", { locale: es })}
+                    </h2>
+                    <p className="text-brand-gold font-medium mt-1">
+                      {selectedDayEvents.length}{" "}
+                      {selectedDayEvents.length === 1
+                        ? "evento programado"
+                        : "eventos programados"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowDayModal(false)}
+                    className="p-2.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-full transition-colors self-start"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="overflow-y-auto pr-2 space-y-4 flex-1 custom-scrollbar">
+                  {selectedDayEvents.map((ev) => (
+                    <div
+                      key={ev.id}
+                      className={`${ev.isShared ? "bg-blue-900/10 border-blue-500/20" : "bg-brand-black border-gray-800"} border p-5 rounded-2xl flex flex-col`}
+                    >
+                      <div className="flex justify-between items-start mb-3 gap-4">
+                        <h3 className="font-bold text-lg text-white leading-tight">
+                          {ev.title}
+                        </h3>
+                        {ev.isShared && (
+                          <span className="text-[10px] px-2.5 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full flex items-center gap-1.5 whitespace-nowrap">
+                            <Users className="w-3 h-3 shrink-0" />
+                            {ev.group_name} ({ev.members_count})
+                          </span>
+                        )}
+                      </div>
+
+                      {ev.description && (
+                        <p className="text-gray-400 text-sm mb-4 leading-relaxed">
+                          {ev.description}
+                        </p>
+                      )}
+
+                      <div className="flex items-center text-sm font-semibold text-brand-black gap-2 mt-auto">
+                        <div
+                          className={`px-3 py-1.5 rounded-lg flex items-center gap-2 ${ev.isShared ? "bg-blue-400 text-blue-950" : "bg-brand-gold"}`}
+                        >
+                          <Clock className="w-4 h-4" />
+                          {new Date(ev.start_time).toLocaleTimeString("es-ES", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                          {" - "}
+                          {new Date(ev.end_time).toLocaleTimeString("es-ES", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
       <AnimatePresence>
         {showCreateSharedModal && (
           <motion.div
