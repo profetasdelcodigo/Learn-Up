@@ -88,10 +88,19 @@ function LoginForm() {
                 },
               });
 
-            if (signUpError) throw signUpError;
+            if (signUpError) {
+              if (
+                signUpError.message === "User already registered" ||
+                signUpError.message.includes("already registered")
+              ) {
+                // If the user already exists, it means the signIn failed because of a WRONG PASSWORD.
+                throw new Error("Correo o contraseña incorrectos.");
+              }
+              throw signUpError;
+            }
 
             if (signUpData?.user && signUpData.user.identities?.length === 0) {
-              // User actually exists, so it was truly a wrong password
+              // Sometimes it doesn't throw but returns empty identities
               throw new Error("Correo o contraseña incorrectos.");
             }
 
