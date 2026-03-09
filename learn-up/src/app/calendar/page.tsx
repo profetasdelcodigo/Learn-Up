@@ -37,6 +37,10 @@ import { es } from "date-fns/locale";
 import BackButton from "@/components/BackButton";
 import SharedCalendarDetail from "@/components/SharedCalendarDetail";
 import { createSharedCalendar } from "@/actions/shared-calendars";
+import {
+  StaggerContainer,
+  FadeUpItem,
+} from "@/components/animations/StaggerReveal";
 
 interface CalendarEvent {
   id: string;
@@ -553,405 +557,424 @@ export default function CalendarPage() {
   return (
     <div className="w-full min-h-screen bg-brand-black">
       <div className="w-full max-w-none">
-        <BackButton className="mb-6" />
+        <StaggerContainer delayOffset={0.1}>
+          <FadeUpItem>
+            <BackButton className="mb-6" />
 
-        {/* Header */}
-        <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <div className="w-12 h-12 rounded-full bg-brand-gold/10 border border-brand-gold flex items-center justify-center">
-                <CalendarIcon className="w-6 h-6 text-brand-gold" />
-              </div>
+            {/* Header */}
+            <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
-                <h1 className="text-3xl font-black text-white">
-                  Hora de Actuar
-                </h1>
-                <p className="text-gray-400 text-sm">
-                  Organiza tu tiempo y planifica tus actividades
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-2 p-1 bg-gray-900 rounded-2xl mb-8 w-fit">
-          <button
-            onClick={() => setActiveTab("personal")}
-            className={`px-6 py-2.5 rounded-xl font-semibold text-sm transition-all ${activeTab === "personal" ? "bg-brand-gold text-brand-black shadow-lg" : "text-gray-400 hover:text-white"}`}
-          >
-            <CalendarIcon className="w-4 h-4 inline mr-2" />
-            Calendario Personal
-          </button>
-          <button
-            onClick={() => setActiveTab("shared")}
-            className={`px-6 py-2.5 rounded-xl font-semibold text-sm transition-all ${activeTab === "shared" ? "bg-brand-gold text-brand-black shadow-lg" : "text-gray-400 hover:text-white"}`}
-          >
-            <Users className="w-4 h-4 inline mr-2" />
-            Calendarios Compartidos
-          </button>
-        </div>
-
-        {activeTab === "personal" && (
-          <div className="space-y-8">
-            {/* Calendar */}
-            <div className="bg-gray-900/80 backdrop-blur-xl border border-brand-gold/30 rounded-3xl p-6">
-              <div className="flex items-center justify-between mb-6">
-                <button
-                  onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-                  className="p-2 rounded-full border border-gray-700 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <div className="flex items-center gap-3">
-                  <h2
-                    onClick={() => {
-                      setPickerDate({
-                        year: currentMonth.getFullYear(),
-                        month: currentMonth.getMonth(),
-                        day: currentMonth.getDate(),
-                      });
-                      setShowDatePicker(true);
-                    }}
-                    className="text-2xl font-bold text-white capitalize cursor-pointer hover:text-brand-gold transition-colors"
-                  >
-                    {format(currentMonth, "MMMM yyyy", { locale: es })}
-                  </h2>
-                  <button
-                    onClick={() => setCurrentMonth(new Date())}
-                    className="px-3 py-1 text-xs bg-brand-gold/10 text-brand-gold border border-brand-gold/30 rounded-full hover:bg-brand-gold hover:text-brand-black transition-all"
-                  >
-                    Hoy
-                  </button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={printCalendar}
-                    className="p-2 rounded-full border border-gray-700 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
-                    title="Imprimir calendario"
-                  >
-                    <Printer className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setShowModal(true)}
-                    className="px-4 py-2 bg-brand-gold text-brand-black font-semibold rounded-full hover:bg-brand-gold/90 transition-all flex items-center gap-2 text-sm"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Nuevo Evento
-                  </button>
-                  <button
-                    onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-                    className="p-2 rounded-full border border-gray-700 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
-                  >
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Day Headers */}
-              <div className="grid grid-cols-7 gap-1 mb-2">
-                {["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"].map(
-                  (day) => (
-                    <div
-                      key={day}
-                      className="text-center text-xs font-bold text-brand-gold py-2 uppercase tracking-wide"
-                    >
-                      {day}
-                    </div>
-                  ),
-                )}
-              </div>
-
-              {/* Calendar Grid */}
-              <div className="grid grid-cols-7 gap-1">
-                {Array.from({ length: monthStart.getDay() }).map((_, i) => (
-                  <div key={`empty-${i}`} className="aspect-square" />
-                ))}
-                {daysInMonth.map((day) => {
-                  const dayEvents = getEventsForDay(day);
-                  const isDayToday = isToday(day);
-                  const isSelected = selectedDay && isSameDay(selectedDay, day);
-                  return (
-                    <div
-                      key={day.toISOString()}
-                      onClick={() => handleDayClick(day)}
-                      className={`aspect-square border rounded-xl p-1 transition-all cursor-pointer ${
-                        isDayToday
-                          ? "bg-brand-gold/20 border-brand-gold"
-                          : isSelected
-                            ? "bg-brand-gold/10 border-brand-gold/60"
-                            : "bg-brand-black/40 border-gray-800 hover:border-brand-gold/40"
-                      }`}
-                    >
-                      <div
-                        className={`text-xs font-bold mb-1 ${isDayToday ? "text-brand-gold" : "text-gray-300"}`}
-                      >
-                        {format(day, "d")}
-                      </div>
-                      <div className="space-y-0.5">
-                        {dayEvents.slice(0, 2).map((event: any) => (
-                          <div
-                            key={event.id}
-                            className={`text-[9px] px-1 rounded truncate font-medium ${
-                              event.isShared
-                                ? "bg-blue-600/30 text-blue-400 border border-blue-500/20"
-                                : "bg-brand-gold text-brand-black"
-                            }`}
-                          >
-                            {event.isShared && "👥 "}
-                            {event.title}
-                          </div>
-                        ))}
-                        {dayEvents.length > 2 && (
-                          <div className="text-[9px] text-gray-500">
-                            +{dayEvents.length - 2} más
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* ── Habit Tracker ──────────────────────────────────────────────── */}
-            <div className="bg-gray-900/80 backdrop-blur-xl border border-brand-blue-glow/30 rounded-3xl p-6">
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-brand-blue-glow/10 border border-brand-blue-glow/30 flex items-center justify-center">
-                    <Target className="w-5 h-5 text-brand-blue-glow" />
+                <div className="flex items-center gap-3 mb-1">
+                  <div className="w-12 h-12 rounded-full bg-brand-gold/10 border border-brand-gold flex items-center justify-center">
+                    <CalendarIcon className="w-6 h-6 text-brand-gold" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-white">
-                      Habit Tracker
-                    </h2>
+                    <h1 className="text-3xl font-black text-white">
+                      Hora de Actuar
+                    </h1>
                     <p className="text-gray-400 text-sm">
-                      Semana del{" "}
-                      {format(startOfWeek(currentHabitWeek), "d MMM", {
-                        locale: es,
-                      })}{" "}
-                      al{" "}
-                      {format(endOfWeek(currentHabitWeek), "d MMM yyyy", {
-                        locale: es,
-                      })}
+                      Organiza tu tiempo y planifica tus actividades
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() =>
-                      setCurrentHabitWeek(subWeeks(currentHabitWeek, 1))
-                    }
-                    className="p-2 rounded-full border border-gray-700 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setCurrentHabitWeek(new Date())}
-                    className="px-3 py-1 text-xs bg-brand-blue-glow/10 text-brand-blue-glow border border-brand-blue-glow/30 rounded-full hover:bg-brand-blue-glow hover:text-white transition-all"
-                  >
-                    Esta semana
-                  </button>
-                  <button
-                    onClick={() =>
-                      setCurrentHabitWeek(addWeeks(currentHabitWeek, 1))
-                    }
-                    className="p-2 rounded-full border border-gray-700 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={printHabits}
-                    className="p-2 rounded-full border border-gray-700 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
-                    title="Imprimir Habit Tracker"
-                  >
-                    <Printer className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={clearHabits}
-                    className="p-2 rounded-full border border-red-500/30 text-red-400 hover:border-red-500 hover:bg-red-500/10 transition-all"
-                    title="Borrar todos los hábitos"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
               </div>
-
-              {/* Add habit */}
-              <div className="flex gap-2 mb-5">
-                <input
-                  type="text"
-                  value={newHabitName}
-                  onChange={(e) => setNewHabitName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && addHabit()}
-                  placeholder="Nueva actividad/hábito (Enter para agregar)"
-                  className="flex-1 px-4 py-2.5 bg-black/40 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue-glow transition-colors text-sm"
-                />
-                <button
-                  onClick={addHabit}
-                  className="px-4 py-2.5 bg-brand-blue-glow text-white font-semibold rounded-xl hover:bg-brand-blue-glow transition-all flex items-center gap-2 text-sm"
-                >
-                  <Plus className="w-4 h-4" /> Agregar
-                </button>
-              </div>
-
-              {habits.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <Target className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                  <p className="text-sm">
-                    Agrega actividades para hacer seguimiento esta semana
-                  </p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[500px]">
-                    <thead>
-                      <tr>
-                        <th className="text-left py-2 px-3 text-gray-400 text-xs font-bold uppercase tracking-wide w-1/3">
-                          Actividad
-                        </th>
-                        {DAY_KEYS.map((d) => (
-                          <th
-                            key={d}
-                            className="py-2 px-2 text-gray-400 text-xs font-bold uppercase tracking-wide text-center"
-                          >
-                            {d}
-                          </th>
-                        ))}
-                        <th className="w-8" />
-                      </tr>
-                    </thead>
-                    <tbody className="space-y-1">
-                      {habits.map((habit) => {
-                        const completed = DAY_KEYS.filter(
-                          (d) => habit.days[d],
-                        ).length;
-                        return (
-                          <tr
-                            key={habit.id}
-                            className="border-t border-gray-800/50 hover:bg-white/2 transition-colors"
-                          >
-                            <td className="py-3 px-3">
-                              <span className="text-white text-sm font-medium flex items-center gap-1.5">
-                                {habit.isShared && (
-                                  <span title={`Grupo: ${habit.group_name}`}>
-                                    <Users className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                                  </span>
-                                )}
-                                {habit.name}
-                              </span>
-                              <span className="ml-[22px] text-xs text-gray-500">
-                                {completed}/{DAY_KEYS.length}
-                              </span>
-                            </td>
-                            {DAY_KEYS.map((dayKey) => (
-                              <td
-                                key={dayKey}
-                                className="py-3 px-2 text-center"
-                              >
-                                <button
-                                  onClick={() =>
-                                    toggleHabitDay(habit.id, dayKey)
-                                  }
-                                  className={`w-7 h-7 rounded-full border-2 flex items-center justify-center mx-auto transition-all ${
-                                    habit.days[dayKey]
-                                      ? "bg-brand-blue-glow border-brand-blue-glow text-white"
-                                      : "border-gray-600 text-transparent hover:border-brand-blue-glow"
-                                  }`}
-                                >
-                                  {habit.days[dayKey] ? (
-                                    <CheckCircle2 className="w-4 h-4" />
-                                  ) : (
-                                    <Circle className="w-4 h-4 text-gray-600" />
-                                  )}
-                                </button>
-                              </td>
-                            ))}
-                            <td className="py-3 pr-2">
-                              <button
-                                onClick={() => deleteHabit(habit.id)}
-                                className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-400/10 transition-all"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
             </div>
-          </div>
-        )}
+          </FadeUpItem>
 
-        {activeTab === "shared" && (
-          <div className="space-y-6">
-            {selectedSharedCalendar ? (
-              <SharedCalendarDetail
-                calendar={selectedSharedCalendar}
-                currentUserId={currentUserId!}
-                onBack={() => {
-                  setSelectedSharedCalendar(null);
-                  loadEvents();
-                }}
-              />
-            ) : (
-              <div className="bg-gray-900/80 backdrop-blur-xl border border-brand-gold/30 rounded-3xl p-8">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                  <div>
-                    <h2 className="text-2xl font-bold text-white">
-                      Tus Calendarios Compartidos
-                    </h2>
-                    <p className="text-gray-400">
-                      Gestiona eventos, hábitos y comunícate.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setShowCreateSharedModal(true)}
-                    className="px-6 py-3 bg-brand-gold text-brand-black font-bold rounded-full hover:bg-white transition-all flex items-center gap-2"
-                  >
-                    <Plus className="w-5 h-5" /> Nuevo Grupo
-                  </button>
-                </div>
-                {sharedCalendars.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Users className="w-16 h-16 text-gray-700 mx-auto mb-4" />
-                    <h3 className="text-xl font-bold text-gray-300">
-                      Sin calendarios grupales
-                    </h3>
-                    <p className="text-gray-500">
-                      Crea un calendario para empezar a compartir eventos.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {sharedCalendars.map((c) => (
-                      <div
-                        key={c.id}
-                        onClick={() => setSelectedSharedCalendar(c)}
-                        className="bg-black/40 border border-gray-800 p-6 rounded-2xl hover:border-brand-gold/50 cursor-pointer transition-all flex items-start gap-4"
+          <FadeUpItem>
+            {/* Tabs */}
+            <div className="flex gap-2 p-1 bg-gray-900 rounded-2xl mb-8 w-fit">
+              <button
+                onClick={() => setActiveTab("personal")}
+                className={`px-6 py-2.5 rounded-xl font-semibold text-sm transition-all ${activeTab === "personal" ? "bg-brand-gold text-brand-black shadow-lg" : "text-gray-400 hover:text-white"}`}
+              >
+                <CalendarIcon className="w-4 h-4 inline mr-2" />
+                Calendario Personal
+              </button>
+              <button
+                onClick={() => setActiveTab("shared")}
+                className={`px-6 py-2.5 rounded-xl font-semibold text-sm transition-all ${activeTab === "shared" ? "bg-brand-gold text-brand-black shadow-lg" : "text-gray-400 hover:text-white"}`}
+              >
+                <Users className="w-4 h-4 inline mr-2" />
+                Calendarios Compartidos
+              </button>
+            </div>
+          </FadeUpItem>
+
+          {activeTab === "personal" && (
+            <div className="space-y-8">
+              {/* Calendar */}
+              <FadeUpItem>
+                <div className="bg-gray-900/80 backdrop-blur-xl border border-brand-gold/30 rounded-3xl p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <button
+                      onClick={() =>
+                        setCurrentMonth(subMonths(currentMonth, 1))
+                      }
+                      className="p-2 rounded-full border border-gray-700 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <div className="flex items-center gap-3">
+                      <h2
+                        onClick={() => {
+                          setPickerDate({
+                            year: currentMonth.getFullYear(),
+                            month: currentMonth.getMonth(),
+                            day: currentMonth.getDate(),
+                          });
+                          setShowDatePicker(true);
+                        }}
+                        className="text-2xl font-bold text-white capitalize cursor-pointer hover:text-brand-gold transition-colors"
                       >
-                        <div className="p-3 bg-brand-gold/10 rounded-full min-w-[48px] flex justify-center">
-                          <Users className="w-6 h-6 text-brand-gold" />
+                        {format(currentMonth, "MMMM yyyy", { locale: es })}
+                      </h2>
+                      <button
+                        onClick={() => setCurrentMonth(new Date())}
+                        className="px-3 py-1 text-xs bg-brand-gold/10 text-brand-gold border border-brand-gold/30 rounded-full hover:bg-brand-gold hover:text-brand-black transition-all"
+                      >
+                        Hoy
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={printCalendar}
+                        className="p-2 rounded-full border border-gray-700 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
+                        title="Imprimir calendario"
+                      >
+                        <Printer className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setShowModal(true)}
+                        className="px-4 py-2 bg-brand-gold text-brand-black font-semibold rounded-full hover:bg-brand-gold/90 transition-all flex items-center gap-2 text-sm"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Nuevo Evento
+                      </button>
+                      <button
+                        onClick={() =>
+                          setCurrentMonth(addMonths(currentMonth, 1))
+                        }
+                        className="p-2 rounded-full border border-gray-700 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
+                      >
+                        <ChevronRight className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Day Headers */}
+                  <div className="grid grid-cols-7 gap-1 mb-2">
+                    {["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"].map(
+                      (day) => (
+                        <div
+                          key={day}
+                          className="text-center text-xs font-bold text-brand-gold py-2 uppercase tracking-wide"
+                        >
+                          {day}
                         </div>
-                        <div>
-                          <h3 className="font-bold text-white text-lg">
-                            {c.name}
-                          </h3>
-                          <p className="text-sm text-gray-400">
-                            {c.members.length} Miembros
-                          </p>
-                        </div>
-                      </div>
+                      ),
+                    )}
+                  </div>
+
+                  {/* Calendar Grid */}
+                  <div className="grid grid-cols-7 gap-1">
+                    {Array.from({ length: monthStart.getDay() }).map((_, i) => (
+                      <div key={`empty-${i}`} className="aspect-square" />
                     ))}
+                    {daysInMonth.map((day) => {
+                      const dayEvents = getEventsForDay(day);
+                      const isDayToday = isToday(day);
+                      const isSelected =
+                        selectedDay && isSameDay(selectedDay, day);
+                      return (
+                        <div
+                          key={day.toISOString()}
+                          onClick={() => handleDayClick(day)}
+                          className={`aspect-square border rounded-xl p-1 transition-all cursor-pointer ${
+                            isDayToday
+                              ? "bg-brand-gold/20 border-brand-gold"
+                              : isSelected
+                                ? "bg-brand-gold/10 border-brand-gold/60"
+                                : "bg-brand-black/40 border-gray-800 hover:border-brand-gold/40"
+                          }`}
+                        >
+                          <div
+                            className={`text-xs font-bold mb-1 ${isDayToday ? "text-brand-gold" : "text-gray-300"}`}
+                          >
+                            {format(day, "d")}
+                          </div>
+                          <div className="space-y-0.5">
+                            {dayEvents.slice(0, 2).map((event: any) => (
+                              <div
+                                key={event.id}
+                                className={`text-[9px] px-1 rounded truncate font-medium ${
+                                  event.isShared
+                                    ? "bg-blue-600/30 text-blue-400 border border-blue-500/20"
+                                    : "bg-brand-gold text-brand-black"
+                                }`}
+                              >
+                                {event.isShared && "👥 "}
+                                {event.title}
+                              </div>
+                            ))}
+                            {dayEvents.length > 2 && (
+                              <div className="text-[9px] text-gray-500">
+                                +{dayEvents.length - 2} más
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </FadeUpItem>
+
+              {/* ── Habit Tracker ──────────────────────────────────────────────── */}
+              <FadeUpItem>
+                <div className="bg-gray-900/80 backdrop-blur-xl border border-brand-blue-glow/30 rounded-3xl p-6">
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-brand-blue-glow/10 border border-brand-blue-glow/30 flex items-center justify-center">
+                        <Target className="w-5 h-5 text-brand-blue-glow" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-white">
+                          Habit Tracker
+                        </h2>
+                        <p className="text-gray-400 text-sm">
+                          Semana del{" "}
+                          {format(startOfWeek(currentHabitWeek), "d MMM", {
+                            locale: es,
+                          })}{" "}
+                          al{" "}
+                          {format(endOfWeek(currentHabitWeek), "d MMM yyyy", {
+                            locale: es,
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() =>
+                          setCurrentHabitWeek(subWeeks(currentHabitWeek, 1))
+                        }
+                        className="p-2 rounded-full border border-gray-700 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setCurrentHabitWeek(new Date())}
+                        className="px-3 py-1 text-xs bg-brand-blue-glow/10 text-brand-blue-glow border border-brand-blue-glow/30 rounded-full hover:bg-brand-blue-glow hover:text-white transition-all"
+                      >
+                        Esta semana
+                      </button>
+                      <button
+                        onClick={() =>
+                          setCurrentHabitWeek(addWeeks(currentHabitWeek, 1))
+                        }
+                        className="p-2 rounded-full border border-gray-700 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={printHabits}
+                        className="p-2 rounded-full border border-gray-700 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
+                        title="Imprimir Habit Tracker"
+                      >
+                        <Printer className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={clearHabits}
+                        className="p-2 rounded-full border border-red-500/30 text-red-400 hover:border-red-500 hover:bg-red-500/10 transition-all"
+                        title="Borrar todos los hábitos"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Add habit */}
+                  <div className="flex gap-2 mb-5">
+                    <input
+                      type="text"
+                      value={newHabitName}
+                      onChange={(e) => setNewHabitName(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && addHabit()}
+                      placeholder="Nueva actividad/hábito (Enter para agregar)"
+                      className="flex-1 px-4 py-2.5 bg-black/40 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue-glow transition-colors text-sm"
+                    />
+                    <button
+                      onClick={addHabit}
+                      className="px-4 py-2.5 bg-brand-blue-glow text-white font-semibold rounded-xl hover:bg-brand-blue-glow transition-all flex items-center gap-2 text-sm"
+                    >
+                      <Plus className="w-4 h-4" /> Agregar
+                    </button>
+                  </div>
+
+                  {habits.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <Target className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                      <p className="text-sm">
+                        Agrega actividades para hacer seguimiento esta semana
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[500px]">
+                        <thead>
+                          <tr>
+                            <th className="text-left py-2 px-3 text-gray-400 text-xs font-bold uppercase tracking-wide w-1/3">
+                              Actividad
+                            </th>
+                            {DAY_KEYS.map((d) => (
+                              <th
+                                key={d}
+                                className="py-2 px-2 text-gray-400 text-xs font-bold uppercase tracking-wide text-center"
+                              >
+                                {d}
+                              </th>
+                            ))}
+                            <th className="w-8" />
+                          </tr>
+                        </thead>
+                        <tbody className="space-y-1">
+                          {habits.map((habit) => {
+                            const completed = DAY_KEYS.filter(
+                              (d) => habit.days[d],
+                            ).length;
+                            return (
+                              <tr
+                                key={habit.id}
+                                className="border-t border-gray-800/50 hover:bg-white/2 transition-colors"
+                              >
+                                <td className="py-3 px-3">
+                                  <span className="text-white text-sm font-medium flex items-center gap-1.5">
+                                    {habit.isShared && (
+                                      <span
+                                        title={`Grupo: ${habit.group_name}`}
+                                      >
+                                        <Users className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                                      </span>
+                                    )}
+                                    {habit.name}
+                                  </span>
+                                  <span className="ml-[22px] text-xs text-gray-500">
+                                    {completed}/{DAY_KEYS.length}
+                                  </span>
+                                </td>
+                                {DAY_KEYS.map((dayKey) => (
+                                  <td
+                                    key={dayKey}
+                                    className="py-3 px-2 text-center"
+                                  >
+                                    <button
+                                      onClick={() =>
+                                        toggleHabitDay(habit.id, dayKey)
+                                      }
+                                      className={`w-7 h-7 rounded-full border-2 flex items-center justify-center mx-auto transition-all ${
+                                        habit.days[dayKey]
+                                          ? "bg-brand-blue-glow border-brand-blue-glow text-white"
+                                          : "border-gray-600 text-transparent hover:border-brand-blue-glow"
+                                      }`}
+                                    >
+                                      {habit.days[dayKey] ? (
+                                        <CheckCircle2 className="w-4 h-4" />
+                                      ) : (
+                                        <Circle className="w-4 h-4 text-gray-600" />
+                                      )}
+                                    </button>
+                                  </td>
+                                ))}
+                                <td className="py-3 pr-2">
+                                  <button
+                                    onClick={() => deleteHabit(habit.id)}
+                                    className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-400/10 transition-all"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </FadeUpItem>
+            </div>
+          )}
+
+          {activeTab === "shared" && (
+            <div className="space-y-6">
+              <FadeUpItem>
+                {selectedSharedCalendar ? (
+                  <SharedCalendarDetail
+                    calendar={selectedSharedCalendar}
+                    currentUserId={currentUserId!}
+                    onBack={() => {
+                      setSelectedSharedCalendar(null);
+                      loadEvents();
+                    }}
+                  />
+                ) : (
+                  <div className="bg-gray-900/80 backdrop-blur-xl border border-brand-gold/30 rounded-3xl p-8">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                      <div>
+                        <h2 className="text-2xl font-bold text-white">
+                          Tus Calendarios Compartidos
+                        </h2>
+                        <p className="text-gray-400">
+                          Gestiona eventos, hábitos y comunícate.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setShowCreateSharedModal(true)}
+                        className="px-6 py-3 bg-brand-gold text-brand-black font-bold rounded-full hover:bg-white transition-all flex items-center gap-2"
+                      >
+                        <Plus className="w-5 h-5" /> Nuevo Grupo
+                      </button>
+                    </div>
+                    {sharedCalendars.length === 0 ? (
+                      <div className="text-center py-12">
+                        <Users className="w-16 h-16 text-gray-700 mx-auto mb-4" />
+                        <h3 className="text-xl font-bold text-gray-300">
+                          Sin calendarios grupales
+                        </h3>
+                        <p className="text-gray-500">
+                          Crea un calendario para empezar a compartir eventos.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {sharedCalendars.map((c) => (
+                          <div
+                            key={c.id}
+                            onClick={() => setSelectedSharedCalendar(c)}
+                            className="bg-black/40 border border-gray-800 p-6 rounded-2xl hover:border-brand-gold/50 cursor-pointer transition-all flex items-start gap-4"
+                          >
+                            <div className="p-3 bg-brand-gold/10 rounded-full min-w-[48px] flex justify-center">
+                              <Users className="w-6 h-6 text-brand-gold" />
+                            </div>
+                            <div>
+                              <h3 className="font-bold text-white text-lg">
+                                {c.name}
+                              </h3>
+                              <p className="text-sm text-gray-400">
+                                {c.members.length} Miembros
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
-            )}
-          </div>
-        )}
+              </FadeUpItem>
+            </div>
+          )}
+        </StaggerContainer>
 
         {/* Date Picker Modal */}
         <AnimatePresence>

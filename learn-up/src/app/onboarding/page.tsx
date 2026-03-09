@@ -13,6 +13,10 @@ import {
   CheckCircle,
   Sparkles,
 } from "lucide-react";
+import {
+  StaggerContainer,
+  FadeUpItem,
+} from "@/components/animations/StaggerReveal";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -259,206 +263,224 @@ export default function OnboardingPage() {
             {/* Form */}
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Username Field - NEW */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Nombre de Usuario (@){" "}
-                  <span className="text-brand-gold">*</span>
-                </label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
-                    @
-                  </span>
-                  <input
-                    type="text"
-                    value={formData.username}
-                    onChange={async (e) => {
-                      const val = e.target.value
-                        .toLowerCase()
-                        .replace(/[^a-z0-9_]/g, "");
-                      setFormData({ ...formData, username: val });
-                      setUsernameError("");
+              <StaggerContainer delayOffset={0.3}>
+                {/* Username Field - NEW */}
+                <FadeUpItem>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Nombre de Usuario (@){" "}
+                      <span className="text-brand-gold">*</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
+                        @
+                      </span>
+                      <input
+                        type="text"
+                        value={formData.username}
+                        onChange={async (e) => {
+                          const val = e.target.value
+                            .toLowerCase()
+                            .replace(/[^a-z0-9_]/g, "");
+                          setFormData({ ...formData, username: val });
+                          setUsernameError("");
 
-                      if (val.length < 3) return;
+                          if (val.length < 3) return;
 
-                      setIsCheckingUsername(true);
-                      const { data } = await supabase.rpc(
-                        "check_username_availability",
-                        { username_check: val },
-                      );
-                      // Also check if it's OUR username (if editing existing profile)
-                      const isSelf = user?.user_metadata?.username === val;
+                          setIsCheckingUsername(true);
+                          const { data } = await supabase.rpc(
+                            "check_username_availability",
+                            { username_check: val },
+                          );
+                          // Also check if it's OUR username (if editing existing profile)
+                          const isSelf = user?.user_metadata?.username === val;
 
-                      if (!data && !isSelf) {
-                        // data is true if available? RPC returns boolean.
-                        // RPC: RETURN NOT EXISTS ...
-                        // So if it returns true, it IS available.
-                        // BUT wait, if user already has this username, check_username_availability will return FALSE.
-                        // We need to handle re-saving own username.
-                        // Ideally, we check if the found profile ID is ours.
-                        // Simple fix: If RPC says unavailable, verify if it belongs to current user?
-                        // RPC implementation: SELECT 1 FROM profiles WHERE username = username_check
-                        // I should probably stick to simple check. If unavailable, error.
-                        // BUT if I am reloading the page, I load my own username.
-                        // So I should only check validation if it Changed? Or rely on upsert?
-                        // Let's assume on mount satisfied "profile complete" check.
-                        // If we are here, we are saving.
-                        // I'll trust the RPC for new inputs.
-                        // If prefilled, user might not change it.
-                        // Let's rely on RPC.
-                      }
-                      if (!data) {
-                        // Unavailable
-                        // Double check if it's ours?
-                        // Client side check:
-                        // We can't easily check owner without another query.
-                        // Assume if unavailable, it's taken.
-                        // Exception: If we just loaded our own profile.
-                        if (user?.user_metadata?.username !== val) {
-                          setUsernameError("Nombre de usuario no disponible");
+                          if (!data && !isSelf) {
+                            // data is true if available? RPC returns boolean.
+                            // RPC: RETURN NOT EXISTS ...
+                            // So if it returns true, it IS available.
+                            // BUT wait, if user already has this username, check_username_availability will return FALSE.
+                            // We need to handle re-saving own username.
+                            // Ideally, we check if the found profile ID is ours.
+                            // Simple fix: If RPC says unavailable, verify if it belongs to current user?
+                            // RPC implementation: SELECT 1 FROM profiles WHERE username = username_check
+                            // I should probably stick to simple check. If unavailable, error.
+                            // BUT if I am reloading the page, I load my own username.
+                            // So I should only check validation if it Changed? Or rely on upsert?
+                            // Let's assume on mount satisfied "profile complete" check.
+                            // If we are here, we are saving.
+                            // I'll trust the RPC for new inputs.
+                            // If prefilled, user might not change it.
+                            // Let's rely on RPC.
+                          }
+                          if (!data) {
+                            // Unavailable
+                            // Double check if it's ours?
+                            // Client side check:
+                            // We can't easily check owner without another query.
+                            // Assume if unavailable, it's taken.
+                            // Exception: If we just loaded our own profile.
+                            if (user?.user_metadata?.username !== val) {
+                              setUsernameError(
+                                "Nombre de usuario no disponible",
+                              );
+                            }
+                          }
+                          setIsCheckingUsername(false);
+                        }}
+                        className={`w-full pl-10 pr-4 py-3 bg-brand-black border rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors ${usernameError ? "border-red-500" : "border-gray-700"}`}
+                        placeholder="usuario_unico"
+                      />
+                      {isCheckingUsername && (
+                        <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-500" />
+                      )}
+                    </div>
+                    {usernameError && (
+                      <p className="text-red-500 text-xs mt-1 ml-4">
+                        {usernameError}
+                      </p>
+                    )}
+                  </div>
+                </FadeUpItem>
+
+                {/* Full Name */}
+                <FadeUpItem>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Nombre Completo (Opcional)
+                    </label>
+                    <div className="relative">
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                      <input
+                        type="text"
+                        value={formData.full_name}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            full_name: e.target.value,
+                          })
                         }
+                        className="w-full pl-12 pr-4 py-3 bg-brand-black border border-gray-700 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
+                        placeholder="Juan Pérez"
+                      />
+                    </div>
+                  </div>
+                </FadeUpItem>
+
+                {/* Role */}
+                <FadeUpItem>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Rol <span className="text-brand-gold">*</span>
+                    </label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData({ ...formData, role: "docente" })
+                        }
+                        className={`p-4 rounded-2xl border-2 transition-all ${
+                          formData.role === "docente"
+                            ? "border-brand-gold bg-brand-gold/10 text-white"
+                            : "border-gray-700 bg-brand-black text-gray-400 hover:border-gray-600"
+                        }`}
+                      >
+                        <GraduationCap className="w-8 h-8 mx-auto mb-2" />
+                        <span className="font-medium">Docente</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData({ ...formData, role: "estudiante" })
+                        }
+                        className={`p-4 rounded-2xl border-2 transition-all ${
+                          formData.role === "estudiante"
+                            ? "border-brand-gold bg-brand-gold/10 text-white"
+                            : "border-gray-700 bg-brand-black text-gray-400 hover:border-gray-600"
+                        }`}
+                      >
+                        <Users className="w-8 h-8 mx-auto mb-2" />
+                        <span className="font-medium">Estudiante</span>
+                      </button>
+                    </div>
+                  </div>
+                </FadeUpItem>
+
+                {/* School */}
+                <FadeUpItem>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Colegio <span className="text-brand-gold">*</span>
+                    </label>
+                    <div className="relative">
+                      <School className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                      <input
+                        type="text"
+                        value={formData.school}
+                        onChange={(e) =>
+                          setFormData({ ...formData, school: e.target.value })
+                        }
+                        required
+                        className="w-full pl-12 pr-4 py-3 bg-brand-black border border-gray-700 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
+                        placeholder="Nombre del colegio"
+                      />
+                    </div>
+                  </div>
+                </FadeUpItem>
+
+                {/* Grade & Section */}
+                <FadeUpItem className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Grado <span className="text-brand-gold">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.grade}
+                      onChange={(e) =>
+                        setFormData({ ...formData, grade: e.target.value })
                       }
-                      setIsCheckingUsername(false);
-                    }}
-                    className={`w-full pl-10 pr-4 py-3 bg-brand-black border rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors ${usernameError ? "border-red-500" : "border-gray-700"}`}
-                    placeholder="usuario_unico"
-                  />
-                  {isCheckingUsername && (
-                    <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-500" />
-                  )}
-                </div>
-                {usernameError && (
-                  <p className="text-red-500 text-xs mt-1 ml-4">
-                    {usernameError}
-                  </p>
-                )}
-              </div>
-              {/* Full Name */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Nombre Completo (Opcional)
-                </label>
-                <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                  <input
-                    type="text"
-                    value={formData.full_name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, full_name: e.target.value })
-                    }
-                    className="w-full pl-12 pr-4 py-3 bg-brand-black border border-gray-700 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
-                    placeholder="Juan Pérez"
-                  />
-                </div>
-              </div>
+                      required
+                      className="w-full px-4 py-3 bg-brand-black border border-gray-700 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
+                      placeholder="5to, 1ro, etc."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Sección (Opcional)
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.section}
+                      onChange={(e) =>
+                        setFormData({ ...formData, section: e.target.value })
+                      }
+                      className="w-full px-4 py-3 bg-brand-black border border-gray-700 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
+                      placeholder="A, B, C..."
+                    />
+                  </div>
+                </FadeUpItem>
 
-              {/* Role */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Rol <span className="text-brand-gold">*</span>
-                </label>
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData({ ...formData, role: "docente" })
-                    }
-                    className={`p-4 rounded-2xl border-2 transition-all ${
-                      formData.role === "docente"
-                        ? "border-brand-gold bg-brand-gold/10 text-white"
-                        : "border-gray-700 bg-brand-black text-gray-400 hover:border-gray-600"
-                    }`}
+                {/* Submit button */}
+                <FadeUpItem>
+                  <motion.button
+                    type="submit"
+                    disabled={loading}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-brand-gold text-brand-black font-bold rounded-full hover:bg-brand-gold/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-8"
                   >
-                    <GraduationCap className="w-8 h-8 mx-auto mb-2" />
-                    <span className="font-medium">Docente</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData({ ...formData, role: "estudiante" })
-                    }
-                    className={`p-4 rounded-2xl border-2 transition-all ${
-                      formData.role === "estudiante"
-                        ? "border-brand-gold bg-brand-gold/10 text-white"
-                        : "border-gray-700 bg-brand-black text-gray-400 hover:border-gray-600"
-                    }`}
-                  >
-                    <Users className="w-8 h-8 mx-auto mb-2" />
-                    <span className="font-medium">Estudiante</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* School */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Colegio <span className="text-brand-gold">*</span>
-                </label>
-                <div className="relative">
-                  <School className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                  <input
-                    type="text"
-                    value={formData.school}
-                    onChange={(e) =>
-                      setFormData({ ...formData, school: e.target.value })
-                    }
-                    required
-                    className="w-full pl-12 pr-4 py-3 bg-brand-black border border-gray-700 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
-                    placeholder="Nombre del colegio"
-                  />
-                </div>
-              </div>
-
-              {/* Grade & Section */}
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Grado <span className="text-brand-gold">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.grade}
-                    onChange={(e) =>
-                      setFormData({ ...formData, grade: e.target.value })
-                    }
-                    required
-                    className="w-full px-4 py-3 bg-brand-black border border-gray-700 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
-                    placeholder="5to, 1ro, etc."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Sección (Opcional)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.section}
-                    onChange={(e) =>
-                      setFormData({ ...formData, section: e.target.value })
-                    }
-                    className="w-full px-4 py-3 bg-brand-black border border-gray-700 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
-                    placeholder="A, B, C..."
-                  />
-                </div>
-              </div>
-
-              {/* Submit button */}
-              <motion.button
-                type="submit"
-                disabled={loading}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-brand-gold text-brand-black font-bold rounded-full hover:bg-brand-gold/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-8"
-              >
-                {loading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <>
-                    <CheckCircle className="w-5 h-5" />
-                    Completar Perfil
-                  </>
-                )}
-              </motion.button>
+                    {loading ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <>
+                        <CheckCircle className="w-5 h-5" />
+                        Completar Perfil
+                      </>
+                    )}
+                  </motion.button>
+                </FadeUpItem>
+              </StaggerContainer>
             </form>
           </div>
         </motion.div>

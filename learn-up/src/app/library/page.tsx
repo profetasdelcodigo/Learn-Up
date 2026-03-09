@@ -9,6 +9,10 @@ import {
 } from "@/actions/library";
 import { getUserRooms, sendMessage as sendMessageAction } from "@/actions/chat";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  StaggerContainer,
+  FadeUpItem,
+} from "@/components/animations/StaggerReveal";
 import BackButton from "@/components/BackButton";
 import {
   BookOpen,
@@ -344,193 +348,202 @@ export default function LibraryPage() {
   return (
     <div className="w-full min-h-screen bg-brand-black">
       <div className="w-full max-w-none">
-        <BackButton className="mb-6" />
+        <StaggerContainer delayOffset={0.1}>
+          <FadeUpItem>
+            <BackButton className="mb-6" />
 
-        {/* Header */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center">
-              <BookOpen className="w-7 h-7 text-brand-gold" />
+            {/* Header */}
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center">
+                  <BookOpen className="w-7 h-7 text-brand-gold" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-black text-white">
+                    Biblioteca del Sabio
+                  </h1>
+                  <p className="text-gray-400 text-sm">
+                    Comparte y descubre recursos educativos aprobados por
+                    docentes
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowModal(true)}
+                className="px-6 py-3 bg-brand-gold text-brand-black font-bold rounded-full hover:bg-white transition-all flex items-center gap-2"
+              >
+                <Upload className="w-5 h-5" />
+                Subir Aporte
+              </button>
             </div>
-            <div>
-              <h1 className="text-3xl font-black text-white">
-                Biblioteca del Sabio
-              </h1>
-              <p className="text-gray-400 text-sm">
-                Comparte y descubre recursos educativos aprobados por docentes
+          </FadeUpItem>
+
+          {/* Docente Pending Review Panel */}
+          {isDocente && pendingItems.length > 0 && (
+            <FadeUpItem>
+              <div className="mb-8 bg-brand-gold/5 border border-brand-gold/30 rounded-3xl p-6">
+                <h2 className="text-lg font-bold text-brand-gold mb-4 flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5" /> Materiales pendientes de
+                  revisión ({pendingItems.length})
+                </h2>
+                <div className="space-y-3">
+                  {pendingItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between p-4 bg-brand-black/60 rounded-2xl border border-gray-800"
+                    >
+                      <div>
+                        <p className="font-semibold text-white">{item.title}</p>
+                        <p className="text-sm text-gray-400">
+                          Por: {item.profiles?.full_name || "Anónimo"} ·{" "}
+                          {new Date(item.created_at).toLocaleDateString(
+                            "es-ES",
+                          )}
+                        </p>
+                        {item.subject && (
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            Materia: {item.subject}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setReviewItem(item)}
+                          className="px-4 py-2 border border-brand-gold/50 text-brand-gold rounded-full text-sm hover:bg-brand-gold hover:text-black transition-all"
+                        >
+                          Revisar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </FadeUpItem>
+          )}
+
+          {/* Search + Sections */}
+          <FadeUpItem>
+            <div className="mb-6 space-y-4">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Buscar por título, materia o @autor..."
+                  className="w-full pl-12 pr-4 py-3.5 bg-gray-900 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
+                />
+              </div>
+              <div className="flex gap-2">
+                {(["all", "favorites", "recents"] as const).map((section) => (
+                  <button
+                    key={section}
+                    onClick={() => setActiveSection(section)}
+                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-1.5 ${activeSection === section ? "bg-brand-gold text-brand-black" : "bg-gray-900 text-gray-400 hover:text-white border border-gray-800"}`}
+                  >
+                    {section === "all" && <Sparkles className="w-3.5 h-3.5" />}
+                    {section === "favorites" && (
+                      <Star className="w-3.5 h-3.5" />
+                    )}
+                    {section === "recents" && <Clock className="w-3.5 h-3.5" />}
+                    {section === "all"
+                      ? "Todo"
+                      : section === "favorites"
+                        ? "Favoritos"
+                        : "Recientes"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </FadeUpItem>
+
+          {/* Items Grid */}
+          {filteredItems.length === 0 ? (
+            <div className="text-center py-16">
+              <BookOpen className="w-16 h-16 text-gray-700 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-400 mb-2">
+                {activeSection === "favorites"
+                  ? "Aún no tienes favoritos"
+                  : activeSection === "recents"
+                    ? "No has visto nada aún"
+                    : "No hay recursos disponibles"}
+              </h3>
+              <p className="text-gray-500 text-sm">
+                {activeSection === "all"
+                  ? "¡Sé el primero en compartir un recurso educativo!"
+                  : "Explora la biblioteca y añade a favoritos o abre archivos para verlos aquí."}
               </p>
             </div>
-          </div>
-          <button
-            onClick={() => setShowModal(true)}
-            className="px-6 py-3 bg-brand-gold text-brand-black font-bold rounded-full hover:bg-white transition-all flex items-center gap-2"
-          >
-            <Upload className="w-5 h-5" />
-            Subir Aporte
-          </button>
-        </div>
-
-        {/* Docente Pending Review Panel */}
-        {isDocente && pendingItems.length > 0 && (
-          <div className="mb-8 bg-brand-gold/5 border border-brand-gold/30 rounded-3xl p-6">
-            <h2 className="text-lg font-bold text-brand-gold mb-4 flex items-center gap-2">
-              <CheckCircle className="w-5 h-5" /> Materiales pendientes de
-              revisión ({pendingItems.length})
-            </h2>
-            <div className="space-y-3">
-              {pendingItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between p-4 bg-brand-black/60 rounded-2xl border border-gray-800"
-                >
-                  <div>
-                    <p className="font-semibold text-white">{item.title}</p>
-                    <p className="text-sm text-gray-400">
-                      Por: {item.profiles?.full_name || "Anónimo"} ·{" "}
-                      {new Date(item.created_at).toLocaleDateString("es-ES")}
-                    </p>
-                    {item.subject && (
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        Materia: {item.subject}
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredItems.map((item, i) => (
+                <FadeUpItem key={item.id}>
+                  <div className="bg-gray-900/80 border border-gray-800 rounded-2xl p-5 hover:border-brand-gold/40 transition-all group">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="w-12 h-12 rounded-xl bg-brand-gold/10 border border-brand-gold/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                        {FILE_ICON_MAP[item.file_type || "document"] ||
+                          FILE_ICON_MAP.document}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-white truncate">
+                          {item.title}
+                        </h3>
+                        {item.subject && (
+                          <span className="text-xs text-brand-gold bg-brand-gold/10 px-2 py-0.5 rounded-full">
+                            {item.subject}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => toggleFavorite(item.id)}
+                        className={`p-1.5 rounded-lg transition-all ${favorites.includes(item.id) ? "text-yellow-400" : "text-gray-600 hover:text-yellow-400"}`}
+                      >
+                        <Star
+                          className={`w-4 h-4 ${favorites.includes(item.id) ? "fill-current" : ""}`}
+                        />
+                      </button>
+                    </div>
+                    {item.description && (
+                      <p className="text-sm text-gray-400 mb-3 line-clamp-2">
+                        {item.description}
                       </p>
                     )}
+                    <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
+                      <User className="w-3 h-3" />
+                      <span>@{item.profiles?.username || "anónimo"}</span>
+                      <span>·</span>
+                      <span>
+                        {new Date(item.created_at).toLocaleDateString("es-ES")}
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => openItem(item)}
+                        className="flex-1 py-2 bg-brand-gold/10 text-brand-gold border border-brand-gold/30 rounded-xl text-xs font-semibold hover:bg-brand-gold hover:text-black transition-all flex items-center justify-center gap-1"
+                      >
+                        <ChevronRight className="w-3.5 h-3.5" /> Ver
+                      </button>
+                      <button
+                        onClick={() => handleShareClick(item)}
+                        className="p-2 bg-gray-800 text-brand-blue-glow rounded-xl hover:bg-brand-blue-glow hover:text-white transition-all flex items-center justify-center"
+                        title="Compartir en Chat"
+                      >
+                        <Share2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => downloadItem(item)}
+                        className="p-2 bg-gray-800 text-gray-400 rounded-xl hover:bg-gray-700 hover:text-white transition-all flex items-center justify-center"
+                        title="Descargar"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setReviewItem(item)}
-                      className="px-4 py-2 border border-brand-gold/50 text-brand-gold rounded-full text-sm hover:bg-brand-gold hover:text-black transition-all"
-                    >
-                      Revisar
-                    </button>
-                  </div>
-                </div>
+                </FadeUpItem>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* Search + Sections */}
-        <div className="mb-6 space-y-4">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar por título, materia o @autor..."
-              className="w-full pl-12 pr-4 py-3.5 bg-gray-900 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
-            />
-          </div>
-          <div className="flex gap-2">
-            {(["all", "favorites", "recents"] as const).map((section) => (
-              <button
-                key={section}
-                onClick={() => setActiveSection(section)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-1.5 ${activeSection === section ? "bg-brand-gold text-brand-black" : "bg-gray-900 text-gray-400 hover:text-white border border-gray-800"}`}
-              >
-                {section === "all" && <Sparkles className="w-3.5 h-3.5" />}
-                {section === "favorites" && <Star className="w-3.5 h-3.5" />}
-                {section === "recents" && <Clock className="w-3.5 h-3.5" />}
-                {section === "all"
-                  ? "Todo"
-                  : section === "favorites"
-                    ? "Favoritos"
-                    : "Recientes"}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Items Grid */}
-        {filteredItems.length === 0 ? (
-          <div className="text-center py-16">
-            <BookOpen className="w-16 h-16 text-gray-700 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-400 mb-2">
-              {activeSection === "favorites"
-                ? "Aún no tienes favoritos"
-                : activeSection === "recents"
-                  ? "No has visto nada aún"
-                  : "No hay recursos disponibles"}
-            </h3>
-            <p className="text-gray-500 text-sm">
-              {activeSection === "all"
-                ? "¡Sé el primero en compartir un recurso educativo!"
-                : "Explora la biblioteca y añade a favoritos o abre archivos para verlos aquí."}
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredItems.map((item, i) => (
-              <motion.div
-                key={item.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className="bg-gray-900/80 border border-gray-800 rounded-2xl p-5 hover:border-brand-gold/40 transition-all group"
-              >
-                <div className="flex items-start gap-3 mb-3">
-                  <div className="w-12 h-12 rounded-xl bg-brand-gold/10 border border-brand-gold/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                    {FILE_ICON_MAP[item.file_type || "document"] ||
-                      FILE_ICON_MAP.document}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-white truncate">
-                      {item.title}
-                    </h3>
-                    {item.subject && (
-                      <span className="text-xs text-brand-gold bg-brand-gold/10 px-2 py-0.5 rounded-full">
-                        {item.subject}
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => toggleFavorite(item.id)}
-                    className={`p-1.5 rounded-lg transition-all ${favorites.includes(item.id) ? "text-yellow-400" : "text-gray-600 hover:text-yellow-400"}`}
-                  >
-                    <Star
-                      className={`w-4 h-4 ${favorites.includes(item.id) ? "fill-current" : ""}`}
-                    />
-                  </button>
-                </div>
-                {item.description && (
-                  <p className="text-sm text-gray-400 mb-3 line-clamp-2">
-                    {item.description}
-                  </p>
-                )}
-                <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
-                  <User className="w-3 h-3" />
-                  <span>@{item.profiles?.username || "anónimo"}</span>
-                  <span>·</span>
-                  <span>
-                    {new Date(item.created_at).toLocaleDateString("es-ES")}
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => openItem(item)}
-                    className="flex-1 py-2 bg-brand-gold/10 text-brand-gold border border-brand-gold/30 rounded-xl text-xs font-semibold hover:bg-brand-gold hover:text-black transition-all flex items-center justify-center gap-1"
-                  >
-                    <ChevronRight className="w-3.5 h-3.5" /> Ver
-                  </button>
-                  <button
-                    onClick={() => handleShareClick(item)}
-                    className="p-2 bg-gray-800 text-brand-blue-glow rounded-xl hover:bg-brand-blue-glow hover:text-white transition-all flex items-center justify-center"
-                    title="Compartir en Chat"
-                  >
-                    <Share2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => downloadItem(item)}
-                    className="p-2 bg-gray-800 text-gray-400 rounded-xl hover:bg-gray-700 hover:text-white transition-all flex items-center justify-center"
-                    title="Descargar"
-                  >
-                    <Download className="w-4 h-4" />
-                  </button>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
+          )}
+        </StaggerContainer>
 
         {/* Review Modal (Docente) */}
         <AnimatePresence>
