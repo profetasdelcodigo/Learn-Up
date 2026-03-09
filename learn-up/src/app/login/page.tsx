@@ -10,6 +10,7 @@ import {
   StaggerContainer,
   FadeUpItem,
 } from "@/components/animations/StaggerReveal";
+import { Capacitor } from "@capacitor/core";
 
 function LoginForm() {
   const router = useRouter();
@@ -23,6 +24,17 @@ function LoginForm() {
   const [successMsg, setSuccessMsg] = useState("");
 
   const supabase = createClient();
+
+  const getRedirectUrl = (path: string) => {
+    if (typeof window !== "undefined") {
+      if (Capacitor.isNativePlatform()) {
+        // Usa el esquema nativo configurado en capacitor.config.ts para la redirección Deep Link
+        return `com.learnup.app://auth/callback?next=${encodeURIComponent(path)}`;
+      }
+      return `${window.location.origin}/auth/callback?next=${encodeURIComponent(path)}`;
+    }
+    return `https://learn-up-qmgx.onrender.com/auth/callback?next=${encodeURIComponent(path)}`;
+  };
 
   // Pre-fill email if coming from a failed login attempt
   useEffect(() => {
@@ -48,7 +60,7 @@ function LoginForm() {
           password,
           options: {
             data: {},
-            emailRedirectTo: `https://learn-up-qmgx.onrender.com/auth/callback?next=/onboarding`,
+            emailRedirectTo: getRedirectUrl("/onboarding"),
           },
         });
 
@@ -88,7 +100,7 @@ function LoginForm() {
                 password,
                 options: {
                   data: {},
-                  emailRedirectTo: `https://learn-up-qmgx.onrender.com/auth/callback?next=/onboarding`,
+                  emailRedirectTo: getRedirectUrl("/onboarding"),
                 },
               });
 
@@ -161,7 +173,7 @@ function LoginForm() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: "https://learn-up-qmgx.onrender.com/auth/callback",
+          redirectTo: getRedirectUrl("/dashboard"),
         },
       });
       if (error) throw error;
@@ -210,7 +222,7 @@ function LoginForm() {
       </div>
 
       {/* Right Side — Auth Form (scrollable) */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center relative bg-brand-black overflow-y-auto">
+      <div className="w-full lg:w-1/2 flex-1 min-h-dvh lg:min-h-0 flex items-center justify-center relative bg-brand-black overflow-y-auto">
         {/* Mobile background glow */}
         <div className="absolute inset-0 overflow-hidden lg:hidden pointer-events-none">
           <motion.div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-72 h-72 bg-brand-gold opacity-10 rounded-full blur-[60px]" />
@@ -220,7 +232,7 @@ function LoginForm() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="relative z-10 w-full max-w-md p-6 sm:p-10 my-auto"
+          className="relative z-10 w-full max-w-md p-4 sm:p-10 py-12 lg:py-10 mx-auto"
         >
           <div className="bg-gray-900/60 backdrop-blur-xl border border-brand-gold/30 rounded-3xl p-8 sm:p-10 shadow-2xl">
             <StaggerContainer delayOffset={0.3}>
