@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -38,7 +39,9 @@ export default function RootLayout({
       >
         <SmoothScroll>
           <PushNotificationManager />
-          <GlobalTransitionLoader />
+          <Suspense fallback={null}>
+            <GlobalTransitionLoader />
+          </Suspense>
           <MainLayout>{children}</MainLayout>
         </SmoothScroll>
       </body>
