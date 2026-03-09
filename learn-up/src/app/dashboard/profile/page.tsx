@@ -13,6 +13,7 @@ import {
   Instagram,
   Linkedin,
 } from "lucide-react";
+import PageLoader from "@/components/PageLoader";
 import BackButton from "@/components/BackButton";
 import {
   StaggerContainer,
@@ -147,11 +148,7 @@ export default function ProfilePage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-brand-black">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
-      </div>
-    );
+    return <PageLoader />;
   }
 
   return (

@@ -21,6 +21,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import PageLoader from "./PageLoader";
 import {
   addSharedEvent,
   sendSharedMessage,
@@ -370,11 +371,7 @@ export default function SharedCalendarDetail({
     events.filter((event) => isSameDay(new Date(event.start_time), day));
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center p-12">
-        <Loader2 className="w-8 h-8 text-brand-gold animate-spin" />
-      </div>
-    );
+    return <PageLoader />;
   }
 
   return (

@@ -20,6 +20,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import PageLoader from "@/components/PageLoader";
 import { generateRealExam, gradeExam, ExamData } from "@/actions/ai-tutor";
 import BackButton from "@/components/BackButton";
 import { createClient } from "@/utils/supabase/client";
@@ -390,8 +391,7 @@ export default function ExamenIAPage() {
 
                 {error && (
                   <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-400 text-sm flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />{" "}
-                    {error}
+                    <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" /> {error}
                   </div>
                 )}
 
@@ -643,16 +643,7 @@ export default function ExamenIAPage() {
 
           {/* GRADING PHASE */}
           {phase === "grading" && (
-            <div className="text-center py-16">
-              <Loader2 className="w-16 h-16 text-brand-blue-glow animate-spin mx-auto mb-4" />
-              <h3 className="text-2xl font-bold text-white mb-2">
-                La IA está corrigiendo tu examen...
-              </h3>
-              <p className="text-gray-400">
-                Analizando tus respuestas y preparando retroalimentación
-                detallada
-              </p>
-            </div>
+            <PageLoader label="La IA está corrigiendo tu examen..." />
           )}
 
           {/* RESULTS PHASE */}

@@ -11,6 +11,7 @@ import {
   FadeUpItem,
 } from "@/components/animations/StaggerReveal";
 import { Capacitor } from "@capacitor/core";
+import PageLoader from "@/components/PageLoader";
 
 function LoginForm() {
   const router = useRouter();
@@ -416,13 +417,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="fixed inset-0 bg-brand-black flex items-center justify-center">
-          <Loader2 className="w-8 h-8 text-brand-gold animate-spin" />
-        </div>
-      }
-    >
+    <Suspense fallback={<PageLoader />}>
       <LoginForm />
     </Suspense>
   );

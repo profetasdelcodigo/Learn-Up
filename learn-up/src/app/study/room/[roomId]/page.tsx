@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Tldraw } from "tldraw";
 import "tldraw/tldraw.css";
 import { Video, Edit3, ArrowLeft, Share2, Loader2 } from "lucide-react";
+import PageLoader from "@/components/PageLoader";
 import {
   LiveKitRoom,
   VideoConference,
@@ -140,12 +141,7 @@ export default function StudyRoomPage() {
   if (!roomId) return null;
 
   if (!token) {
-    return (
-      <div className="h-screen w-screen bg-brand-black flex flex-col items-center justify-center text-white">
-        <Loader2 className="w-10 h-10 animate-spin text-brand-gold mb-4" />
-        <p className="text-gray-400">Preparando sala de estudio...</p>
-      </div>
-    );
+    return <PageLoader label="Preparando sala de estudio..." />;
   }
 
   return (

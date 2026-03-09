@@ -339,11 +339,7 @@ export default function LibraryPage() {
     });
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-brand-black flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-brand-gold animate-spin" />
-      </div>
-    );
+    return <PageLoader />;
   }
 
   return (

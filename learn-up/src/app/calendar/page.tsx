@@ -19,6 +19,7 @@ import {
   MessageCircle,
   Target,
 } from "lucide-react";
+import PageLoader from "@/components/PageLoader";
 import {
   format,
   startOfMonth,
@@ -547,11 +548,7 @@ export default function CalendarPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-brand-black flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-brand-gold animate-spin" />
-      </div>
-    );
+    return <PageLoader />;
   }
 
   return (
