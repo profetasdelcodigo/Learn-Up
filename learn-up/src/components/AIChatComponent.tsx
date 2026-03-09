@@ -12,17 +12,13 @@ import {
   Music,
   FileText,
   Bot,
-  Menu,
   PlusCircle,
   Trash2,
+  History,
+  ChevronLeft,
 } from "lucide-react";
-import BackButton from "@/components/BackButton";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
-import {
-  StaggerContainer,
-  FadeUpItem,
-} from "@/components/animations/StaggerReveal";
 import {
   getAiSessions,
   getAiMessages,
@@ -135,12 +131,11 @@ export default function AIChatComponent({
     const userMessage = input.trim();
     if (!userMessage && !file) return;
 
-    // 1. Update UI instantly
     const mediaType = file ? getMediaType(file) : undefined;
     const clientSideUserMsg: Message = {
       role: "user",
       content: userMessage,
-      media_url: file ? URL.createObjectURL(file) : undefined, // Preview local
+      media_url: file ? URL.createObjectURL(file) : undefined,
       media_type: mediaType,
     };
     setMessages((prev) => [...prev, clientSideUserMsg]);
@@ -151,7 +146,6 @@ export default function AIChatComponent({
     let sessionId = currentSessionId;
     let newSession = false;
 
-    // 2. Ensure session exists
     if (!sessionId) {
       try {
         const { session, error: sErr } = await createAiSession(
@@ -179,7 +173,6 @@ export default function AIChatComponent({
 
     let mediaUrl: string | undefined;
 
-    // 3. Upload file if exists
     if (file) {
       setUploadingMedia(true);
       const {
@@ -202,11 +195,9 @@ export default function AIChatComponent({
       setFile(null);
     }
 
-    // 4. Save user message to DB
     await addAiMessage(sessionId, "user", userMessage, mediaUrl, mediaType);
 
     try {
-      // Exclude media info from history sent to Groq
       const historyForGroq = messages.map((m) => ({
         role: m.role,
         content: m.content,
@@ -222,7 +213,6 @@ export default function AIChatComponent({
       if (result.error) {
         setError(result.error);
       } else if (result.response) {
-        // Save assistant message to DB
         await addAiMessage(sessionId, "assistant", result.response);
         setMessages((prev) => [
           ...prev,
@@ -241,238 +231,269 @@ export default function AIChatComponent({
 
   return (
     <div
-      className="bg-brand-black flex flex-col md:flex-row"
-      style={{ height: "100dvh" }}
+      className="bg-brand-black flex flex-col"
+      style={{ height: "100dvh", overflow: "hidden" }}
     >
-      {/* Sidebar History (Desktop) */}
+      {/* ──────────────────── HEADER ──────────────────── */}
       <div
-        className={`fixed inset-y-0 left-0 z-40 w-64 bg-gray-900 border-r border-gray-800 transform ${showHistory ? "translate-x-0" : "-translate-x-full"} md:relative md:translate-x-0 transition-transform duration-300 ease-in-out`}
+        className="shrink-0 relative flex items-center justify-between px-4 border-b border-gray-800/80 bg-brand-black/95 backdrop-blur-xl z-30"
+        style={{
+          paddingTop: "calc(env(safe-area-inset-top) + 0.75rem)",
+          paddingBottom: "0.75rem",
+        }}
       >
-        <div className="p-4 flex items-center justify-between border-b border-gray-800">
-          <h3 className="font-bold text-white flex items-center gap-2">
-            <Bot className="w-5 h-5 text-brand-gold" /> Historial
-          </h3>
-          <button
-            className="md:hidden text-gray-400"
-            onClick={() => setShowHistory(false)}
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <div className="p-4">
-          <button
-            onClick={handleNewSession}
-            className="w-full py-2.5 bg-brand-gold/10 text-brand-gold border border-brand-gold/30 rounded-xl hover:bg-brand-gold hover:text-black transition-all flex items-center justify-center gap-2 mb-4 font-semibold text-sm"
-          >
-            <PlusCircle className="w-4 h-4" /> Nueva Sesión
-          </button>
-          <div className="space-y-2 max-h-[calc(100vh-140px)] overflow-y-auto">
-            {sessions.length === 0 ? (
-              <p className="text-gray-500 text-xs text-center py-4">
-                No hay sesiones previas
-              </p>
-            ) : (
-              sessions.map((s) => (
-                <div
-                  key={s.id}
-                  onClick={() => loadSessionMessages(s.id)}
-                  className={`p-3 rounded-xl cursor-pointer flex justify-between items-center group transition-colors ${currentSessionId === s.id ? "bg-gray-800 border border-gray-700" : "hover:bg-gray-800/50"}`}
-                >
-                  <div className="truncate pr-2">
-                    <p className="text-sm text-white truncate font-medium">
-                      {s.title}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(s.updated_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <button
-                    onClick={(e) => handleDeleteSession(e, s.id)}
-                    className="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))
-            )}
+        {/* LEFT: Back button */}
+        <button
+          onClick={() => router.back()}
+          className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-900 border border-gray-800 text-gray-400 hover:text-white hover:border-brand-gold/40 transition-all shrink-0"
+          aria-label="Volver"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+
+        {/* CENTER: AI info */}
+        <div className="flex flex-col items-center flex-1 px-3 min-w-0">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-full bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center shrink-0">
+              {icon}
+            </div>
+            <h1 className="font-bold text-white text-sm leading-tight truncate">
+              {title}
+            </h1>
           </div>
+          <p className="text-[11px] text-brand-gold/80 mt-0.5">{subtitle}</p>
         </div>
+
+        {/* RIGHT: History */}
+        <button
+          onClick={() => setShowHistory((v) => !v)}
+          className={`flex items-center justify-center w-10 h-10 rounded-full border transition-all shrink-0 ${
+            showHistory
+              ? "bg-brand-gold text-brand-black border-brand-gold"
+              : "bg-gray-900 border-gray-800 text-gray-400 hover:border-brand-gold/40 hover:text-white"
+          }`}
+          aria-label="Historial"
+        >
+          <History className="w-5 h-5" />
+        </button>
       </div>
 
-      {/* Main Chat Area */}
-      <StaggerContainer
-        delayOffset={0.1}
-        className="flex-1 flex flex-col min-h-0 overflow-hidden"
-      >
-        {/* Header */}
-        <FadeUpItem>
-          <div
-            className="shrink-0 px-4 pb-3 border-b border-gray-800 flex items-center justify-between bg-brand-black/90 backdrop-blur-md z-30"
-            style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.75rem)" }}
-          >
-            <div className="flex items-center gap-4">
-              <button
-                className="md:hidden text-gray-400 hover:text-white"
-                onClick={() => setShowHistory(true)}
-              >
-                <Menu className="w-6 h-6" />
-              </button>
-              <BackButton />
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center">
-                  {icon}
-                </div>
-                <div>
-                  <h1 className="font-bold text-white leading-tight">
-                    {title}
-                  </h1>
-                  <p className="text-xs text-brand-gold">{subtitle}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </FadeUpItem>
-
-        {/* Messages List */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
-          {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
-              <div className="w-20 h-20 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center mb-4">
-                {icon}
-              </div>
-              <p className="max-w-md">
-                Comienza a chatear. También puedes subir imágenes, audios o
-                documentos PDF.
-              </p>
-            </div>
-          )}
-
-          {messages.map((message, index) => (
-            <div
-              key={message.id || index}
-              className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+      {/* ──────────────────── HISTORY DRAWER ──────────────────── */}
+      <AnimatePresence>
+        {showHistory && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 z-20"
+              onClick={() => setShowHistory(false)}
+            />
+            {/* Drawer from right */}
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 300 }}
+              className="fixed top-0 right-0 h-full w-72 bg-gray-950 border-l border-gray-800 z-30 flex flex-col"
+              style={{ paddingTop: "calc(env(safe-area-inset-top) + 0rem)" }}
             >
-              <div
-                className={`max-w-[85%] md:max-w-[70%] p-4 rounded-2xl ${
-                  message.role === "user"
-                    ? "bg-brand-gold text-brand-black rounded-tr-sm"
-                    : "bg-gray-900 border border-gray-800 text-white rounded-tl-sm"
-                }`}
-              >
-                {message.media_url && message.media_type === "image" && (
-                  <img
-                    src={message.media_url}
-                    alt="Upload"
-                    className="w-full max-w-sm rounded-xl mb-3 border border-brand-gold/20"
-                  />
-                )}
-                {message.media_url && message.media_type !== "image" && (
-                  <div className="flex items-center gap-2 p-3 bg-black/20 rounded-xl mb-3 border border-black/10">
-                    {message.media_type === "audio" ? (
-                      <Music className="w-5 h-5" />
-                    ) : message.media_type === "video" ? (
-                      <Video className="w-5 h-5" />
-                    ) : (
-                      <FileText className="w-5 h-5" />
-                    )}
-                    <span className="text-sm font-semibold truncate">
-                      Archivo Adjunto
-                    </span>
-                  </div>
-                )}
-                {message.content && (
-                  <p className="whitespace-pre-wrap text-sm md:text-base leading-relaxed">
-                    {message.content}
+              <div className="flex items-center justify-between p-4 border-b border-gray-800">
+                <h3 className="font-bold text-white flex items-center gap-2 text-sm">
+                  <Bot className="w-4 h-4 text-brand-gold" /> Historial
+                </h3>
+                <button
+                  onClick={() => setShowHistory(false)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-3">
+                <button
+                  onClick={handleNewSession}
+                  className="w-full py-2.5 bg-brand-gold/10 text-brand-gold border border-brand-gold/30 rounded-xl hover:bg-brand-gold hover:text-black transition-all flex items-center justify-center gap-2 mb-3 font-semibold text-sm"
+                >
+                  <PlusCircle className="w-4 h-4" /> Nueva Sesión
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-3 space-y-1 pb-4">
+                {sessions.length === 0 ? (
+                  <p className="text-gray-500 text-xs text-center py-4">
+                    No hay sesiones previas
                   </p>
+                ) : (
+                  sessions.map((s) => (
+                    <div
+                      key={s.id}
+                      onClick={() => loadSessionMessages(s.id)}
+                      className={`p-3 rounded-xl cursor-pointer flex justify-between items-center group transition-colors ${
+                        currentSessionId === s.id
+                          ? "bg-gray-800 border border-gray-700"
+                          : "hover:bg-gray-800/50"
+                      }`}
+                    >
+                      <div className="truncate pr-2">
+                        <p className="text-sm text-white truncate font-medium">
+                          {s.title}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(s.updated_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => handleDeleteSession(e, s.id)}
+                        className="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))
                 )}
               </div>
-            </div>
-          ))}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
-          {loading && (
-            <div className="flex justify-start">
-              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 rounded-tl-sm">
-                <Loader2 className="w-5 h-5 text-brand-gold animate-spin" />
-              </div>
+      {/* ──────────────────── MESSAGES ──────────────────── */}
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
+        {messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 pb-8">
+            <div className="w-20 h-20 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center mb-4">
+              {icon}
             </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Error */}
-        {error && (
-          <div className="px-4">
-            <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-xl text-red-400 text-sm mb-2">
-              {error}
-            </div>
+            <p className="max-w-xs text-sm">
+              Comienza a chatear. También puedes subir imágenes, audios o
+              documentos PDF.
+            </p>
           </div>
         )}
 
-        {/* Input */}
-        <FadeUpItem>
+        {messages.map((message, index) => (
           <div
-            className="shrink-0 px-4 pt-3 border-t border-gray-800 bg-brand-black"
-            style={{
-              paddingBottom: "calc(env(safe-area-inset-bottom) + 0.75rem)",
-            }}
+            key={message.id || index}
+            className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
           >
-            {file && (
-              <div className="mb-3 flex items-center gap-2 p-2 bg-gray-900 rounded-xl border border-brand-gold/30">
-                {getMediaType(file) === "image" ? (
-                  <ImageIcon className="w-4 h-4 text-brand-gold" />
-                ) : (
-                  <FileText className="w-4 h-4 text-brand-gold" />
-                )}
-                <span className="text-sm text-white truncate max-w-[200px]">
-                  {file.name}
-                </span>
-                <button
-                  onClick={() => setFile(null)}
-                  className="text-gray-400 hover:text-red-400"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="flex gap-2 relative">
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileSelect}
-                className="hidden"
-                accept=".pdf,.png,.jpg,.jpeg,.mp3,.wav,.mp4"
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="p-3 rounded-full bg-gray-900 text-gray-400 hover:text-brand-gold hover:bg-gray-800 transition-colors shrink-0 border border-gray-800 items-center justify-center flex"
-              >
-                <Paperclip className="w-5 h-5" />
-              </button>
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Escribe tu mensaje..."
-                disabled={loading || uploadingMedia}
-                className="flex-1 px-5 py-3.5 bg-gray-900 border border-gray-800 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors disabled:opacity-50"
-              />
-              <button
-                type="submit"
-                disabled={loading || uploadingMedia || (!input.trim() && !file)}
-                className="px-5 py-3 bg-brand-gold text-brand-black rounded-full hover:bg-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shrink-0 font-bold"
-              >
-                {loading || uploadingMedia ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Send className="w-5 h-5" />
-                )}
-              </button>
-            </form>
+            <div
+              className={`max-w-[85%] md:max-w-[70%] p-4 rounded-2xl ${
+                message.role === "user"
+                  ? "bg-brand-gold text-brand-black rounded-tr-sm"
+                  : "bg-gray-900 border border-gray-800 text-white rounded-tl-sm"
+              }`}
+            >
+              {message.media_url && message.media_type === "image" && (
+                <img
+                  src={message.media_url}
+                  alt="Upload"
+                  className="w-full max-w-sm rounded-xl mb-3 border border-brand-gold/20"
+                />
+              )}
+              {message.media_url && message.media_type !== "image" && (
+                <div className="flex items-center gap-2 p-3 bg-black/20 rounded-xl mb-3 border border-black/10">
+                  {message.media_type === "audio" ? (
+                    <Music className="w-5 h-5" />
+                  ) : message.media_type === "video" ? (
+                    <Video className="w-5 h-5" />
+                  ) : (
+                    <FileText className="w-5 h-5" />
+                  )}
+                  <span className="text-sm font-semibold truncate">
+                    Archivo Adjunto
+                  </span>
+                </div>
+              )}
+              {message.content && (
+                <p className="whitespace-pre-wrap text-sm md:text-base leading-relaxed">
+                  {message.content}
+                </p>
+              )}
+            </div>
           </div>
-        </FadeUpItem>
-      </StaggerContainer>
+        ))}
+
+        {loading && (
+          <div className="flex justify-start">
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 rounded-tl-sm">
+              <Loader2 className="w-5 h-5 text-brand-gold animate-spin" />
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* ──────────────────── ERROR ──────────────────── */}
+      {error && (
+        <div className="shrink-0 px-4">
+          <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-xl text-red-400 text-sm mb-2">
+            {error}
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────────── INPUT AREA ──────────────────── */}
+      <div
+        className="shrink-0 bg-brand-black/95 backdrop-blur-xl border-t border-gray-800/80 px-4 pt-3"
+        style={{
+          paddingBottom: "calc(env(safe-area-inset-bottom) + 0.75rem)",
+        }}
+      >
+        {file && (
+          <div className="mb-3 flex items-center gap-2 p-2 bg-gray-900 rounded-xl border border-brand-gold/30">
+            {getMediaType(file) === "image" ? (
+              <ImageIcon className="w-4 h-4 text-brand-gold" />
+            ) : (
+              <FileText className="w-4 h-4 text-brand-gold" />
+            )}
+            <span className="text-sm text-white truncate max-w-[200px]">
+              {file.name}
+            </span>
+            <button
+              onClick={() => setFile(null)}
+              className="text-gray-400 hover:text-red-400 ml-auto"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileSelect}
+            className="hidden"
+            accept=".pdf,.png,.jpg,.jpeg,.mp3,.wav,.mp4"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="p-3 rounded-full bg-gray-900 text-gray-400 hover:text-brand-gold hover:bg-gray-800 transition-colors shrink-0 border border-gray-800 flex items-center justify-center"
+          >
+            <Paperclip className="w-5 h-5" />
+          </button>
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Escribe tu mensaje..."
+            disabled={loading || uploadingMedia}
+            className="flex-1 min-w-0 px-4 py-3.5 bg-gray-900 border border-gray-800 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors disabled:opacity-50 text-sm"
+          />
+          <button
+            type="submit"
+            disabled={loading || uploadingMedia || (!input.trim() && !file)}
+            className="px-4 py-3 bg-brand-gold text-brand-black rounded-full hover:bg-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shrink-0 font-bold"
+          >
+            {loading || uploadingMedia ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Send className="w-5 h-5" />
+            )}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

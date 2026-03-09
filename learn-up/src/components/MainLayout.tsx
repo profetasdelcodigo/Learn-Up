@@ -33,8 +33,8 @@ export default function MainLayout({
 
   return (
     <div
-      className="flex bg-brand-black overflow-hidden"
-      style={{ height: "100dvh" }}
+      className="flex bg-brand-black"
+      style={{ height: "100dvh", overflow: "hidden" }}
     >
       <NotificationManager />
       <WelcomeTutorial />
@@ -48,29 +48,23 @@ export default function MainLayout({
 
       <main
         className={[
-          "flex-1 relative w-full overflow-hidden",
+          "flex-1 relative w-full",
           isPublicRoute ? "" : "flex flex-col",
-          isFullscreen ? "p-0" : "",
+          // Fullscreen routes manage their own scroll internally
+          isFullscreen ? "overflow-hidden" : "overflow-y-auto",
         ]
           .filter(Boolean)
           .join(" ")}
-        style={
-          isFullscreen
-            ? {}
-            : {
-                // On non-fullscreen pages, main scroll area avoids BottomNav
-                overflowY: "auto",
-              }
-        }
       >
-        {/* Content area — add bottom padding so BottomNav doesn't hide content */}
+        {/* Content wrapper */}
         <div
           className={[
             "w-full",
             isPublicRoute ? "h-full" : "",
-            // On non-fullscreen authenticated pages, add pb-nav so content
-            // isn't hidden behind the BottomNav
+            // Non-fullscreen authenticated pages need bottom padding so content
+            // is not hidden behind the BottomNav
             showNav && !isFullscreen ? "pb-nav" : "",
+            isFullscreen ? "h-full flex flex-col" : "",
           ]
             .filter(Boolean)
             .join(" ")}
@@ -79,9 +73,9 @@ export default function MainLayout({
         </div>
       </main>
 
-      {/* Mobile bottom nav — all authenticated routes */}
-      {showNav && (
-        <div className="md:hidden">
+      {/* Mobile bottom nav — all authenticated NON-fullscreen routes */}
+      {showNav && !isFullscreen && (
+        <div className="fixed bottom-0 inset-x-0 md:hidden z-50">
           <BottomNav />
         </div>
       )}

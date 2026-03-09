@@ -14,6 +14,7 @@ import {
   MoreVertical,
   Users,
   ArrowLeft,
+  ChevronLeft,
   UserPlus,
   Check,
   X,
@@ -822,27 +823,31 @@ export default function ChatPage() {
           } ${showVideo ? "md:hidden" : "md:flex"} w-full md:w-80 border-r border-brand-gold/20 flex-col bg-brand-black/50 backdrop-blur-xl relative z-10 transition-all duration-300`}
         >
           {/* Sidebar Header */}
-          <div className="p-4 border-b border-gray-800 space-y-4">
-            <div className="flex items-center justify-between">
-              <h1 className="text-xl font-bold bg-linear-to-r from-brand-gold via-white to-brand-gold bg-clip-text text-transparent">
+          <div
+            className="px-4 pb-3 border-b border-gray-800/80 bg-brand-black/80 backdrop-blur-xl"
+            style={{ paddingTop: "calc(env(safe-area-inset-top) + 1rem)" }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              {/* Back button — top-left, universal */}
+              <button
+                onClick={() => router.push("/dashboard")}
+                className="flex items-center justify-center w-9 h-9 rounded-full bg-gray-900 border border-gray-800 text-gray-400 hover:text-white hover:border-brand-gold/40 transition-all shrink-0"
+                title="Volver al Dashboard"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+
+              <h1 className="text-base font-bold text-center flex-1 bg-linear-to-r from-brand-gold via-white to-brand-gold bg-clip-text text-transparent">
                 Aprendamos Juntos
               </h1>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => router.push("/dashboard")}
-                  className="p-2 bg-gray-800 text-gray-400 rounded-full hover:bg-gray-700 hover:text-white transition-all shadow-lg"
-                  title="Volver al Dashboard"
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => setShowCreateGroup(true)}
-                  className="p-2 bg-brand-gold/10 text-brand-gold rounded-full hover:bg-brand-gold hover:text-brand-black transition-all shadow-lg hover:shadow-brand-gold/20"
-                  title="Crear Nuevo Grupo"
-                >
-                  <Plus className="w-5 h-5" />
-                </button>
-              </div>
+
+              <button
+                onClick={() => setShowCreateGroup(true)}
+                className="flex items-center justify-center w-9 h-9 rounded-full bg-brand-gold/10 border border-brand-gold/30 text-brand-gold hover:bg-brand-gold hover:text-brand-black transition-all shrink-0"
+                title="Crear Nuevo Grupo"
+              >
+                <Plus className="w-5 h-5" />
+              </button>
             </div>
 
             {/* Tabs */}
@@ -1145,9 +1150,9 @@ export default function ChatPage() {
                   <div className="flex items-center gap-4">
                     <button
                       onClick={() => setMobileShowChat(false)}
-                      className="md:hidden p-2 hover:bg-white/10 rounded-full transition-colors"
+                      className="md:hidden flex items-center justify-center w-9 h-9 rounded-full bg-gray-900 border border-gray-800 text-gray-400 hover:text-white hover:border-brand-gold/40 transition-all shrink-0"
                     >
-                      <ArrowLeft className="w-6 h-6 text-white" />
+                      <ChevronLeft className="w-5 h-5" />
                     </button>
 
                     {(() => {

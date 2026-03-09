@@ -1,27 +1,28 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
-import { cn } from "@/utils/cn"; // Assuming utils/cn exists, or I will use standard class string
+import { ChevronLeft } from "lucide-react";
 
+/**
+ * Universal back button — consistent position and style across all pages.
+ * Always a compact circular icon button: top-left, 40×40px.
+ */
 export default function BackButton({
   className,
-  label = "Volver",
+  href,
 }: {
   className?: string;
-  label?: string;
+  href?: string;
 }) {
   const router = useRouter();
 
   return (
     <button
-      onClick={() => router.back()}
-      className={`flex items-center gap-2 text-brand-gold hover:text-white transition-colors group mb-6 ${className || ""}`}
+      onClick={() => (href ? router.push(href) : router.back())}
+      className={`back-btn ${className || ""}`}
+      aria-label="Volver"
     >
-      <div className="p-2 rounded-full bg-brand-gold/10 group-hover:bg-brand-gold/20 transition-colors">
-        <ArrowLeft className="w-5 h-5" />
-      </div>
-      <span className="font-medium text-sm md:text-base">{label}</span>
+      <ChevronLeft className="w-5 h-5" />
     </button>
   );
 }

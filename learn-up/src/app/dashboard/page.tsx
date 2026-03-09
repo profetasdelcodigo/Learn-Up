@@ -45,7 +45,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="w-full min-h-screen bg-brand-black">
-      <div className="w-full">
+      <div className="page-inner">
         <StaggerContainer className="w-full max-w-none space-y-8">
           {/* Header */}
           <FadeUpItem>
