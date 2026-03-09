@@ -1,7 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
+import { useSetAtom } from "jotai";
+import { isGlobalLoadingAtom } from "@/store/loader";
 
 /**
  * Universal back button — consistent position and style across all pages.
@@ -15,10 +17,25 @@ export default function BackButton({
   href?: string;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const setIsGlobalLoading = useSetAtom(isGlobalLoadingAtom);
+
+  const handleBack = () => {
+    setIsGlobalLoading(true);
+    if (href) {
+      if (pathname !== href) {
+        router.push(href);
+      } else {
+        setIsGlobalLoading(false);
+      }
+    } else {
+      router.back();
+    }
+  };
 
   return (
     <button
-      onClick={() => (href ? router.push(href) : router.back())}
+      onClick={handleBack}
       className={`back-btn ${className || ""}`}
       aria-label="Volver"
     >

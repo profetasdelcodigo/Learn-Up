@@ -356,8 +356,8 @@ export default function LibraryPage() {
                   <BookOpen className="w-7 h-7 text-brand-gold" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-black text-white">
-                    Biblioteca del Sabio
+                  <h1 className="text-3xl font-bold text-white mb-1">
+                    Biblioteca
                   </h1>
                   <p className="text-gray-400 text-sm">
                     Comparte y descubre recursos educativos aprobados por

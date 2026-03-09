@@ -18,6 +18,8 @@ import BottomNav from "./BottomNav";
 import Logo from "./Logo";
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
+import { useSetAtom } from "jotai";
+import { isGlobalLoadingAtom } from "@/store/loader";
 
 const navigation = [
   {
@@ -89,6 +91,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [unreadCount, setUnreadCount] = useState(0);
   const supabase = createClient();
+  const setIsGlobalLoading = useSetAtom(isGlobalLoadingAtom);
 
   // Toast Notification State
   const [toasts, setToasts] = useState<
@@ -249,6 +252,17 @@ export default function Sidebar() {
                 <li key={item.name}>
                   <Link
                     href={item.href}
+                    onClick={() => {
+                      if (
+                        pathname !== item.href &&
+                        !(
+                          item.children &&
+                          item.children.some((child) => pathname === child.href)
+                        )
+                      ) {
+                        setIsGlobalLoading(true);
+                      }
+                    }}
                     className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all relative ${
                       isActive
                         ? "bg-brand-gold text-brand-black font-semibold shadow-[0_0_15px_rgba(212,175,55,0.3)]"
@@ -272,6 +286,11 @@ export default function Sidebar() {
                         <li key={child.href}>
                           <Link
                             href={child.href}
+                            onClick={() => {
+                              if (pathname !== child.href) {
+                                setIsGlobalLoading(true);
+                              }
+                            }}
                             className={`block px-4 py-2 text-sm rounded-xl transition-all ${
                               pathname === child.href
                                 ? "bg-brand-gold/20 text-brand-gold"

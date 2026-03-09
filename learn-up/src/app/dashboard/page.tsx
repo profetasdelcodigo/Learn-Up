@@ -198,7 +198,7 @@ export default async function DashboardPage() {
                       <BookOpen className="w-6 h-6 text-brand-gold" />
                     </div>
                     <h3 className="text-lg font-bold text-white mb-1">
-                      Biblioteca del Sabio
+                      Biblioteca
                     </h3>
                     <p className="text-gray-400 text-sm">
                       Material educativo revisado por docentes

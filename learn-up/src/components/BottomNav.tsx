@@ -3,6 +3,8 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Home, Brain, MessageCircle, Bell, User } from "lucide-react";
+import { useSetAtom } from "jotai";
+import { isGlobalLoadingAtom } from "@/store/loader";
 
 interface BottomNavProps {
   unreadCount?: number;
@@ -10,6 +12,7 @@ interface BottomNavProps {
 
 export default function BottomNav({ unreadCount = 0 }: BottomNavProps) {
   const pathname = usePathname();
+  const setIsGlobalLoading = useSetAtom(isGlobalLoadingAtom);
 
   const navItems = [
     { name: "Inicio", href: "/dashboard", icon: Home },
@@ -38,6 +41,14 @@ export default function BottomNav({ unreadCount = 0 }: BottomNavProps) {
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => {
+                if (
+                  pathname !== item.href &&
+                  !pathname.startsWith(item.href + "/")
+                ) {
+                  setIsGlobalLoading(true);
+                }
+              }}
               className={`relative flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive ? "text-brand-gold" : "text-gray-500"}`}
             >
               <div className="relative">

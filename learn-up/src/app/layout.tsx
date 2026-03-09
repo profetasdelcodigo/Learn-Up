@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 import MainLayout from "@/components/MainLayout";
 import PushNotificationManager from "@/components/PushNotificationManager";
 import SmoothScroll from "@/components/SmoothScroll";
+import GlobalTransitionLoader from "@/components/GlobalTransitionLoader";
 
 export const metadata: Metadata = {
   title: "Learn Up | Tu Tutor IA",
@@ -37,6 +38,7 @@ export default function RootLayout({
       >
         <SmoothScroll>
           <PushNotificationManager />
+          <GlobalTransitionLoader />
           <MainLayout>{children}</MainLayout>
         </SmoothScroll>
       </body>

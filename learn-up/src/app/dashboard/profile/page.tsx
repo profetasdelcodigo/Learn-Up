@@ -168,8 +168,6 @@ export default function ProfilePage() {
             {/* LEFT: Avatar & Academic */}
             <FadeUpItem className="md:col-span-1 space-y-6">
               <div className="bg-gray-900 rounded-3xl p-6 border border-gray-800 text-center relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-24 bg-linear-to-br from-brand-gold/20 to-transparent" />
-
                 <div className="relative inline-block mb-4 mt-8">
                   <div className="w-28 h-28 rounded-full bg-brand-black border-2 border-brand-gold flex items-center justify-center overflow-hidden">
                     {profile?.avatar_url ? (
