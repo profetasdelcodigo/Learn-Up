@@ -1136,7 +1136,12 @@ export default function ChatPage() {
             ) : (
               <>
                 {/* Chat Header */}
-                <div className="p-4 border-b border-gray-800 flex items-center justify-between bg-brand-black/95 backdrop-blur-xl z-20">
+                <div
+                  className="px-4 pb-3 border-b border-gray-800 flex items-center justify-between bg-brand-black/95 backdrop-blur-xl z-20 shrink-0"
+                  style={{
+                    paddingTop: "calc(env(safe-area-inset-top) + 0.75rem)",
+                  }}
+                >
                   <div className="flex items-center gap-4">
                     <button
                       onClick={() => setMobileShowChat(false)}

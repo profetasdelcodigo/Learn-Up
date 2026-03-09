@@ -6,6 +6,12 @@ import BottomNav from "./BottomNav";
 import WelcomeTutorial from "./WelcomeTutorial";
 import NotificationManager from "./NotificationManager";
 
+// Routes where the nav and layout chrome should NOT appear
+const PUBLIC_ROUTES = ["/", "/login", "/onboarding"];
+
+// Routes that manage their own full-screen layout (no padding, no nav interference)
+const FULLSCREEN_ROUTES = ["/chat"];
+
 export default function MainLayout({
   children,
 }: {
@@ -13,37 +19,67 @@ export default function MainLayout({
 }) {
   const pathname = usePathname();
 
-  // Routes where navigation should be hidden entirely
-  const publicRoutes = ["/", "/login", "/onboarding"];
   const isPublicRoute =
-    publicRoutes.includes(pathname) || pathname.startsWith("/auth/");
+    PUBLIC_ROUTES.includes(pathname) || pathname.startsWith("/auth/");
 
-  // Chat and AI pages have their own layout/sidebars, so remove global padding
-  const isNoPaddingRoute = pathname === "/chat" || pathname.startsWith("/ai/");
+  const isFullscreen =
+    FULLSCREEN_ROUTES.includes(pathname) || pathname.startsWith("/ai/");
 
-  // Sidebar + BottomNav ONLY shown on Dashboard (home) and NOT on public/chat routes
+  // Show nav on all authenticated routes
+  const showNav = !isPublicRoute;
+
+  // Sidebar only on dashboard desktop
   const isDashboard = pathname === "/dashboard";
-  const showNav = !isPublicRoute && !isNoPaddingRoute && isDashboard;
 
   return (
-    <div className="flex h-screen bg-brand-black overflow-hidden">
+    <div
+      className="flex bg-brand-black overflow-hidden"
+      style={{ height: "100dvh" }}
+    >
       <NotificationManager />
       <WelcomeTutorial />
 
       {/* Desktop sidebar — only on dashboard */}
-      {showNav && (
+      {showNav && isDashboard && (
         <div className="hidden md:flex shrink-0">
           <Sidebar />
         </div>
       )}
 
       <main
-        className={`flex-1 ${isPublicRoute ? "overflow-hidden" : "overflow-y-auto"} bg-brand-black ${isNoPaddingRoute ? "p-0" : "p-4 md:p-8"} relative w-full`}
+        className={[
+          "flex-1 relative w-full overflow-hidden",
+          isPublicRoute ? "" : "flex flex-col",
+          isFullscreen ? "p-0" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        style={
+          isFullscreen
+            ? {}
+            : {
+                // On non-fullscreen pages, main scroll area avoids BottomNav
+                overflowY: "auto",
+              }
+        }
       >
-        <div className="w-full h-full">{children}</div>
+        {/* Content area — add bottom padding so BottomNav doesn't hide content */}
+        <div
+          className={[
+            "w-full",
+            isPublicRoute ? "h-full" : "",
+            // On non-fullscreen authenticated pages, add pb-nav so content
+            // isn't hidden behind the BottomNav
+            showNav && !isFullscreen ? "pb-nav" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          {children}
+        </div>
       </main>
 
-      {/* Mobile bottom nav — only on dashboard */}
+      {/* Mobile bottom nav — all authenticated routes */}
       {showNav && (
         <div className="md:hidden">
           <BottomNav />

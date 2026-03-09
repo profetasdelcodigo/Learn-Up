@@ -20,6 +20,10 @@ import BackButton from "@/components/BackButton";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import {
+  StaggerContainer,
+  FadeUpItem,
+} from "@/components/animations/StaggerReveal";
+import {
   getAiSessions,
   getAiMessages,
   createAiSession,
@@ -236,7 +240,10 @@ export default function AIChatComponent({
   };
 
   return (
-    <div className="min-h-screen bg-brand-black flex flex-col md:flex-row">
+    <div
+      className="bg-brand-black flex flex-col md:flex-row"
+      style={{ height: "100dvh" }}
+    >
       {/* Sidebar History (Desktop) */}
       <div
         className={`fixed inset-y-0 left-0 z-40 w-64 bg-gray-900 border-r border-gray-800 transform ${showHistory ? "translate-x-0" : "-translate-x-full"} md:relative md:translate-x-0 transition-transform duration-300 ease-in-out`}
@@ -293,28 +300,38 @@ export default function AIChatComponent({
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col h-screen">
+      <StaggerContainer
+        delayOffset={0.1}
+        className="flex-1 flex flex-col min-h-0 overflow-hidden"
+      >
         {/* Header */}
-        <div className="p-4 border-b border-gray-800 flex items-center justify-between bg-brand-black/90 backdrop-blur-md z-30">
-          <div className="flex items-center gap-4">
-            <button
-              className="md:hidden text-gray-400 hover:text-white"
-              onClick={() => setShowHistory(true)}
-            >
-              <Menu className="w-6 h-6" />
-            </button>
-            <BackButton />
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center">
-                {icon}
-              </div>
-              <div>
-                <h1 className="font-bold text-white leading-tight">{title}</h1>
-                <p className="text-xs text-brand-gold">{subtitle}</p>
+        <FadeUpItem>
+          <div
+            className="shrink-0 px-4 pb-3 border-b border-gray-800 flex items-center justify-between bg-brand-black/90 backdrop-blur-md z-30"
+            style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.75rem)" }}
+          >
+            <div className="flex items-center gap-4">
+              <button
+                className="md:hidden text-gray-400 hover:text-white"
+                onClick={() => setShowHistory(true)}
+              >
+                <Menu className="w-6 h-6" />
+              </button>
+              <BackButton />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center">
+                  {icon}
+                </div>
+                <div>
+                  <h1 className="font-bold text-white leading-tight">
+                    {title}
+                  </h1>
+                  <p className="text-xs text-brand-gold">{subtitle}</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </FadeUpItem>
 
         {/* Messages List */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
@@ -392,63 +409,70 @@ export default function AIChatComponent({
         )}
 
         {/* Input */}
-        <div className="p-4 border-t border-gray-800 bg-brand-black">
-          {file && (
-            <div className="mb-3 flex items-center gap-2 p-2 bg-gray-900 rounded-xl border border-brand-gold/30">
-              {getMediaType(file) === "image" ? (
-                <ImageIcon className="w-4 h-4 text-brand-gold" />
-              ) : (
-                <FileText className="w-4 h-4 text-brand-gold" />
-              )}
-              <span className="text-sm text-white truncate max-w-[200px]">
-                {file.name}
-              </span>
-              <button
-                onClick={() => setFile(null)}
-                className="text-gray-400 hover:text-red-400"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          )}
+        <FadeUpItem>
+          <div
+            className="shrink-0 px-4 pt-3 border-t border-gray-800 bg-brand-black"
+            style={{
+              paddingBottom: "calc(env(safe-area-inset-bottom) + 0.75rem)",
+            }}
+          >
+            {file && (
+              <div className="mb-3 flex items-center gap-2 p-2 bg-gray-900 rounded-xl border border-brand-gold/30">
+                {getMediaType(file) === "image" ? (
+                  <ImageIcon className="w-4 h-4 text-brand-gold" />
+                ) : (
+                  <FileText className="w-4 h-4 text-brand-gold" />
+                )}
+                <span className="text-sm text-white truncate max-w-[200px]">
+                  {file.name}
+                </span>
+                <button
+                  onClick={() => setFile(null)}
+                  className="text-gray-400 hover:text-red-400"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
 
-          <form onSubmit={handleSubmit} className="flex gap-2 relative">
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileSelect}
-              className="hidden"
-              accept=".pdf,.png,.jpg,.jpeg,.mp3,.wav,.mp4"
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="p-3 rounded-full bg-gray-900 text-gray-400 hover:text-brand-gold hover:bg-gray-800 transition-colors shrink-0 border border-gray-800 items-center justify-center flex"
-            >
-              <Paperclip className="w-5 h-5" />
-            </button>
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Escribe tu mensaje..."
-              disabled={loading || uploadingMedia}
-              className="flex-1 px-5 py-3.5 bg-gray-900 border border-gray-800 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors disabled:opacity-50"
-            />
-            <button
-              type="submit"
-              disabled={loading || uploadingMedia || (!input.trim() && !file)}
-              className="px-5 py-3 bg-brand-gold text-brand-black rounded-full hover:bg-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shrink-0 font-bold"
-            >
-              {loading || uploadingMedia ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Send className="w-5 h-5" />
-              )}
-            </button>
-          </form>
-        </div>
-      </div>
+            <form onSubmit={handleSubmit} className="flex gap-2 relative">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                className="hidden"
+                accept=".pdf,.png,.jpg,.jpeg,.mp3,.wav,.mp4"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="p-3 rounded-full bg-gray-900 text-gray-400 hover:text-brand-gold hover:bg-gray-800 transition-colors shrink-0 border border-gray-800 items-center justify-center flex"
+              >
+                <Paperclip className="w-5 h-5" />
+              </button>
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Escribe tu mensaje..."
+                disabled={loading || uploadingMedia}
+                className="flex-1 px-5 py-3.5 bg-gray-900 border border-gray-800 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors disabled:opacity-50"
+              />
+              <button
+                type="submit"
+                disabled={loading || uploadingMedia || (!input.trim() && !file)}
+                className="px-5 py-3 bg-brand-gold text-brand-black rounded-full hover:bg-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shrink-0 font-bold"
+              >
+                {loading || uploadingMedia ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Send className="w-5 h-5" />
+                )}
+              </button>
+            </form>
+          </div>
+        </FadeUpItem>
+      </StaggerContainer>
     </div>
   );
 }

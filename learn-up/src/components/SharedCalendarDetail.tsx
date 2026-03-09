@@ -597,7 +597,12 @@ export default function SharedCalendarDetail({
             })}
             <div ref={chatEndRef} />
           </div>
-          <div className="p-4 bg-gray-900 border-t border-gray-800">
+          <div
+            className="shrink-0 px-4 pt-3 bg-gray-900 border-t border-gray-800"
+            style={{
+              paddingBottom: "calc(env(safe-area-inset-bottom) + 0.75rem)",
+            }}
+          >
             <form
               onSubmit={handleSendMessage}
               className="flex items-center gap-2"
@@ -606,13 +611,13 @@ export default function SharedCalendarDetail({
                 type="text"
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                className="flex-1 bg-black/60 border border-gray-700 rounded-full px-4 py-3 text-white focus:outline-none focus:border-brand-gold text-sm"
+                className="flex-1 bg-black/60 border border-gray-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-brand-gold text-sm transition-colors"
                 placeholder="Escribe a los miembros del calendario..."
               />
               <button
                 type="button"
                 onClick={isRecording ? stopRecording : startRecording}
-                className={`p-3 rounded-full flex items-center justify-center transition-all ${isRecording ? "bg-red-500/10 text-red-500 animate-pulse" : "bg-gray-800 text-gray-400 hover:text-brand-gold"}`}
+                className={`p-3 rounded-full flex items-center justify-center transition-all ${isRecording ? "bg-red-500/10 text-red-500 animate-pulse border-red-500/40" : "bg-gray-800 text-gray-400 hover:text-brand-gold border-gray-700"}`}
               >
                 {isRecording ? (
                   <Square className="w-5 h-5 fill-current" />
@@ -623,7 +628,7 @@ export default function SharedCalendarDetail({
               <button
                 disabled={sending || (!newMessage.trim() && !isRecording)}
                 type="submit"
-                className="p-3 bg-brand-gold text-brand-black rounded-full hover:bg-white disabled:opacity-50 transition-all flex items-center justify-center"
+                className="p-3 bg-brand-gold text-brand-black rounded-full hover:bg-white disabled:opacity-50 transition-all flex items-center justify-center border-brand-gold"
               >
                 <Send className="w-5 h-5" />
               </button>
