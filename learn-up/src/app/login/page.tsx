@@ -27,14 +27,19 @@ function LoginForm() {
   const supabase = createClient();
 
   const getRedirectUrl = (path: string) => {
-    if (typeof window !== "undefined") {
-      if (Capacitor.isNativePlatform()) {
-        // Usa el esquema nativo configurado en capacitor.config.ts para la redirección Deep Link
-        return `com.learnup.app://auth/callback?next=${encodeURIComponent(path)}`;
-      }
-      return `${window.location.origin}/auth/callback?next=${encodeURIComponent(path)}`;
+    const isNative =
+      typeof window !== "undefined" && Capacitor.isNativePlatform();
+    const baseUrl =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : "https://learn-up-qmgx.onrender.com";
+
+    if (isNative) {
+      // Retornamos el esquema nativo para que el navegador del sistema sepa volver a la app
+      return `com.learnup.app://auth/callback?next=${encodeURIComponent(path)}`;
     }
-    return `https://learn-up-qmgx.onrender.com/auth/callback?next=${encodeURIComponent(path)}`;
+
+    return `${baseUrl}/auth/callback?next=${encodeURIComponent(path)}`;
   };
 
   // Pre-fill email if coming from a failed login attempt

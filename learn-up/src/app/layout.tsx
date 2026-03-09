@@ -19,6 +19,7 @@ import SmoothScroll from "@/components/SmoothScroll";
 import GlobalTransitionLoader from "@/components/GlobalTransitionLoader";
 import HardwareBackHandler from "@/components/HardwareBackHandler";
 import OfflineDetector from "@/components/OfflineDetector";
+import DeepLinkHandler from "@/components/DeepLinkHandler";
 
 export const metadata: Metadata = {
   title: "Learn Up | Tu Tutor IA",
@@ -46,6 +47,7 @@ export default function RootLayout({
             <GlobalTransitionLoader />
           </Suspense>
           <HardwareBackHandler />
+          <DeepLinkHandler />
           <MainLayout>{children}</MainLayout>
         </SmoothScroll>
       </body>
