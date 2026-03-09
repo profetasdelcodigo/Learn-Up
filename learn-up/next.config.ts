@@ -13,7 +13,7 @@ const withPWA = withPWAInit({
 
 const nextConfig: NextConfig = {
   // Silencia el warning de workspace root en Render
-  outputFileTracingRoot: path.join(__dirname, "../../"),
+  outputFileTracingRoot: path.join(process.cwd(), "../../"),
 };
 
 export default withPWA(nextConfig);
