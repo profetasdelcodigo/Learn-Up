@@ -314,18 +314,77 @@ export default function CalendarPage() {
   const savePersonalHabitsToDb = async (allPersonalHabits: HabitActivity[]) => {
     if (!currentUserId) return;
     const weekStart = getWeekStart(currentHabitWeek);
-    const payload = allPersonalHabits.map((h) => ({
-      id: h.id,
-      name: h.name,
-      days: h.days,
-    }));
-    const { error } = await supabase
-      .from("personal_habit_tracker")
-      .upsert(
-        { user_id: currentUserId, week_start: weekStart, habits: payload },
-        { onConflict: "user_id,week_start" },
-      );
-    if (error) console.error("Error saving personal habits:", error);
+
+    const payload = {
+      user_id: currentUserId,
+      week_start: weekStart,
+      habits: allPersonalHabits,
+      updated_at: new Date().toISOString(),
+    };
+
+    try {
+      const { error } = await supabase
+        .from("personal_habit_tracker")
+        .upsert(payload, { onConflict: "user_id,week_start" });
+
+      if (error) {
+        console.error("Error saving personal habits:", error);
+        return;
+      }
+
+      // Sync personal habits to shared calendars if they exist there
+      const { data: sharedCals } = await supabase
+        .from("shared_calendars")
+        .select("id, name")
+        .contains("members", [currentUserId]);
+
+      if (sharedCals) {
+        for (const cal of sharedCals) {
+          const { data: tracker } = await supabase
+            .from("shared_habit_tracker")
+            .select("habits")
+            .eq("calendar_id", cal.id)
+            .eq("week_start", weekStart)
+            .maybeSingle();
+
+          if (tracker?.habits && Array.isArray(tracker.habits)) {
+            let changed = false;
+            const updatedShared = (tracker.habits as HabitActivity[]).map(
+              (sh) => {
+                const matchingPersonal = allPersonalHabits.find(
+                  (ph) =>
+                    ph.name.trim().toLowerCase() ===
+                    sh.name.trim().toLowerCase(),
+                );
+                if (matchingPersonal) {
+                  changed = true;
+                  return {
+                    ...sh,
+                    days: { ...sh.days, ...matchingPersonal.days },
+                  };
+                }
+                return sh;
+              },
+            );
+
+            if (changed) {
+              await supabase.from("shared_habit_tracker").upsert(
+                {
+                  calendar_id: cal.id,
+                  week_start: weekStart,
+                  habits: updatedShared,
+                  updated_by: currentUserId,
+                  updated_at: new Date().toISOString(),
+                },
+                { onConflict: "calendar_id,week_start" },
+              );
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Habit sync-to-shared error:", err);
+    }
   };
 
   const saveHabitToDb = async (habit: HabitActivity) => {

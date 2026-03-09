@@ -242,6 +242,46 @@ export default function SharedCalendarDetail({
       );
 
     if (!upsertError) {
+      // SYNC: If any of these habits match personal habits by name, update personal tracker too
+      try {
+        const { data: personalData } = await supabase
+          .from("personal_habit_tracker")
+          .select("habits")
+          .eq("user_id", currentUserId)
+          .eq("week_start", weekStart)
+          .maybeSingle();
+
+        if (personalData?.habits && Array.isArray(personalData.habits)) {
+          let personalChanged = false;
+          const updatedPersonal = (personalData.habits as HabitActivity[]).map(
+            (ph) => {
+              const matchingShared = newHabits.find(
+                (sh) =>
+                  sh.name.trim().toLowerCase() === ph.name.trim().toLowerCase(),
+              );
+              if (matchingShared) {
+                personalChanged = true;
+                return { ...ph, days: { ...ph.days, ...matchingShared.days } };
+              }
+              return ph;
+            },
+          );
+
+          if (personalChanged) {
+            await supabase.from("personal_habit_tracker").upsert(
+              {
+                user_id: currentUserId,
+                week_start: weekStart,
+                habits: updatedPersonal,
+              },
+              { onConflict: "user_id,week_start" },
+            );
+          }
+        }
+      } catch (err) {
+        console.error("Habit sync-to-personal error:", err);
+      }
+
       // Notify other members occasionally or on progress
       const others = calendar.members.filter((m) => m !== currentUserId);
       for (const mId of others) {

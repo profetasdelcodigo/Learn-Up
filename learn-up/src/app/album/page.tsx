@@ -20,9 +20,9 @@ import BackButton from "@/components/BackButton";
 type MediaFile = {
   id: string;
   file_url: string;
-  file_type: "photo" | "video" | "audio" | "document";
+  media_type: "photo" | "video" | "audio" | "document";
   source?: string;
-  title?: string;
+  caption?: string;
   created_at: string;
 };
 
@@ -276,8 +276,8 @@ export default function AlbumPage() {
   };
 
   const handleMediaClick = (media: MediaFile) => {
-    if (media.file_type === "document") {
-      openDocumentViewer(media.title || "Documento", media.file_url);
+    if (media.media_type === "document") {
+      openDocumentViewer(media.caption || "Documento", media.file_url);
     } else {
       setSelectedMedia(media);
     }
@@ -289,7 +289,7 @@ export default function AlbumPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = media.title || "archivo";
+    a.download = media.caption || "archivo";
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -513,22 +513,22 @@ export default function AlbumPage() {
                       className="aspect-square bg-black/40 flex items-center justify-center relative cursor-pointer"
                       onClick={() => handleMediaClick(media)}
                     >
-                      {media.file_type === "photo" ? (
+                      {media.media_type === "photo" ? (
                         <img
                           src={media.file_url}
                           className="w-full h-full object-cover"
-                          alt={media.title}
+                          alt={media.caption}
                         />
-                      ) : media.file_type === "video" ? (
+                      ) : media.media_type === "video" ? (
                         <div className="flex flex-col items-center gap-2">
                           <Play className="w-10 h-10 text-blue-400" />
                           <span className="text-xs text-gray-400">Video</span>
                         </div>
                       ) : (
                         <div className="flex flex-col items-center gap-2">
-                          {getFileIcon(media.file_type)}
+                          {getFileIcon(media.media_type)}
                           <span className="text-xs text-gray-500 text-center px-2 truncate w-full">
-                            {media.title}
+                            {media.caption}
                           </span>
                         </div>
                       )}
@@ -577,14 +577,14 @@ export default function AlbumPage() {
                 onClick={(e) => e.stopPropagation()}
                 className="max-w-5xl w-full relative"
               >
-                {selectedMedia.file_type === "photo" && (
+                {selectedMedia.media_type === "photo" && (
                   <img
                     src={selectedMedia.file_url}
                     className="rounded-2xl max-h-[80vh] object-contain mx-auto"
                     alt="Recuerdo"
                   />
                 )}
-                {selectedMedia.file_type === "video" && (
+                {selectedMedia.media_type === "video" && (
                   <video
                     src={selectedMedia.file_url}
                     controls

@@ -550,6 +550,36 @@ export async function deleteMessage(
   if (!user) throw new Error("Unauthorized");
 
   if (forEveryone) {
+    // 1. Fetch the message with its room info
+    const { data: msgInfo } = await supabase
+      .from("chat_messages")
+      .select("user_id, room_id")
+      .eq("id", messageId)
+      .single();
+
+    if (!msgInfo) throw new Error("Message not found");
+
+    // 2. Check if user is owner OR if user is an admin in that room
+    const isOwner = msgInfo.user_id === user.id;
+    let isAdmin = false;
+
+    if (!isOwner) {
+      const { data: room } = await supabase
+        .from("chat_rooms")
+        .select("admins")
+        .eq("id", msgInfo.room_id)
+        .single();
+      if (room?.admins && Array.isArray(room.admins)) {
+        isAdmin = room.admins.includes(user.id);
+      }
+    }
+
+    if (!isOwner && !isAdmin) {
+      throw new Error(
+        "Unauthorized: Only author or admins can delete for everyone",
+      );
+    }
+
     // Delete for everyone — try soft delete with flag, fall back to content-wipe
     try {
       const { error } = await supabase
@@ -559,8 +589,7 @@ export async function deleteMessage(
           content: "Este mensaje fue eliminado",
           updated_at: new Date().toISOString(),
         })
-        .eq("id", messageId)
-        .eq("user_id", user.id);
+        .eq("id", messageId);
 
       if (
         error &&
@@ -570,8 +599,7 @@ export async function deleteMessage(
         const { error: fallbackErr } = await supabase
           .from("chat_messages")
           .update({ content: "Este mensaje fue eliminado" })
-          .eq("id", messageId)
-          .eq("user_id", user.id);
+          .eq("id", messageId);
         if (fallbackErr) throw fallbackErr;
       } else if (error) {
         throw error;
