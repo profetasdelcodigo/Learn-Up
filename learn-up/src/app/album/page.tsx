@@ -13,6 +13,7 @@ import {
   Eye,
   Loader2,
   Upload,
+  CheckCircle,
 } from "lucide-react";
 import BackButton from "@/components/BackButton";
 
@@ -40,6 +41,16 @@ export default function AlbumPage() {
   );
   const [selectedMedia, setSelectedMedia] = useState<MediaFile | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  // New states for Upload Confirmation
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadPreview, setUploadPreview] = useState<{
+    file: File | Blob;
+    type: "photo" | "video" | "audio" | "document";
+    name: string;
+    url: string;
+  } | null>(null);
+  const [uploadTitle, setUploadTitle] = useState("");
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -79,16 +90,29 @@ export default function AlbumPage() {
 
   const startCamera = async () => {
     try {
+      // Intentar primero cámara trasera (environment)
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
+        video: { facingMode: "environment" },
         audio: cameraMode === "video",
       });
       setCameraStream(stream);
       setCapturing(true);
     } catch (err) {
-      alert(
-        "No se pudo acceder a la cámara. Verifica los permisos del navegador.",
-      );
+      console.warn("Fallo cámara trasera, intentando cualquier cámara...", err);
+      try {
+        // Fallback a cualquier cámara disponible
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: cameraMode === "video",
+        });
+        setCameraStream(stream);
+        setCapturing(true);
+      } catch (fallbackErr) {
+        alert(
+          "Cámara no disponible o permisos denegados. " +
+            (fallbackErr as Error).message,
+        );
+      }
     }
   };
 
@@ -111,14 +135,18 @@ export default function AlbumPage() {
     canvas.height = videoRef.current.videoHeight;
     canvas.getContext("2d")?.drawImage(videoRef.current, 0, 0);
     canvas.toBlob(
-      async (blob) => {
+      (blob) => {
         if (!blob) return;
-        await uploadMedia(
-          blob,
-          "photo",
-          `foto-${Date.now()}.jpg`,
-          "image/jpeg",
-        );
+        const url = URL.createObjectURL(blob);
+        setUploadPreview({
+          file: blob,
+          type: "photo",
+          name: `foto-${Date.now()}.jpg`,
+          url,
+        });
+        setUploadTitle("");
+        setShowUploadModal(true);
+        stopCamera();
       },
       "image/jpeg",
       0.9,
@@ -130,7 +158,6 @@ export default function AlbumPage() {
     const chunks: BlobPart[] = [];
     const options = { mimeType: "video/webm;codecs=vp8,opus" };
 
-    // Check for browser support
     const recorder = MediaRecorder.isTypeSupported(options.mimeType)
       ? new MediaRecorder(cameraStream, options)
       : new MediaRecorder(cameraStream);
@@ -138,14 +165,18 @@ export default function AlbumPage() {
     recorder.ondataavailable = (e) => {
       if (e.data.size > 0) chunks.push(e.data);
     };
-    recorder.onstop = async () => {
+    recorder.onstop = () => {
       const blob = new Blob(chunks, { type: "video/webm" });
-      await uploadMedia(
-        blob,
-        "video",
-        `video-${Date.now()}.webm`,
-        "video/webm",
-      );
+      const url = URL.createObjectURL(blob);
+      setUploadPreview({
+        file: blob,
+        type: "video",
+        name: `video-${Date.now()}.webm`,
+        url,
+      });
+      setUploadTitle("");
+      setShowUploadModal(true);
+      stopCamera();
     };
     recorder.start();
     setMediaRecorder(recorder);
@@ -159,12 +190,12 @@ export default function AlbumPage() {
     setIsRecording(false);
   };
 
-  const uploadMedia = async (
-    blob: Blob,
-    fileType: MediaFile["file_type"],
-    filename: string,
-    mimeType: string,
-  ) => {
+  const confirmUpload = async () => {
+    if (!uploadPreview || !uploadTitle.trim()) {
+      alert("Por favor, ponle un título a tu recuerdo.");
+      return;
+    }
+
     setUploading(true);
     try {
       const {
@@ -172,10 +203,18 @@ export default function AlbumPage() {
       } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Usar UUID para evitar 400 Bad Request por archivos duplicados
+      const ext = uploadPreview.name.split(".").pop();
+      const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
       const filePath = `${user.id}/${filename}`;
+
       const { error: uploadError } = await supabase.storage
         .from("user-media")
-        .upload(filePath, blob, { contentType: mimeType });
+        .upload(filePath, uploadPreview.file, {
+          contentType: uploadPreview.file.type || "application/octet-stream",
+          upsert: true, // Asegurar sobreescritura si colisiona
+        });
+
       if (uploadError) throw uploadError;
 
       const {
@@ -185,23 +224,25 @@ export default function AlbumPage() {
       const { error: dbError } = await supabase.from("user_media").insert({
         user_id: user.id,
         file_url: publicUrl,
-        media_type: fileType, // ✅ columna real en la tabla user_media
-        caption: filename, // ✅ columna real en la tabla user_media
+        media_type: uploadPreview.type,
+        caption: uploadTitle.trim(),
       });
       if (dbError) throw dbError;
 
       await loadMedia();
-      stopCamera();
+      setShowUploadModal(false);
+      setUploadPreview(null);
+      setUploadTitle("");
       setActiveTab("recuerdos");
     } catch (err) {
       console.error("Error uploading:", err);
-      alert("Error al guardar el archivo");
+      alert("Error al guardar el archivo.");
     } finally {
       setUploading(false);
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const fileType = file.type.startsWith("image")
@@ -211,7 +252,35 @@ export default function AlbumPage() {
         : file.type.startsWith("audio")
           ? "audio"
           : "document";
-    await uploadMedia(file, fileType, file.name, file.type);
+
+    setUploadPreview({
+      file,
+      type: fileType,
+      name: file.name,
+      url: URL.createObjectURL(file), // Visor rápido
+    });
+    setUploadTitle("");
+    setShowUploadModal(true);
+
+    // Clear input
+    e.target.value = "";
+  };
+
+  const openDocumentViewer = (title: string, fileUrl: string) => {
+    // Abrir documentos con Google Docs Viewer para no forzar descarga en celular
+    const encodedUrl = encodeURIComponent(fileUrl);
+    window.open(
+      `https://docs.google.com/viewer?url=${encodedUrl}&embedded=true`,
+      "_blank",
+    );
+  };
+
+  const handleMediaClick = (media: MediaFile) => {
+    if (media.file_type === "document") {
+      openDocumentViewer(media.title || "Documento", media.file_url);
+    } else {
+      setSelectedMedia(media);
+    }
   };
 
   const downloadMedia = async (media: MediaFile) => {
@@ -442,7 +511,7 @@ export default function AlbumPage() {
                   >
                     <div
                       className="aspect-square bg-black/40 flex items-center justify-center relative cursor-pointer"
-                      onClick={() => setSelectedMedia(media)}
+                      onClick={() => handleMediaClick(media)}
                     >
                       {media.file_type === "photo" ? (
                         <img
@@ -497,7 +566,7 @@ export default function AlbumPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/95 backdrop-blur-xl z-50 flex items-center justify-center p-4"
+              className="fixed inset-0 bg-black/95 backdrop-blur-xl z-50 flex items-center justify-center p-4 pt-[calc(env(safe-area-inset-top)+1rem)]"
               onClick={() => setSelectedMedia(null)}
             >
               <motion.div
@@ -534,6 +603,83 @@ export default function AlbumPage() {
                     className="px-6 py-2.5 border border-gray-700 text-gray-400 rounded-full hover:bg-white/5 transition-all"
                   >
                     Cerrar
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {/* Upload Confirmation Modal */}
+        <AnimatePresence>
+          {showUploadModal && uploadPreview && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 pt-[calc(env(safe-area-inset-top)+1rem)]"
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 20 }}
+                className="bg-gray-900 border border-brand-gold/50 rounded-3xl p-6 w-full max-w-sm flex flex-col items-center text-center shadow-2xl"
+              >
+                <h3 className="text-xl font-bold text-white mb-4">
+                  Guardar Recuerdo
+                </h3>
+
+                {uploadPreview.type === "photo" && (
+                  <img
+                    src={uploadPreview.url}
+                    className="w-full h-48 object-cover rounded-xl mb-4 border border-gray-700"
+                    alt="Preview"
+                  />
+                )}
+                {uploadPreview.type === "video" && (
+                  <video
+                    src={uploadPreview.url}
+                    className="w-full h-48 object-cover rounded-xl mb-4 border border-gray-700 bg-black"
+                    controls
+                  />
+                )}
+                {uploadPreview.type === "document" && (
+                  <div className="w-full h-24 bg-gray-800 rounded-xl mb-4 flex items-center justify-center border border-gray-700">
+                    <Download className="w-8 h-8 text-brand-gold" />
+                  </div>
+                )}
+
+                <input
+                  type="text"
+                  value={uploadTitle}
+                  onChange={(e) => setUploadTitle(e.target.value)}
+                  placeholder="Escribe un título (ej. Apuntes Matemáticas)"
+                  className="w-full px-4 py-3 bg-black/50 border border-gray-700 rounded-xl text-white placeholder-gray-500 mb-6 text-sm focus:border-emerald-500 outline-none"
+                  autoFocus
+                />
+
+                <div className="flex w-full gap-3">
+                  <button
+                    onClick={() => {
+                      setShowUploadModal(false);
+                      setUploadPreview(null);
+                      setUploadTitle("");
+                    }}
+                    disabled={uploading}
+                    className="flex-1 py-2.5 rounded-full border border-gray-700 text-gray-400 font-semibold hover:bg-white/5 transition-all text-sm"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmUpload}
+                    disabled={uploading || !uploadTitle.trim()}
+                    className="flex-1 py-2.5 rounded-full bg-emerald-500 text-white font-bold hover:bg-emerald-400 transition-all text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {uploading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <CheckCircle className="w-4 h-4" />
+                    )}
+                    {uploading ? "Subiendo..." : "Guardar"}
                   </button>
                 </div>
               </motion.div>

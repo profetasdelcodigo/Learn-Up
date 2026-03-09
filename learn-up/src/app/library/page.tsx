@@ -6,6 +6,7 @@ import {
   uploadLibraryFile,
   approveLibraryItem,
   rejectLibraryItem,
+  deleteOwnLibraryItem,
 } from "@/actions/library";
 import { getUserRooms, sendMessage as sendMessageAction } from "@/actions/chat";
 import { motion, AnimatePresence } from "framer-motion";
@@ -34,6 +35,7 @@ import {
   Download,
   Share2,
   Star,
+  Trash2,
   Loader2,
 } from "lucide-react";
 import PageLoader from "@/components/PageLoader";
@@ -196,14 +198,29 @@ export default function LibraryPage() {
   };
 
   const openItem = (item: LibraryItem) => {
-    // Track recents in localStorage
     const updated = [item.id, ...recents.filter((id) => id !== item.id)].slice(
       0,
       10,
     );
     setRecents(updated);
     localStorage.setItem("library_recents", JSON.stringify(updated));
-    window.open(item.file_url, "_blank");
+
+    if (
+      item.file_type === "document" ||
+      item.file_url.endsWith(".pdf") ||
+      item.file_url.endsWith(".doc") ||
+      item.file_url.endsWith(".docx") ||
+      item.file_url.endsWith(".ppt") ||
+      item.file_url.endsWith(".pptx")
+    ) {
+      const encodedUrl = encodeURIComponent(item.file_url);
+      window.open(
+        `https://docs.google.com/viewer?url=${encodedUrl}&embedded=true`,
+        "_blank",
+      );
+    } else {
+      window.open(item.file_url, "_blank");
+    }
   };
 
   const downloadItem = async (item: LibraryItem) => {
@@ -550,6 +567,30 @@ export default function LibraryPage() {
                       >
                         <Download className="w-4 h-4" />
                       </button>
+
+                      {item.user_id === currentUserId && (
+                        <button
+                          onClick={async () => {
+                            if (
+                              confirm(
+                                "¿Estás seguro de que quieres eliminar este recurso?",
+                              )
+                            ) {
+                              const res = await deleteOwnLibraryItem(item.id);
+                              if (res.success) {
+                                // Simple refresh
+                                window.location.reload();
+                              } else {
+                                alert(res.error || "Error al eliminar");
+                              }
+                            }
+                          }}
+                          className="p-2 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all flex items-center justify-center"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </FadeUpItem>
@@ -565,7 +606,7 @@ export default function LibraryPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 pt-[calc(env(safe-area-inset-top)+1rem)]"
               onClick={() => setReviewItem(null)}
             >
               <motion.div
@@ -640,7 +681,7 @@ export default function LibraryPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 pt-[calc(env(safe-area-inset-top)+1rem)]"
               onClick={() => setShowShareModal(false)}
             >
               <motion.div
@@ -707,7 +748,7 @@ export default function LibraryPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 pt-[calc(env(safe-area-inset-top)+1rem)]"
               onClick={() => setShowModal(false)}
             >
               <motion.div
@@ -829,6 +870,38 @@ export default function LibraryPage() {
                         (No se permiten audios)
                       </span>
                     </label>
+
+                    {/* Preview Area */}
+                    {formData.file && (
+                      <div className="mb-4">
+                        <p className="text-sm text-brand-gold mb-2">
+                          Vista Previa:
+                        </p>
+                        {formData.file.type.startsWith("image/") ? (
+                          <img
+                            src={URL.createObjectURL(formData.file)}
+                            alt="Preview"
+                            className="w-full h-40 object-cover rounded-xl border border-gray-700"
+                          />
+                        ) : formData.file.type.startsWith("video/") ? (
+                          <video
+                            src={URL.createObjectURL(formData.file)}
+                            controls
+                            className="w-full h-40 object-cover rounded-xl border border-gray-700 bg-black"
+                          />
+                        ) : (
+                          <div className="w-full h-24 bg-gray-800 rounded-xl flex items-center justify-center border border-gray-700 text-gray-400">
+                            <div className="flex items-center gap-3">
+                              <FileText className="w-8 h-8 text-brand-gold" />
+                              <span className="text-sm font-semibold truncate max-w-xs">
+                                {formData.file.name}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <input
                       type="file"
                       onChange={(e) =>

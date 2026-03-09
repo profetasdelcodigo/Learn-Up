@@ -203,3 +203,34 @@ export async function rejectLibraryItem(
     return { success: false, error: "Error inesperado" };
   }
 }
+
+export async function deleteOwnLibraryItem(
+  itemId: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: "No autenticado" };
+
+    const { data: item, error } = await supabase
+      .from("library_items")
+      .delete()
+      .eq("id", itemId)
+      .eq("user_id", user.id)
+      .select("title")
+      .single();
+
+    if (error || !item) {
+      return {
+        success: false,
+        error: "No se pudo eliminar el archivo o no tienes permisos",
+      };
+    }
+
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: "Error inesperado" };
+  }
+}
