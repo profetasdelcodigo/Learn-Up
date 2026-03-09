@@ -237,6 +237,28 @@ export async function createGroup(
     .single();
 
   if (error) throw error;
+
+  // Notify participants (except creator)
+  (async () => {
+    try {
+      const others = validParticipants.filter((id) => id !== user.id);
+      for (const pId of others) {
+        await supabase.from("notifications").insert({
+          user_id: pId,
+          sender_id: user.id,
+          title: "Nuevo Grupo: " + name,
+          message: `Te han añadido al grupo "${name}". ¡Saluda a tus compañeros!`,
+          type: "message",
+          link: "/chat",
+          is_read: false,
+          created_at: new Date().toISOString(),
+        });
+      }
+    } catch (e) {
+      console.error("Error notifying group participants:", e);
+    }
+  })();
+
   return data.id;
 }
 
@@ -392,14 +414,31 @@ export async function sendMessage(
               : "Nuevo Mensaje";
           const msgContent = content.substring(0, 80);
 
-          // Skip in-app notification for system/call messages
-          if (!isSystemMsg) {
+          // Skip in-app notification for minor system messages, but INCLUDE calls
+          const shouldNotifyInApp =
+            !isSystemMsg || content.includes("[CALL_OFFER");
+
+          if (shouldNotifyInApp) {
+            let notificationType = "message";
+            let notificationTitle = title;
+            let notificationMessage = msgContent;
+
+            if (content.includes("[CALL_OFFER_VIDEO]")) {
+              notificationType = "video_call";
+              notificationTitle = "Videollamada entrante";
+              notificationMessage = "Entra para responder ahora.";
+            } else if (content.includes("[CALL_OFFER_VOICE]")) {
+              notificationType = "call";
+              notificationTitle = "Llamada de voz entrante";
+              notificationMessage = "Entra para responder ahora.";
+            }
+
             await supabase.from("notifications").insert({
               user_id: recipientId,
               sender_id: user.id,
-              title,
-              message: msgContent,
-              type: "message",
+              title: notificationTitle,
+              message: notificationMessage,
+              type: notificationType,
               link: `/chat`,
               is_read: false,
               created_at: new Date().toISOString(),

@@ -27,6 +27,21 @@ export async function createSharedCalendar(name: string, members: string[]) {
       .single();
 
     if (error) throw error;
+
+    // Notify members (except creator)
+    const otherMembers = uniqueMembers.filter((m) => m !== user.id);
+    for (const memberId of otherMembers) {
+      await supabase.from("notifications").insert({
+        user_id: memberId,
+        sender_id: user.id,
+        type: "calendar_event",
+        title: "Nuevo Calendario Compartido 📅",
+        message: `Te han unido al calendario "${name}".`,
+        link: `/calendar`,
+        is_read: false,
+      });
+    }
+
     return { success: true, data };
   } catch (err: any) {
     console.error("Error creating shared calendar:", err);
@@ -70,6 +85,29 @@ export async function addSharedEvent(
       content: `agregó el evento "${title}" para el ${new Date(start).toLocaleDateString("es-ES")}`,
       type: "system",
     });
+
+    // Notify members
+    const { data: calendar } = await supabase
+      .from("shared_calendars")
+      .select("members, name")
+      .eq("id", calendarId)
+      .single();
+
+    if (calendar && calendar.members) {
+      const members = Array.isArray(calendar.members) ? calendar.members : [];
+      const others = members.filter((m: string) => m !== user.id);
+      for (const mId of others) {
+        await supabase.from("notifications").insert({
+          user_id: mId,
+          sender_id: user.id,
+          type: "calendar_event",
+          title: `Evento en ${calendar.name} 📅`,
+          message: `Nuevo evento: "${title}" para el ${new Date(start).toLocaleDateString("es-ES")}.`,
+          link: `/calendar`,
+          is_read: false,
+        });
+      }
+    }
 
     return { success: true, data };
   } catch (err: any) {

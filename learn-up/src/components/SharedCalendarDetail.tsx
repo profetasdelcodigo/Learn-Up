@@ -228,16 +228,34 @@ export default function SharedCalendarDetail({
 
   const saveHabits = async (newHabits: HabitActivity[]) => {
     const weekStart = getWeekStart(currentHabitWeek);
-    await supabase.from("shared_habit_tracker").upsert(
-      {
-        calendar_id: calendar.id,
-        week_start: weekStart,
-        habits: newHabits,
-        updated_by: currentUserId,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "calendar_id,week_start" },
-    );
+    const { error: upsertError } = await supabase
+      .from("shared_habit_tracker")
+      .upsert(
+        {
+          calendar_id: calendar.id,
+          week_start: weekStart,
+          habits: newHabits,
+          updated_by: currentUserId,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "calendar_id,week_start" },
+      );
+
+    if (!upsertError) {
+      // Notify other members occasionally or on progress
+      const others = calendar.members.filter((m) => m !== currentUserId);
+      for (const mId of others) {
+        await supabase.from("notifications").insert({
+          user_id: mId,
+          sender_id: currentUserId,
+          type: "system",
+          title: `Avance en ${calendar.name} 🔥`,
+          message: `Se han actualizado los hábitos del grupo. ¡Echemos un vistazo!`,
+          link: `/calendar`,
+          is_read: false,
+        });
+      }
+    }
   };
 
   const handleCreateEvent = async (e: React.FormEvent) => {

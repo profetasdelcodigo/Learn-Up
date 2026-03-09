@@ -239,3 +239,51 @@ export async function deleteOwnLibraryItem(
     return { success: false, error: "Error inesperado" };
   }
 }
+
+export async function adminDeleteLibraryItem(
+  itemId: string,
+  reason: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: "No autenticado" };
+
+    // Check if user is admin/docente
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (!["admin", "docente"].includes(profile?.role || "")) {
+      return { success: false, error: "No tienes permisos de administrador" };
+    }
+
+    const { data: item, error } = await supabase
+      .from("library_items")
+      .delete()
+      .eq("id", itemId)
+      .select("title, user_id")
+      .single();
+
+    if (error || !item) return { success: false, error: "No se pudo eliminar" };
+
+    // Notify owner
+    await supabase.from("notifications").insert({
+      user_id: item.user_id,
+      sender_id: user.id,
+      type: "library_rejected",
+      title: "Material eliminado por moderación",
+      message: `Tu material "${item.title}" fue retirado por un moderador. Motivo: ${reason}`,
+      link: "/library",
+      is_read: false,
+    });
+
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: "Error inesperado" };
+  }
+}
