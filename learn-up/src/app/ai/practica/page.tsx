@@ -23,6 +23,7 @@ import {
 import PageLoader from "@/components/PageLoader";
 import { generateRealExam, gradeExam, ExamData } from "@/actions/ai-tutor";
 import BackButton from "@/components/BackButton";
+import Loading from "@/app/loading";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import {
@@ -54,10 +55,15 @@ export default function ExamenIAPage() {
 
   const [sessions, setSessions] = useState<any[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     loadSessions();
+    const timer = setTimeout(() => {
+      setInitialLoading(false);
+    }, 2000);
+    return () => clearTimeout(timer);
   }, []);
 
   const loadSessions = async () => {
@@ -214,6 +220,10 @@ export default function ExamenIAPage() {
         ),
       )
     : false;
+
+  if (initialLoading) {
+    return <Loading />;
+  }
 
   return (
     <div className="min-h-screen bg-brand-black flex flex-col md:flex-row">

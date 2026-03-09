@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Loading from "@/app/loading";
 import {
   Send,
   Loader2,
@@ -62,6 +63,7 @@ export default function AIChatComponent({
 
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState("");
   const [showHistory, setShowHistory] = useState(false);
 
@@ -74,6 +76,10 @@ export default function AIChatComponent({
 
   useEffect(() => {
     loadSessions();
+    const timer = setTimeout(() => {
+      setInitialLoading(false);
+    }, 2000);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -228,6 +234,10 @@ export default function AIChatComponent({
       setLoading(false);
     }
   };
+
+  if (initialLoading) {
+    return <Loading />;
+  }
 
   return (
     <div

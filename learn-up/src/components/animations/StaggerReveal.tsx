@@ -18,7 +18,7 @@ export const StaggerContainer = ({
       variants={{
         visible: {
           transition: {
-            staggerChildren: 0.1,
+            staggerChildren: 0.15,
             delayChildren: delayOffset,
           },
         },
@@ -40,14 +40,14 @@ export const FadeUpItem = ({
   return (
     <motion.div
       variants={{
-        hidden: { opacity: 0, y: 30 },
+        hidden: { opacity: 0, y: 20 },
         visible: {
           opacity: 1,
           y: 0,
           transition: {
             type: "spring",
-            damping: 25,
-            stiffness: 200,
+            damping: 28,
+            stiffness: 120, // Lower stiffness = slower animation
           },
         },
       }}

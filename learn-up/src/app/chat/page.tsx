@@ -61,6 +61,7 @@ import CreateGroupModal from "@/components/chat/CreateGroupModal";
 import GroupInfoPanel from "@/components/chat/GroupInfoPanel";
 import UserInfoPanel from "@/components/chat/UserInfoPanel";
 import ToastContainer, { Toast } from "@/components/ToastContainer";
+import Loading from "@/app/loading";
 
 const VideoRoom = dynamic(() => import("@/components/VideoRoom"), {
   ssr: false,
@@ -313,7 +314,9 @@ export default function ChatPage() {
       } catch (error) {
         console.error("Error loading initial data:", error);
       } finally {
-        setInitialLoading(false);
+        setTimeout(() => {
+          setInitialLoading(false);
+        }, 2000);
       }
     };
     initData();
@@ -809,6 +812,10 @@ export default function ChatPage() {
     const name = friend.full_name || friend.username || "";
     return name.toLowerCase().includes(localFilter.toLowerCase());
   });
+
+  if (initialLoading) {
+    return <Loading />;
+  }
 
   return (
     <>
