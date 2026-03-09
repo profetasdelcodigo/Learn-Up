@@ -71,8 +71,12 @@ body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   font-size: var(--text-base);
   line-height: 1.6;
-  /* NOTE: safe-area-inset-top is handled per-component
-     (header paddingTop), NOT on body, to avoid double padding */
+  /* NOTE: safe-area-inset-top is handled per-component */
+}
+
+/* Native smooth scroll for scollable containers (replaces Lenis) */
+* {
+  scroll-behavior: smooth;
 }
 
 /* ─────────────────────────────────────────────────

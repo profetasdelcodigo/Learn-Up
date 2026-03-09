@@ -1088,20 +1088,18 @@ export default function CalendarPage() {
                 className="bg-brand-black border border-brand-gold rounded-3xl p-8 max-w-md w-full"
               >
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-white">
-                    Crear Evento
-                  </h2>
+                  <h2 className="text-xl font-bold text-white">Crear Evento</h2>
                   <button
                     onClick={() => setShowModal(false)}
-                    className="w-10 h-10 rounded-full border border-gray-700 flex items-center justify-center text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
+                    className="text-gray-400 hover:text-brand-gold"
                   >
                     <X className="w-5 h-5" />
                   </button>
                 </div>
                 <form onSubmit={handleCreateEvent} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Título del Evento *
+                    <label className="block text-sm text-gray-300 mb-1">
+                      Título
                     </label>
                     <input
                       type="text"
@@ -1109,14 +1107,13 @@ export default function CalendarPage() {
                       onChange={(e) =>
                         setFormData({ ...formData, title: e.target.value })
                       }
-                      className="w-full px-4 py-3 bg-brand-black border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
-                      placeholder="Reunión, Examen, etc."
+                      className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white focus:border-brand-gold outline-none"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Descripción (Opcional)
+                    <label className="block text-sm text-gray-300 mb-1">
+                      Descripción
                     </label>
                     <textarea
                       value={formData.description}
@@ -1126,41 +1123,36 @@ export default function CalendarPage() {
                           description: e.target.value,
                         })
                       }
-                      className="w-full px-4 py-3 bg-brand-black border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors resize-none"
-                      placeholder="Detalles del evento..."
-                      rows={3}
+                      className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white focus:border-brand-gold outline-none resize-none"
+                      rows={2}
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Fecha y Hora de Inicio *
-                    </label>
-                    <div className="relative">
-                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm text-gray-300 mb-1">
+                        Inicio
+                      </label>
                       <input
                         type="datetime-local"
                         value={formData.start}
                         onChange={(e) =>
                           setFormData({ ...formData, start: e.target.value })
                         }
-                        className="w-full pl-12 pr-4 py-3 bg-brand-black border border-gray-700 rounded-2xl text-white focus:outline-none focus:border-brand-gold transition-colors"
+                        className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white focus:border-brand-gold outline-none text-sm"
                         required
                       />
                     </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Fecha y Hora de Fin *
-                    </label>
-                    <div className="relative">
-                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                    <div>
+                      <label className="block text-sm text-gray-300 mb-1">
+                        Fin
+                      </label>
                       <input
                         type="datetime-local"
                         value={formData.end}
                         onChange={(e) =>
                           setFormData({ ...formData, end: e.target.value })
                         }
-                        className="w-full pl-12 pr-4 py-3 bg-brand-black border border-gray-700 rounded-2xl text-white focus:outline-none focus:border-brand-gold transition-colors"
+                        className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white focus:border-brand-gold outline-none text-sm"
                         required
                       />
                     </div>
@@ -1168,16 +1160,14 @@ export default function CalendarPage() {
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="w-full py-3 bg-brand-gold text-brand-black font-bold rounded-full hover:bg-brand-gold/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-brand-gold text-brand-black font-bold rounded-xl mt-4 flex items-center justify-center gap-2"
                   >
                     {submitting ? (
                       <>
                         <Loader2 className="w-5 h-5 animate-spin" /> Creando...
                       </>
                     ) : (
-                      <>
-                        <Plus className="w-5 h-5" /> Crear Evento
-                      </>
+                      "Guardar Evento"
                     )}
                   </button>
                 </form>

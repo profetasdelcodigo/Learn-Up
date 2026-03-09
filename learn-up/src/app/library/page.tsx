@@ -18,11 +18,6 @@ import {
   BookOpen,
   Upload,
   X,
-  Loader2,
-  FileText,
-  Download,
-  Share2,
-  Star,
   Clock,
   Search,
   User,
@@ -34,7 +29,13 @@ import {
   Video,
   ImageIcon,
   Send,
+  FileText,
+  Download,
+  Share2,
+  Star,
+  Loader2,
 } from "lucide-react";
+import PageLoader from "@/components/PageLoader";
 
 interface LibraryItem {
   id: string;

@@ -33,38 +33,32 @@ export default function MainLayout({
 
   return (
     <div
-      className="flex bg-brand-black"
-      style={{ height: "100dvh", overflow: "hidden" }}
+      className={`flex bg-brand-black w-full ${
+        isFullscreen ? "h-dvh overflow-hidden" : "min-h-dvh"
+      }`}
     >
       <NotificationManager />
       <WelcomeTutorial />
 
       {/* Desktop sidebar — only on dashboard */}
       {showNav && isDashboard && (
-        <div className="hidden md:flex shrink-0">
+        <div className="hidden md:flex shrink-0 sticky top-0 h-dvh">
           <Sidebar />
         </div>
       )}
 
       <main
-        className={[
-          "flex-1 relative w-full",
-          isPublicRoute ? "" : "flex flex-col",
-          // Fullscreen routes manage their own scroll internally
-          isFullscreen ? "overflow-hidden" : "overflow-y-auto",
-        ]
-          .filter(Boolean)
-          .join(" ")}
+        className={`flex-1 relative w-full ${
+          isFullscreen ? "overflow-hidden flex flex-col" : "min-w-0"
+        }`}
       >
         {/* Content wrapper */}
         <div
           className={[
-            "w-full",
-            isPublicRoute ? "h-full" : "",
-            // Non-fullscreen authenticated pages need bottom padding so content
-            // is not hidden behind the BottomNav
+            "w-full h-full",
+            // Padding bottom for bottom nav
             showNav && !isFullscreen ? "pb-nav" : "",
-            isFullscreen ? "h-full flex flex-col" : "",
+            isFullscreen ? "flex flex-col" : "",
           ]
             .filter(Boolean)
             .join(" ")}
