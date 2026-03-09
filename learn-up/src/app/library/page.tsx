@@ -32,6 +32,8 @@ import {
   ImageIcon,
   Send,
   FileText,
+  FileVideo2,
+  Filter,
   Download,
   Share2,
   Star,
@@ -500,17 +502,46 @@ export default function LibraryPage() {
               {filteredItems.map((item, i) => (
                 <FadeUpItem key={item.id}>
                   <div className="bg-gray-900/80 border border-gray-800 rounded-2xl p-5 hover:border-brand-gold/40 transition-all group flex flex-col h-full">
-                    <div className="flex items-start gap-3 mb-3">
-                      <div className="w-12 h-12 rounded-xl bg-brand-gold/10 border border-brand-gold/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                        {FILE_ICON_MAP[item.file_type || "document"] ||
-                          FILE_ICON_MAP.document}
+                    <div className="flex items-start gap-4 mb-4">
+                      {/* Thumbnail / Icon Container */}
+                      <div className="relative group/thumb">
+                        <div className="w-16 h-16 rounded-xl bg-brand-gold/10 border border-brand-gold/20 flex items-center justify-center shrink-0 overflow-hidden group-hover:scale-105 transition-transform">
+                          {item.file_type === "image" ? (
+                            <img
+                              src={item.file_url}
+                              alt={item.title}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as any).src = ""; // Fallback logic if needed
+                                (e.target as any).className = "hidden";
+                              }}
+                            />
+                          ) : item.file_type === "video" ? (
+                            <div className="relative w-full h-full bg-black flex items-center justify-center">
+                              <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent" />
+                              <FileVideo2 className="w-6 h-6 text-brand-gold relative z-10" />
+                            </div>
+                          ) : (
+                            FILE_ICON_MAP[item.file_type || "document"] ||
+                            FILE_ICON_MAP.document
+                          )}
+                        </div>
+                        {/* Status tag inside thumbnail if pending */}
+                        {!item.is_approved && (
+                          <div className="absolute top-0 left-0 w-full h-full bg-black/60 flex items-center justify-center">
+                            <span className="text-[8px] font-bold text-brand-gold bg-black/80 px-1 rounded uppercase tracking-tighter">
+                              Pendiente
+                            </span>
+                          </div>
+                        )}
                       </div>
+
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-white truncate">
+                        <h3 className="font-bold text-white leading-tight mb-1 line-clamp-2">
                           {item.title}
                         </h3>
                         {item.subject && (
-                          <span className="text-xs text-brand-gold bg-brand-gold/10 px-2 py-0.5 rounded-full">
+                          <span className="text-[10px] text-brand-gold bg-brand-gold/10 px-2 py-0.5 rounded-full border border-brand-gold/20">
                             {item.subject}
                           </span>
                         )}

@@ -78,7 +78,7 @@ export async function getUserRooms() {
     const { data: rooms, error } = await supabase
       .from("chat_rooms")
       .select("*")
-      .contains("participants", [user.id])
+      .filter("participants", "cs", `{${user.id}}`)
       .order("updated_at", { ascending: false });
 
     if (error) {
@@ -154,7 +154,7 @@ export async function ensurePrivateRoom(friendId: string) {
     .from("chat_rooms")
     .select("id, participants, type")
     .eq("type", "private")
-    .contains("participants", [user.id]);
+    .filter("participants", "cs", `{${user.id}}`);
 
   if (fetchError) {
     console.error("[ensurePrivateRoom] Error fetching rooms:", fetchError);

@@ -247,7 +247,7 @@ export default function ChatPage() {
           supabase
             .from("chat_rooms")
             .select("*")
-            .contains("participants", [user.id])
+            .filter("participants", "cs", `{${user.id}}`)
             .order("updated_at", { ascending: false }),
           supabase
             .from("friendships")
@@ -324,7 +324,7 @@ export default function ChatPage() {
       const { data: rooms } = await supabase
         .from("chat_rooms")
         .select("*")
-        .contains("participants", [userId])
+        .filter("participants", "cs", `{${userId}}`)
         .order("updated_at", { ascending: false });
       if (rooms) setRooms(rooms as any);
     };

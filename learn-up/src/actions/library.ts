@@ -71,21 +71,25 @@ export async function uploadLibraryFile(
     else if (["mp4", "webm", "mov"].includes(fileExt)) fileType = "video";
     else if (["pdf"].includes(fileExt)) fileType = "pdf";
 
-    // Get submitter's profile
-    const { data: submitterProfile } = await supabase
+    // Save reference to database
+    // Docentes and Admins are auto-approved; students need review
+    const { data: submitterProfile, error: profileError } = await supabase
       .from("profiles")
-      .select("full_name, username")
+      .select("role, full_name, username")
       .eq("id", user.id)
       .single();
 
-    // Save reference to database
-    // Docentes and Admins are auto-approved; students need review
-    const { data: submitterRole } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-    const isTeacher = ["docente", "admin"].includes(submitterRole?.role || "");
+    if (profileError) {
+      console.error(
+        "[uploadLibraryFile] Error fetching profile:",
+        profileError,
+      );
+    }
+
+    const isTeacher = ["docente", "admin"].includes(
+      submitterProfile?.role || "",
+    );
+    const finalReviewerId = isTeacher ? user.id : reviewer.id;
 
     const { data: newItem, error: dbError } = await supabase
       .from("library_items")
@@ -96,8 +100,8 @@ export async function uploadLibraryFile(
         file_url: publicUrl,
         file_type: fileType,
         user_id: user.id,
-        reviewer_id: isTeacher ? user.id : reviewer.id,
-        is_approved: isTeacher, // Docentes self-approve
+        reviewer_id: finalReviewerId,
+        is_approved: isTeacher, // Strictly auto-approve ONLY if submitter is teacher/admin
       })
       .select()
       .single();
@@ -107,16 +111,17 @@ export async function uploadLibraryFile(
       return { success: false, error: "Error al guardar en la base de datos" };
     }
 
-    // Notify reviewer — only if student upload (teachers self-approve and don't need a review notification)
+    // Notify reviewer — only if student upload
     if (!isTeacher) {
       const submitterName =
         submitterProfile?.full_name || submitterProfile?.username || user.email;
+
       await supabase.from("notifications").insert({
-        user_id: reviewer.id,
+        user_id: reviewer.id, // TO: Docente Revisor
+        sender_id: user.id, // FROM: Estudiante
         type: "library_review",
         title: "Material para revisar",
         message: `${submitterName} te envió "${title}" para revisión en la Biblioteca.`,
-        sender_id: user.id,
         link: `/library?review=${newItem.id}`,
         is_read: false,
       });
