@@ -14,6 +14,7 @@ import {
   FadeUpItem,
 } from "@/components/animations/StaggerReveal";
 import BackButton from "@/components/BackButton";
+import { SkeletonGrid } from "@/components/Skeleton";
 import {
   BookOpen,
   Upload,
@@ -339,7 +340,13 @@ export default function LibraryPage() {
     });
 
   if (loading) {
-    return <PageLoader />;
+    return (
+      <div className="w-full min-h-screen bg-brand-black p-6">
+        <BackButton className="mb-6" />
+        <div className="h-12 bg-gray-900 rounded-2xl w-64 animate-pulse mb-8" />
+        <SkeletonGrid count={6} />
+      </div>
+    );
   }
 
   return (
@@ -475,7 +482,7 @@ export default function LibraryPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredItems.map((item, i) => (
                 <FadeUpItem key={item.id}>
-                  <div className="bg-gray-900/80 border border-gray-800 rounded-2xl p-5 hover:border-brand-gold/40 transition-all group">
+                  <div className="bg-gray-900/80 border border-gray-800 rounded-2xl p-5 hover:border-brand-gold/40 transition-all group flex flex-col h-full">
                     <div className="flex items-start gap-3 mb-3">
                       <div className="w-12 h-12 rounded-xl bg-brand-gold/10 border border-brand-gold/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                         {FILE_ICON_MAP[item.file_type || "document"] ||
@@ -500,16 +507,25 @@ export default function LibraryPage() {
                         />
                       </button>
                     </div>
-                    {item.description && (
-                      <p className="text-sm text-gray-400 mb-3 line-clamp-2">
-                        {item.description}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
-                      <User className="w-3 h-3" />
-                      <span>@{item.profiles?.username || "anónimo"}</span>
+
+                    {/* Contenedor flexible para alinear el pie hacia abajo */}
+                    <div className="flex-1 flex flex-col">
+                      {item.description ? (
+                        <p className="text-sm text-gray-400 mb-3 line-clamp-2">
+                          {item.description}
+                        </p>
+                      ) : (
+                        <div className="mb-3 h-[40px]" /> /* Espaciador si no hay descripción para mantener el nivel */
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 text-xs text-gray-500 mb-4 mt-auto">
+                      <User className="w-3 h-3 shrink-0" />
+                      <span className="truncate">
+                        @{item.profiles?.username || "anónimo"}
+                      </span>
                       <span>·</span>
-                      <span>
+                      <span className="shrink-0">
                         {new Date(item.created_at).toLocaleDateString("es-ES")}
                       </span>
                     </div>

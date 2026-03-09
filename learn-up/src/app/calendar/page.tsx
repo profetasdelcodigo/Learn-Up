@@ -247,31 +247,20 @@ export default function CalendarPage() {
 
       const weekStart = getWeekStart(currentHabitWeek);
 
-      // 1. Personal habits
+      // 1. Personal habits — from personal_habit_tracker (JSON-based, same as shared)
       const { data: personalData, error: personalError } = await supabase
-        .from("habit_entries")
-        .select("*")
+        .from("personal_habit_tracker")
+        .select("habits")
         .eq("user_id", uid)
-        .eq("week_start", weekStart);
+        .eq("week_start", weekStart)
+        .maybeSingle();
 
       if (personalError)
         console.error("Error cargando habitos personales:", personalError);
 
       let formattedHabits: HabitActivity[] = [];
-      if (personalData) {
-        formattedHabits = personalData.map((row: any) => {
-          const dayMap: Record<string, boolean> = {};
-          if (Array.isArray(row.completed)) {
-            row.completed.forEach((day: string) => {
-              dayMap[day] = true;
-            });
-          }
-          return {
-            id: row.id,
-            name: row.habit_name,
-            days: dayMap,
-          };
-        });
+      if (personalData?.habits && Array.isArray(personalData.habits)) {
+        formattedHabits = personalData.habits as HabitActivity[];
       }
 
       // 2. Shared habits
@@ -321,6 +310,24 @@ export default function CalendarPage() {
     loadHabits();
   }, [currentHabitWeek, currentUserId]);
 
+  // Guarda TODOS los hábitos personales de la semana actual de una vez (igual que shared)
+  const savePersonalHabitsToDb = async (allPersonalHabits: HabitActivity[]) => {
+    if (!currentUserId) return;
+    const weekStart = getWeekStart(currentHabitWeek);
+    const payload = allPersonalHabits.map((h) => ({
+      id: h.id,
+      name: h.name,
+      days: h.days,
+    }));
+    const { error } = await supabase
+      .from("personal_habit_tracker")
+      .upsert(
+        { user_id: currentUserId, week_start: weekStart, habits: payload },
+        { onConflict: "user_id,week_start" },
+      );
+    if (error) console.error("Error saving personal habits:", error);
+  };
+
   const saveHabitToDb = async (habit: HabitActivity) => {
     if (!currentUserId) return;
     const weekStart = getWeekStart(currentHabitWeek);
@@ -350,20 +357,11 @@ export default function CalendarPage() {
       );
       if (error) console.error("Error saving shared habit:", error);
     } else {
-      const completedDays = Object.keys(habit.days).filter(
-        (d) => habit.days[d],
-      );
-      const payload = {
-        id: habit.id,
-        user_id: currentUserId,
-        habit_name: habit.name,
-        week_start: weekStart,
-        completed: completedDays,
-      };
-      const { error } = await supabase
-        .from("habit_entries")
-        .upsert(payload, { onConflict: "id" });
-      if (error) console.error("Error saving personal habit:", error);
+      // Personal — actualizar JSON completo via personal_habit_tracker
+      const updated = habits
+        .map((h) => (h.id === habit.id ? habit : h))
+        .filter((h) => !h.isShared);
+      await savePersonalHabitsToDb(updated);
     }
   };
 
@@ -378,21 +376,10 @@ export default function CalendarPage() {
     setHabits(updated);
     setNewHabitName("");
 
-    // Save to DB
+    // Guardar todos los hábitos personales en personal_habit_tracker
     if (!currentUserId) return;
-    const weekStart = getWeekStart(currentHabitWeek);
-    const { error } = await supabase.from("habit_entries").insert({
-      id: newHabit.id,
-      user_id: currentUserId,
-      habit_name: newHabit.name,
-      week_start: weekStart,
-      completed: [],
-    });
-
-    if (error) {
-      console.error("Error inserting habit:", error);
-      alert("No se pudo persistir el hábito. Revisa tu consola.");
-    }
+    const personalOnly = updated.filter((h) => !h.isShared);
+    await savePersonalHabitsToDb(personalOnly);
   };
 
   const toggleHabitDay = async (habitId: string, dayKey: string) => {
@@ -431,7 +418,9 @@ export default function CalendarPage() {
     setHabits(updated);
 
     if (currentUserId) {
-      await supabase.from("habit_entries").delete().eq("id", habitId);
+      // Guardar la lista actualizada en personal_habit_tracker (sin el hábito eliminado)
+      const personalOnly = updated.filter((h) => !h.isShared);
+      await savePersonalHabitsToDb(personalOnly);
     }
   };
 
@@ -448,12 +437,8 @@ export default function CalendarPage() {
     setHabits(shared);
 
     if (currentUserId) {
-      const weekStart = getWeekStart(currentHabitWeek);
-      await supabase
-        .from("habit_entries")
-        .delete()
-        .eq("user_id", currentUserId)
-        .eq("week_start", weekStart);
+      // Guardamos una lista vacía para la semana en personal_habit_tracker
+      await savePersonalHabitsToDb([]);
     }
   };
 

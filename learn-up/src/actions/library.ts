@@ -107,18 +107,20 @@ export async function uploadLibraryFile(
       return { success: false, error: "Error al guardar en la base de datos" };
     }
 
-    // Notify reviewer
-    const submitterName =
-      submitterProfile?.full_name || submitterProfile?.username || user.email;
-    await supabase.from("notifications").insert({
-      user_id: reviewer.id,
-      type: "library_review",
-      title: "Material para revisar",
-      message: `${submitterName} te envió "${title}" para revisión en la Biblioteca.`,
-      sender_id: user.id,
-      link: `/library?review=${newItem.id}`,
-      is_read: false,
-    });
+    // Notify reviewer — only if student upload (teachers self-approve and don't need a review notification)
+    if (!isTeacher) {
+      const submitterName =
+        submitterProfile?.full_name || submitterProfile?.username || user.email;
+      await supabase.from("notifications").insert({
+        user_id: reviewer.id,
+        type: "library_review",
+        title: "Material para revisar",
+        message: `${submitterName} te envió "${title}" para revisión en la Biblioteca.`,
+        sender_id: user.id,
+        link: `/library?review=${newItem.id}`,
+        is_read: false,
+      });
+    }
 
     return { success: true };
   } catch (error) {

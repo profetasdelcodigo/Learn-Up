@@ -17,6 +17,8 @@ import MainLayout from "@/components/MainLayout";
 import PushNotificationManager from "@/components/PushNotificationManager";
 import SmoothScroll from "@/components/SmoothScroll";
 import GlobalTransitionLoader from "@/components/GlobalTransitionLoader";
+import HardwareBackHandler from "@/components/HardwareBackHandler";
+import OfflineDetector from "@/components/OfflineDetector";
 
 export const metadata: Metadata = {
   title: "Learn Up | Tu Tutor IA",
@@ -38,10 +40,12 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-brand-black text-white`}
       >
         <SmoothScroll>
+          <OfflineDetector />
           <PushNotificationManager />
           <Suspense fallback={null}>
             <GlobalTransitionLoader />
           </Suspense>
+          <HardwareBackHandler />
           <MainLayout>{children}</MainLayout>
         </SmoothScroll>
       </body>

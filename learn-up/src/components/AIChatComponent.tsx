@@ -238,7 +238,7 @@ export default function AIChatComponent({
       <div
         className="shrink-0 relative flex items-center justify-between px-4 border-b border-gray-800/80 bg-brand-black/95 backdrop-blur-xl z-30"
         style={{
-          paddingTop: "calc(env(safe-area-inset-top) + 0.75rem)",
+          paddingTop: "0.75rem",
           paddingBottom: "0.75rem",
         }}
       >
@@ -372,8 +372,16 @@ export default function AIChatComponent({
         )}
 
         {messages.map((message, index) => (
-          <div
+          <motion.div
             key={message.id || index}
+            initial={{ opacity: 0, y: 18, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{
+              type: "spring",
+              damping: 22,
+              stiffness: 180,
+              duration: 0.45,
+            }}
             className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
           >
             <div
@@ -410,7 +418,7 @@ export default function AIChatComponent({
                 </p>
               )}
             </div>
-          </div>
+          </motion.div>
         ))}
 
         {loading && (

@@ -185,9 +185,8 @@ export default function AlbumPage() {
       const { error: dbError } = await supabase.from("user_media").insert({
         user_id: user.id,
         file_url: publicUrl,
-        file_type: fileType,
-        source: "camera",
-        title: filename,
+        media_type: fileType, // ✅ columna real en la tabla user_media
+        caption: filename, // ✅ columna real en la tabla user_media
       });
       if (dbError) throw dbError;
 

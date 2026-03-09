@@ -18,7 +18,7 @@ export default function GlobalTransitionLoader() {
     if (isGlobalLoading) {
       const timer = setTimeout(() => {
         setIsGlobalLoading(false);
-      }, 800);
+      }, 2000);
       return () => clearTimeout(timer);
     }
   }, [pathname, searchParams, isGlobalLoading, setIsGlobalLoading]);

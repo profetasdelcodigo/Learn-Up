@@ -71,7 +71,10 @@ body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   font-size: var(--text-base);
   line-height: 1.6;
-  /* NOTE: safe-area-inset-top is handled per-component */
+  /* Safe area handled globally via env() variables */
+  padding-top: env(safe-area-inset-top);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 /* Native smooth scroll for scollable containers (replaces Lenis) */
