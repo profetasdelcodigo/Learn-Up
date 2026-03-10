@@ -493,8 +493,16 @@ function VideoRoomInner({
     from: string;
     action: string;
   } | null>(null);
-  // Whether this student was granted whiteboard permission by host
-  const [wbGranted, setWbGranted] = useState(false);
+  // Granular permissions for students (granted by host)
+  const [grantedPermissions, setGrantedPermissions] = useState<{
+    whiteboard: boolean;
+    video: boolean;
+    screen: boolean;
+  }>({
+    whiteboard: false,
+    video: false,
+    screen: false,
+  });
 
   const canShare = role === "profesor" || role === "admin" || isCreator;
 
@@ -525,8 +533,16 @@ function VideoRoomInner({
       } else if (data.type === "PERMISSION_GRANTED") {
         // Student receives grant — check if it's for them
         if (data.to === username) {
-          setWbGranted(true);
-          showToast("✅ El profesor te dio permiso");
+          const action = data.action; // "esperar acción específica"
+          setGrantedPermissions((prev) => ({
+            ...prev,
+            [action]: true,
+            // If whiteboard is granted, also enable it if action was "interactuar con la pizarra"
+            whiteboard: action === "whiteboard" || action === "interactuar con la pizarra" ? true : prev.whiteboard,
+            video: action === "video" || action === "compartir video" ? true : prev.video,
+            screen: action === "screen" || action === "compartir pantalla" ? true : prev.screen,
+          }));
+          showToast(`✅ Permiso concedido: ${action}`);
         }
       }
     } catch {}
@@ -544,15 +560,15 @@ function VideoRoomInner({
   };
 
   // Host grants permission to student
-  const grantPermission = (to: string) => {
+  const grantPermission = (to: string, action: string) => {
     send(
       new TextEncoder().encode(
-        JSON.stringify({ type: "PERMISSION_GRANTED", to }),
+        JSON.stringify({ type: "PERMISSION_GRANTED", to, action }),
       ),
       { reliable: true },
     );
     setPermissionRequest(null);
-    showToast(`✅ Permiso concedido a ${to}`);
+    showToast(`✅ Permiso concedido a ${to} para ${action}`);
   };
 
   const broadcastVideo = (url: string) => {
@@ -614,7 +630,7 @@ function VideoRoomInner({
             </p>
             <div className="flex gap-3">
               <button
-                onClick={() => grantPermission(permissionRequest.from)}
+                onClick={() => grantPermission(permissionRequest.from, permissionRequest.action)}
                 className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-colors"
               >
                 ✓ Aceptar
@@ -708,8 +724,14 @@ function VideoRoomInner({
                   url={sharedVideoUrl}
                   width="100%"
                   height="100%"
-                  controls={canShare}
+                  controls={canShare || grantedPermissions.video}
                   playing={true}
+                  playsinline={true}
+                  config={{
+                    youtube: {
+                      playerVars: { autoplay: 1, controls: 1, modestbranding: 1 }
+                    }
+                  }}
                   style={{ position: "absolute", top: 0, left: 0 }}
                 />
               </div>
@@ -718,9 +740,9 @@ function VideoRoomInner({
               <div className="w-full h-full relative">
                 <CanvasWhiteboard
                   roomId={roomName}
-                  enabled={canShare || wbGranted}
+                  enabled={canShare || grantedPermissions.whiteboard}
                 />
-                {!canShare && !wbGranted && (
+                {!canShare && !grantedPermissions.whiteboard && (
                   // Student overlay: click to send real permission request
                   <div
                     className="absolute inset-0 z-10 cursor-pointer"
@@ -758,6 +780,7 @@ function VideoRoomInner({
           onRequestPermission={sendPermissionRequest}
           isVideoOpen={presentationMode === "video"}
           canShare={canShare}
+          grantedPermissions={grantedPermissions}
         />
       </div>
 
@@ -833,6 +856,7 @@ function CustomControlBar({
   onRequestPermission,
   isVideoOpen,
   canShare,
+  grantedPermissions,
 }: {
   onLeave: () => void;
   videoEnabled?: boolean;
@@ -840,6 +864,7 @@ function CustomControlBar({
   onRequestPermission: (msg: string) => void;
   isVideoOpen: boolean;
   canShare: boolean;
+  grantedPermissions: { video: boolean; screen: boolean };
 }) {
   const {
     localParticipant,
@@ -874,7 +899,7 @@ function CustomControlBar({
 
   const toggleScreen = async () => {
     if (!localParticipant) return;
-    if (!canShare) {
+    if (!canShare && !grantedPermissions.screen) {
       onRequestPermission("compartir pantalla");
       return;
     }
@@ -932,7 +957,10 @@ function CustomControlBar({
 
       {/* Video Share (YouTube) */}
       <button
-        onClick={onShareVideo}
+        onClick={() => {
+          if (canShare || grantedPermissions.video) onShareVideo();
+          else onRequestPermission("compartir video");
+        }}
         title="Compartir video"
         className={`${btn} ${isVideoOpen ? "bg-brand-gold text-brand-black" : "bg-zinc-900 text-brand-gold"}`}
       >

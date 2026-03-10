@@ -224,7 +224,7 @@ export default function ChatPage() {
       }
       setCurrentUserId(user.id);
 
-      // Fetch current user profile — direct client query, no server round-trip
+      // 1. Fetch current user profile — direct client query
       const { data: profile } = await supabase
         .from("profiles")
         .select("*")
@@ -234,28 +234,22 @@ export default function ChatPage() {
       if (profile) setCurrentProfile(profile);
 
       try {
-        // Fetch friends, rooms, and pending requests via direct client queries
-        const [
-          { data: friendships },
-          { data: myRooms },
-          { data: pendingReqs },
-        ] = await Promise.all([
-          supabase
-            .from("friendships")
-            .select("id, requester_id, addressee_id")
-            .eq("status", "accepted")
-            .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`),
-          supabase
-            .from("chat_rooms")
-            .select("*")
-            .filter("participants", "cs", `{${user.id}}`)
-            .order("updated_at", { ascending: false }),
-          supabase
-            .from("friendships")
-            .select("id, created_at, requester_id")
-            .eq("status", "pending")
-            .eq("addressee_id", user.id),
-        ]);
+        // 2. Fetch initial data using Promise.all for speed
+        // getUserRooms is a server action that joins participants_profiles
+        const [{ data: friendships }, myRooms, { data: pendingReqs }] =
+          await Promise.all([
+            supabase
+              .from("friendships")
+              .select("id, requester_id, addressee_id")
+              .eq("status", "accepted")
+              .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`),
+            getUserRooms(),
+            supabase
+              .from("friendships")
+              .select("id, created_at, requester_id")
+              .eq("status", "pending")
+              .eq("addressee_id", user.id),
+          ]);
 
         // Map friend IDs and fetch profiles
         if (friendships && friendships.length > 0) {
@@ -322,14 +316,9 @@ export default function ChatPage() {
     initData();
 
     // 2. Realtime Subscription for Chat Rooms (List)
-    // IMPORTANT: Use direct client query — NOT server action — to avoid round-trip latency
     const refreshRooms = async (userId: string) => {
-      const { data: rooms } = await supabase
-        .from("chat_rooms")
-        .select("*")
-        .filter("participants", "cs", `{${userId}}`)
-        .order("updated_at", { ascending: false });
-      if (rooms) setRooms(rooms as any);
+      const roomsData = await getUserRooms();
+      if (roomsData) setRooms(roomsData as any);
     };
 
     const channel = supabase
@@ -652,19 +641,32 @@ export default function ChatPage() {
     if (room.type === "group") {
       return {
         name: room.name || "Grupo sin nombre",
-        avatar_url: null,
+        avatar_url: room.avatar_url || null,
         status: null,
       };
     }
+
     // null-safe: participants may be empty after normalization
     const participants = Array.isArray(room.participants)
       ? room.participants
       : [];
     const otherId = participants.find((id) => id !== currentUserId);
+
+    // Prioritize participants_profiles if available (populated by getUserRooms)
+    const profile = room.participants_profiles?.find((p) => p.id === otherId);
+
+    // Fallback to friends list
     const friend = friends.find((f) => f.id === otherId);
+
+    const finalTarget = profile || friend;
+
     return {
-      name: friend?.full_name || friend?.username || "Usuario",
-      avatar_url: friend?.avatar_url ?? null,
+      name:
+        finalTarget?.full_name ||
+        finalTarget?.username ||
+        room.name ||
+        "Usuario",
+      avatar_url: finalTarget?.avatar_url ?? null,
       status: "online",
     };
   };
