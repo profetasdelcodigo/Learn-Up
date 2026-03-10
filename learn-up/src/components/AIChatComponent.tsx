@@ -443,7 +443,9 @@ export default function AIChatComponent({
                   )}
                   {message.content && (
                     <p className="whitespace-pre-wrap text-sm md:text-base leading-relaxed">
-                      {message.content}
+                      {message.role === "assistant"
+                        ? message.content.replace(/\*\*/g, "").replace(/\*/g, "")
+                        : message.content}
                     </p>
                   )}
                 </div>
