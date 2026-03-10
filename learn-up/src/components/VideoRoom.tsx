@@ -718,22 +718,38 @@ function VideoRoomInner({
                 </div>
               </div>
             ) : presentationMode === "video" && sharedVideoUrl ? (
-              <div className="w-full h-full bg-black">
-                {/* @ts-ignore */}
-                <Player
-                  url={sharedVideoUrl}
-                  width="100%"
-                  height="100%"
-                  controls={canShare || grantedPermissions.video}
-                  playing={true}
-                  playsinline={true}
-                  config={{
-                    youtube: {
-                      playerVars: { autoplay: 1, controls: 1, modestbranding: 1 }
-                    }
-                  }}
-                  style={{ position: "absolute", top: 0, left: 0 }}
-                />
+              <div className="w-full h-full bg-black relative flex items-center justify-center">
+                {(() => {
+                  const regExp =
+                    /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+                  const match = sharedVideoUrl.match(regExp);
+                  const isYouTube = !!(match && match[2].length === 11);
+                  const youtubeId = isYouTube ? match[2] : null;
+
+                  if (isYouTube && youtubeId) {
+                    return (
+                      <iframe
+                        src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&controls=1&rel=0&modestbranding=1`}
+                        className="w-full h-full border-0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      ></iframe>
+                    );
+                  }
+
+                  return (
+                    /* @ts-ignore */
+                    <Player
+                      url={sharedVideoUrl}
+                      width="100%"
+                      height="100%"
+                      controls={canShare || grantedPermissions.video}
+                      playing={true}
+                      playsinline={true}
+                      style={{ position: "absolute", top: 0, left: 0 }}
+                    />
+                  );
+                })()}
               </div>
             ) : (
               /* Whiteboard — always shown by default */
