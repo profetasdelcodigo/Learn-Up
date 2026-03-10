@@ -3,5 +3,18 @@
   "scss.lint.unknownAtRules": "ignore",
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSave": true,
-  "typescript.tsdk": "node_modules/typescript/lib"
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "java.jdt.ls.java.home": "C:\\Program Files\\Microsoft\\jdk-17.0.18.8-hotspot",
+  "java.configuration.runtimes": [
+    {
+      "name": "JavaSE-21",
+      "path": "C:\\Program Files\\Microsoft\\jdk-21.0.10.7-hotspot"
+    },
+    {
+      "name": "JavaSE-17",
+      "path": "C:\\Program Files\\Microsoft\\jdk-17.0.18.8-hotspot",
+      "default": true
+    }
+  ],
+  "java.import.gradle.java.home": "C:\\Program Files\\Microsoft\\jdk-17.0.18.8-hotspot"
 }
