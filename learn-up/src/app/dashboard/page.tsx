@@ -44,8 +44,14 @@ export default async function DashboardPage() {
   };
 
   return (
-    <div className="w-full min-h-screen bg-brand-black">
-      <div className="page-inner">
+    <div className="w-full min-h-screen bg-brand-black relative overflow-hidden">
+      {/* Decorative background glows */}
+      <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
+        <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full blur-3xl opacity-10" style={{ background: "#D4AF37" }} />
+        <div className="absolute -bottom-40 -right-40 w-[400px] h-[400px] rounded-full blur-3xl opacity-8" style={{ background: "#3B82F6" }} />
+      </div>
+      <div className="page-inner relative z-10">
+
         <StaggerContainer className="w-full max-w-none space-y-8">
           {/* Header */}
           <FadeUpItem>

@@ -1299,13 +1299,25 @@ export default function ChatPage() {
                     <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-[url('/grid-pattern.svg')] bg-opacity-5">
                       {messages.map((msg) => {
                         const isMe = msg.user_id === currentUserId;
+                        const senderAvatar = msg.profiles?.avatar_url;
+                        const senderInitial = (msg.profiles?.full_name || "?")[0].toUpperCase();
                         return (
                           <div
                             key={msg.id}
-                            className={`flex ${isMe ? "justify-end" : "justify-start"} group animate-in slide-in-from-bottom-2 duration-300`}
+                            className={`flex items-end gap-2 ${isMe ? "justify-end" : "justify-start"} group animate-in slide-in-from-bottom-2 duration-300`}
                           >
+                            {/* Avatar for incoming messages */}
+                            {!isMe && (
+                              <div className="w-7 h-7 rounded-full bg-gray-700 border border-gray-600 overflow-hidden flex items-center justify-center shrink-0 mb-1">
+                                {senderAvatar ? (
+                                  <img src={senderAvatar} className="w-full h-full object-cover" alt={senderInitial} />
+                                ) : (
+                                  <span className="text-[10px] font-bold text-brand-gold">{senderInitial}</span>
+                                )}
+                              </div>
+                            )}
                             <div
-                              className={`max-w-[85%] md:max-w-[70%] rounded-2xl p-4 shadow-sm relative ${
+                              className={`max-w-[80%] md:max-w-[65%] rounded-2xl p-4 shadow-sm relative ${
                                 isMe
                                   ? "bg-brand-gold text-brand-black rounded-tr-sm"
                                   : "bg-gray-800 text-white rounded-tl-sm border border-gray-700"

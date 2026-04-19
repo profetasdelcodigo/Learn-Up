@@ -11,9 +11,11 @@ import {
   MessageSquare,
   Video,
   Phone,
+  Trash2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ClientDate from "@/components/ClientDate";
+import PageLayout from "@/components/PageLayout";
 
 interface Notification {
   id: string;
@@ -29,10 +31,45 @@ interface Notification {
   };
 }
 
+function getIcon(type: string) {
+  const cls = "w-5 h-5";
+  switch (type) {
+    case "friend_request":
+      return <UserPlus className={cls} />;
+    case "calendar_event":
+      return <Calendar className={cls} />;
+    case "message":
+      return <MessageSquare className={cls} />;
+    case "call":
+      return <Phone className={cls} />;
+    case "video_call":
+      return <Video className={cls} />;
+    default:
+      return <Bell className={cls} />;
+  }
+}
+
+function getNotificationTitle(notification: Notification) {
+  const senderName = notification.sender?.full_name || "Alguien";
+  switch (notification.type) {
+    case "message":
+      return `Nuevo mensaje de ${senderName}`;
+    case "friend_request":
+      return `Solicitud de amistad de ${senderName}`;
+    case "call":
+      return `Llamada de voz de ${senderName}`;
+    case "video_call":
+      return `Videollamada de ${senderName}`;
+    default:
+      return notification.title?.startsWith("Nuevo Mensaje")
+        ? `Nuevo mensaje de ${senderName}`
+        : notification.title;
+  }
+}
+
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
-  // Stable client ref — never recreated
   const supabase = useMemo(() => createClient(), []);
 
   const loadNotifications = useCallback(async () => {
@@ -43,44 +80,27 @@ export default function NotificationsPage() {
 
     const { data, error } = await supabase
       .from("notifications")
-      .select(
-        `
-        *,
-        sender:sender_id (full_name, avatar_url)
-      `,
-      )
+      .select(`*, sender:sender_id (full_name, avatar_url)`)
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
-    if (!error && data) {
-      setNotifications(data as any);
-    }
+    if (!error && data) setNotifications(data as any);
     setLoading(false);
   }, [supabase]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadNotifications();
 
-    // Subscribe to new notifications in real-time
     const channel = supabase
       .channel("notifications_rt")
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "notifications",
-        },
-        () => {
-          loadNotifications();
-        },
+        { event: "*", schema: "public", table: "notifications" },
+        () => loadNotifications(),
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [supabase, loadNotifications]);
 
   const markAsRead = async (id: string) => {
@@ -93,88 +113,91 @@ export default function NotificationsPage() {
     await supabase.from("notifications").delete().eq("id", id);
   };
 
-  const getIcon = (type: string) => {
-    switch (type) {
-      case "friend_request":
-        return <UserPlus className="w-5 h-5" />;
-      case "calendar_event":
-        return <Calendar className="w-5 h-5" />;
-      case "message":
-        return <MessageSquare className="w-5 h-5" />;
-      case "call":
-        return <Phone className="w-5 h-5" />;
-      case "video_call":
-        return <Video className="w-5 h-5" />;
-      default:
-        return <Bell className="w-5 h-5" />;
+  const clearAll = async () => {
+    setNotifications([]);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from("notifications").delete().eq("user_id", user.id);
     }
   };
 
-  const getTitle = (notification: Notification) => {
-    const senderName = notification.sender?.full_name || "Alguien";
-    switch (notification.type) {
-      case "message":
-        return `Nuevo mensaje de ${senderName}`;
-      case "friend_request":
-        return `Solicitud de amistad de ${senderName}`;
-      case "call":
-        return `Llamada de voz de ${senderName}`;
-      case "video_call":
-        return `Videollamada de ${senderName}`;
-      default:
-        return notification.title?.startsWith("Nuevo Mensaje")
-          ? `Nuevo mensaje de ${senderName}`
-          : notification.title;
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-brand-black">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-gold"></div>
-      </div>
-    );
-  }
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   return (
-    <div className="min-h-screen bg-brand-black text-white">
-      <div className="max-w-2xl mx-auto px-4 py-8">
-        {/* Header */}
-        <h1 className="text-3xl font-bold mb-8 flex items-center gap-3 border-b border-brand-gold/20 pb-4">
-          <Bell className="w-8 h-8 text-brand-gold" />
-          Centro de Notificaciones
-        </h1>
+    <PageLayout
+      icon={<Bell className="w-7 h-7 text-brand-gold" />}
+      title="Notificaciones"
+      subtitle={
+        unreadCount > 0
+          ? `${unreadCount} sin leer`
+          : "Todo al día"
+      }
+      actions={
+        notifications.length > 0 ? (
+          <button
+            onClick={clearAll}
+            className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-full text-sm font-semibold hover:bg-red-500/20 transition-all"
+          >
+            <Trash2 className="w-4 h-4" />
+            Limpiar todo
+          </button>
+        ) : undefined
+      }
+      glow
+    >
+      {/* Loading skeleton */}
+      {loading && (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="h-24 bg-gray-900 rounded-2xl animate-pulse border border-gray-800"
+            />
+          ))}
+        </div>
+      )}
 
+      {/* Empty state */}
+      {!loading && notifications.length === 0 && (
+        <div className="empty-state">
+          <div className="empty-state-icon">
+            <Bell className="w-10 h-10" />
+          </div>
+          <p className="empty-state-title">Sin notificaciones</p>
+          <p className="empty-state-desc">
+            Cuando alguien te envíe algo, aparecerá aquí.
+          </p>
+        </div>
+      )}
+
+      {/* Notification list */}
+      {!loading && notifications.length > 0 && (
         <AnimatePresence>
-          {notifications.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center py-16"
-            >
-              <Bell className="w-16 h-16 mx-auto mb-4 text-gray-600" />
-              <p className="text-gray-400">No tienes notificaciones</p>
-            </motion.div>
-          ) : (
-            <div className="space-y-4">
-              {notifications.map((notification) => (
-                <motion.div
-                  key={notification.id}
-                  layout
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, x: -50 }}
-                  transition={{ duration: 0.2 }}
-                  className={`w-full bg-brand-gray border ${
-                    notification.is_read
-                      ? "border-gray-800"
-                      : "border-brand-gold/30"
-                  } rounded-2xl p-5 shadow-lg`}
-                >
-                  {/* Top row: icon + title + timestamp */}
-                  <div className="flex items-start gap-3 mb-3">
+          <div className="space-y-3">
+            {notifications.map((notification) => (
+              <motion.div
+                key={notification.id}
+                layout
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, x: -40, scale: 0.96 }}
+                transition={{ duration: 0.2 }}
+                className={`notification-item ${!notification.is_read ? "notification-item-unread" : ""}`}
+              >
+                {/* Top row */}
+                <div className="flex items-start gap-3 mb-3">
+                  {/* Avatar / icon */}
+                  {notification.sender?.avatar_url ? (
+                    <img
+                      src={notification.sender.avatar_url}
+                      alt={notification.sender.full_name}
+                      className="w-11 h-11 rounded-full object-cover shrink-0 border border-gray-700"
+                    />
+                  ) : (
                     <div
-                      className={`p-3 rounded-full shrink-0 ${
+                      className={`w-11 h-11 rounded-full shrink-0 flex items-center justify-center ${
                         notification.is_read
                           ? "bg-gray-800 text-gray-400"
                           : "bg-brand-gold/10 text-brand-gold"
@@ -182,49 +205,49 @@ export default function NotificationsPage() {
                     >
                       {getIcon(notification.type)}
                     </div>
+                  )}
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2 flex-wrap">
-                        <h3 className="font-semibold text-white text-base leading-tight">
-                          {getTitle(notification)}
-                        </h3>
-                        <ClientDate
-                          dateString={notification.created_at}
-                          format="long"
-                          className="text-xs text-gray-500 font-medium shrink-0 mt-0.5"
-                        />
-                      </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2 flex-wrap">
+                      <h3 className="font-semibold text-white text-sm leading-snug">
+                        {getNotificationTitle(notification)}
+                      </h3>
+                      <ClientDate
+                        dateString={notification.created_at}
+                        format="long"
+                        className="text-xs text-gray-500 font-medium shrink-0 mt-0.5"
+                      />
                     </div>
+                    <p className="text-sm text-gray-400 mt-1 leading-relaxed">
+                      {notification.message}
+                    </p>
                   </div>
+                </div>
 
-                  {/* Message body */}
-                  <p className="text-sm text-gray-300 mb-4 leading-relaxed pl-14">
-                    {notification.message}
-                  </p>
-
-                  {/* Action buttons — all in one row on the right */}
-                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/5">
-                    {!notification.is_read && (
-                      <button
-                        onClick={() => markAsRead(notification.id)}
-                        className="px-3 py-1.5 bg-green-500/10 hover:bg-green-500/20 rounded-lg transition-colors flex items-center gap-1.5 text-xs text-green-500 font-bold"
-                      >
-                        <Check className="w-3.5 h-3.5" /> Marcar Leída
-                      </button>
-                    )}
+                {/* Action buttons */}
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/5">
+                  {!notification.is_read && (
                     <button
-                      onClick={() => deleteNotification(notification.id)}
-                      className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition-colors flex items-center gap-1.5 text-xs text-red-500 font-bold"
+                      onClick={() => markAsRead(notification.id)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/10 hover:bg-green-500/20 rounded-lg text-xs text-green-500 font-bold transition-colors"
                     >
-                      <X className="w-3.5 h-3.5" /> Eliminar
+                      <Check className="w-3.5 h-3.5" />
+                      Marcar leída
                     </button>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
+                  )}
+                  <button
+                    onClick={() => deleteNotification(notification.id)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 rounded-lg text-xs text-red-500 font-bold transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    Eliminar
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </AnimatePresence>
-      </div>
-    </div>
+      )}
+    </PageLayout>
   );
 }

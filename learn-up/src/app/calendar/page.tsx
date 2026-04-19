@@ -596,27 +596,28 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="w-full min-h-screen bg-brand-black">
-      <div className="w-full max-w-none">
+    <div className="w-full min-h-screen bg-brand-black relative overflow-hidden">
+      {/* Background glows */}
+      <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
+        <div className="absolute -top-40 -left-20 w-[450px] h-[450px] rounded-full blur-3xl opacity-10" style={{ background: "#D4AF37" }} />
+        <div className="absolute -bottom-40 -right-20 w-[350px] h-[350px] rounded-full blur-3xl opacity-8" style={{ background: "#3B82F6" }} />
+      </div>
+      <div className="page-inner relative z-10">
         <StaggerContainer delayOffset={0.1}>
           <FadeUpItem>
             <BackButton className="mb-6" />
 
             {/* Header */}
-            <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              <div>
-                <div className="flex items-center gap-3 mb-1">
-                  <div className="w-12 h-12 rounded-full bg-brand-gold/10 border border-brand-gold flex items-center justify-center">
-                    <CalendarIcon className="w-6 h-6 text-brand-gold" />
-                  </div>
-                  <div>
-                    <h1 className="text-3xl font-black text-white">
-                      Hora de Actuar
-                    </h1>
-                    <p className="text-gray-400 text-sm">
-                      Organiza tu tiempo y planifica tus actividades
-                    </p>
-                  </div>
+            <div className="page-head">
+              <div className="page-head-info">
+                <div className="page-head-icon">
+                  <CalendarIcon className="w-7 h-7 text-brand-gold" />
+                </div>
+                <div>
+                  <h1 className="page-head-title">Hora de Actuar</h1>
+                  <p className="page-head-subtitle">
+                    Organiza tu tiempo y planifica tus actividades
+                  </p>
                 </div>
               </div>
             </div>
@@ -624,17 +625,17 @@ export default function CalendarPage() {
 
           <FadeUpItem>
             {/* Tabs */}
-            <div className="flex gap-2 p-1 bg-gray-900 rounded-2xl mb-8 w-fit">
+            <div className="tab-bar">
               <button
                 onClick={() => setActiveTab("personal")}
-                className={`px-6 py-2.5 rounded-xl font-semibold text-sm transition-all ${activeTab === "personal" ? "bg-brand-gold text-brand-black shadow-lg" : "text-gray-400 hover:text-white"}`}
+                className={activeTab === "personal" ? "tab-item-active" : "tab-item"}
               >
                 <CalendarIcon className="w-4 h-4 inline mr-2" />
                 Calendario Personal
               </button>
               <button
                 onClick={() => setActiveTab("shared")}
-                className={`px-6 py-2.5 rounded-xl font-semibold text-sm transition-all ${activeTab === "shared" ? "bg-brand-gold text-brand-black shadow-lg" : "text-gray-400 hover:text-white"}`}
+                className={activeTab === "shared" ? "tab-item-active" : "tab-item"}
               >
                 <Users className="w-4 h-4 inline mr-2" />
                 Calendarios Compartidos

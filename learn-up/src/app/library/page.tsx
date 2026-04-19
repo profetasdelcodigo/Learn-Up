@@ -369,31 +369,33 @@ export default function LibraryPage() {
   }
 
   return (
-    <div className="w-full min-h-screen bg-brand-black">
-      <div className="w-full max-w-none">
+    <div className="w-full min-h-screen bg-brand-black relative overflow-hidden">
+      {/* Background glows */}
+      <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
+        <div className="absolute -top-40 -left-20 w-[400px] h-[400px] rounded-full blur-3xl opacity-10" style={{ background: "#D4AF37" }} />
+        <div className="absolute -bottom-40 -right-20 w-[350px] h-[350px] rounded-full blur-3xl opacity-8" style={{ background: "#3B82F6" }} />
+      </div>
+      <div className="page-inner relative z-10">
         <StaggerContainer delayOffset={0.1}>
           <FadeUpItem>
             <BackButton className="mb-6" />
 
             {/* Header */}
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center">
+            <div className="page-head mb-8">
+              <div className="page-head-info">
+                <div className="page-head-icon">
                   <BookOpen className="w-7 h-7 text-brand-gold" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold text-white mb-1">
-                    Biblioteca
-                  </h1>
-                  <p className="text-gray-400 text-sm">
-                    Comparte y descubre recursos educativos aprobados por
-                    docentes
+                  <h1 className="page-head-title">Biblioteca</h1>
+                  <p className="page-head-subtitle">
+                    Comparte y descubre recursos educativos aprobados por docentes
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setShowModal(true)}
-                className="px-6 py-3 bg-brand-gold text-brand-black font-bold rounded-full hover:bg-white transition-all flex items-center gap-2"
+                className="btn-primary"
               >
                 <Upload className="w-5 h-5" />
                 Subir Aporte
@@ -482,16 +484,18 @@ export default function LibraryPage() {
 
           {/* Items Grid */}
           {filteredItems.length === 0 ? (
-            <div className="text-center py-16">
-              <BookOpen className="w-16 h-16 text-gray-700 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-400 mb-2">
+            <div className="empty-state">
+              <div className="empty-state-icon">
+                <BookOpen className="w-10 h-10" />
+              </div>
+              <p className="empty-state-title">
                 {activeSection === "favorites"
                   ? "Aún no tienes favoritos"
                   : activeSection === "recents"
                     ? "No has visto nada aún"
                     : "No hay recursos disponibles"}
-              </h3>
-              <p className="text-gray-500 text-sm">
+              </p>
+              <p className="empty-state-desc">
                 {activeSection === "all"
                   ? "¡Sé el primero en compartir un recurso educativo!"
                   : "Explora la biblioteca y añade a favoritos o abre archivos para verlos aquí."}
@@ -501,7 +505,7 @@ export default function LibraryPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredItems.map((item, i) => (
                 <FadeUpItem key={item.id}>
-                  <div className="bg-gray-900/80 border border-gray-800 rounded-2xl p-5 hover:border-brand-gold/40 transition-all group flex flex-col h-full">
+                  <div className="card-flat p-5 hover:border-brand-gold/30 transition-all group flex flex-col h-full">
                     <div className="flex items-start gap-4 mb-4">
                       {/* Thumbnail / Icon Container */}
                       <div className="relative group/thumb">
@@ -563,7 +567,7 @@ export default function LibraryPage() {
                           {item.description}
                         </p>
                       ) : (
-                        <div className="mb-3 h-[40px]" /> /* Espaciador si no hay descripción para mantener el nivel */
+                        <div className="mb-3 h-[40px]" />
                       )}
                     </div>
 
@@ -580,20 +584,20 @@ export default function LibraryPage() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => openItem(item)}
-                        className="flex-1 py-2 bg-brand-gold/10 text-brand-gold border border-brand-gold/30 rounded-xl text-xs font-semibold hover:bg-brand-gold hover:text-black transition-all flex items-center justify-center gap-1"
+                        className="flex-1 py-2 bg-brand-gold/10 text-brand-gold border border-brand-gold/30 rounded-xl text-xs font-semibold hover:bg-brand-gold hover:text-brand-black transition-all flex items-center justify-center gap-1"
                       >
                         <ChevronRight className="w-3.5 h-3.5" /> Ver
                       </button>
                       <button
                         onClick={() => handleShareClick(item)}
-                        className="p-2 bg-gray-800 text-brand-blue-glow rounded-xl hover:bg-brand-blue-glow hover:text-white transition-all flex items-center justify-center"
+                        className="btn-icon w-9 h-9 rounded-xl text-brand-blue-glow hover:text-white hover:bg-brand-blue-glow"
                         title="Compartir en Chat"
                       >
                         <Share2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => downloadItem(item)}
-                        className="p-2 bg-gray-800 text-gray-400 rounded-xl hover:bg-gray-700 hover:text-white transition-all flex items-center justify-center"
+                        className="btn-icon w-9 h-9 rounded-xl"
                         title="Descargar"
                       >
                         <Download className="w-4 h-4" />
@@ -629,6 +633,7 @@ export default function LibraryPage() {
             </div>
           )}
         </StaggerContainer>
+      </div>
 
         {/* Review Modal (Docente) */}
         <AnimatePresence>
@@ -976,6 +981,5 @@ export default function LibraryPage() {
           )}
         </AnimatePresence>
       </div>
-    </div>
   );
 }

@@ -170,141 +170,144 @@ export default function NotificationsPage() {
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   return (
-    <div className="min-h-screen bg-brand-black">
-      {/* Centered content — accounts for left sidebar on desktop via padding */}
-      <div className="flex flex-col items-center px-4 py-8 pb-28 md:pb-8">
-        <div className="w-full max-w-2xl">
-          <BackButton className="mb-6" />
+    <div className="min-h-screen bg-brand-black relative overflow-hidden">
+      {/* Background glows */}
+      <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
+        <div className="absolute -top-32 -left-20 w-[400px] h-[400px] rounded-full blur-3xl opacity-10" style={{ background: "#D4AF37" }} />
+        <div className="absolute -bottom-32 -right-20 w-[300px] h-[300px] rounded-full blur-3xl opacity-8" style={{ background: "#3B82F6" }} />
+      </div>
+      <div className="page-inner relative z-10">
+        <BackButton className="mb-6" />
 
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+        {/* Header */}
+        <div className="page-head">
+          <div className="page-head-info">
+            <div className="page-head-icon">
               <Bell className="w-7 h-7 text-brand-gold" />
-              Notificationes
-              {unreadCount > 0 && (
-                <span className="bg-brand-gold text-brand-black text-xs font-bold px-2 py-0.5 rounded-full">
-                  {unreadCount}
-                </span>
-              )}
-            </h1>
-            {unreadCount > 0 && (
-              <button
-                onClick={markAllRead}
-                className="text-xs text-brand-gold hover:text-white border border-brand-gold/30 hover:border-brand-gold/60 px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5"
-              >
-                <Check className="w-3.5 h-3.5" /> Marcar todas como leídas
-              </button>
-            )}
-          </div>
-
-          {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-gold" />
             </div>
-          ) : (
-            <AnimatePresence mode="popLayout">
-              {notifications.length === 0 ? (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-center py-20 border border-gray-800 rounded-3xl"
-                >
-                  <Bell className="w-14 h-14 text-gray-700 mx-auto mb-4" />
-                  <p className="text-gray-500 text-lg">
-                    No tienes notificaciones
-                  </p>
-                  <p className="text-gray-700 text-sm mt-1">Estás al día 🎉</p>
-                </motion.div>
-              ) : (
-                <div className="space-y-3">
-                  {notifications.map((notif) => (
-                    <motion.div
-                      key={notif.id}
-                      layout
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, x: -40 }}
-                      transition={{ duration: 0.18 }}
-                      className={`rounded-2xl border p-4 flex gap-4 transition-colors ${
-                        notif.is_read
-                          ? "bg-zinc-950 border-gray-800"
-                          : "bg-brand-black border-brand-gold/35 shadow-[0_0_14px_rgba(212,175,55,0.06)]"
-                      }`}
-                    >
-                      {/* Icon */}
-                      <div
-                        className={`mt-0.5 p-2.5 rounded-full shrink-0 border ${getColor(notif.type)}`}
-                      >
-                        {getIcon(notif.type)}
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        {/* Row 1: title + time */}
-                        <div className="flex items-start justify-between gap-3 mb-1">
-                          <div className="min-w-0">
-                            <h3
-                              className={`font-semibold text-sm leading-tight ${notif.is_read ? "text-gray-400" : "text-white"}`}
-                            >
-                              {notif.title}
-                            </h3>
-                            {/* Sender name — shown when available */}
-                            {notif.senderName && (
-                              <p className="text-brand-gold text-xs font-medium mt-0.5">
-                                de {notif.senderName}
-                              </p>
-                            )}
-                          </div>
-                          <span className="text-xs text-gray-600 shrink-0 mt-0.5 whitespace-nowrap">
-                            {formatDistanceToNow(new Date(notif.created_at), {
-                              locale: es,
-                              addSuffix: true,
-                            })}
-                          </span>
-                        </div>
-
-                        {/* Message */}
-                        {notif.message && (
-                          <p className="text-gray-400 text-xs mb-3 leading-relaxed line-clamp-2">
-                            {notif.message}
-                          </p>
-                        )}
-
-                        {/* Actions */}
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {notif.type === "friend_request" && (
-                            <button
-                              onClick={() => handleAcceptRequest(notif)}
-                              className="bg-brand-gold text-brand-black px-3 py-1 rounded-full font-bold text-xs hover:bg-white transition-colors"
-                            >
-                              Aceptar
-                            </button>
-                          )}
-                          {notif.link && notif.type !== "friend_request" && (
-                            <button
-                              onClick={() => router.push(notif.link!)}
-                              className="text-brand-gold text-xs font-bold hover:underline"
-                            >
-                              Ver detalles
-                            </button>
-                          )}
-                          {/* Delete — always inline, never overlaps time */}
-                          <button
-                            onClick={() => deleteNotification(notif.id)}
-                            className="ml-auto p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
-                            title="Eliminar"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-            </AnimatePresence>
+            <div>
+              <h1 className="page-head-title">
+                Notificaciones
+                {unreadCount > 0 && (
+                  <span className="ml-3 bg-brand-gold text-brand-black text-sm font-bold px-2.5 py-0.5 rounded-full align-middle">
+                    {unreadCount}
+                  </span>
+                )}
+              </h1>
+              <p className="page-head-subtitle">
+                {unreadCount > 0 ? `${unreadCount} sin leer` : "Estás al día 🎉"}
+              </p>
+            </div>
+          </div>
+          {unreadCount > 0 && (
+            <button
+              onClick={markAllRead}
+              className="btn-ghost flex items-center gap-2 text-sm"
+            >
+              <Check className="w-4 h-4" /> Marcar todas como leídas
+            </button>
           )}
         </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-gold" />
+          </div>
+        ) : (
+          <AnimatePresence mode="popLayout">
+            {notifications.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">
+                  <Bell className="w-10 h-10" />
+                </div>
+                <p className="empty-state-title">Sin notificaciones</p>
+                <p className="empty-state-desc">Estás al día 🎉</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {notifications.map((notif) => (
+                  <motion.div
+                    key={notif.id}
+                    layout
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, x: -40 }}
+                    transition={{ duration: 0.18 }}
+                    className={`notification-item ${!notif.is_read ? "notification-item-unread" : ""}`}
+                  >
+                    {/* Icon */}
+                    <div
+                      className={`mt-0.5 p-2.5 rounded-full shrink-0 border ${getColor(notif.type)}`}
+                    >
+                      {getIcon(notif.type)}
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      {/* Row 1: title + time */}
+                      <div className="flex items-start justify-between gap-3 mb-1">
+                        <div className="min-w-0">
+                          <h3
+                            className={`font-semibold text-sm leading-tight ${notif.is_read ? "text-gray-400" : "text-white"}`}
+                          >
+                            {notif.title}
+                          </h3>
+                          {/* Sender name — shown when available */}
+                          {notif.senderName && (
+                            <p className="text-brand-gold text-xs font-medium mt-0.5">
+                              de {notif.senderName}
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-xs text-gray-600 shrink-0 mt-0.5 whitespace-nowrap">
+                          {formatDistanceToNow(new Date(notif.created_at), {
+                            locale: es,
+                            addSuffix: true,
+                          })}
+                        </span>
+                      </div>
+
+                      {/* Message */}
+                      {notif.message && (
+                        <p className="text-gray-400 text-xs mb-3 leading-relaxed line-clamp-2">
+                          {notif.message}
+                        </p>
+                      )}
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {notif.type === "friend_request" && (
+                          <button
+                            onClick={() => handleAcceptRequest(notif)}
+                            className="btn-primary px-4 py-1.5 text-xs rounded-full"
+                          >
+                            Aceptar
+                          </button>
+                        )}
+                        {notif.link && notif.type !== "friend_request" && (
+                          <button
+                            onClick={() => router.push(notif.link!)}
+                            className="text-brand-gold text-xs font-bold hover:underline"
+                          >
+                            Ver detalles
+                          </button>
+                        )}
+                        {/* Delete */}
+                        <button
+                          onClick={() => deleteNotification(notif.id)}
+                          className="ml-auto p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </AnimatePresence>
+        )}
       </div>
     </div>
   );

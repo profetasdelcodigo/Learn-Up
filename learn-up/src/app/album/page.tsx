@@ -308,26 +308,29 @@ export default function AlbumPage() {
   };
 
   return (
-    <div className="min-h-screen bg-brand-black p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-brand-black relative overflow-hidden">
+      {/* Background glows */}
+      <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
+        <div className="absolute -top-32 -left-20 w-[400px] h-[400px] rounded-full blur-3xl opacity-10" style={{ background: "#10B981" }} />
+        <div className="absolute -bottom-32 -right-20 w-[300px] h-[300px] rounded-full blur-3xl opacity-8" style={{ background: "#3B82F6" }} />
+      </div>
+      <div className="page-inner relative z-10">
         <BackButton className="mb-6" />
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
-              <Camera className="w-7 h-7 text-emerald-400" />
+        <div className="page-head">
+          <div className="page-head-info">
+            <div className="page-head-icon">
+              <Camera className="w-7 h-7 text-brand-gold" />
             </div>
             <div>
-              <h1 className="text-3xl font-black text-white">
-                Álbum del Saber
-              </h1>
-              <p className="text-gray-400 text-sm">
+              <h1 className="page-head-title">Álbum del Saber</h1>
+              <p className="page-head-subtitle">
                 Tu cámara y galería de recuerdos educativos
               </p>
             </div>
           </div>
-          <label className="px-5 py-2.5 bg-gray-800 border border-gray-700 text-gray-300 rounded-full hover:border-emerald-500 hover:text-emerald-400 transition-all flex items-center gap-2 cursor-pointer text-sm">
+          <label className="btn-ghost flex items-center gap-2 cursor-pointer text-sm">
             <Upload className="w-4 h-4" /> Subir archivo
             <input
               type="file"
@@ -339,24 +342,24 @@ export default function AlbumPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 p-1 bg-gray-900 rounded-2xl mb-8 w-fit">
+        <div className="tab-bar">
           <button
             onClick={() => {
               setActiveTab("camara");
               startCamera();
             }}
-            className={`px-6 py-2.5 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 ${activeTab === "camara" ? "bg-emerald-500 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
+            className={activeTab === "camara" ? "tab-item-active" : "tab-item"}
           >
-            <Camera className="w-4 h-4" /> Cámara
+            <Camera className="w-4 h-4 inline mr-2" /> Cámara
           </button>
           <button
             onClick={() => {
               setActiveTab("recuerdos");
               stopCamera();
             }}
-            className={`px-6 py-2.5 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 ${activeTab === "recuerdos" ? "bg-emerald-500 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
+            className={activeTab === "recuerdos" ? "tab-item-active" : "tab-item"}
           >
-            <ImageIcon className="w-4 h-4" /> Recuerdos ({mediaFiles.length})
+            <ImageIcon className="w-4 h-4 inline mr-2" /> Recuerdos ({mediaFiles.length})
           </button>
         </div>
 
@@ -490,16 +493,15 @@ export default function AlbumPage() {
                 <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
               </div>
             ) : mediaFiles.length === 0 ? (
-              <div className="text-center py-16">
-                <ImageIcon className="w-16 h-16 text-gray-700 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-gray-400 mb-2">
-                  Sin recuerdos aún
-                </h3>
-                <p className="text-gray-500 text-sm">
-                  Las fotos, videos y archivos que descargues o tomes aparecerán
-                  aquí.
-                </p>
+            <div className="empty-state">
+              <div className="empty-state-icon">
+                <ImageIcon className="w-10 h-10" />
               </div>
+              <p className="empty-state-title">Sin recuerdos aún</p>
+              <p className="empty-state-desc">
+                Las fotos, videos y archivos que descargues o tomes aparecerán aquí.
+              </p>
+            </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                 {mediaFiles.map((media) => (

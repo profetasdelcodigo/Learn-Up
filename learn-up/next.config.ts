@@ -11,9 +11,110 @@ const withPWA = withPWAInit({
   skipWaiting: true,
 });
 
+// ── Security Headers ─────────────────────────────────────────
+// Se aplican en producción y desarrollo.
+const securityHeaders = [
+  // Evita que el browser detecte el MIME type incorrectamente
+  {
+    key: "X-Content-Type-Options",
+    value: "nosniff",
+  },
+  // Previene clickjacking: la app solo puede ser embebida en sí misma
+  {
+    key: "X-Frame-Options",
+    value: "SAMEORIGIN",
+  },
+  // Controla cuánta información de referrer se comparte
+  {
+    key: "Referrer-Policy",
+    value: "strict-origin-when-cross-origin",
+  },
+  // Fuerza HTTPS durante 1 año (solo activo con HTTPS)
+  {
+    key: "Strict-Transport-Security",
+    value: "max-age=31536000; includeSubDomains; preload",
+  },
+  // Desactiva características del navegador que no usamos
+  {
+    key: "Permissions-Policy",
+    value: [
+      "camera=(self)",          // cámara: solo origen propio (video calls)
+      "microphone=(self)",      // micrófono: solo origen propio (video calls)
+      "geolocation=()",         // geolocalización: deshabilitada
+      "payment=()",             // API de pagos: deshabilitada
+      "usb=()",                 // USB: deshabilitado
+      "display-capture=(self)", // screen share: solo origen propio
+    ].join(", "),
+  },
+  // Content Security Policy
+  {
+    key: "Content-Security-Policy",
+    value: [
+      // Solo este origen puede cargar scripts (+ inline para Next.js)
+      "default-src 'self'",
+      // Scripts: self + unsafe-inline necesario para Next.js hydration
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.youtube.com https://s.ytimg.com",
+      // Estilos: self + inline para Tailwind/CSS-in-JS
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      // Fuentes: self + Google Fonts
+      "font-src 'self' https://fonts.gstatic.com",
+      // Imágenes: self + Supabase Storage + data URIs
+      "img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in https://i.ytimg.com https://img.youtube.com",
+      // Medios (audio/video): self + Supabase Storage
+      "media-src 'self' blob: https://*.supabase.co https://*.supabase.in",
+      // Conexiones API: self + Supabase + Google AI
+      "connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co https://generativelanguage.googleapis.com",
+      // Frames: YouTube para reproductores embebidos
+      "frame-src 'self' https://www.youtube.com https://youtube.com",
+      // Worker scripts (PWA service worker)
+      "worker-src 'self' blob:",
+      // Bloquea object/embed
+      "object-src 'none'",
+      // Base URI restringida
+      "base-uri 'self'",
+      // Formularios solo al propio origen
+      "form-action 'self'",
+      // Solo manifests del propio origen
+      "manifest-src 'self'",
+    ].join("; "),
+  },
+];
+
 const nextConfig: NextConfig = {
   // Silencia el warning de workspace root en Render
   outputFileTracingRoot: path.join(process.cwd(), "../../"),
+
+  // Aplica los security headers a todas las rutas
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: securityHeaders,
+      },
+    ];
+  },
+
+  // Dominios permitidos para next/image
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "*.supabase.co",
+      },
+      {
+        protocol: "https",
+        hostname: "*.supabase.in",
+      },
+      {
+        protocol: "https",
+        hostname: "img.youtube.com",
+      },
+      {
+        protocol: "https",
+        hostname: "i.ytimg.com",
+      },
+    ],
+  },
 };
 
 export default withPWA(nextConfig);

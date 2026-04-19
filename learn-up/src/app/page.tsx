@@ -35,6 +35,13 @@ export default function Home() {
             ease: "easeInOut",
           }}
         />
+        {/* Gold glow — center */}
+        <motion.div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full blur-[120px]"
+          style={{ background: "#D4AF37" }}
+          animate={{ opacity: [0.04, 0.09, 0.04], scale: [1, 1.15, 1] }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+        />
       </div>
 
       {/* Main content */}
@@ -115,7 +122,7 @@ export default function Home() {
           >
             <Link href="/login?mode=signin">
               <motion.button
-                className="px-8 py-4 bg-brand-gold text-brand-black font-semibold rounded-full hover:bg-brand-gold/90 transition-all"
+                className="btn-primary px-8 py-4 text-base"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
@@ -124,7 +131,7 @@ export default function Home() {
             </Link>
             <Link href="/login?mode=signup">
               <motion.button
-                className="px-8 py-4 bg-transparent border-2 border-brand-gold text-brand-gold font-semibold rounded-full hover:bg-brand-gold/10 transition-all"
+                className="btn-ghost px-8 py-4 text-base border-2 border-brand-gold text-brand-gold hover:bg-brand-gold/10"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >

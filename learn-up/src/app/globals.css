@@ -182,6 +182,81 @@ body {
            px-4 py-3 border-b border-gray-800/80
            bg-brand-black/95 backdrop-blur-xl z-30;
   }
+
+  /* ── Page hero header (icon + title + subtitle block) ── */
+  .page-head {
+    @apply flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8;
+  }
+  .page-head-info {
+    @apply flex items-center gap-4;
+  }
+  .page-head-icon {
+    @apply w-14 h-14 shrink-0 rounded-2xl
+           bg-brand-gold/10 border border-brand-gold/30
+           flex items-center justify-center;
+  }
+  .page-head-icon-blue {
+    @apply w-14 h-14 shrink-0 rounded-2xl
+           bg-brand-blue-glow/10 border border-brand-blue-glow/30
+           flex items-center justify-center;
+  }
+  .page-head-title {
+    @apply text-3xl font-black text-white leading-tight;
+  }
+  .page-head-subtitle {
+    @apply text-sm text-gray-400 mt-0.5;
+  }
+
+  /* ── Tab bar ── */
+  .tab-bar {
+    @apply flex gap-1 p-1 bg-gray-900/80 border border-gray-800 rounded-2xl w-fit mb-8;
+  }
+  .tab-item {
+    @apply px-5 py-2.5 rounded-xl font-semibold text-sm
+           text-gray-400 hover:text-white transition-all cursor-pointer;
+  }
+  .tab-item-active {
+    @apply px-5 py-2.5 rounded-xl font-semibold text-sm
+           bg-brand-gold text-brand-black shadow-lg cursor-pointer;
+  }
+
+  /* ── Empty state ── */
+  .empty-state {
+    @apply flex flex-col items-center justify-center text-center py-20 gap-4;
+  }
+  .empty-state-icon {
+    @apply w-20 h-20 rounded-full
+           bg-gray-900 border border-gray-800
+           flex items-center justify-center
+           text-gray-600 mb-2;
+  }
+  .empty-state-title {
+    @apply text-xl font-semibold text-gray-400;
+  }
+  .empty-state-desc {
+    @apply text-sm text-gray-600 max-w-xs;
+  }
+
+  /* ── Stat / info card ── */
+  .stat-card {
+    @apply bg-gray-900/60 border border-gray-800 rounded-2xl p-5
+           flex flex-col gap-1 hover:border-brand-gold/30 transition-all;
+  }
+  .stat-value {
+    @apply text-2xl font-black text-white;
+  }
+  .stat-label {
+    @apply text-xs text-gray-500 uppercase tracking-wider font-medium;
+  }
+
+  /* ── Notification card ── */
+  .notification-item {
+    @apply w-full flex gap-4 bg-gray-900/80 border border-gray-800 rounded-2xl p-5
+           shadow-lg transition-all hover:border-brand-gold/20;
+  }
+  .notification-item-unread {
+    @apply border-brand-gold/30 bg-brand-gold/5;
+  }
 }
 
 /* ─────────────────────────────────────────────────

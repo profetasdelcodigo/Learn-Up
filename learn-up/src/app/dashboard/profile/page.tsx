@@ -152,16 +152,27 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-brand-black text-white p-4 md:p-8 pt-6">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-brand-black relative overflow-hidden text-white">
+      {/* Background glows */}
+      <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
+        <div className="absolute -top-32 -left-20 w-[400px] h-[400px] rounded-full blur-3xl opacity-10" style={{ background: "#D4AF37" }} />
+        <div className="absolute -bottom-32 -right-20 w-[300px] h-[300px] rounded-full blur-3xl opacity-8" style={{ background: "#6366F1" }} />
+      </div>
+      <div className="page-inner relative z-10">
         <StaggerContainer delayOffset={0.1}>
           <FadeUpItem>
             <BackButton className="mb-6" />
-
-            <h1 className="text-3xl font-bold mb-8 flex items-center gap-3">
-              <User className="w-8 h-8 text-brand-gold" />
-              Mi Perfil
-            </h1>
+            <div className="page-head mb-8">
+              <div className="page-head-info">
+                <div className="page-head-icon">
+                  <User className="w-7 h-7 text-brand-gold" />
+                </div>
+                <div>
+                  <h1 className="page-head-title">Mi Perfil</h1>
+                  <p className="page-head-subtitle">Gestiona tu información personal</p>
+                </div>
+              </div>
+            </div>
           </FadeUpItem>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -304,7 +315,7 @@ export default function ProfilePage() {
                           description: e.target.value,
                         })
                       }
-                      className="w-full bg-black/40 border border-gray-700 rounded-xl p-3 text-white focus:border-brand-gold outline-none h-24 resize-none transition-colors"
+                      className="input-base h-24 resize-none"
                       placeholder="Cuéntanos un poco sobre ti..."
                     />
                   </div>
@@ -318,7 +329,7 @@ export default function ProfilePage() {
                       onChange={(e) =>
                         setFormData({ ...formData, country: e.target.value })
                       }
-                      className="w-full bg-black/40 border border-gray-700 rounded-xl p-3 text-white focus:border-brand-gold outline-none transition-colors"
+                      className="input-base"
                       placeholder="País / Ciudad"
                     />
                   </div>
@@ -338,7 +349,7 @@ export default function ProfilePage() {
                       onChange={(e) =>
                         setFormData({ ...formData, linkedin: e.target.value })
                       }
-                      className="flex-1 bg-black/40 border border-gray-700 rounded-xl p-3 text-white focus:border-brand-gold outline-none transition-colors"
+                      className="input-base"
                       placeholder="Tu usuario de LinkedIn"
                     />
                   </div>
@@ -352,7 +363,7 @@ export default function ProfilePage() {
                       onChange={(e) =>
                         setFormData({ ...formData, tiktok: e.target.value })
                       }
-                      className="flex-1 bg-black/40 border border-gray-700 rounded-xl p-3 text-white focus:border-brand-gold outline-none transition-colors"
+                      className="input-base"
                       placeholder="Tu usuario de TikTok"
                     />
                   </div>
@@ -366,7 +377,7 @@ export default function ProfilePage() {
                       onChange={(e) =>
                         setFormData({ ...formData, instagram: e.target.value })
                       }
-                      className="flex-1 bg-black/40 border border-gray-700 rounded-xl p-3 text-white focus:border-brand-gold outline-none transition-colors"
+                      className="input-base"
                       placeholder="Tu usuario de Instagram"
                     />
                   </div>
@@ -376,14 +387,14 @@ export default function ProfilePage() {
               <div className="flex justify-end gap-4">
                 <button
                   onClick={() => router.back()}
-                  className="px-6 py-3 rounded-full border border-gray-700 text-gray-300 hover:bg-white/5 transition-colors"
+                  className="btn-ghost"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="px-6 py-3 rounded-full bg-brand-gold text-brand-black font-bold hover:bg-white transition-colors flex items-center gap-2 disabled:opacity-60"
+                  className="btn-primary"
                 >
                   {saving ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
