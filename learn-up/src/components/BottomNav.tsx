@@ -41,14 +41,6 @@ export default function BottomNav({ unreadCount = 0 }: BottomNavProps) {
             <Link
               key={item.href}
               href={item.href}
-              onClick={() => {
-                if (
-                  pathname !== item.href &&
-                  !pathname.startsWith(item.href + "/")
-                ) {
-                  setIsGlobalLoading(true);
-                }
-              }}
               className={`relative flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive ? "text-brand-gold" : "text-gray-500"}`}
             >
               <div className="relative">

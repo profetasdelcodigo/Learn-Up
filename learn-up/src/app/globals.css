@@ -302,7 +302,8 @@ body {
 
   /* Premium scrollbar */
   .custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
+    width: 6px;
+    display: block; /* Override global none */
   }
   .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;

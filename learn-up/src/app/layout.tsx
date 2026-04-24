@@ -16,7 +16,6 @@ const geistMono = Geist_Mono({
 import MainLayout from "@/components/MainLayout";
 import PushNotificationManager from "@/components/PushNotificationManager";
 import SmoothScroll from "@/components/SmoothScroll";
-import GlobalTransitionLoader from "@/components/GlobalTransitionLoader";
 import HardwareBackHandler from "@/components/HardwareBackHandler";
 import OfflineDetector from "@/components/OfflineDetector";
 import DeepLinkHandler from "@/components/DeepLinkHandler";
@@ -43,9 +42,6 @@ export default function RootLayout({
         <SmoothScroll>
           <OfflineDetector />
           <PushNotificationManager />
-          <Suspense fallback={null}>
-            <GlobalTransitionLoader />
-          </Suspense>
           <HardwareBackHandler />
           <DeepLinkHandler />
           <MainLayout>{children}</MainLayout>

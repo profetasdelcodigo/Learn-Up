@@ -62,8 +62,8 @@ const securityHeaders = [
       "img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in https://i.ytimg.com https://img.youtube.com",
       // Medios (audio/video): self + Supabase Storage
       "media-src 'self' blob: https://*.supabase.co https://*.supabase.in",
-      // Conexiones API: self + Supabase + Google AI
-      "connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co https://generativelanguage.googleapis.com",
+      // Conexiones API: self + Supabase + Google AI + LiveKit
+      "connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co https://generativelanguage.googleapis.com https://*.livekit.cloud wss://*.livekit.cloud",
       // Frames: YouTube para reproductores embebidos
       "frame-src 'self' https://www.youtube.com https://youtube.com",
       // Worker scripts (PWA service worker)
@@ -83,6 +83,9 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   // Silencia el warning de workspace root en Render
   outputFileTracingRoot: path.join(process.cwd(), "../../"),
+
+  // Silence Next.js 16 Turbopack/webpack compatibility warning
+  turbopack: {},
 
   // Aplica los security headers a todas las rutas
   async headers() {

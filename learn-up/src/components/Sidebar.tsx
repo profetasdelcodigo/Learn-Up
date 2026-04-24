@@ -240,7 +240,7 @@ export default function Sidebar() {
           </Link>
         </div>
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+        <nav className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
           <ul className="space-y-2">
             {navigation.map((item) => {
               const isActive =
@@ -252,17 +252,6 @@ export default function Sidebar() {
                 <li key={item.name}>
                   <Link
                     href={item.href}
-                    onClick={() => {
-                      if (
-                        pathname !== item.href &&
-                        !(
-                          item.children &&
-                          item.children.some((child) => pathname === child.href)
-                        )
-                      ) {
-                        setIsGlobalLoading(true);
-                      }
-                    }}
                     className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all relative ${
                       isActive
                         ? "bg-brand-gold text-brand-black font-semibold shadow-[0_0_15px_rgba(212,175,55,0.3)]"
@@ -286,11 +275,6 @@ export default function Sidebar() {
                         <li key={child.href}>
                           <Link
                             href={child.href}
-                            onClick={() => {
-                              if (pathname !== child.href) {
-                                setIsGlobalLoading(true);
-                              }
-                            }}
                             className={`block px-4 py-2 text-sm rounded-xl transition-all ${
                               pathname === child.href
                                 ? "bg-brand-gold/20 text-brand-gold"
