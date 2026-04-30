@@ -1,10 +1,10 @@
 "use server";
 
-import { getAICompletion, groq } from "@/lib/ai";
+import { getAICompletion } from "@/lib/ai";
 import { createClient } from "@/utils/supabase/server";
 
-const MODEL = "llama-3.3-70b-versatile";
-const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
+const MODEL = "gemini-3-flash-preview";
+const VISION_MODEL = "gemini-3-flash-preview"; // Gemini 3 Flash supports vision natively
 
 // ── Media Parser ──────────────────────────────────────────────────────────────
 export async function parseMediaInput(url: string, type: string) {
@@ -20,13 +20,23 @@ export async function parseMediaInput(url: string, type: string) {
     }
 
     if (type === "audio") {
-      const blob = new Blob([buffer], { type: "audio/mpeg" });
-      const file = new File([blob], "audio.mp3", { type: "audio/mpeg" });
-      const transcription = await groq.audio.transcriptions.create({
-        file,
-        model: "whisper-large-v3",
-      });
-      return transcription.text;
+      // Migrate audio transcription to Gemini
+      const audioResponse = await getAICompletion(
+        [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Transcribe exactamente lo que se dice en este audio." },
+              {
+                type: "image_url", // Using the same format for binary data in our unified lib
+                image_url: { url: url },
+              },
+            ],
+          },
+        ],
+        "gemini-3-flash-preview",
+      );
+      return audioResponse.choices[0]?.message?.content || "";
     }
 
     return "";

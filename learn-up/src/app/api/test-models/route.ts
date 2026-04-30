@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { Groq } from "groq-sdk";
 
 export async function GET() {
   try {
-    const apiKey = process.env.GROQ_API_KEY || process.env.AI_API_KEY;
+    const apiKey = process.env.AI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
         { error: "No API key found in env." },
@@ -11,21 +10,20 @@ export async function GET() {
       );
     }
 
-    const groq = new Groq({ apiKey });
-    const models = await groq.models.list();
+    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+    const res = await fetch(url);
+    const data = await res.json();
 
-    // Filter and sort for easier reading
-    const allModels = models.data.map((m: any) => m.id).sort();
+    if (!data.models) {
+      return NextResponse.json({ error: "Could not fetch models", detail: data }, { status: 500 });
+    }
+
+    const allModels = data.models.map((m: any) => m.name.replace('models/', ''));
 
     return NextResponse.json({
       total: allModels.length,
       models: allModels,
-      vision_candidates: allModels.filter(
-        (m) =>
-          m.includes("vision") ||
-          m.includes("pixtral") ||
-          m.includes("llama-4"),
-      ),
+      recommended: allModels.filter((m: string) => m.includes("gemini-3") || m.includes("gemini-2.5")),
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
