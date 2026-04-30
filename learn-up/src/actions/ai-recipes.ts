@@ -1,6 +1,6 @@
 "use server";
 
-import { getGroqCompletion } from "@/lib/ai";
+import { getAICompletion } from "@/lib/ai";
 import { searchRecipeImage } from "@/lib/unsplash";
 
 export interface Recipe {
@@ -42,7 +42,7 @@ REGLAS:
 
     const userPrompt = `Genera una receta deliciosa y saludable para: "${mealType}".`;
 
-    const response = await getGroqCompletion(
+    const response = await getAICompletion(
       [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },

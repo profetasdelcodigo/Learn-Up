@@ -1,6 +1,6 @@
 "use server";
 
-import { getGroqCompletion, groq } from "@/lib/ai";
+import { getAICompletion, groq } from "@/lib/ai";
 import { createClient } from "@/utils/supabase/server";
 
 const MODEL = "llama-3.3-70b-versatile";
@@ -95,7 +95,7 @@ PERSONALIDAD:
     const { content: finalMessageContent, model: finalModel } =
       await buildUserMessage(message, mediaUrl, mediaType);
 
-    const response = await getGroqCompletion(
+    const response = await getAICompletion(
       [
         { role: "system", content: systemPrompt },
         ...history,
@@ -146,7 +146,7 @@ PERSONALIDAD:
     const { content: finalMessageContent, model: finalModel } =
       await buildUserMessage(problem, mediaUrl, mediaType);
 
-    const response = await getGroqCompletion(
+    const response = await getAICompletion(
       [
         { role: "system", content: systemPrompt },
         ...history,
@@ -200,7 +200,7 @@ Por ejemplo, si recomiendas pollo asado: ![Plato Recomendado](https://source.uns
         mediaType,
       );
 
-    const response = await getGroqCompletion(
+    const response = await getAICompletion(
       [
         { role: "system", content: systemPrompt },
         ...history,
@@ -321,7 +321,7 @@ REGLAS:
     const { content: finalMessageContent, model: finalModel } =
       await buildUserMessage(userMessageText, mediaUrl, mediaType);
 
-    const response = await getGroqCompletion(
+    const response = await getAICompletion(
       [
         { role: "system", content: systemPrompt },
         { role: "user", content: finalMessageContent },
@@ -390,7 +390,7 @@ ${JSON.stringify(questionsWithAnswers, null, 2)}
 
 Proporciona: puntuación obtenida, feedback por pregunta, y mensaje final motivador.`;
 
-    const response = await getGroqCompletion(
+    const response = await getAICompletion(
       [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
