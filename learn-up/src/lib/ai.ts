@@ -1,14 +1,19 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import Groq from "groq-sdk";
 
-const apiKey = process.env.AI_API_KEY;
+const geminiApiKey = process.env.GEMINI_API_KEY || process.env.AI_API_KEY;
+const groqApiKey = process.env.GROQ_API_KEY;
 const provider = process.env.AI_PROVIDER || "gemini";
 
-if (!apiKey && provider === "gemini") {
-  console.error("AI Configuration Error: Missing AI_API_KEY");
+if (!geminiApiKey && provider === "gemini") {
+  console.error("AI Configuration Error: Missing AI_API_KEY or GEMINI_API_KEY");
 }
 
 // ── Gemini Client ─────────────────────────────────────────────────────────────
-const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null;
+
+// ── Groq Client ─────────────────────────────────────────────────────────────
+export const groq = groqApiKey ? new Groq({ apiKey: groqApiKey }) : null;
 
 // ── Ollama Implementation ────────────────────────────────────────────────────
 const getOllamaCompletion = async (
@@ -137,13 +142,59 @@ export const getAICompletion = async (
   if (provider === "ollama") {
     return await getOllamaCompletion(messages, model, jsonMode);
   }
-  return await getGeminiCompletion(messages, model, jsonMode);
+
+  if (provider === "groq") {
+    const simpleMessages = messages.map(m => ({
+      role: m.role,
+      content: Array.isArray(m.content) ? m.content.map(p => p.type === 'text' ? p.text : '').join('\n') : m.content
+    }));
+    return await getGroqCompletion(simpleMessages, "llama-3.3-70b-versatile", jsonMode);
+  }
+
+  // Default to Gemini with Groq fallback
+  try {
+    return await getGeminiCompletion(messages, model, jsonMode);
+  } catch (error: any) {
+    console.warn("Gemini API Error, falling back to Groq...", error?.message || error);
+    try {
+      const simpleMessages = messages.map(m => ({
+        role: m.role,
+        content: Array.isArray(m.content) ? m.content.map(p => p.type === 'text' ? p.text : '').join('\n') : m.content
+      }));
+      return await getGroqCompletion(simpleMessages, "llama-3.3-70b-versatile", jsonMode);
+    } catch (groqError) {
+      console.error("Both Gemini and Groq failed.");
+      throw groqError;
+    }
+  }
 };
 
-// ── Groq Placeholder (Deprecated) ─────────────────────────────────────────────
-export const getGroqCompletion = async () => {
-  throw new Error("Groq is restricted and no longer in use. Please use Gemini.");
+// ── Groq Implementation ───────────────────────────────────────────────────────
+export const getGroqCompletion = async (
+  messages: any[],
+  modelName: string = "llama-3.3-70b-versatile",
+  jsonMode: boolean = false
+) => {
+  if (!groq) throw new Error("Groq is not configured. Missing GROQ_API_KEY.");
+  try {
+    const response = await groq.chat.completions.create({
+      messages,
+      model: modelName,
+      response_format: jsonMode ? { type: "json_object" } : undefined,
+      temperature: 0.8,
+      max_tokens: 2000,
+    });
+    return {
+      choices: [
+        {
+          message: {
+            content: response.choices[0]?.message?.content || "",
+          },
+        },
+      ],
+    };
+  } catch (error) {
+    console.error("Groq API Error:", error);
+    throw error;
+  }
 };
-
-// Export dummy groq object to prevent import errors in untracked files
-export const groq = null as any;
