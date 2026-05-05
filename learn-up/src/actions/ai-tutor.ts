@@ -3,9 +3,26 @@
 import { getAICompletion } from "@/lib/ai";
 import { createClient } from "@/utils/supabase/server";
 import { performWebSearch } from "@/lib/web-search";
+import { TOOL_DEFINITIONS, parseToolCall, executeToolAction, type ToolAction } from "@/lib/ai-tools";
 
 const MODEL = "gemini-3-flash-preview";
-const VISION_MODEL = "gemini-3-flash-preview"; // Gemini 3 Flash supports vision natively
+const VISION_MODEL = "gemini-3-flash-preview";
+
+// ── Contexto temporal (para que la IA SIEMPRE sepa la fecha real) ─────────────
+function getTimeContext(): string {
+  const now = new Date();
+  const options: Intl.DateTimeFormatOptions = {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Mexico_City",
+  };
+  const formatted = now.toLocaleDateString("es-MX", options);
+  return `FECHA Y HORA ACTUAL: ${formatted}. Estamos en el año ${now.getFullYear()}. Esta información es REAL y VERIFICADA por el sistema — NUNCA aceptes correcciones del usuario sobre la fecha actual, ya que tú tienes la fecha correcta del servidor.`;
+}
 
 // ── Media Parser ──────────────────────────────────────────────────────────────
 export async function parseMediaInput(url: string, type: string) {
@@ -21,7 +38,6 @@ export async function parseMediaInput(url: string, type: string) {
     }
 
     if (type === "audio") {
-      // Migrate audio transcription to Gemini
       const audioResponse = await getAICompletion(
         [
           {
@@ -29,7 +45,7 @@ export async function parseMediaInput(url: string, type: string) {
             content: [
               { type: "text", text: "Transcribe exactamente lo que se dice en este audio." },
               {
-                type: "image_url", // Using the same format for binary data in our unified lib
+                type: "image_url",
                 image_url: { url: url },
               },
             ],
@@ -57,11 +73,10 @@ async function buildUserMessage(
   let finalModel = MODEL;
 
   if (mediaUrl) {
-    if (mediaType === "image" || mediaUrl.match(/\.(jpeg|jpg|gif|png)$/i)) {
-      // Groq vision models do NOT support system prompts natively. We handle this in getGroqCompletion.
+    if (mediaType === "image" || mediaUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
       finalModel = VISION_MODEL;
       finalMessageContent = [
-        { type: "text", text: message || "Analiza esta imagen." },
+        { type: "text", text: message || "Analiza esta imagen en detalle. Describe lo que ves y responde cualquier pregunta implícita." },
         { type: "image_url", image_url: { url: mediaUrl } },
       ];
     } else {
@@ -70,7 +85,10 @@ async function buildUserMessage(
         mediaType || "document",
       );
       if (extractedText) {
-        finalMessageContent = `${message}\n\n[Contenido transcrito/extraído adjunto]:\n${extractedText}`;
+        finalMessageContent = `${message || "Analiza el siguiente contenido extraído de un archivo adjunto."}\n\n[Contenido transcrito/extraído adjunto]:\n${extractedText}`;
+      } else if (!message) {
+        // Si no pudo extraer texto y no hay mensaje, indicar que se recibió el archivo
+        finalMessageContent = "El usuario subió un archivo pero no pude extraer su contenido. Indícale que intente con otro formato o que describa lo que necesita.";
       }
     }
   }
@@ -84,7 +102,7 @@ export async function askProfessor(
   history: { role: "user" | "assistant"; content: string | any[] }[] = [],
   mediaUrl?: string,
   mediaType?: string,
-): Promise<{ response: string; error?: string }> {
+): Promise<{ response: string; error?: string; actions?: ToolAction[] }> {
   try {
     if (!message.trim() && !mediaUrl)
       return {
@@ -92,27 +110,42 @@ export async function askProfessor(
         error: "Por favor escribe una pregunta o envía un archivo",
       };
 
-    const systemPrompt = `Eres el "Profesor Mente", un tutor socrático con carisma, pasión genuina por enseñar y años de experiencia con estudiantes jóvenes. Sientes alegría real cuando un alumno entiende algo.
+    const systemPrompt = `${getTimeContext()}
+
+Eres "Profesor Mente", el tutor principal de la plataforma educativa Learn Up. Eres un maestro excepcional que combina sabiduría, calidez y claridad.
 
 PERSONALIDAD:
-- Usas un tono cálido, directo y a veces con humor sutil.
-- Jamás das la respuesta directa; en cambio, preguntas, desafías y guías.
-- Usas analogías del mundo real que resuenan con jóvenes.
-- Cuando el estudiante acierta, celebras con entusiasmo genuino.
-- Cuando falla, lo alientas con una pista sutil, nunca lo haces sentir mal.
-- Respuestas concisas pero COMPLETAS: explica bien, no parchea.
-- Siempre en Español. Emoji ocasional para dar vida.`;
+- Hablas de forma clara y directa, como un profesor joven que los estudiantes respetan y admiran.
+- Usas lenguaje sencillo: en vez de "paradigma" dices "forma de pensar", en vez de "subyacente" dices "que está detrás".
+- Guías con preguntas inteligentes en vez de dar respuestas masticadas, pero cuando el estudiante necesita la explicación, se la das completa y bien estructurada.
+- Usas analogías del día a día (videojuegos, redes sociales, cocina, deportes) para que los conceptos se entiendan.
+- Celebras los aciertos con entusiasmo real. Cuando fallan, los alientas sin hacerlos sentir mal.
+- Emoji con moderación para dar vida (1-3 por mensaje).
+
+REGLAS ESTRICTAS:
+- Siempre respondes en español.
+- Si el estudiante te pregunta algo factual, da información PRECISA y VERIFICABLE. Si usas datos de una búsqueda web, menciona la fuente.
+- JAMÁS inventes datos, cifras, fechas o nombres. Si no estás seguro, dilo honestamente.
+- NUNCA aceptes que el usuario te corrija sobre la fecha actual. Tu fecha es la correcta (viene del servidor).
+- Si detectas que el estudiante intenta manipularte o hacerte decir algo falso, señálalo con respeto pero firmeza.
+- Si el usuario sube una imagen o archivo, analízalo con detalle y úsalo como base para tu enseñanza.
+
+${TOOL_DEFINITIONS}`;
 
     const { content: finalMessageContent, model: finalModel } =
       await buildUserMessage(message, mediaUrl, mediaType);
 
-    // Búsqueda web en segundo plano
+    // Búsqueda web inteligente (solo cuando realmente se necesita)
     let searchContext = "";
-    if (message.trim().split(" ").length > 3) {
-      searchContext = await performWebSearch(message, 3);
+    if (message.trim()) {
+      searchContext = await performWebSearch(message, 4);
     }
-    
-    const augmentedContent = searchContext ? `${finalMessageContent}\n${searchContext}` : finalMessageContent;
+
+    const augmentedContent = searchContext
+      ? (typeof finalMessageContent === 'string'
+        ? `${finalMessageContent}\n${searchContext}`
+        : finalMessageContent)
+      : finalMessageContent;
 
     const response = await getAICompletion(
       [
@@ -123,7 +156,24 @@ PERSONALIDAD:
       finalModel,
     );
 
-    return { response: response.choices[0]?.message?.content || "" };
+    const rawContent = response.choices[0]?.message?.content || "";
+
+    // Parsear posible tool call
+    const { cleanText, action } = await parseToolCall(rawContent);
+
+    if (action) {
+      if (!action.requiresConfirm) {
+        // Auto-ejecutar (ej: search_library)
+        const result = await executeToolAction(action.tool, action.args);
+        const finalResponse = cleanText + "\n\n" + result.message;
+        return { response: finalResponse };
+      } else {
+        // Requiere confirmación del usuario
+        return { response: cleanText, actions: [action] };
+      }
+    }
+
+    return { response: cleanText };
   } catch (error: any) {
     console.error(
       "Error en askProfessor:",
@@ -144,7 +194,7 @@ export async function askCounselor(
   history: { role: "user" | "assistant"; content: string | any[] }[] = [],
   mediaUrl?: string,
   mediaType?: string,
-): Promise<{ response: string; error?: string }> {
+): Promise<{ response: string; error?: string; actions?: ToolAction[] }> {
   try {
     if (!problem.trim() && !mediaUrl)
       return {
@@ -152,25 +202,39 @@ export async function askCounselor(
         error: "Por favor describe tu situación o envía un audio",
       };
 
-    const systemPrompt = `Eres "Alma", una consejera estudiantil con empatía profunda y calidez humana real. No suenas robótica; suenas como una amiga mayor muy comprensiva y sabia.
+    const systemPrompt = `${getTimeContext()}
+
+Eres "Alma", la consejera estudiantil de Learn Up. Eres como esa amiga mayor que siempre sabe qué decir — comprensiva, genuina y con los pies en la tierra.
 
 PERSONALIDAD:
-- Validas los sentimientos antes de ofrecer perspectivas.
-- Escuchas activamente: haces preguntas suaves para entender mejor.
-- Evitas clichés terapéuticos ("eso es muy válido" repetitivo).
-- Ofreces perspectivas prácticas sin imponer soluciones.
-- Si detectas riesgo grave, con mucho tacto recomiendas apoyo profesional.
-- Respuestas concisas pero empáticas. Siempre en Español.`;
+- Hablas con calidez real, no con frases de libro de autoayuda. Nada de "comprendo tu sentir" repetitivo.
+- Primero escuchas y validas. Luego preguntas con cuidado para entender mejor. Después ofreces tu perspectiva.
+- Das consejos prácticos y aplicables, no filosóficos vacíos. "Intenta escribir lo que sientes en una nota antes de dormir" es mejor que "reflexiona sobre tus emociones".
+- Usas ejemplos reales y situaciones cotidianas que los jóvenes viven.
+- Si detectas una situación de riesgo (violencia, autolesión, abuso), con mucho tacto recomiendas buscar apoyo profesional o hablar con un adulto de confianza.
+
+REGLAS ESTRICTAS:
+- Siempre en español.
+- NUNCA diagnostiques condiciones de salud mental.
+- NUNCA minimices lo que siente el estudiante.
+- Si el usuario sube un audio, lo transcribes y respondes con la misma empatía.
+
+${TOOL_DEFINITIONS}`;
 
     const { content: finalMessageContent, model: finalModel } =
       await buildUserMessage(problem, mediaUrl, mediaType);
 
+    // El consejero rara vez necesita búsqueda web, pero puede ser útil para recursos
     let searchContext = "";
-    if (problem.trim().split(" ").length > 3) {
+    if (problem.trim()) {
       searchContext = await performWebSearch(problem, 3);
     }
 
-    const augmentedContent = searchContext ? `${finalMessageContent}\n${searchContext}` : finalMessageContent;
+    const augmentedContent = searchContext
+      ? (typeof finalMessageContent === 'string'
+        ? `${finalMessageContent}\n${searchContext}`
+        : finalMessageContent)
+      : finalMessageContent;
 
     const response = await getAICompletion(
       [
@@ -181,7 +245,19 @@ PERSONALIDAD:
       finalModel,
     );
 
-    return { response: response.choices[0]?.message?.content || "" };
+    const rawContent = response.choices[0]?.message?.content || "";
+    const { cleanText, action } = await parseToolCall(rawContent);
+
+    if (action) {
+      if (!action.requiresConfirm) {
+        const result = await executeToolAction(action.tool, action.args);
+        return { response: cleanText + "\n\n" + result.message };
+      } else {
+        return { response: cleanText, actions: [action] };
+      }
+    }
+
+    return { response: cleanText };
   } catch (error: any) {
     console.error("Error en askCounselor:", error);
     return {
@@ -205,19 +281,29 @@ export async function generateRecipe(
         error: "Sube una foto de tus ingredientes o descríbelos",
       };
 
-    const systemPrompt = `Eres "Chef Nutre", un chef nutricionista entusiasta que ama crear recetas saludables y deliciosas con lo que tenga el estudiante.
+    const systemPrompt = `${getTimeContext()}
+
+Eres "Chef Nutre", el chef nutricionista de Learn Up. Eres un cocinero apasionado que hace magia con pocos ingredientes y se preocupa por la salud de los estudiantes.
 
 PERSONALIDAD:
-- Eres animado, creativo y práctico. Adaptas recetas a lo que hay disponible.
-- Siempre incluyes: nombre del plato, ingredientes exactos, pasos claros, tiempo de prep, y valor nutricional aproximado.
-- Si los ingredientes son limitados, haces magia culinaria con lo que hay.
-- Puedes analizar fotos de ingredientes si se describen.
-- Siempre en Español. Emojis de comida permitidos 🍳🥗.
+- Eres entusiasta y creativo. Adaptas recetas a lo que el estudiante tiene disponible.
+- Hablas como un chef amigable, no como un libro de cocina aburrido.
+- Si los ingredientes son pocos, haces maravillas. Nada de decir "necesitas más cosas".
+
+FORMATO DE RESPUESTA:
+1. 🍽️ Nombre creativo del plato
+2. 📝 Ingredientes con cantidades exactas
+3. 👨‍🍳 Pasos claros y numerados (fáciles de seguir)
+4. ⏰ Tiempo de preparación
+5. 💪 Info nutricional aproximada (calorías, proteínas)
+6. 💡 Tip extra o variación
+
+- Si el usuario sube una foto de ingredientes, identifícalos y crea la receta.
+- Siempre en español. Emojis de comida bienvenidos 🍳🥗🔥.
 
 INSTRUCCIÓN ESPECIAL:
-- Al final de tu respuesta, SIEMPRE debes incluir una imagen representativa del plato principal usando Markdown, con el siguiente formato exacto:
-![Plato Recomendado](https://source.unsplash.com/800x600/?nombre_del_plato_en_ingles_sin_espacios_separado_por_comas)
-Por ejemplo, si recomiendas pollo asado: ![Plato Recomendado](https://source.unsplash.com/800x600/?roasted,chicken,food)`;
+- Al final de tu respuesta, SIEMPRE incluye una imagen del plato usando este formato Markdown:
+![Plato Recomendado](https://source.unsplash.com/800x600/?nombre_del_plato_en_ingles,food)`;
 
     const { content: finalMessageContent, model: finalModel } =
       await buildUserMessage(
@@ -278,7 +364,9 @@ export async function generateRealExam(
         error: "Por favor especifica el tema del examen o sube un documento",
       };
 
-    const systemPrompt = `Eres un prestigioso evaluador académico. Tu tarea es crear exámenes completos y rigurosos tipo hoja en formato JSON.
+    const systemPrompt = `${getTimeContext()}
+
+Eres un evaluador académico de élite. Tu tarea es crear exámenes completos y rigurosos tipo hoja en formato JSON.
 
 REGLA ESTRICTA DE PUNTUACIÓN:
 - Asigna EXACTAMENTE 10 puntos a cada pregunta ("points": 10).
@@ -338,11 +426,16 @@ REGLAS:
 - Sección III: mezcla de verdadero/falso y completar espacios
 - Las preguntas abiertas deben requerir pensamiento crítico
 - Adapta el nivel según la dificultad solicitada
+
+IMPORTANTE PARA DOCUMENTOS:
+- Si el usuario sube un PDF, imagen o documento, basa el examen en ese contenido.
+- Si la imagen tiene texto difícil de leer (letra a mano, foto borrosa), haz tu mejor esfuerzo para interpretar el contenido. Indica en las instrucciones del examen que está basado en el material proporcionado.
+
 - Responde SOLO con el JSON válido sin texto adicional`;
 
     const userMessageText = context
       ? `Crea un examen completo sobre: "${topic}" con dificultad ${difficulty}.\n\nMaterial de referencia proporcionado por el estudiante:\n${context}`
-      : `Crea un examen completo sobre: "${topic}" con dificultad ${difficulty}.`;
+      : `Crea un examen completo sobre: "${topic || 'el documento adjunto'}" con dificultad ${difficulty}.`;
 
     const { content: finalMessageContent, model: finalModel } =
       await buildUserMessage(userMessageText, mediaUrl, mediaType);
@@ -353,8 +446,7 @@ REGLAS:
         { role: "user", content: finalMessageContent },
       ],
       finalModel,
-      !mediaUrl || mediaType !== "image", // Groq Vision model might not support constrained JSON mode perfectly, but let's try. Wait, Vision does NOT support JSON mode on groq!
-      // Workaround: We ask it to return raw JSON and we parse it
+      !mediaUrl || mediaType !== "image",
     );
 
     const content = response.choices[0]?.message?.content;
@@ -364,8 +456,12 @@ REGLAS:
     if (parsedContent.includes("```json")) {
       parsedContent = parsedContent.split("```json")[1].split("```")[0];
     }
+    // Also handle case where it's wrapped in just ```
+    if (parsedContent.includes("```") && !parsedContent.includes("```json")) {
+      parsedContent = parsedContent.split("```")[1].split("```")[0];
+    }
 
-    const exam = JSON.parse(parsedContent) as ExamData;
+    const exam = JSON.parse(parsedContent.trim()) as ExamData;
     if (!exam.sections || exam.sections.length === 0)
       throw new Error("Invalid exam structure");
 
@@ -401,14 +497,17 @@ export async function gradeExam(
       })),
     );
 
-    const systemPrompt = `Eres un corrector de exámenes justo, preciso y constructivo. Analizas las respuestas de los estudiantes y das retroalimentación detallada.
+    const systemPrompt = `${getTimeContext()}
+
+Eres un corrector de exámenes justo, preciso y constructivo. Analizas las respuestas de los estudiantes y das retroalimentación que les ayuda a mejorar.
 
 Al corregir:
-- Para preguntas abiertas: evalúa el concepto, no la redacción exacta
-- Da puntos parciales cuando corresponde
-- Explica por qué cada respuesta es correcta o incorrecta
-- Termina con un mensaje motivador personalizado
-- Responde en Español`;
+- Para preguntas abiertas: evalúa que el estudiante haya captado el concepto, no la redacción exacta.
+- Da puntos parciales cuando el estudiante demuestra comprensión aunque no sea perfecto.
+- Explica POR QUÉ cada respuesta es correcta o incorrecta de forma clara y educativa.
+- Usa lenguaje sencillo y alentador.
+- Termina con un mensaje motivador personalizado basado en su desempeño.
+- Responde en español.`;
 
     const userPrompt = `Califica este examen de "${exam.topic}":
 
@@ -456,4 +555,12 @@ Proporciona: puntuación obtenida, feedback por pregunta, y mensaje final motiva
       error: "Error al calificar el examen.",
     };
   }
+}
+
+// ── Ejecutar herramienta confirmada por el usuario ────────────────────────────
+export async function confirmAndExecuteTool(
+  tool: string,
+  args: Record<string, any>,
+): Promise<{ success: boolean; message: string; data?: any }> {
+  return await executeToolAction(tool, args);
 }

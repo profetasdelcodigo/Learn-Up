@@ -17,6 +17,13 @@ import {
   Trash2,
   History,
   ChevronLeft,
+  ExternalLink,
+  Calendar,
+  MessageSquare,
+  Search,
+  UserCog,
+  Check,
+  XCircle,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
@@ -27,6 +34,14 @@ import {
   addAiMessage,
   deleteAiSession,
 } from "@/actions/ai-history";
+import { confirmAndExecuteTool } from "@/actions/ai-tutor";
+
+interface ToolAction {
+  tool: string;
+  args: Record<string, any>;
+  description: string;
+  requiresConfirm: boolean;
+}
 
 interface Message {
   id?: string;
@@ -46,7 +61,7 @@ interface AIChatProps {
     history: { role: "user" | "assistant"; content: string }[],
     mediaUrl?: string,
     mediaType?: string,
-  ) => Promise<{ response: string; error?: string }>;
+  ) => Promise<{ response: string; error?: string; actions?: ToolAction[] }>;
 }
 
 export default function AIChatComponent({
@@ -70,6 +85,8 @@ export default function AIChatComponent({
 
   const [file, setFile] = useState<File | null>(null);
   const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [pendingActions, setPendingActions] = useState<ToolAction[]>([]);
+  const [executingAction, setExecutingAction] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -83,30 +100,46 @@ export default function AIChatComponent({
     return () => clearTimeout(timer);
   }, []);
 
-  // Mini-mensajes dinámicos durante la carga
+  // Mini-mensajes dinámicos durante la carga (contextuales)
+  const [hasFileAttached, setHasFileAttached] = useState(false);
+
   useEffect(() => {
     if (!loading) {
       setLoadingMessage("");
       return;
     }
 
-    const messages = [
-      "Analizando tu petición...",
-      "Investigando en internet...",
-      "Consultando fuentes adicionales...",
-      "Sintetizando la información...",
-      "Generando respuesta final...",
+    const textMessages = [
+      "Pensando...",
+      "Preparando respuesta...",
+      "Casi listo...",
     ];
+
+    const searchMessages = [
+      "Analizando tu pregunta...",
+      "Buscando información relevante...",
+      "Consultando fuentes...",
+      "Preparando respuesta completa...",
+    ];
+
+    const fileMessages = [
+      "Procesando tu archivo...",
+      "Analizando el contenido...",
+      "Extrayendo información...",
+      "Generando respuesta...",
+    ];
+
+    const msgs = hasFileAttached ? fileMessages : searchMessages;
     let currentIndex = 0;
-    setLoadingMessage(messages[0]);
+    setLoadingMessage(msgs[0]);
 
     const interval = setInterval(() => {
-      currentIndex = (currentIndex + 1) % messages.length;
-      setLoadingMessage(messages[currentIndex]);
-    }, 2500);
+      currentIndex = (currentIndex + 1) % msgs.length;
+      setLoadingMessage(msgs[currentIndex]);
+    }, 2000);
 
     return () => clearInterval(interval);
-  }, [loading]);
+  }, [loading, hasFileAttached]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -160,7 +193,15 @@ export default function AIChatComponent({
     e.preventDefault();
     if ((!input.trim() && !file) || loading) return;
 
-    const userMessage = input.trim();
+    // Auto-generar mensaje si solo hay archivo sin texto
+    let userMessage = input.trim();
+    if (!userMessage && file) {
+      const mType = getMediaType(file);
+      if (mType === "image") userMessage = "Analiza esta imagen.";
+      else if (mType === "audio") userMessage = "Transcribe y analiza este audio.";
+      else if (mType === "video") userMessage = "Analiza este video.";
+      else userMessage = "Analiza este documento.";
+    }
     if (!userMessage && !file) return;
 
     const mediaType = file ? getMediaType(file) : undefined;
@@ -173,6 +214,7 @@ export default function AIChatComponent({
     setMessages((prev) => [...prev, clientSideUserMsg]);
     setInput("");
     setError("");
+    setHasFileAttached(!!file);
     setLoading(true);
 
     let sessionId = currentSessionId;
@@ -250,6 +292,11 @@ export default function AIChatComponent({
           ...prev,
           { role: "assistant", content: result.response },
         ]);
+
+        // Si hay acciones pendientes de confirmación
+        if (result.actions && result.actions.length > 0) {
+          setPendingActions(result.actions);
+        }
       }
     } catch (err) {
       setError("Ocurrió un error inesperado.");
@@ -258,6 +305,51 @@ export default function AIChatComponent({
         loadSessions(false);
       }
       setLoading(false);
+    }
+  };
+
+  // ── Manejar confirmación/rechazo de acciones de IA ────────────────────────
+  const handleConfirmAction = async (action: ToolAction) => {
+    setExecutingAction(true);
+    try {
+      if (action.tool === "open_url") {
+        // Abrir URL en nueva pestaña (el click del usuario lo permite)
+        window.open(action.args.url, "_blank", "noopener,noreferrer");
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: `✅ Abriendo: ${action.args.title || action.args.url}` },
+        ]);
+      } else {
+        const result = await confirmAndExecuteTool(action.tool, action.args);
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: result.message },
+        ]);
+      }
+    } catch (err) {
+      setError("Error al ejecutar la acción.");
+    } finally {
+      setPendingActions([]);
+      setExecutingAction(false);
+    }
+  };
+
+  const handleRejectAction = () => {
+    setMessages((prev) => [
+      ...prev,
+      { role: "assistant", content: "Entendido, no realicé la acción. ¿Necesitas algo más?" },
+    ]);
+    setPendingActions([]);
+  };
+
+  const getToolIcon = (tool: string) => {
+    switch (tool) {
+      case "open_url": return <ExternalLink className="w-4 h-4" />;
+      case "add_calendar_event": return <Calendar className="w-4 h-4" />;
+      case "send_message": return <MessageSquare className="w-4 h-4" />;
+      case "search_library": return <Search className="w-4 h-4" />;
+      case "update_profile": return <UserCog className="w-4 h-4" />;
+      default: return <Bot className="w-4 h-4" />;
     }
   };
 
@@ -494,6 +586,54 @@ export default function AIChatComponent({
                 </div>
               </div>
             )}
+
+            {/* ──── Tarjetas de confirmación de acciones ──── */}
+            {pendingActions.length > 0 && !loading && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex justify-start"
+              >
+                <div className="max-w-[85%] md:max-w-[70%] space-y-2">
+                  {pendingActions.map((action, i) => (
+                    <div
+                      key={i}
+                      className="bg-gray-900 border border-brand-gold/30 rounded-2xl p-4 rounded-tl-sm"
+                    >
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-8 h-8 rounded-full bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center text-brand-gold">
+                          {getToolIcon(action.tool)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-white">¿Realizar esta acción?</p>
+                          <p className="text-xs text-gray-400">{action.description}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleConfirmAction(action)}
+                          disabled={executingAction}
+                          className="flex-1 py-2 px-3 bg-brand-gold text-brand-black rounded-xl font-semibold text-sm hover:bg-white transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        >
+                          {executingAction ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <><Check className="w-4 h-4" /> Aceptar</>
+                          )}
+                        </button>
+                        <button
+                          onClick={handleRejectAction}
+                          disabled={executingAction}
+                          className="flex-1 py-2 px-3 bg-gray-800 text-gray-300 rounded-xl font-semibold text-sm hover:bg-gray-700 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        >
+                          <XCircle className="w-4 h-4" /> Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
             <div ref={messagesEndRef} />
           </div>
 
@@ -538,7 +678,7 @@ export default function AIChatComponent({
                 ref={fileInputRef}
                 onChange={handleFileSelect}
                 className="hidden"
-                accept=".pdf,.png,.jpg,.jpeg,.mp3,.wav,.mp4"
+                accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.mp3,.wav,.ogg,.m4a,.mp4,.doc,.docx,.pptx,.xlsx,.txt"
               />
               <button
                 type="button"

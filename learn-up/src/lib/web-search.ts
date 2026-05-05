@@ -6,6 +6,58 @@ export interface SearchResult {
   snippet: string;
 }
 
+// ── Clasificador: ¿La pregunta necesita búsqueda web? ────────────────────────
+// Evita buscar en internet para saludos, matemáticas, opiniones, etc.
+const SKIP_PATTERNS = [
+  // Saludos y conversación casual
+  /^(hola|hey|buenas|buenos|qué tal|cómo estás|gracias|adiós|chao|bye)/i,
+  // Matemáticas puras
+  /^(cuánto|cuanto|calcula|resuelve|suma|resta|multiplica|divide)\s+(es|son)?\s*\d/i,
+  /^\d+\s*[\+\-\*\/\^]\s*\d+/,
+  // Preguntas sobre la IA misma
+  /^(quién eres|cómo te llamas|qué eres|eres una ia|eres humano)/i,
+  // Peticiones de ayuda genérica
+  /^(ayúdame|ayudame|necesito ayuda|explícame|explicame)\s*$/i,
+  // Opiniones personales
+  /^(qué opinas|qué piensas|te gusta|prefieres)/i,
+];
+
+const SEARCH_PATTERNS = [
+  // Hechos, datos, definiciones
+  /\b(qué es|quién es|quién fue|qué significa|definición de|define)\b/i,
+  // Historia y eventos
+  /\b(cuándo (fue|ocurrió|pasó|nació|murió)|en qué año|historia de)\b/i,
+  // Datos actuales
+  /\b(actualmente|hoy en día|en la actualidad|últimas noticias|reciente)\b/i,
+  // Investigación
+  /\b(investiga|búscame|busca sobre|información sobre|datos sobre|dime sobre)\b/i,
+  // Ciencia y educación específica
+  /\b(fórmula de|teoría de|ley de|proceso de|cómo funciona)\b/i,
+  // Personas, lugares, cosas específicas
+  /\b(capital de|presidente de|país|ciudad|planeta|elemento)\b/i,
+];
+
+export function shouldSearchWeb(message: string): boolean {
+  const trimmed = message.trim();
+
+  // Mensajes muy cortos casi nunca necesitan búsqueda
+  if (trimmed.split(/\s+/).length <= 2) return false;
+
+  // Si coincide con un patrón de SKIP, no buscar
+  if (SKIP_PATTERNS.some(p => p.test(trimmed))) return false;
+
+  // Si coincide con un patrón de SEARCH, sí buscar
+  if (SEARCH_PATTERNS.some(p => p.test(trimmed))) return true;
+
+  // Para el resto, buscar solo si la pregunta parece informativa (>6 palabras y tiene signos de pregunta o palabras clave)
+  const wordCount = trimmed.split(/\s+/).length;
+  if (wordCount >= 6 && /\?/.test(trimmed)) return true;
+  if (wordCount >= 8) return true; // Preguntas largas probablemente necesitan contexto
+
+  return false;
+}
+
+// ── Tavily ────────────────────────────────────────────────────────────────────
 export async function searchTavily(query: string, maxResults: number = 3): Promise<SearchResult[]> {
   const apiKey = process.env.TAVILY_API_KEY;
   if (!apiKey) return [];
@@ -43,6 +95,7 @@ export async function searchTavily(query: string, maxResults: number = 3): Promi
   }
 }
 
+// ── Serper ─────────────────────────────────────────────────────────────────────
 export async function searchSerper(query: string, maxResults: number = 3): Promise<SearchResult[]> {
   const apiKey = process.env.SERPER_API_KEY;
   if (!apiKey) return [];
@@ -82,19 +135,24 @@ export async function searchSerper(query: string, maxResults: number = 3): Promi
 /**
  * Realiza una búsqueda web inteligente usando Tavily y Serper.
  * Retorna un string formateado para inyectarlo en el LLM.
+ * Ahora verifica primero si la pregunta realmente necesita búsqueda.
  */
 export async function performWebSearch(query: string, totalResults: number = 5): Promise<string> {
+  // Paso 0: ¿Realmente necesitamos buscar?
+  if (!shouldSearchWeb(query)) {
+    return '';
+  }
+
   const canTavily = await canUseService('tavily');
   const canSerper = await canUseService('serper');
 
   if (!canTavily && !canSerper) {
     console.warn('Límite de búsqueda web alcanzado en ambos servicios.');
-    return ''; // No bloquea la IA, simplemente no aporta contexto web.
+    return '';
   }
 
   const results: SearchResult[] = [];
   
-  // Dividir los resultados si ambos están disponibles
   const tavilyMax = canSerper ? Math.floor(totalResults / 2) : totalResults;
   const serperMax = canTavily ? totalResults - tavilyMax : totalResults;
 
@@ -109,11 +167,11 @@ export async function performWebSearch(query: string, totalResults: number = 5):
 
   if (results.length === 0) return '';
 
-  let contextString = `\n\n--- RESULTADOS DE BÚSQUEDA WEB PARA: "${query}" ---\n`;
+  let contextString = `\n\n--- CONTEXTO WEB (usa esta información para enriquecer tu respuesta, cita las fuentes cuando sea relevante) ---\n`;
   results.forEach((r, i) => {
     contextString += `[${i + 1}] ${r.title}\n${r.snippet}\nFuente: ${r.url}\n\n`;
   });
-  contextString += `--------------------------------------------------\n`;
+  contextString += `--- FIN DEL CONTEXTO WEB ---\n`;
 
   return contextString;
 }
