@@ -2,6 +2,7 @@
 
 import { getAICompletion } from "@/lib/ai";
 import { createClient } from "@/utils/supabase/server";
+import { performWebSearch } from "@/lib/web-search";
 
 const MODEL = "gemini-3-flash-preview";
 const VISION_MODEL = "gemini-3-flash-preview"; // Gemini 3 Flash supports vision natively
@@ -105,11 +106,19 @@ PERSONALIDAD:
     const { content: finalMessageContent, model: finalModel } =
       await buildUserMessage(message, mediaUrl, mediaType);
 
+    // Búsqueda web en segundo plano
+    let searchContext = "";
+    if (message.trim().split(" ").length > 3) {
+      searchContext = await performWebSearch(message, 3);
+    }
+    
+    const augmentedContent = searchContext ? `${finalMessageContent}\n${searchContext}` : finalMessageContent;
+
     const response = await getAICompletion(
       [
         { role: "system", content: systemPrompt },
         ...history,
-        { role: "user", content: finalMessageContent },
+        { role: "user", content: augmentedContent },
       ],
       finalModel,
     );
@@ -156,11 +165,18 @@ PERSONALIDAD:
     const { content: finalMessageContent, model: finalModel } =
       await buildUserMessage(problem, mediaUrl, mediaType);
 
+    let searchContext = "";
+    if (problem.trim().split(" ").length > 3) {
+      searchContext = await performWebSearch(problem, 3);
+    }
+
+    const augmentedContent = searchContext ? `${finalMessageContent}\n${searchContext}` : finalMessageContent;
+
     const response = await getAICompletion(
       [
         { role: "system", content: systemPrompt },
         ...history,
-        { role: "user", content: finalMessageContent },
+        { role: "user", content: augmentedContent },
       ],
       finalModel,
     );

@@ -63,6 +63,7 @@ export default function AIChatComponent({
 
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("");
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState("");
   const [showHistory, setShowHistory] = useState(false);
@@ -81,6 +82,31 @@ export default function AIChatComponent({
     }, 2000);
     return () => clearTimeout(timer);
   }, []);
+
+  // Mini-mensajes dinámicos durante la carga
+  useEffect(() => {
+    if (!loading) {
+      setLoadingMessage("");
+      return;
+    }
+
+    const messages = [
+      "Analizando tu petición...",
+      "Investigando en internet...",
+      "Consultando fuentes adicionales...",
+      "Sintetizando la información...",
+      "Generando respuesta final...",
+    ];
+    let currentIndex = 0;
+    setLoadingMessage(messages[0]);
+
+    const interval = setInterval(() => {
+      currentIndex = (currentIndex + 1) % messages.length;
+      setLoadingMessage(messages[currentIndex]);
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [loading]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -454,8 +480,17 @@ export default function AIChatComponent({
 
             {loading && (
               <div className="flex justify-start">
-                <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 rounded-tl-sm">
-                  <Loader2 className="w-5 h-5 text-brand-gold animate-spin" />
+                <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 rounded-tl-sm flex items-center gap-3">
+                  <Loader2 className="w-5 h-5 text-brand-gold animate-spin shrink-0" />
+                  <motion.span 
+                    key={loadingMessage}
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    className="text-sm text-gray-400 font-medium"
+                  >
+                    {loadingMessage}
+                  </motion.span>
                 </div>
               </div>
             )}
