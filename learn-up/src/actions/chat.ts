@@ -698,3 +698,64 @@ export async function leaveGroup(roomId: string) {
 
   if (error) throw error;
 }
+
+// ── Agregar miembro a un grupo existente ─────────────────────────────────────
+export async function addGroupMember(roomId: string, newUserId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  if (!isValidUUID(newUserId)) throw new Error("ID de usuario inválido");
+
+  const { data: room, error: fetchError } = await supabase
+    .from("chat_rooms")
+    .select("participants, name, admins")
+    .eq("id", roomId)
+    .single();
+
+  if (fetchError || !room) throw fetchError || new Error("Room not found");
+
+  const currentParticipants = safeParseArray(room.participants);
+  const admins = safeParseArray(room.admins);
+
+  // Only admins can add members
+  if (!admins.includes(user.id)) {
+    throw new Error("Solo los administradores pueden agregar miembros");
+  }
+
+  // Check if already a member
+  if (currentParticipants.includes(newUserId)) {
+    throw new Error("El usuario ya es miembro del grupo");
+  }
+
+  const updatedParticipants = [...currentParticipants, newUserId];
+
+  const { error } = await supabase
+    .from("chat_rooms")
+    .update({
+      participants: updatedParticipants,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", roomId);
+
+  if (error) throw error;
+
+  // Notify the new member
+  const { data: adderProfile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .single();
+
+  await supabase.from("notifications").insert({
+    user_id: newUserId,
+    sender_id: user.id,
+    type: "group_invite",
+    title: "Te han agregado a un grupo 👥",
+    message: `${adderProfile?.full_name || "Alguien"} te agregó al grupo "${room.name}".`,
+    link: `/chat`,
+    is_read: false,
+  });
+}

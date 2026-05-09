@@ -14,6 +14,7 @@ import {
   Loader2,
   Upload,
   CheckCircle,
+  Share2,
 } from "lucide-react";
 import BackButton from "@/components/BackButton";
 
@@ -307,6 +308,33 @@ export default function AlbumPage() {
     return <Download className="w-6 h-6 text-gray-400" />;
   };
 
+  const shareMedia = async (media: MediaFile) => {
+    const shareData = {
+      title: media.caption || "Recuerdo de Learn Up",
+      text: `📸 ${media.caption || "Mira este recuerdo"} - Compartido desde Learn Up`,
+      url: media.file_url,
+    };
+
+    if (navigator.share && navigator.canShare?.(shareData)) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        // User cancelled or error
+        if ((err as Error).name !== "AbortError") {
+          console.error("Error sharing:", err);
+        }
+      }
+    } else {
+      // Fallback: copy link
+      try {
+        await navigator.clipboard.writeText(media.file_url);
+        alert("📋 Enlace copiado al portapapeles");
+      } catch {
+        alert("No se pudo compartir. Copia el enlace manualmente.");
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-brand-black relative overflow-hidden">
       {/* Background glows */}
@@ -546,6 +574,13 @@ export default function AlbumPage() {
                         className="flex-1 py-1.5 text-xs text-gray-400 hover:text-white bg-gray-800 rounded-lg transition-all flex items-center justify-center gap-1"
                       >
                         <Download className="w-3 h-3" /> Descargar
+                      </button>
+                      <button
+                        onClick={() => shareMedia(media)}
+                        className="p-1.5 text-gray-600 hover:text-brand-gold bg-gray-800 rounded-lg transition-all"
+                        title="Compartir"
+                      >
+                        <Share2 className="w-3 h-3" />
                       </button>
                       <button
                         onClick={() => deleteMedia(media.id)}

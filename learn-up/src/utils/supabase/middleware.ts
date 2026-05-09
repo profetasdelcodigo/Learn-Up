@@ -29,10 +29,7 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // Refresh session to ensure cookie is up to date
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  // Validate user against Supabase server (not stale cookies)
 
   const {
     data: { user },
@@ -51,7 +48,7 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/api");
 
   // Redirect authenticated users away from public routes
-  if (session && isPublicRoute) {
+  if (user && isPublicRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);

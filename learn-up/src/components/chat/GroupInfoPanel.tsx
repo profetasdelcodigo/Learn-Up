@@ -8,8 +8,10 @@ import {
   Loader2,
   Camera,
   Lock,
+  UserPlus,
+  Search,
 } from "lucide-react";
-import { updateGroup, uploadChatMedia } from "@/actions/chat";
+import { updateGroup, uploadChatMedia, addGroupMember } from "@/actions/chat";
 import { createClient } from "@/utils/supabase/client";
 
 interface GroupInfoPanelProps {
@@ -57,6 +59,17 @@ export default function GroupInfoPanel({
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Add member state
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [memberSearch, setMemberSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<Array<{
+    id: string; full_name: string; username: string; avatar_url: string | null;
+  }>>([]);
+  const [addingMember, setAddingMember] = useState(false);
+  const [searchingMembers, setSearchingMembers] = useState(false);
+
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   if (!isOpen || room.type !== "group") return null;
 
   const isCurrentUserAdmin = groupAdmins.includes(currentUserId);
@@ -84,6 +97,43 @@ export default function GroupInfoPanel({
       // Revert on error
       setGroupAdmins(groupAdmins);
       alert("Error al actualizar administrador");
+    }
+  };
+
+  // Search friends for adding to group
+  const handleMemberSearch = (query: string) => {
+    setMemberSearch(query);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    if (query.trim().length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    setSearchingMembers(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, full_name, username, avatar_url")
+        .or(`full_name.ilike.%${query}%,username.ilike.%${query}%`)
+        .not("id", "in", `(${room.participants.join(",")})`)
+        .limit(5);
+      setSearchResults(data || []);
+      setSearchingMembers(false);
+    }, 300);
+  };
+
+  const handleAddMember = async (userId: string) => {
+    setAddingMember(true);
+    try {
+      await addGroupMember(room.id, userId);
+      setSearchResults(results => results.filter(r => r.id !== userId));
+      setMemberSearch("");
+      setShowAddMember(false);
+      alert("✅ Miembro agregado exitosamente");
+    } catch (error: any) {
+      alert(error.message || "Error al agregar miembro");
+    } finally {
+      setAddingMember(false);
     }
   };
 
@@ -272,9 +322,70 @@ export default function GroupInfoPanel({
 
       {/* Members List */}
       <div className="p-4">
-        <h4 className="text-sm font-bold text-gray-400 uppercase mb-3">
-          Miembros
-        </h4>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-sm font-bold text-gray-400 uppercase">
+            Miembros
+          </h4>
+          {isCurrentUserAdmin && (
+            <button
+              onClick={() => setShowAddMember(!showAddMember)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-gold/10 text-brand-gold border border-brand-gold/30 rounded-lg text-xs font-semibold hover:bg-brand-gold hover:text-brand-black transition-all"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              Agregar
+            </button>
+          )}
+        </div>
+
+        {/* Add Member Search */}
+        {showAddMember && (
+          <div className="mb-4 p-3 bg-gray-900/80 rounded-xl border border-brand-gold/20">
+            <div className="relative mb-2">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={memberSearch}
+                onChange={(e) => handleMemberSearch(e.target.value)}
+                placeholder="Buscar por nombre o @usuario..."
+                className="w-full pl-9 pr-3 py-2 bg-brand-black border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-brand-gold/50"
+                autoFocus
+              />
+            </div>
+            {searchingMembers && (
+              <div className="flex items-center gap-2 py-2 text-gray-400 text-xs">
+                <Loader2 className="w-3 h-3 animate-spin" /> Buscando...
+              </div>
+            )}
+            {searchResults.length > 0 && (
+              <div className="space-y-1 max-h-40 overflow-y-auto">
+                {searchResults.map((result) => (
+                  <button
+                    key={result.id}
+                    onClick={() => handleAddMember(result.id)}
+                    disabled={addingMember}
+                    className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-brand-gold/10 transition-colors disabled:opacity-50 text-left"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-gray-800 border border-gray-700 overflow-hidden flex items-center justify-center shrink-0">
+                      {result.avatar_url ? (
+                        <img src={result.avatar_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <Users className="w-4 h-4 text-gray-400" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-xs font-medium truncate">{result.full_name}</p>
+                      <p className="text-gray-500 text-[10px]">@{result.username}</p>
+                    </div>
+                    <UserPlus className="w-4 h-4 text-brand-gold shrink-0" />
+                  </button>
+                ))}
+              </div>
+            )}
+            {memberSearch.length >= 2 && !searchingMembers && searchResults.length === 0 && (
+              <p className="text-gray-500 text-xs text-center py-2">No se encontraron usuarios</p>
+            )}
+          </div>
+        )}
         <div className="space-y-2">
           {members.map((member) => (
             <div

@@ -20,12 +20,15 @@ import {
   Circle,
   ChevronLeft,
   ChevronRight,
+  UserPlus,
+  Search,
 } from "lucide-react";
 import PageLoader from "./PageLoader";
 import {
   addSharedEvent,
   sendSharedMessage,
   deleteSharedEvent,
+  addCalendarMember,
 } from "@/actions/shared-calendars";
 import {
   format,
@@ -123,6 +126,54 @@ export default function SharedCalendarDetail({
   const [currentHabitWeek, setCurrentHabitWeek] = useState(new Date());
   const [habits, setHabits] = useState<HabitActivity[]>([]);
   const [newHabitName, setNewHabitName] = useState("");
+
+  // Add member state
+  const [showAddCalMember, setShowAddCalMember] = useState(false);
+  const [calMemberSearch, setCalMemberSearch] = useState("");
+  const [calSearchResults, setCalSearchResults] = useState<Array<{
+    id: string; full_name: string; username: string; avatar_url: string | null;
+  }>>([]);
+  const [addingCalMember, setAddingCalMember] = useState(false);
+  const [searchingCalMembers, setSearchingCalMembers] = useState(false);
+  const calSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const isCreator = calendar.created_by === currentUserId;
+
+  const handleCalMemberSearch = (query: string) => {
+    setCalMemberSearch(query);
+    if (calSearchTimeoutRef.current) clearTimeout(calSearchTimeoutRef.current);
+    if (query.trim().length < 2) { setCalSearchResults([]); return; }
+    setSearchingCalMembers(true);
+    calSearchTimeoutRef.current = setTimeout(async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, full_name, username, avatar_url")
+        .or(`full_name.ilike.%${query}%,username.ilike.%${query}%`)
+        .not("id", "in", `(${calendar.members.join(",")})`)
+        .limit(5);
+      setCalSearchResults(data || []);
+      setSearchingCalMembers(false);
+    }, 300);
+  };
+
+  const handleAddCalMember = async (userId: string) => {
+    setAddingCalMember(true);
+    try {
+      const result = await addCalendarMember(calendar.id, userId);
+      if (result.success) {
+        setCalSearchResults(r => r.filter(p => p.id !== userId));
+        setCalMemberSearch("");
+        setShowAddCalMember(false);
+        alert("✅ Miembro agregado al calendario");
+      } else {
+        alert(result.error || "Error al agregar miembro");
+      }
+    } catch (err: any) {
+      alert(err.message || "Error");
+    } finally {
+      setAddingCalMember(false);
+    }
+  };
 
   const getWeekStart = (date: Date) => {
     return format(startOfWeek(date, { weekStartsOn: 0 }), "yyyy-MM-dd");
@@ -471,8 +522,67 @@ export default function SharedCalendarDetail({
               {calendar.members.length} miembros compartiendo eventos
             </p>
           </div>
+          {isCreator && (
+            <button
+              onClick={() => setShowAddCalMember(!showAddCalMember)}
+              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-brand-gold/10 text-brand-gold border border-brand-gold/30 rounded-lg text-xs font-semibold hover:bg-brand-gold hover:text-brand-black transition-all"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              Agregar
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Add Calendar Member Search */}
+      {showAddCalMember && (
+        <div className="mb-4 p-3 bg-gray-900/80 rounded-xl border border-brand-gold/20">
+          <div className="relative mb-2">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              value={calMemberSearch}
+              onChange={(e) => handleCalMemberSearch(e.target.value)}
+              placeholder="Buscar por nombre o @usuario..."
+              className="w-full pl-9 pr-3 py-2 bg-brand-black border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-brand-gold/50"
+              autoFocus
+            />
+          </div>
+          {searchingCalMembers && (
+            <div className="flex items-center gap-2 py-2 text-gray-400 text-xs">
+              <Loader2 className="w-3 h-3 animate-spin" /> Buscando...
+            </div>
+          )}
+          {calSearchResults.length > 0 && (
+            <div className="space-y-1 max-h-40 overflow-y-auto">
+              {calSearchResults.map((result) => (
+                <button
+                  key={result.id}
+                  onClick={() => handleAddCalMember(result.id)}
+                  disabled={addingCalMember}
+                  className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-brand-gold/10 transition-colors disabled:opacity-50 text-left"
+                >
+                  <div className="w-8 h-8 rounded-full bg-gray-800 border border-gray-700 overflow-hidden flex items-center justify-center shrink-0">
+                    {result.avatar_url ? (
+                      <img src={result.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <Users className="w-4 h-4 text-gray-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-xs font-medium truncate">{result.full_name}</p>
+                    <p className="text-gray-500 text-[10px]">@{result.username}</p>
+                  </div>
+                  <UserPlus className="w-4 h-4 text-brand-gold shrink-0" />
+                </button>
+              ))}
+            </div>
+          )}
+          {calMemberSearch.length >= 2 && !searchingCalMembers && calSearchResults.length === 0 && (
+            <p className="text-gray-500 text-xs text-center py-2">No se encontraron usuarios</p>
+          )}
+        </div>
+      )}
 
       {/* Sub-Tabs */}
       <div className="flex gap-2 p-1 bg-black/40 rounded-2xl mb-6 w-fit border border-gray-800">

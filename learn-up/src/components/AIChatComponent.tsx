@@ -24,6 +24,8 @@ import {
   UserCog,
   Check,
   XCircle,
+  Share2,
+  Copy,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
@@ -41,6 +43,43 @@ interface ToolAction {
   args: Record<string, any>;
   description: string;
   requiresConfirm: boolean;
+}
+
+// Simple markdown renderer for AI messages
+function renderAIContent(text: string): string {
+  let html = text
+    // Images: ![alt](url)
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="rounded-xl max-w-full my-2 border border-gray-700" style="max-height:300px" />')
+    // Links: [text](url)
+    .replace(/\[([^\]]*)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-brand-gold hover:underline inline-flex items-center gap-1">$1 ↗</a>')
+    // Bold: **text**
+    .replace(/\*\*([^*]+)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
+    // Italic: *text*
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    // Standalone URLs that weren't already converted
+    .replace(/(?<!href=")(?<!src=")(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-brand-gold hover:underline">$1 ↗</a>');
+  return html;
+}
+
+function shareAIMessage(content: string) {
+  const plainText = content
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '$2')
+    .replace(/\[([^\]]*)\]\(([^)]+)\)/g, '$1: $2')
+    .replace(/\*\*/g, '')
+    .replace(/\*/g, '');
+
+  const shareData = {
+    title: "Respuesta de Learn Up",
+    text: plainText.slice(0, 500),
+  };
+
+  if (navigator.share && navigator.canShare?.(shareData)) {
+    navigator.share(shareData).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(plainText)
+      .then(() => alert("📋 Respuesta copiada al portapapeles"))
+      .catch(() => alert("No se pudo copiar"));
+  }
 }
 
 interface Message {
@@ -529,7 +568,7 @@ export default function AIChatComponent({
                   stiffness: 180,
                   duration: 0.45,
                 }}
-                className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                className={`flex ${message.role === "user" ? "justify-end" : "justify-start group"}`}
               >
                 <div
                   className={`max-w-[85%] md:max-w-[70%] p-4 rounded-2xl ${
@@ -560,11 +599,41 @@ export default function AIChatComponent({
                     </div>
                   )}
                   {message.content && (
-                    <p className="whitespace-pre-wrap text-sm md:text-base leading-relaxed">
-                      {message.role === "assistant"
-                        ? message.content.replace(/\*\*/g, "").replace(/\*/g, "")
-                        : message.content}
-                    </p>
+                    <div>
+                      {message.role === "assistant" ? (
+                        <div
+                          className="prose-ai text-sm md:text-base leading-relaxed [&_a]:text-brand-gold [&_a]:hover:underline [&_img]:rounded-xl [&_img]:max-w-full [&_img]:my-2 [&_img]:border [&_img]:border-gray-700 [&_strong]:text-white [&_strong]:font-semibold"
+                          dangerouslySetInnerHTML={{ __html: renderAIContent(message.content) }}
+                        />
+                      ) : (
+                        <p className="whitespace-pre-wrap text-sm md:text-base leading-relaxed">
+                          {message.content}
+                        </p>
+                      )}
+                      {message.role === "assistant" && (
+                        <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => shareAIMessage(message.content)}
+                            className="p-1 rounded text-gray-500 hover:text-brand-gold transition-colors"
+                            title="Compartir respuesta"
+                          >
+                            <Share2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(
+                                message.content.replace(/\*\*/g, '').replace(/\*/g, '').replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '$2').replace(/\[([^\]]*)\]\(([^)]+)\)/g, '$1: $2')
+                              );
+                              alert("📋 Copiado");
+                            }}
+                            className="p-1 rounded text-gray-500 hover:text-white transition-colors"
+                            title="Copiar texto"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </motion.div>

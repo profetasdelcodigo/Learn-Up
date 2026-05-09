@@ -172,3 +172,61 @@ export async function deleteSharedEvent(eventId: string) {
     return { success: false, error: err.message };
   }
 }
+
+// ── Agregar miembro a un calendario compartido ───────────────────────────────
+export async function addCalendarMember(calendarId: string, newUserId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { success: false, error: "No autenticado" };
+
+  try {
+    // Fetch current calendar
+    const { data: calendar, error: fetchError } = await supabase
+      .from("shared_calendars")
+      .select("members, name, created_by")
+      .eq("id", calendarId)
+      .single();
+
+    if (fetchError || !calendar) throw fetchError || new Error("Calendario no encontrado");
+
+    // Only the creator can add members
+    if (calendar.created_by !== user.id) {
+      return { success: false, error: "Solo el creador del calendario puede agregar miembros" };
+    }
+
+    const currentMembers: string[] = Array.isArray(calendar.members) ? calendar.members : [];
+
+    // Check if already a member
+    if (currentMembers.includes(newUserId)) {
+      return { success: false, error: "El usuario ya es miembro de este calendario" };
+    }
+
+    const updatedMembers = [...currentMembers, newUserId];
+
+    const { error } = await supabase
+      .from("shared_calendars")
+      .update({ members: updatedMembers })
+      .eq("id", calendarId);
+
+    if (error) throw error;
+
+    // Notify the new member
+    await supabase.from("notifications").insert({
+      user_id: newUserId,
+      sender_id: user.id,
+      type: "calendar_event",
+      title: "Nuevo Calendario Compartido 📅",
+      message: `Te han agregado al calendario "${calendar.name}".`,
+      link: `/calendar`,
+      is_read: false,
+    });
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("Error adding calendar member:", err);
+    return { success: false, error: err.message };
+  }
+}
