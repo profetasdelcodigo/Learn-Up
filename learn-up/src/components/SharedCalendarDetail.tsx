@@ -29,7 +29,9 @@ import {
   sendSharedMessage,
   deleteSharedEvent,
   addCalendarMember,
+  leaveSharedCalendar,
 } from "@/actions/shared-calendars";
+import { searchUsers, sendFriendRequest, cancelFriendRequest } from "@/actions/friendship";
 import {
   format,
   startOfWeek,
@@ -131,7 +133,12 @@ export default function SharedCalendarDetail({
   const [showAddCalMember, setShowAddCalMember] = useState(false);
   const [calMemberSearch, setCalMemberSearch] = useState("");
   const [calSearchResults, setCalSearchResults] = useState<Array<{
-    id: string; full_name: string; username: string; avatar_url: string | null;
+    id: string; 
+    full_name: string; 
+    username: string; 
+    avatar_url: string | null;
+    friendshipStatus?: string | null;
+    isRequester?: boolean;
   }>>([]);
   const [addingCalMember, setAddingCalMember] = useState(false);
   const [searchingCalMembers, setSearchingCalMembers] = useState(false);
@@ -145,15 +152,50 @@ export default function SharedCalendarDetail({
     if (query.trim().length < 2) { setCalSearchResults([]); return; }
     setSearchingCalMembers(true);
     calSearchTimeoutRef.current = setTimeout(async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, full_name, username, avatar_url")
-        .or(`full_name.ilike.%${query}%,username.ilike.%${query}%`)
-        .not("id", "in", `(${calendar.members.join(",")})`)
-        .limit(5);
-      setCalSearchResults(data || []);
+      const results = await searchUsers(query);
+      // Filtrar los que ya son miembros
+      const filtered = results.filter((p: any) => !calendar.members.includes(p.id));
+      setCalSearchResults(filtered.slice(0, 5));
       setSearchingCalMembers(false);
     }, 300);
+  };
+
+  const handleSendRequest = async (userId: string) => {
+    try {
+      await sendFriendRequest(userId);
+      setCalSearchResults((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, friendshipStatus: "pending", isRequester: true } : u))
+      );
+    } catch {
+      alert("Error al enviar solicitud");
+    }
+  };
+
+  const handleCancelRequest = async (userId: string) => {
+    try {
+      await cancelFriendRequest(userId);
+      setCalSearchResults((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, friendshipStatus: null, isRequester: false } : u))
+      );
+    } catch {
+      alert("Error al cancelar solicitud");
+    }
+  };
+
+  const handleLeaveCalendar = async () => {
+    if (!confirm("¿Seguro que quieres salir de este calendario compartido?")) return;
+    try {
+      const result = await leaveSharedCalendar(calendar.id);
+      if (result.success) {
+        onBack(); // Cerrar el panel
+        // Aquí podrías forzar una recarga para que desaparezca el calendario de la lista principal
+        window.location.reload(); 
+      } else {
+        alert(result.error);
+      }
+    } catch {
+      alert("Error al intentar salir");
+    }
   };
 
   const handleAddCalMember = async (userId: string) => {
@@ -522,15 +564,25 @@ export default function SharedCalendarDetail({
               {calendar.members.length} miembros compartiendo eventos
             </p>
           </div>
-          {isCreator && (
-            <button
-              onClick={() => setShowAddCalMember(!showAddCalMember)}
-              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-brand-gold/10 text-brand-gold border border-brand-gold/30 rounded-lg text-xs font-semibold hover:bg-brand-gold hover:text-brand-black transition-all"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              Agregar
-            </button>
-          )}
+          <div className="ml-auto flex items-center gap-2">
+            {!isCreator && (
+              <button
+                onClick={handleLeaveCalendar}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg text-xs font-semibold hover:bg-red-500 hover:text-white transition-all"
+              >
+                Salir
+              </button>
+            )}
+            {isCreator && (
+              <button
+                onClick={() => setShowAddCalMember(!showAddCalMember)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-gold/10 text-brand-gold border border-brand-gold/30 rounded-lg text-xs font-semibold hover:bg-brand-gold hover:text-brand-black transition-all"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                Agregar
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -556,28 +608,62 @@ export default function SharedCalendarDetail({
           {calSearchResults.length > 0 && (
             <div className="space-y-1 max-h-40 overflow-y-auto">
               {calSearchResults.map((result) => (
-                <button
+                <div
                   key={result.id}
-                  onClick={() => handleAddCalMember(result.id)}
-                  disabled={addingCalMember}
-                  className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-brand-gold/10 transition-colors disabled:opacity-50 text-left"
+                  className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-gray-800 transition-colors border border-transparent hover:border-gray-700"
                 >
-                  <div className="w-8 h-8 rounded-full bg-gray-800 border border-gray-700 overflow-hidden flex items-center justify-center shrink-0">
-                    {result.avatar_url ? (
-                      <img src={result.avatar_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <Users className="w-4 h-4 text-gray-400" />
-                    )}
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-gray-800 border border-gray-700 overflow-hidden flex items-center justify-center shrink-0">
+                      {result.avatar_url ? (
+                        <img src={result.avatar_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-[10px] font-bold text-gray-400">
+                          {result.full_name?.charAt(0)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-semibold text-white truncate max-w-[120px]">
+                        {result.full_name}
+                      </p>
+                      <p className="text-[10px] text-gray-500 truncate max-w-[120px]">
+                        @{result.username}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-xs font-medium truncate">{result.full_name}</p>
-                    <p className="text-gray-500 text-[10px]">@{result.username}</p>
-                  </div>
-                  <UserPlus className="w-4 h-4 text-brand-gold shrink-0" />
-                </button>
+
+                  {result.friendshipStatus === "accepted" ? (
+                    <button
+                      onClick={() => handleAddCalMember(result.id)}
+                      disabled={addingCalMember}
+                      className="px-3 py-1.5 text-xs font-semibold bg-brand-gold text-brand-black rounded-lg hover:bg-white transition-all disabled:opacity-50"
+                    >
+                      Agregar
+                    </button>
+                  ) : result.friendshipStatus === "pending" && result.isRequester ? (
+                    <button
+                      onClick={() => handleCancelRequest(result.id)}
+                      className="px-3 py-1.5 text-[10px] font-semibold bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-all border border-red-500/30"
+                    >
+                      Cancelar Solicitud
+                    </button>
+                  ) : result.friendshipStatus === "pending" && !result.isRequester ? (
+                    <span className="px-3 py-1.5 text-[10px] text-gray-400 font-medium">
+                      Te envió solicitud
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleSendRequest(result.id)}
+                      className="px-3 py-1.5 text-[10px] font-semibold bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-all border border-gray-600"
+                    >
+                      Enviar Solicitud
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
           )}
+
           {calMemberSearch.length >= 2 && !searchingCalMembers && calSearchResults.length === 0 && (
             <p className="text-gray-500 text-xs text-center py-2">No se encontraron usuarios</p>
           )}

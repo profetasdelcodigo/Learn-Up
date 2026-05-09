@@ -48,8 +48,11 @@ interface ToolAction {
 // Simple markdown renderer for AI messages
 function renderAIContent(text: string): string {
   let html = text
-    // Images: ![alt](url)
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="rounded-xl max-w-full my-2 border border-gray-700" style="max-height:300px" />')
+    // Images: ![alt](url) -> Only render if url is present
+    .replace(/!\[([^\]]*)\]\(([^)]*)\)/g, (match, p1, p2) => {
+      if (!p2 || p2.trim() === "") return ``; 
+      return `<img src="${p2}" alt="${p1}" class="rounded-xl max-w-full my-2 border border-gray-700" style="max-height:300px" />`;
+    })
     // Links: [text](url)
     .replace(/\[([^\]]*)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-brand-gold hover:underline inline-flex items-center gap-1">$1 ↗</a>')
     // Bold: **text**

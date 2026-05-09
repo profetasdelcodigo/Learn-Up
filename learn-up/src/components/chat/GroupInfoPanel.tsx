@@ -12,6 +12,7 @@ import {
   Search,
 } from "lucide-react";
 import { updateGroup, uploadChatMedia, addGroupMember } from "@/actions/chat";
+import { searchUsers, sendFriendRequest, cancelFriendRequest } from "@/actions/friendship";
 import { createClient } from "@/utils/supabase/client";
 
 interface GroupInfoPanelProps {
@@ -63,7 +64,12 @@ export default function GroupInfoPanel({
   const [showAddMember, setShowAddMember] = useState(false);
   const [memberSearch, setMemberSearch] = useState("");
   const [searchResults, setSearchResults] = useState<Array<{
-    id: string; full_name: string; username: string; avatar_url: string | null;
+    id: string;
+    full_name: string;
+    username: string;
+    avatar_url: string | null;
+    friendshipStatus?: string | null;
+    isRequester?: boolean;
   }>>([]);
   const [addingMember, setAddingMember] = useState(false);
   const [searchingMembers, setSearchingMembers] = useState(false);
@@ -110,16 +116,34 @@ export default function GroupInfoPanel({
     }
     setSearchingMembers(true);
     searchTimeoutRef.current = setTimeout(async () => {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, full_name, username, avatar_url")
-        .or(`full_name.ilike.%${query}%,username.ilike.%${query}%`)
-        .not("id", "in", `(${room.participants.join(",")})`)
-        .limit(5);
-      setSearchResults(data || []);
+      const results = await searchUsers(query);
+      // Filtrar los que ya son miembros
+      const filtered = results.filter((p: any) => !room.participants.includes(p.id));
+      setSearchResults(filtered.slice(0, 5));
       setSearchingMembers(false);
     }, 300);
+  };
+
+  const handleSendRequest = async (userId: string) => {
+    try {
+      await sendFriendRequest(userId);
+      setSearchResults((prev: any[]) =>
+        prev.map((u) => (u.id === userId ? { ...u, friendshipStatus: "pending", isRequester: true } : u))
+      );
+    } catch {
+      alert("Error al enviar solicitud");
+    }
+  };
+
+  const handleCancelRequest = async (userId: string) => {
+    try {
+      await cancelFriendRequest(userId);
+      setSearchResults((prev: any[]) =>
+        prev.map((u) => (u.id === userId ? { ...u, friendshipStatus: null, isRequester: false } : u))
+      );
+    } catch {
+      alert("Error al cancelar solicitud");
+    }
   };
 
   const handleAddMember = async (userId: string) => {
@@ -359,25 +383,58 @@ export default function GroupInfoPanel({
             {searchResults.length > 0 && (
               <div className="space-y-1 max-h-40 overflow-y-auto">
                 {searchResults.map((result) => (
-                  <button
+                  <div
                     key={result.id}
-                    onClick={() => handleAddMember(result.id)}
-                    disabled={addingMember}
-                    className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-brand-gold/10 transition-colors disabled:opacity-50 text-left"
+                    className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-gray-800 transition-colors border border-transparent hover:border-gray-700"
                   >
-                    <div className="w-8 h-8 rounded-full bg-gray-800 border border-gray-700 overflow-hidden flex items-center justify-center shrink-0">
-                      {result.avatar_url ? (
-                        <img src={result.avatar_url} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <Users className="w-4 h-4 text-gray-400" />
-                      )}
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-gray-800 border border-gray-700 overflow-hidden flex items-center justify-center shrink-0">
+                        {result.avatar_url ? (
+                          <img src={result.avatar_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-[10px] font-bold text-gray-400">
+                            {result.full_name?.charAt(0)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-semibold text-white truncate max-w-[120px]">
+                          {result.full_name}
+                        </p>
+                        <p className="text-[10px] text-gray-500 truncate max-w-[120px]">
+                          @{result.username}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white text-xs font-medium truncate">{result.full_name}</p>
-                      <p className="text-gray-500 text-[10px]">@{result.username}</p>
-                    </div>
-                    <UserPlus className="w-4 h-4 text-brand-gold shrink-0" />
-                  </button>
+
+                    {result.friendshipStatus === "accepted" ? (
+                      <button
+                        onClick={() => handleAddMember(result.id)}
+                        disabled={addingMember}
+                        className="px-3 py-1.5 text-xs font-semibold bg-brand-gold text-brand-black rounded-lg hover:bg-white transition-all disabled:opacity-50"
+                      >
+                        Agregar
+                      </button>
+                    ) : result.friendshipStatus === "pending" && result.isRequester ? (
+                      <button
+                        onClick={() => handleCancelRequest(result.id)}
+                        className="px-3 py-1.5 text-[10px] font-semibold bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-all border border-red-500/30"
+                      >
+                        Cancelar Solicitud
+                      </button>
+                    ) : result.friendshipStatus === "pending" && !result.isRequester ? (
+                      <span className="px-3 py-1.5 text-[10px] text-gray-400 font-medium">
+                        Te envió solicitud
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handleSendRequest(result.id)}
+                        className="px-3 py-1.5 text-[10px] font-semibold bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-all border border-gray-600"
+                      >
+                        Enviar Solicitud
+                      </button>
+                    )}
+                  </div>
                 ))}
               </div>
             )}

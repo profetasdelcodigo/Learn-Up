@@ -230,3 +230,41 @@ export async function addCalendarMember(calendarId: string, newUserId: string) {
     return { success: false, error: err.message };
   }
 }
+
+// ── Salir de un calendario compartido ────────────────────────────────────────
+export async function leaveSharedCalendar(calendarId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { success: false, error: "No autenticado" };
+
+  try {
+    const { data: calendar, error: fetchError } = await supabase
+      .from("shared_calendars")
+      .select("members, created_by")
+      .eq("id", calendarId)
+      .single();
+
+    if (fetchError || !calendar) throw fetchError || new Error("Calendario no encontrado");
+
+    if (calendar.created_by === user.id) {
+      return { success: false, error: "El creador no puede salir del calendario, debe eliminarlo" };
+    }
+
+    const currentMembers: string[] = Array.isArray(calendar.members) ? calendar.members : [];
+    const updatedMembers = currentMembers.filter(id => id !== user.id);
+
+    const { error } = await supabase
+      .from("shared_calendars")
+      .update({ members: updatedMembers })
+      .eq("id", calendarId);
+
+    if (error) throw error;
+    return { success: true };
+  } catch (err: any) {
+    console.error("Error leaving calendar:", err);
+    return { success: false, error: err.message };
+  }
+}

@@ -318,3 +318,22 @@ export async function getPendingRequests() {
     return [];
   }
 }
+
+export async function cancelFriendRequest(targetUserId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Unauthorized");
+
+  const { error } = await supabase
+    .from("friendships")
+    .delete()
+    .eq("requester_id", user.id)
+    .eq("addressee_id", targetUserId)
+    .eq("status", "pending");
+
+  if (error) throw error;
+  return { success: true };
+}

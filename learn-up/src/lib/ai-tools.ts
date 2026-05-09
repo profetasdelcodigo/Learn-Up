@@ -165,15 +165,24 @@ export async function executeToolAction(
           return { success: false, message: "Faltan datos (destinatario y mensaje)." };
         }
 
+        const cleanRecipient = recipient_name.replace(/^@/, '');
+
         // 1. Buscar en Calendarios Compartidos
         const { data: sharedCals } = await supabase
           .from("shared_calendars")
           .select("id, name")
           .filter("members", "cs", `{${user.id}}`)
-          .ilike("name", `%${recipient_name}%`)
-          .limit(1);
+          .ilike("name", `%${cleanRecipient}%`)
+          .limit(5);
 
         if (sharedCals && sharedCals.length > 0) {
+          if (sharedCals.length > 1) {
+            const options = sharedCals.map((c: any, i: number) => `${i + 1}) ${c.name}`).join(", ");
+            return { 
+              success: false, 
+              message: `He encontrado varios calendarios con ese nombre: ${options}. ¿A cuál te refieres?` 
+            };
+          }
           const cal = sharedCals[0];
           const { error } = await supabase
             .from("shared_calendar_messages")
@@ -195,14 +204,23 @@ export async function executeToolAction(
           .from("chat_rooms")
           .select("id, name, participants")
           .eq("type", "group")
-          .ilike("name", `%${recipient_name}%`);
+          .ilike("name", `%${cleanRecipient}%`)
+          .limit(5);
           
-        const myRoom = userRooms?.find((r: any) => {
+        const myRooms = userRooms?.filter((r: any) => {
           const parts = Array.isArray(r.participants) ? r.participants : JSON.parse(r.participants || "[]");
           return parts.includes(user.id);
         });
 
-        if (myRoom) {
+        if (myRooms && myRooms.length > 0) {
+          if (myRooms.length > 1) {
+            const options = myRooms.map((r: any, i: number) => `${i + 1}) ${r.name}`).join(", ");
+            return { 
+              success: false, 
+              message: `He encontrado varios grupos con ese nombre: ${options}. ¿A cuál quieres enviar el mensaje?` 
+            };
+          }
+          const myRoom = myRooms[0];
           const { error } = await supabase
             .from("chat_messages")
             .insert({
@@ -227,14 +245,22 @@ export async function executeToolAction(
             f.requester_id === user.id ? f.addressee_id : f.requester_id
           );
           
+          const cleanRecipient = recipient_name.replace(/^@/, '');
           const { data: friendProfiles } = await supabase
             .from("profiles")
             .select("id, full_name, username")
             .in("id", friendIds)
-            .or(`full_name.ilike.%${recipient_name}%,username.ilike.%${recipient_name}%`)
-            .limit(1);
+            .or(`full_name.ilike.%${cleanRecipient}%,username.ilike.%${cleanRecipient}%`)
+            .limit(5);
             
           if (friendProfiles && friendProfiles.length > 0) {
+            if (friendProfiles.length > 1) {
+              const options = friendProfiles.map((p: any, i: number) => `${i + 1}) ${p.full_name} (@${p.username})`).join(", ");
+              return { 
+                success: false, 
+                message: `He encontrado varios amigos que coinciden: ${options}. ¿A quién se lo envío? (puedes usar el @usuario para ser exacto)` 
+              };
+            }
             const friend = friendProfiles[0];
             try {
               const roomId = await ensurePrivateRoom(friend.id);
