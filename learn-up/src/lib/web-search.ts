@@ -4,6 +4,7 @@ export interface SearchResult {
   title: string;
   url: string;
   snippet: string;
+  image?: string;
 }
 
 // ── Clasificador: ¿La pregunta necesita búsqueda web? ────────────────────────
@@ -73,6 +74,7 @@ export async function searchTavily(query: string, maxResults: number = 3): Promi
         query: query,
         search_depth: 'basic',
         max_results: maxResults,
+        include_images: true,
       }),
     });
 
@@ -84,10 +86,13 @@ export async function searchTavily(query: string, maxResults: number = 3): Promi
     const data = await response.json();
     await incrementUsage('tavily');
 
-    return (data.results || []).map((r: any) => ({
+    const images = data.images || [];
+
+    return (data.results || []).map((r: any, i: number) => ({
       title: r.title || 'Sin título',
       url: r.url || '',
       snippet: r.content || 'Sin descripción',
+      image: images[i] || undefined,
     }));
   } catch (error) {
     console.error('Error fetching Tavily:', error);
@@ -167,9 +172,15 @@ export async function performWebSearch(query: string, totalResults: number = 5):
 
   if (results.length === 0) return '';
 
-  let contextString = `\n\n--- CONTEXTO WEB (usa esta información para enriquecer tu respuesta, cita las fuentes cuando sea relevante) ---\n`;
+  let contextString = `\n\n--- CONTEXTO WEB ---\n`;
+  contextString += `INSTRUCCIONES OBLIGATORIAS:\n`;
+  contextString += `1. Si usas información de estas fuentes, DEBES proporcionar el enlace clickable en formato Markdown: [Texto del enlace](URL).\n`;
+  contextString += `2. Si hay imágenes relevantes disponibles en el contexto, DEBES incluirlas en tu respuesta usando el formato Markdown: ![Descripción](URL).\n\n`;
+
   results.forEach((r, i) => {
-    contextString += `[${i + 1}] ${r.title}\n${r.snippet}\nFuente: ${r.url}\n\n`;
+    contextString += `[Fuente ${i + 1}]: ${r.title}\n${r.snippet}\nEnlace: ${r.url}\n`;
+    if (r.image) contextString += `Imagen disponible: ${r.image}\n`;
+    contextString += `\n`;
   });
   contextString += `--- FIN DEL CONTEXTO WEB ---\n`;
 

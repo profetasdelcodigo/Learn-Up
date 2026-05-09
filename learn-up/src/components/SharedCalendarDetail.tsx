@@ -181,13 +181,33 @@ export default function SharedCalendarDetail({
 
   async function loadEvents() {
     try {
-      const { data, error } = await supabase
+      // 1. Cargar eventos compartidos
+      const { data: sharedEvents, error } = await supabase
         .from("shared_calendar_events")
         .select("*")
-        .eq("calendar_id", calendar.id)
-        .order("start_time", { ascending: true });
+        .eq("calendar_id", calendar.id);
+        
       if (error) throw error;
-      if (data) setEvents(data as any);
+      
+      // 2. Cargar eventos personales del usuario actual
+      const { data: personalEvents } = await supabase
+        .from("calendar_events")
+        .select("*")
+        .eq("user_id", currentUserId);
+
+      // Mapear eventos personales para añadirles un flag isPersonal
+      const formattedPersonal = (personalEvents || []).map((e: any) => ({
+        ...e,
+        isPersonal: true
+      }));
+
+      // Unir y ordenar
+      const allEvents = [...(sharedEvents || []), ...formattedPersonal].sort(
+        (a: any, b: any) =>
+          new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
+      );
+
+      setEvents(allEvents);
     } catch (e) {
       console.error(e);
     }
@@ -582,7 +602,11 @@ export default function SharedCalendarDetail({
                       {dayEvents.slice(0, 3).map((event: any) => (
                         <div
                           key={event.id}
-                          className="text-[10px] px-1 rounded truncate font-medium bg-blue-600/30 text-blue-400 border border-blue-500/20"
+                          className={`text-[10px] px-1 rounded truncate font-medium border ${
+                            event.isPersonal
+                              ? "bg-brand-gold/20 text-brand-gold border-brand-gold/30"
+                              : "bg-blue-600/30 text-blue-400 border-blue-500/20"
+                          }`}
                         >
                           {event.title}
                         </div>

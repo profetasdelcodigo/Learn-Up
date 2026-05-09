@@ -115,11 +115,11 @@ export default function AIChatComponent({
       "Casi listo...",
     ];
 
-    const searchMessages = [
-      "Analizando tu pregunta...",
-      "Buscando información relevante...",
-      "Consultando fuentes...",
-      "Preparando respuesta completa...",
+    const defaultMessages = [
+      "Analizando tu mensaje...",
+      "Procesando...",
+      "Escribiendo respuesta...",
+      "Casi listo...",
     ];
 
     const fileMessages = [
@@ -129,7 +129,7 @@ export default function AIChatComponent({
       "Generando respuesta...",
     ];
 
-    const msgs = hasFileAttached ? fileMessages : searchMessages;
+    const msgs = hasFileAttached ? fileMessages : defaultMessages;
     let currentIndex = 0;
     setLoadingMessage(msgs[0]);
 

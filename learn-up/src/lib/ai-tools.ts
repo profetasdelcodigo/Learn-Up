@@ -1,4 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
+import { ensurePrivateRoom, sendMessage } from "@/actions/chat";
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 export interface ToolAction {
@@ -137,41 +138,24 @@ export async function executeToolAction(
         const startDateTime = `${date}T${start_time || "09:00"}:00`;
         const endDateTime = `${date}T${end_time || "10:00"}:00`;
 
-        // Buscar un calendario compartido del usuario o crear evento personal
-        const { data: calendars } = await supabase
-          .from("shared_calendars")
-          .select("id, name")
-          .filter("members", "cs", `{${user.id}}`)
-          .limit(1);
+        const { error } = await supabase
+          .from("calendar_events")
+          .insert({
+            user_id: user.id,
+            title,
+            start_time: startDateTime,
+            end_time: endDateTime,
+          });
 
-        if (calendars && calendars.length > 0) {
-          const calendarId = calendars[0].id;
-
-          const { error } = await supabase
-            .from("shared_calendar_events")
-            .insert({
-              calendar_id: calendarId,
-              title,
-              start_time: startDateTime,
-              end_time: endDateTime,
-              created_by: user.id,
-            });
-
-          if (error) {
-            console.error("Error creating calendar event:", error);
-            return { success: false, message: "Error al crear el evento." };
-          }
-
-          return {
-            success: true,
-            message: `✅ Evento "${title}" agregado al calendario "${calendars[0].name}" para el ${date}.`,
-          };
-        } else {
-          return {
-            success: false,
-            message: "No tienes calendarios compartidos. Crea uno primero desde la sección de Calendario.",
-          };
+        if (error) {
+          console.error("Error creating calendar event:", error);
+          return { success: false, message: "Error al crear el evento." };
         }
+
+        return {
+          success: true,
+          message: `✅ Evento "${title}" agregado a tu calendario personal para el ${date}.`,
+        };
       }
 
       // ── Enviar mensaje ──────────────────────────────────────────────────
@@ -181,88 +165,93 @@ export async function executeToolAction(
           return { success: false, message: "Faltan datos (destinatario y mensaje)." };
         }
 
-        // Buscar al amigo por nombre o username
-        const { data: friend } = await supabase
-          .from("profiles")
-          .select("id, full_name, username")
-          .or(`full_name.ilike.%${recipient_name}%,username.ilike.%${recipient_name}%`)
-          .neq("id", user.id)
-          .limit(1)
-          .maybeSingle();
+        // 1. Buscar en Calendarios Compartidos
+        const { data: sharedCals } = await supabase
+          .from("shared_calendars")
+          .select("id, name")
+          .filter("members", "cs", `{${user.id}}`)
+          .ilike("name", `%${recipient_name}%`)
+          .limit(1);
 
-        if (!friend) {
-          return { success: false, message: `No encontré a "${recipient_name}" en tus contactos.` };
-        }
-
-        // Verificar que son amigos
-        const { data: friendship } = await supabase
-          .from("friendships")
-          .select("id")
-          .eq("status", "accepted")
-          .or(
-            `and(requester_id.eq.${user.id},addressee_id.eq.${friend.id}),and(requester_id.eq.${friend.id},addressee_id.eq.${user.id})`
-          )
-          .maybeSingle();
-
-        if (!friendship) {
-          return { success: false, message: `${friend.full_name} no está en tu lista de amigos.` };
-        }
-
-        // Buscar o crear sala privada
-        const { data: rooms } = await supabase
-          .from("chat_rooms")
-          .select("id, participants, type")
-          .eq("type", "private")
-          .filter("participants", "cs", `{${user.id}}`);
-
-        let roomId: string | null = null;
-        if (rooms) {
-          const existingRoom = rooms.find((r) => {
-            const parts = Array.isArray(r.participants) ? r.participants : [];
-            return parts.length === 2 && parts.includes(friend.id);
-          });
-          if (existingRoom) roomId = existingRoom.id;
-        }
-
-        if (!roomId) {
-          const { data: newRoom, error: createErr } = await supabase
-            .from("chat_rooms")
+        if (sharedCals && sharedCals.length > 0) {
+          const cal = sharedCals[0];
+          const { error } = await supabase
+            .from("shared_calendar_messages")
             .insert({
-              type: "private",
-              participants: [user.id, friend.id],
-              updated_at: new Date().toISOString(),
-            })
-            .select("id")
-            .single();
-
-          if (createErr || !newRoom) {
-            return { success: false, message: "Error al crear la conversación." };
+              calendar_id: cal.id,
+              user_id: user.id,
+              content,
+              type: "text",
+            });
+          if (error) {
+            console.error(error);
+            return { success: false, message: "Error al enviar el mensaje al calendario." };
           }
-          roomId = newRoom.id;
+          return { success: true, message: `✅ Mensaje enviado al calendario "${cal.name}".` };
         }
 
-        // Enviar mensaje
-        const { error: msgErr } = await supabase
-          .from("chat_messages")
-          .insert({
-            room_id: roomId,
-            user_id: user.id,
-            content,
-          });
-
-        if (msgErr) {
-          return { success: false, message: "Error al enviar el mensaje." };
-        }
-
-        await supabase
+        // 2. Buscar en Grupos de Aprendamos Juntos (chat_rooms)
+        const { data: userRooms } = await supabase
           .from("chat_rooms")
-          .update({ updated_at: new Date().toISOString() })
-          .eq("id", roomId);
+          .select("id, name, participants")
+          .eq("type", "group")
+          .ilike("name", `%${recipient_name}%`);
+          
+        const myRoom = userRooms?.find((r: any) => {
+          const parts = Array.isArray(r.participants) ? r.participants : JSON.parse(r.participants || "[]");
+          return parts.includes(user.id);
+        });
 
-        return {
-          success: true,
-          message: `✅ Mensaje enviado a ${friend.full_name}: "${content}"`,
-        };
+        if (myRoom) {
+          const { error } = await supabase
+            .from("chat_messages")
+            .insert({
+              room_id: myRoom.id,
+              user_id: user.id,
+              content,
+            });
+          if (error) return { success: false, message: "Error al enviar el mensaje al grupo." };
+          await supabase.from("chat_rooms").update({ updated_at: new Date().toISOString() }).eq("id", myRoom.id);
+          return { success: true, message: `✅ Mensaje enviado al grupo "${myRoom.name}".` };
+        }
+
+        // 3. Buscar en Amigos (solo los que tienen amistad aceptada)
+        const { data: friendships } = await supabase
+          .from("friendships")
+          .select("requester_id, addressee_id")
+          .eq("status", "accepted")
+          .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
+          
+        if (friendships && friendships.length > 0) {
+          const friendIds = friendships.map((f: any) =>
+            f.requester_id === user.id ? f.addressee_id : f.requester_id
+          );
+          
+          const { data: friendProfiles } = await supabase
+            .from("profiles")
+            .select("id, full_name, username")
+            .in("id", friendIds)
+            .or(`full_name.ilike.%${recipient_name}%,username.ilike.%${recipient_name}%`)
+            .limit(1);
+            
+          if (friendProfiles && friendProfiles.length > 0) {
+            const friend = friendProfiles[0];
+            try {
+              const roomId = await ensurePrivateRoom(friend.id);
+              await sendMessage(roomId, content);
+              
+              return {
+                success: true,
+                message: `✅ Mensaje enviado a ${friend.full_name}: "${content}"`,
+              };
+            } catch (error: any) {
+              console.error("Error sending message tool:", error);
+              return { success: false, message: "Error al enviar el mensaje directo." };
+            }
+          }
+        }
+
+        return { success: false, message: `No encontré ningún calendario, grupo o amigo llamado "${recipient_name}".` };
       }
 
       // ── Buscar en la biblioteca ─────────────────────────────────────────
