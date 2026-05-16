@@ -147,10 +147,7 @@ export default function ProfilePage() {
     }
   };
 
-  if (loading) {
-    return <PageLoader />;
-  }
-
+  // Removed blocking loading check to allow immediate layout rendering with animations
   return (
     <div className="page-bg text-white">
       <div className="page-inner relative z-10">

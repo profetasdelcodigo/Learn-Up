@@ -358,15 +358,7 @@ export default function LibraryPage() {
       return 0;
     });
 
-  if (loading) {
-    return (
-      <div className="w-full min-h-screen bg-brand-black p-6">
-        <BackButton className="mb-6" />
-        <div className="h-12 bg-surface-2 rounded-2xl w-64 animate-pulse mb-8" />
-        <SkeletonGrid count={6} />
-      </div>
-    );
-  }
+  // Removed blocking loading check to allow immediate layout rendering with animations
 
   return (
     <div className="w-full page-bg">

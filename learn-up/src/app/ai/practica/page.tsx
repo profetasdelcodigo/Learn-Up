@@ -55,15 +55,8 @@ export default function ExamenIAPage() {
 
   const [sessions, setSessions] = useState<any[]>([]);
   const [showHistory, setShowHistory] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
-  const router = useRouter();
-
   useEffect(() => {
     loadSessions();
-    const timer = setTimeout(() => {
-      setInitialLoading(false);
-    }, 2000);
-    return () => clearTimeout(timer);
   }, []);
 
   const loadSessions = async () => {
@@ -221,77 +214,20 @@ export default function ExamenIAPage() {
       )
     : false;
 
-  if (initialLoading) {
-    return <Loading />;
-  }
-
   return (
-    <div className="min-h-screen bg-brand-black flex flex-col md:flex-row">
-      {/* Sidebar History (Desktop) */}
-      <div
-        className={`fixed inset-y-0 left-0 z-40 w-64 bg-surface-2 border-r border-white/6 transform ${showHistory ? "translate-x-0" : "-translate-x-full"} md:relative md:translate-x-0 transition-transform duration-300 ease-in-out`}
-      >
-        <div className="p-4 flex items-center justify-between border-b border-white/6">
-          <h3 className="font-bold text-white flex items-center gap-2">
-            <Bot className="w-5 h-5 text-brand-blue-glow" /> Historial
-          </h3>
-          <button
-            className="md:hidden text-gray-400"
-            onClick={() => setShowHistory(false)}
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <div className="p-4">
-          <button
-            onClick={resetExam}
-            className="w-full py-2.5 bg-brand-blue-glow/10 text-brand-blue-glow border border-brand-blue-glow/30 rounded-xl hover:bg-brand-blue-glow hover:text-white transition-all flex items-center justify-center gap-2 mb-4 font-semibold text-sm"
-          >
-            <PlusCircle className="w-4 h-4" /> Nuevo Examen
-          </button>
-          <div className="space-y-2 max-h-[calc(100vh-140px)] overflow-y-auto">
-            {sessions.length === 0 ? (
-              <p className="text-gray-500 text-xs text-center py-4">
-                No hay exámenes previos
-              </p>
-            ) : (
-              sessions.map((s) => (
-                <div
-                  key={s.id}
-                  onClick={() => loadSessionDetails(s.id)}
-                  className={`p-3 rounded-xl cursor-pointer flex justify-between items-center group transition-colors hover:bg-white/5/50`}
-                >
-                  <div className="truncate pr-2">
-                    <p className="text-sm text-white truncate font-medium">
-                      {s.title}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(s.updated_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <button
-                    onClick={(e) => handleDeleteSession(e, s.id)}
-                    className="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
+    <div className="h-dvh flex flex-col md:flex-row relative z-10">
+
 
       <div className="flex-1 flex flex-col h-screen overflow-y-auto relative p-4 md:p-8">
         <div className="max-w-4xl mx-auto w-full">
-          <div className="flex items-center gap-4 mb-6">
+          <div className="flex items-center justify-between mb-6">
+            <BackButton />
             <button
-              className="md:hidden text-gray-400 hover:text-white"
+              className="md:hidden text-gray-400 hover:text-white bg-surface-2 p-2 rounded-xl"
               onClick={() => setShowHistory(true)}
             >
               <Menu className="w-6 h-6" />
             </button>
-            <BackButton />
           </div>
 
           {/* Header */}
@@ -713,6 +649,61 @@ export default function ExamenIAPage() {
               </div>
             </motion.div>
           )}
+        </div>
+      </div>
+
+      {/* Sidebar History (Desktop) - Moved to Right */}
+      <div
+        className={`fixed inset-y-0 right-0 z-40 w-64 bg-surface-2 border-l border-white/6 transform ${showHistory ? "translate-x-0" : "translate-x-full"} md:relative md:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl md:shadow-none`}
+      >
+        <div className="p-4 flex items-center justify-between border-b border-white/6">
+          <h3 className="font-bold text-white flex items-center gap-2">
+            <Bot className="w-5 h-5 text-brand-blue-glow" /> Historial
+          </h3>
+          <button
+            className="md:hidden text-gray-400"
+            onClick={() => setShowHistory(false)}
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-4">
+          <button
+            onClick={resetExam}
+            className="w-full py-2.5 bg-brand-blue-glow/10 text-brand-blue-glow border border-brand-blue-glow/30 rounded-xl hover:bg-brand-blue-glow hover:text-white transition-all flex items-center justify-center gap-2 mb-4 font-semibold text-sm"
+          >
+            <PlusCircle className="w-4 h-4" /> Nuevo Examen
+          </button>
+          <div className="space-y-2 max-h-[calc(100vh-140px)] overflow-y-auto">
+            {sessions.length === 0 ? (
+              <p className="text-gray-500 text-xs text-center py-4">
+                No hay exámenes previos
+              </p>
+            ) : (
+              sessions.map((s) => (
+                <div
+                  key={s.id}
+                  onClick={() => loadSessionDetails(s.id)}
+                  className={`p-3 rounded-xl cursor-pointer flex justify-between items-center group transition-colors hover:bg-white/5/50`}
+                >
+                  <div className="truncate pr-2">
+                    <p className="text-sm text-white truncate font-medium">
+                      {s.title}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(s.updated_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <button
+                    onClick={(e) => handleDeleteSession(e, s.id)}
+                    className="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
     </div>

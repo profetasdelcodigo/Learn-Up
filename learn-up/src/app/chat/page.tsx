@@ -822,38 +822,27 @@ export default function ChatPage() {
       <ToastContainer toasts={toasts} removeToast={removeToast} />
 
       <AnimatePresence mode="wait">
-        {initialLoading ? (
+        <motion.div
+          key="chat-page-main"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="flex h-dvh overflow-hidden relative z-10"
+        >
+          {/* Sidebar */}
           <motion.div
-            key="loading-chat-page"
-            initial={{ opacity: 1 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-100"
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+            className={`${
+              mobileShowChat || showVideo ? "hidden" : "flex"
+            } ${showVideo ? "md:hidden" : "md:flex"} w-full md:w-80 border-r border-white/6 flex-col bg-surface-2/40 backdrop-blur-xl relative z-10 transition-all duration-300`}
           >
-            <Loading />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="chat-page-main"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-            className="flex h-dvh bg-brand-black overflow-hidden relative"
-          >
-            {/* Sidebar */}
-            <motion.div
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.2, duration: 0.5 }}
-              className={`${
-                mobileShowChat || showVideo ? "hidden" : "flex"
-              } ${showVideo ? "md:hidden" : "md:flex"} w-full md:w-80 border-r border-white/6 flex-col bg-brand-black/50 backdrop-blur-xl relative z-10 transition-all duration-300`}
-            >
               {/* Sidebar Header */}
-              <div
-                className="px-4 pb-3 border-b border-white/6 bg-brand-black/80 backdrop-blur-xl"
-                style={{ paddingTop: "calc(env(safe-area-inset-top) + 1rem)" }}
-              >
+            <div
+              className="px-4 pb-3 border-b border-white/6 bg-surface-2/40 backdrop-blur-xl"
+              style={{ paddingTop: "calc(env(safe-area-inset-top) + 1rem)" }}
+            >
                 <div className="flex items-center justify-between mb-3">
                   {/* Back button — top-left, universal */}
                   <button
@@ -1822,8 +1811,7 @@ export default function ChatPage() {
                 user={activeUserTarget}
               />
             )}
-          </motion.div>
-        )}
+        </motion.div>
       </AnimatePresence>
     </>
   );

@@ -121,7 +121,6 @@ export default function AIChatComponent({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
-  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState("");
   const [showHistory, setShowHistory] = useState(false);
 
@@ -136,10 +135,6 @@ export default function AIChatComponent({
 
   useEffect(() => {
     loadSessions(false); // Do not load last session messages automatically
-    const timer = setTimeout(() => {
-      setInitialLoading(false);
-    }, 2000);
-    return () => clearTimeout(timer);
   }, []);
 
   // Mini-mensajes dinámicos durante la carga (contextuales)
@@ -399,29 +394,18 @@ export default function AIChatComponent({
 
   return (
     <AnimatePresence mode="wait">
-      {initialLoading ? (
-        <motion.div
-          key="loading-screen"
-          initial={{ opacity: 1 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-100"
-        >
-          <Loading />
-        </motion.div>
-      ) : (
-        <motion.div
-          key="ai-chat-main"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 1.02 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
-          className="bg-brand-black flex flex-col w-full"
-          style={{ height: "100dvh", overflow: "hidden" }}
-        >
-          {/* ──────────────────── HEADER ──────────────────── */}
-          <div
-            className="shrink-0 relative flex items-center justify-between px-4 bg-brand-black/95 backdrop-blur-xl z-30"
+      <motion.div
+        key="ai-chat-main"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 1.02 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className="flex flex-col w-full relative z-10"
+        style={{ height: "100dvh", overflow: "hidden" }}
+      >
+        {/* ──────────────────── HEADER ──────────────────── */}
+        <div
+          className="shrink-0 relative flex items-center justify-between px-4 bg-surface-2/40 backdrop-blur-xl z-30"
             style={{
               paddingTop: "0.75rem",
               paddingBottom: "0.75rem",
@@ -780,8 +764,7 @@ export default function AIChatComponent({
               </button>
             </form>
           </div>
-        </motion.div>
-      )}
+      </motion.div>
     </AnimatePresence>
   );
 }

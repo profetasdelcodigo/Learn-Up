@@ -591,9 +591,7 @@ export default function CalendarPage() {
     setShowDatePicker(false);
   };
 
-  if (loading) {
-    return <PageLoader />;
-  }
+  // Removed blocking loading check to allow immediate layout rendering with animations
 
   return (
     <div className="w-full page-bg">
