@@ -83,7 +83,7 @@ export default function UserInfoPanel({
         <div className="space-y-3">
           {user.school && (
             <div className="flex items-start gap-4 p-4 bg-surface-2/50 rounded-xl border border-white/6/50 hover:border-white/10 transition-colors">
-              <div className="bg-gray-800 p-2 rounded-lg text-brand-gold shrink-0">
+              <div className="bg-surface-2 p-2 rounded-lg text-brand-gold shrink-0">
                 <BookOpen className="w-5 h-5" />
               </div>
               <div>
@@ -97,7 +97,7 @@ export default function UserInfoPanel({
 
           {user.grade && (
             <div className="flex items-start gap-4 p-4 bg-surface-2/50 rounded-xl border border-white/6/50 hover:border-white/10 transition-colors">
-              <div className="bg-gray-800 p-2 rounded-lg text-brand-gold shrink-0">
+              <div className="bg-surface-2 p-2 rounded-lg text-brand-gold shrink-0">
                 <GraduationCap className="w-5 h-5" />
               </div>
               <div>
@@ -111,7 +111,7 @@ export default function UserInfoPanel({
 
           {user.location && (
             <div className="flex items-start gap-4 p-4 bg-surface-2/50 rounded-xl border border-white/6/50 hover:border-white/10 transition-colors">
-              <div className="bg-gray-800 p-2 rounded-lg text-brand-gold shrink-0">
+              <div className="bg-surface-2 p-2 rounded-lg text-brand-gold shrink-0">
                 <MapPin className="w-5 h-5" />
               </div>
               <div>

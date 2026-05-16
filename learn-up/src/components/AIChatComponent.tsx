@@ -519,7 +519,7 @@ export default function AIChatComponent({
                           onClick={() => loadSessionMessages(s.id)}
                           className={`p-3 rounded-xl cursor-pointer flex justify-between items-center group transition-colors ${
                             currentSessionId === s.id
-                              ? "bg-gray-800 border border-white/10"
+                              ? "bg-surface-2 border border-white/10"
                               : "hover:bg-white/5/50"
                           }`}
                         >
@@ -696,7 +696,7 @@ export default function AIChatComponent({
                         <button
                           onClick={handleRejectAction}
                           disabled={executingAction}
-                          className="flex-1 py-2 px-3 bg-gray-800 text-gray-300 rounded-xl font-semibold text-sm hover:bg-gray-700 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+                          className="flex-1 py-2 px-3 bg-surface-2 text-gray-300 rounded-xl font-semibold text-sm hover:bg-gray-700 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
                         >
                           <XCircle className="w-4 h-4" /> Cancelar
                         </button>

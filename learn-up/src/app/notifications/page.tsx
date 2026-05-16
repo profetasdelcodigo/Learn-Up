@@ -199,7 +199,7 @@ export default function NotificationsPage() {
                     <div
                       className={`w-11 h-11 rounded-full shrink-0 flex items-center justify-center ${
                         notification.is_read
-                          ? "bg-gray-800 text-gray-400"
+                          ? "bg-surface-2 text-gray-400"
                           : "bg-brand-gold/10 text-brand-gold"
                       }`}
                     >

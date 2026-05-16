@@ -112,7 +112,7 @@ export default function CreateGroupModal({
           {/* Photo Upload */}
           <div className="flex flex-col items-center justify-center">
             <div
-              className="relative w-24 h-24 rounded-full bg-gray-800 border-2 border-dashed border-gray-600 flex items-center justify-center cursor-pointer hover:border-brand-gold hover:bg-white/5/50 transition-all overflow-hidden group"
+              className="relative w-24 h-24 rounded-full bg-surface-2 border-2 border-dashed border-gray-600 flex items-center justify-center cursor-pointer hover:border-brand-gold hover:bg-white/5/50 transition-all overflow-hidden group"
               onClick={() => fileInputRef.current?.click()}
             >
               {previewUrl ? (
@@ -187,7 +187,7 @@ export default function CreateGroupModal({
                         : "bg-surface-2 border border-white/6 hover:bg-white/5"
                     }`}
                   >
-                    <div className="w-10 h-10 rounded-full bg-gray-800 border border-white/10 overflow-hidden flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-surface-2 border border-white/10 overflow-hidden flex items-center justify-center">
                       {friend.avatar_url ? (
                         <img
                           src={friend.avatar_url}
@@ -225,7 +225,7 @@ export default function CreateGroupModal({
         <div className="p-4 border-t border-white/6 flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-3 bg-gray-800 text-white rounded-xl hover:bg-gray-700 transition-colors font-medium"
+            className="flex-1 px-4 py-3 bg-surface-2 text-white rounded-xl hover:bg-gray-700 transition-colors font-medium"
           >
             Cancelar
           </button>

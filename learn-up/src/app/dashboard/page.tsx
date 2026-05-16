@@ -153,7 +153,7 @@ export default async function DashboardPage() {
   };
 
   return (
-    <div className="w-full min-h-screen bg-brand-black relative overflow-hidden">
+    <div className="w-full page-bg">
       {/* Decorative mesh background */}
       <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
         <div className="absolute inset-0 bg-mesh-1 opacity-60" />
@@ -231,7 +231,7 @@ export default async function DashboardPage() {
                 {aiCards.map((card) => (
                   <Link key={card.href} href={card.href}>
                     <div
-                      className={`glass border ${card.border} ${card.hoverBorder} rounded-2xl p-6 ${card.shadow} transition-all duration-500 cursor-pointer group`}
+                      className={`glass border ${card.border} ${card.hoverBorder} rounded-2xl p-6 h-full ${card.shadow} transition-all duration-500 cursor-pointer group`}
                     >
                       <div
                         className={`w-12 h-12 mb-4 rounded-xl ${card.iconBg} border ${card.iconBorder} flex items-center justify-center group-hover:scale-110 transition-all duration-300`}
@@ -267,7 +267,7 @@ export default async function DashboardPage() {
                 {spaceCards.map((card) => (
                   <Link key={card.href} href={card.href}>
                     <div
-                      className={`glass border ${card.border} ${card.hoverBorder} rounded-2xl p-6 ${card.shadow} transition-all duration-500 cursor-pointer group`}
+                      className={`glass border ${card.border} ${card.hoverBorder} rounded-2xl p-6 h-full ${card.shadow} transition-all duration-500 cursor-pointer group`}
                     >
                       <div
                         className={`w-12 h-12 mb-4 rounded-xl ${card.iconBg} border ${card.iconBorder} flex items-center justify-center group-hover:scale-110 transition-all duration-300`}

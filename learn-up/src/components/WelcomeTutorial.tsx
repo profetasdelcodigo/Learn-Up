@@ -226,7 +226,7 @@ export default function WelcomeTutorial() {
               {[0, 1, 2, 3, 4, 5].map((i) => (
                 <div
                   key={i}
-                  className={`w-2 h-2 rounded-full transition-colors ${i === step ? "bg-brand-gold" : "bg-gray-800"}`}
+                  className={`w-2 h-2 rounded-full transition-colors ${i === step ? "bg-brand-gold" : "bg-surface-2"}`}
                 />
               ))}
             </div>

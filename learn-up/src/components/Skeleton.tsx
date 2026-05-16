@@ -8,7 +8,7 @@
 /** Base shimmer bar — any width/height */
 export function SkeletonBar({ className = "" }: { className?: string }) {
   return (
-    <div className={`bg-gray-800 rounded-lg animate-pulse ${className}`} />
+    <div className={`bg-surface-2 rounded-lg animate-pulse ${className}`} />
   );
 }
 
@@ -20,7 +20,7 @@ export function SkeletonCard({ className = "" }: { className?: string }) {
     >
       {/* Icon + title row */}
       <div className="flex items-center gap-3">
-        <div className="w-12 h-12 rounded-xl bg-gray-800 animate-pulse shrink-0" />
+        <div className="w-12 h-12 rounded-xl bg-surface-2 animate-pulse shrink-0" />
         <div className="flex-1 space-y-2">
           <SkeletonBar className="h-4 w-3/4" />
           <SkeletonBar className="h-3 w-1/2" />
@@ -44,7 +44,7 @@ export function SkeletonRow({ className = "" }: { className?: string }) {
     <div
       className={`flex items-center gap-4 p-4 rounded-2xl border border-white/6 ${className}`}
     >
-      <div className="w-10 h-10 rounded-full bg-gray-800 animate-pulse shrink-0" />
+      <div className="w-10 h-10 rounded-full bg-surface-2 animate-pulse shrink-0" />
       <div className="flex-1 space-y-2">
         <SkeletonBar className="h-4 w-2/3" />
         <SkeletonBar className="h-3 w-1/2" />
@@ -76,7 +76,7 @@ export function SkeletonGrid({
 export function SkeletonProfile() {
   return (
     <div className="flex flex-col items-center gap-4 p-8">
-      <div className="w-24 h-24 rounded-full bg-gray-800 animate-pulse" />
+      <div className="w-24 h-24 rounded-full bg-surface-2 animate-pulse" />
       <SkeletonBar className="h-5 w-40" />
       <SkeletonBar className="h-4 w-28" />
       <div className="w-full space-y-3 mt-4">

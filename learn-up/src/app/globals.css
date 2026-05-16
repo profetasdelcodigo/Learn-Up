@@ -60,9 +60,14 @@ body {
   overscroll-behavior: none;
 }
 
-html::-webkit-scrollbar,
-body::-webkit-scrollbar {
+/* Hide ALL scrollbars globally */
+*::-webkit-scrollbar {
   display: none;
+}
+
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 body {
@@ -150,7 +155,7 @@ body {
   }
 
   .page-inner {
-    @apply px-4 md:px-6 lg:px-8 py-6 max-w-6xl mx-auto w-full;
+    @apply px-4 md:px-6 lg:px-8 py-6 pb-24 md:pb-8 max-w-6xl mx-auto w-full;
   }
 
   /* ── Section headers ── */
@@ -273,6 +278,37 @@ body {
   .section-heading-icon {
     @apply w-10 h-10 rounded-xl flex items-center justify-center text-lg
            border shadow-lg;
+  }
+
+  /* ── Standard page background with glows ── */
+  .page-bg {
+    @apply min-h-screen bg-brand-black relative overflow-hidden;
+  }
+  .page-bg::before,
+  .page-bg::after {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .page-bg::before {
+    top: -8rem;
+    left: -5rem;
+    width: 400px;
+    height: 400px;
+    background: #D4AF37;
+    filter: blur(150px);
+    opacity: 0.06;
+  }
+  .page-bg::after {
+    bottom: -8rem;
+    right: -5rem;
+    width: 300px;
+    height: 300px;
+    background: #8B5CF6;
+    filter: blur(150px);
+    opacity: 0.05;
   }
 }
 

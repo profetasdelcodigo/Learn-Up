@@ -552,7 +552,7 @@ export default function SharedCalendarDetail({
         <div className="flex items-center gap-4">
           <button
             onClick={onBack}
-            className="p-2 bg-gray-800 text-gray-400 rounded-full hover:text-white"
+            className="p-2 bg-surface-2 text-gray-400 rounded-full hover:text-white"
           >
             ←
           </button>
@@ -613,7 +613,7 @@ export default function SharedCalendarDetail({
                   className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors border border-transparent hover:border-white/10"
                 >
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-gray-800 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-surface-2 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
                       {result.avatar_url ? (
                         <img src={result.avatar_url} alt="" className="w-full h-full object-cover" />
                       ) : (
@@ -738,7 +738,7 @@ export default function SharedCalendarDetail({
                   }, 500);
                 }
               }}
-              className="px-4 py-2 bg-gray-800 text-gray-300 border border-white/10 rounded-xl hover:bg-gray-700 hover:text-white transition-all text-sm font-semibold flex items-center gap-2"
+              className="px-4 py-2 bg-surface-2 text-gray-300 border border-white/10 rounded-xl hover:bg-gray-700 hover:text-white transition-all text-sm font-semibold flex items-center gap-2"
             >
               Imprimir
             </button>
@@ -842,7 +842,7 @@ export default function SharedCalendarDetail({
                   className={`flex ${isMe ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-[70%] ${isMe ? "bg-brand-gold text-brand-black" : "bg-gray-800 text-white"} p-3 rounded-2xl ${isMe ? "rounded-tr-sm" : "rounded-tl-sm"}`}
+                    className={`max-w-[70%] ${isMe ? "bg-brand-gold text-brand-black" : "bg-surface-2 text-white"} p-3 rounded-2xl ${isMe ? "rounded-tr-sm" : "rounded-tl-sm"}`}
                   >
                     {!isMe && (
                       <div className="text-xs text-brand-gold mb-1 font-bold">
@@ -892,7 +892,7 @@ export default function SharedCalendarDetail({
               <button
                 type="button"
                 onClick={isRecording ? stopRecording : startRecording}
-                className={`p-3 rounded-full flex items-center justify-center transition-all ${isRecording ? "bg-red-500/10 text-red-500 animate-pulse border-red-500/40" : "bg-gray-800 text-gray-400 hover:text-brand-gold border-white/10"}`}
+                className={`p-3 rounded-full flex items-center justify-center transition-all ${isRecording ? "bg-red-500/10 text-red-500 animate-pulse border-red-500/40" : "bg-surface-2 text-gray-400 hover:text-brand-gold border-white/10"}`}
               >
                 {isRecording ? (
                   <Square className="w-5 h-5 fill-current" />
@@ -928,7 +928,7 @@ export default function SharedCalendarDetail({
                 onClick={() =>
                   setCurrentHabitWeek(subWeeks(currentHabitWeek, 1))
                 }
-                className="p-1.5 rounded-lg bg-gray-800 text-gray-400"
+                className="p-1.5 rounded-lg bg-surface-2 text-gray-400"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -936,7 +936,7 @@ export default function SharedCalendarDetail({
                 onClick={() =>
                   setCurrentHabitWeek(addWeeks(currentHabitWeek, 1))
                 }
-                className="p-1.5 rounded-lg bg-gray-800 text-gray-400"
+                className="p-1.5 rounded-lg bg-surface-2 text-gray-400"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -1199,7 +1199,7 @@ export default function SharedCalendarDetail({
                                 setShowDayModal(false);
                               }
                             }}
-                            className="text-gray-500 hover:text-red-400 p-1 bg-gray-800 rounded"
+                            className="text-gray-500 hover:text-red-400 p-1 bg-surface-2 rounded"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>

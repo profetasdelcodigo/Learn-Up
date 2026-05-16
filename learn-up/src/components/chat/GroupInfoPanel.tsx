@@ -295,7 +295,7 @@ export default function GroupInfoPanel({
                   setPreviewUrl(room.avatar_url || null);
                   setSelectedFile(null);
                 }}
-                className="flex-1 px-3 py-2 bg-gray-800 text-white rounded-lg text-sm"
+                className="flex-1 px-3 py-2 bg-surface-2 text-white rounded-lg text-sm"
               >
                 Cancelar
               </button>
@@ -388,7 +388,7 @@ export default function GroupInfoPanel({
                     className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors border border-transparent hover:border-white/10"
                   >
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-gray-800 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-surface-2 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
                         {result.avatar_url ? (
                           <img src={result.avatar_url} alt="" className="w-full h-full object-cover" />
                         ) : (
@@ -449,7 +449,7 @@ export default function GroupInfoPanel({
               key={member.id}
               className="flex items-center gap-3 p-3 bg-surface-2/50 rounded-xl"
             >
-              <div className="w-10 h-10 rounded-full bg-gray-800 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-full bg-surface-2 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
                 {member.avatar_url ? (
                   <img
                     src={member.avatar_url}

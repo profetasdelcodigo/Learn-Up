@@ -369,7 +369,7 @@ export default function LibraryPage() {
   }
 
   return (
-    <div className="w-full min-h-screen bg-brand-black relative overflow-hidden">
+    <div className="w-full page-bg">
       {/* Background glows */}
       <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
         <div className="absolute -top-40 -left-20 w-[400px] h-[400px] rounded-full blur-3xl opacity-10" style={{ background: "#D4AF37" }} />
@@ -891,7 +891,7 @@ export default function LibraryPage() {
                                 reviewer_username: d.username || "",
                               })
                             }
-                            className="px-3 py-1 text-xs bg-gray-800 text-gray-300 rounded-full hover:bg-brand-gold hover:text-black transition-all border border-white/10"
+                            className="px-3 py-1 text-xs bg-surface-2 text-gray-300 rounded-full hover:bg-brand-gold hover:text-black transition-all border border-white/10"
                           >
                             @{d.username} ({d.full_name})
                           </button>
@@ -926,7 +926,7 @@ export default function LibraryPage() {
                             className="w-full h-40 object-cover rounded-xl border border-white/10 bg-black"
                           />
                         ) : (
-                          <div className="w-full h-24 bg-gray-800 rounded-xl flex items-center justify-center border border-white/10 text-gray-400">
+                          <div className="w-full h-24 bg-surface-2 rounded-xl flex items-center justify-center border border-white/10 text-gray-400">
                             <div className="flex items-center gap-3">
                               <FileText className="w-8 h-8 text-brand-gold" />
                               <span className="text-sm font-semibold truncate max-w-xs">

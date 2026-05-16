@@ -170,7 +170,7 @@ export default function NotificationsPage() {
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   return (
-    <div className="min-h-screen bg-brand-black relative overflow-hidden">
+    <div className="page-bg">
       {/* Background glows */}
       <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
         <div className="absolute -top-32 -left-20 w-[400px] h-[400px] rounded-full blur-[150px] opacity-[0.08]" style={{ background: "#8B5CF6" }} />

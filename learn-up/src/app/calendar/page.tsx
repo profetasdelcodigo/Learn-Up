@@ -596,7 +596,7 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="w-full min-h-screen bg-brand-black relative overflow-hidden">
+    <div className="w-full page-bg">
       {/* Background glows */}
       <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
         <div className="absolute -top-40 -left-20 w-[450px] h-[450px] rounded-full blur-3xl opacity-10" style={{ background: "#D4AF37" }} />

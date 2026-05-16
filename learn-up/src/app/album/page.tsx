@@ -336,7 +336,7 @@ export default function AlbumPage() {
   };
 
   return (
-    <div className="min-h-screen bg-brand-black relative overflow-hidden">
+    <div className="page-bg">
       {/* Background glows */}
       <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
         <div className="absolute -top-32 -left-20 w-[400px] h-[400px] rounded-full blur-3xl opacity-10" style={{ background: "#10B981" }} />
@@ -397,13 +397,13 @@ export default function AlbumPage() {
             <div className="flex gap-2 mb-4">
               <button
                 onClick={() => setCameraMode("photo")}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${cameraMode === "photo" ? "bg-emerald-500 text-white" : "bg-gray-800 text-gray-400 hover:text-white"}`}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${cameraMode === "photo" ? "bg-emerald-500 text-white" : "bg-surface-2 text-gray-400 hover:text-white"}`}
               >
                 📷 Foto
               </button>
               <button
                 onClick={() => setCameraMode("video")}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${cameraMode === "video" ? "bg-blue-500 text-white" : "bg-gray-800 text-gray-400 hover:text-white"}`}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${cameraMode === "video" ? "bg-blue-500 text-white" : "bg-surface-2 text-gray-400 hover:text-white"}`}
               >
                 🎥 Video
               </button>
@@ -571,20 +571,20 @@ export default function AlbumPage() {
                     <div className="p-2 flex gap-1">
                       <button
                         onClick={() => downloadMedia(media)}
-                        className="flex-1 py-1.5 text-xs text-gray-400 hover:text-white bg-gray-800 rounded-lg transition-all flex items-center justify-center gap-1"
+                        className="flex-1 py-1.5 text-xs text-gray-400 hover:text-white bg-surface-2 rounded-lg transition-all flex items-center justify-center gap-1"
                       >
                         <Download className="w-3 h-3" /> Descargar
                       </button>
                       <button
                         onClick={() => shareMedia(media)}
-                        className="p-1.5 text-gray-600 hover:text-brand-gold bg-gray-800 rounded-lg transition-all"
+                        className="p-1.5 text-gray-600 hover:text-brand-gold bg-surface-2 rounded-lg transition-all"
                         title="Compartir"
                       >
                         <Share2 className="w-3 h-3" />
                       </button>
                       <button
                         onClick={() => deleteMedia(media.id)}
-                        className="p-1.5 text-gray-600 hover:text-red-400 bg-gray-800 rounded-lg transition-all"
+                        className="p-1.5 text-gray-600 hover:text-red-400 bg-surface-2 rounded-lg transition-all"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
@@ -680,7 +680,7 @@ export default function AlbumPage() {
                   />
                 )}
                 {uploadPreview.type === "document" && (
-                  <div className="w-full h-24 bg-gray-800 rounded-xl mb-4 flex items-center justify-center border border-white/10">
+                  <div className="w-full h-24 bg-surface-2 rounded-xl mb-4 flex items-center justify-center border border-white/10">
                     <Download className="w-8 h-8 text-brand-gold" />
                   </div>
                 )}

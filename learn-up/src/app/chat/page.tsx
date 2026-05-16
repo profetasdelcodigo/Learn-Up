@@ -847,11 +847,11 @@ export default function ChatPage() {
               transition={{ delay: 0.2, duration: 0.5 }}
               className={`${
                 mobileShowChat || showVideo ? "hidden" : "flex"
-              } ${showVideo ? "md:hidden" : "md:flex"} w-full md:w-80 border-r border-brand-gold/20 flex-col bg-brand-black/50 backdrop-blur-xl relative z-10 transition-all duration-300`}
+              } ${showVideo ? "md:hidden" : "md:flex"} w-full md:w-80 border-r border-white/6 flex-col bg-brand-black/50 backdrop-blur-xl relative z-10 transition-all duration-300`}
             >
               {/* Sidebar Header */}
               <div
-                className="px-4 pb-3 border-b border-white/6/80 bg-brand-black/80 backdrop-blur-xl"
+                className="px-4 pb-3 border-b border-white/6 bg-brand-black/80 backdrop-blur-xl"
                 style={{ paddingTop: "calc(env(safe-area-inset-top) + 1rem)" }}
               >
                 <div className="flex items-center justify-between mb-3">
@@ -966,7 +966,7 @@ export default function ChatPage() {
                         className="p-3 bg-surface-2/40 rounded-xl mx-2 mb-2 flex items-center justify-between"
                       >
                         <div className="flex items-center gap-3 overflow-hidden">
-                          <div className="w-10 h-10 rounded-full bg-gray-800 shrink-0 flex items-center justify-center overflow-hidden">
+                          <div className="w-10 h-10 rounded-full bg-surface-2 shrink-0 flex items-center justify-center overflow-hidden">
                             {user.avatar_url ? (
                               <img
                                 src={user.avatar_url}
@@ -999,7 +999,7 @@ export default function ChatPage() {
                           ) : user.friendshipStatus === "pending" ? (
                             <button
                               disabled
-                              className="px-3 py-1 bg-gray-800 text-gray-400 text-xs rounded-full cursor-not-allowed border border-white/10"
+                              className="px-3 py-1 bg-surface-2 text-gray-400 text-xs rounded-full cursor-not-allowed border border-white/10"
                             >
                               Pendiente
                             </button>
@@ -1041,7 +1041,7 @@ export default function ChatPage() {
                             }`}
                           >
                             <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 rounded-full bg-gray-800 border border-white/10 overflow-hidden flex items-center justify-center">
+                              <div className="w-12 h-12 rounded-full bg-surface-2 border border-white/10 overflow-hidden flex items-center justify-center">
                                 {info.avatar_url ? (
                                   <img
                                     src={info.avatar_url}
@@ -1094,7 +1094,7 @@ export default function ChatPage() {
                           onClick={() => handleStartChat(friend.id)}
                           className="p-3 hover:bg-white/5 rounded-xl cursor-pointer transition-all mx-2 group flex items-center gap-3"
                         >
-                          <div className="w-12 h-12 rounded-full bg-gray-800 overflow-hidden">
+                          <div className="w-12 h-12 rounded-full bg-surface-2 overflow-hidden">
                             {friend.avatar_url ? (
                               <img
                                 src={friend.avatar_url}
@@ -1239,7 +1239,7 @@ export default function ChatPage() {
                                 }
                               }}
                             >
-                              <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden flex items-center justify-center">
+                              <div className="w-10 h-10 rounded-full bg-surface-2 overflow-hidden flex items-center justify-center">
                                 {avatarUrl ? (
                                   <img
                                     src={avatarUrl}
@@ -1308,7 +1308,7 @@ export default function ChatPage() {
                           >
                             {/* Avatar for incoming messages */}
                             {!isMe && (
-                              <div className="w-7 h-7 rounded-full bg-gray-700 border border-gray-600 overflow-hidden flex items-center justify-center shrink-0 mb-1">
+                              <div className="w-7 h-7 rounded-full bg-surface-2 border border-white/10 overflow-hidden flex items-center justify-center shrink-0 mb-1">
                                 {senderAvatar ? (
                                   <img src={senderAvatar} className="w-full h-full object-cover" alt={senderInitial} />
                                 ) : (
@@ -1320,7 +1320,7 @@ export default function ChatPage() {
                               className={`max-w-[80%] md:max-w-[65%] rounded-2xl p-4 shadow-sm relative ${
                                 isMe
                                   ? "bg-brand-gold text-brand-black rounded-tr-sm"
-                                  : "bg-gray-800 text-white rounded-tl-sm border border-white/10"
+                                  : "bg-surface-2 text-white rounded-tl-sm"
                               }`}
                             >
                               {msg.is_deleted_for_everyone ? (
@@ -1500,7 +1500,7 @@ export default function ChatPage() {
                                                 </button>
                                               </div>
                                             ) : (
-                                              <div className="mt-2 py-2 bg-gray-800/50 rounded-xl text-gray-400 font-bold text-sm flex justify-center items-center gap-2 border border-white/10">
+                                              <div className="mt-2 py-2 bg-surface-2/50 rounded-xl text-gray-400 font-bold text-sm flex justify-center items-center gap-2 border border-white/10">
                                                 <PhoneOff className="w-4 h-4" />{" "}
                                                 Llamada Finalizada
                                               </div>
@@ -1626,7 +1626,7 @@ export default function ChatPage() {
                               className="w-10 h-10 rounded-lg object-cover border border-white/10"
                             />
                           ) : (
-                            <div className="w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center border border-white/10 text-lg">
+                            <div className="w-10 h-10 rounded-lg bg-surface-2 flex items-center justify-center border border-white/10 text-lg">
                               {pendingFile.type.includes("pdf")
                                 ? "📄"
                                 : pendingFile.type.includes("audio")

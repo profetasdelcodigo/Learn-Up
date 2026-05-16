@@ -569,7 +569,7 @@ export default function ExamenIAPage() {
                               rows={4}
                             />
                             {isReview && q.correctAnswer && (
-                              <div className="mt-2 p-3 bg-gray-800/50 border border-white/10 rounded-xl text-sm">
+                              <div className="mt-2 p-3 bg-surface-2/50 border border-white/10 rounded-xl text-sm">
                                 <span className="text-gray-400 font-semibold block mb-1">
                                   Respuesta Esperada:
                                 </span>
@@ -619,7 +619,7 @@ export default function ExamenIAPage() {
                 {phase === "review" ? (
                   <button
                     onClick={() => setPhase("results")}
-                    className="flex-1 py-3 bg-gray-800 text-white font-bold rounded-full hover:bg-gray-700 border border-white/10 transition-all flex items-center justify-center gap-2"
+                    className="flex-1 py-3 bg-surface-2 text-white font-bold rounded-full hover:bg-gray-700 border border-white/10 transition-all flex items-center justify-center gap-2"
                   >
                     Volver a Resultados
                   </button>
@@ -700,7 +700,7 @@ export default function ExamenIAPage() {
               <div className="flex flex-col md:flex-row gap-3">
                 <button
                   onClick={() => setPhase("review")}
-                  className="w-full md:flex-1 py-3 bg-gray-800 text-white font-bold rounded-full hover:bg-gray-700 border border-white/10 transition-all flex items-center justify-center gap-2"
+                  className="w-full md:flex-1 py-3 bg-surface-2 text-white font-bold rounded-full hover:bg-gray-700 border border-white/10 transition-all flex items-center justify-center gap-2"
                 >
                   <FileText className="w-5 h-5" /> Ver Mis Respuestas
                 </button>
