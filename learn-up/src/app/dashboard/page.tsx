@@ -154,18 +154,6 @@ export default async function DashboardPage() {
 
   return (
     <div className="w-full page-bg">
-      {/* Decorative mesh background */}
-      <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
-        <div className="absolute inset-0 bg-mesh-1 opacity-60" />
-        <div
-          className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full blur-[150px] opacity-[0.08]"
-          style={{ background: "#8B5CF6" }}
-        />
-        <div
-          className="absolute -bottom-40 -right-40 w-[400px] h-[400px] rounded-full blur-[150px] opacity-[0.06]"
-          style={{ background: "#38BDF8" }}
-        />
-      </div>
 
       <div className="page-inner relative z-10">
         <StaggerContainer className="w-full max-w-none space-y-8">
@@ -229,7 +217,7 @@ export default async function DashboardPage() {
                 className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
               >
                 {aiCards.map((card) => (
-                  <Link key={card.href} href={card.href}>
+                  <Link key={card.href} href={card.href} className="block h-full">
                     <div
                       className={`glass border ${card.border} ${card.hoverBorder} rounded-2xl p-6 h-full ${card.shadow} transition-all duration-500 cursor-pointer group`}
                     >
@@ -265,7 +253,7 @@ export default async function DashboardPage() {
                 className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
               >
                 {spaceCards.map((card) => (
-                  <Link key={card.href} href={card.href}>
+                  <Link key={card.href} href={card.href} className="block h-full">
                     <div
                       className={`glass border ${card.border} ${card.hoverBorder} rounded-2xl p-6 h-full ${card.shadow} transition-all duration-500 cursor-pointer group`}
                     >

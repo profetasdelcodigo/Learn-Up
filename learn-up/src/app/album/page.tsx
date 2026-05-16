@@ -337,11 +337,6 @@ export default function AlbumPage() {
 
   return (
     <div className="page-bg">
-      {/* Background glows */}
-      <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
-        <div className="absolute -top-32 -left-20 w-[400px] h-[400px] rounded-full blur-3xl opacity-10" style={{ background: "#10B981" }} />
-        <div className="absolute -bottom-32 -right-20 w-[300px] h-[300px] rounded-full blur-3xl opacity-8" style={{ background: "#3B82F6" }} />
-      </div>
       <div className="page-inner relative z-10">
         <BackButton className="mb-6" />
 

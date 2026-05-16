@@ -597,11 +597,6 @@ export default function CalendarPage() {
 
   return (
     <div className="w-full page-bg">
-      {/* Background glows */}
-      <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
-        <div className="absolute -top-40 -left-20 w-[450px] h-[450px] rounded-full blur-3xl opacity-10" style={{ background: "#D4AF37" }} />
-        <div className="absolute -bottom-40 -right-20 w-[350px] h-[350px] rounded-full blur-3xl opacity-8" style={{ background: "#3B82F6" }} />
-      </div>
       <div className="page-inner relative z-10">
         <StaggerContainer delayOffset={0.1}>
           <FadeUpItem>

@@ -153,11 +153,6 @@ export default function ProfilePage() {
 
   return (
     <div className="page-bg text-white">
-      {/* Background glows */}
-      <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
-        <div className="absolute -top-32 -left-20 w-[400px] h-[400px] rounded-full blur-[150px] opacity-[0.08]" style={{ background: "#8B5CF6" }} />
-        <div className="absolute -bottom-32 -right-20 w-[300px] h-[300px] rounded-full blur-[150px] opacity-[0.06]" style={{ background: "#38BDF8" }} />
-      </div>
       <div className="page-inner relative z-10">
         <StaggerContainer delayOffset={0.1}>
           <FadeUpItem>
