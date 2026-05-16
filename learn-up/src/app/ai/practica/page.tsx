@@ -55,6 +55,8 @@ export default function ExamenIAPage() {
 
   const [sessions, setSessions] = useState<any[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const router = useRouter();
+
   useEffect(() => {
     loadSessions();
   }, []);
