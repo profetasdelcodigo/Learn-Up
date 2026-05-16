@@ -16,7 +16,7 @@ export function SkeletonBar({ className = "" }: { className?: string }) {
 export function SkeletonCard({ className = "" }: { className?: string }) {
   return (
     <div
-      className={`bg-gray-900/80 border border-gray-800 rounded-2xl p-5 flex flex-col gap-3 ${className}`}
+      className={`bg-surface-2/80 border border-white/6 rounded-2xl p-5 flex flex-col gap-3 ${className}`}
     >
       {/* Icon + title row */}
       <div className="flex items-center gap-3">
@@ -42,7 +42,7 @@ export function SkeletonCard({ className = "" }: { className?: string }) {
 export function SkeletonRow({ className = "" }: { className?: string }) {
   return (
     <div
-      className={`flex items-center gap-4 p-4 rounded-2xl border border-gray-800 ${className}`}
+      className={`flex items-center gap-4 p-4 rounded-2xl border border-white/6 ${className}`}
     >
       <div className="w-10 h-10 rounded-full bg-gray-800 animate-pulse shrink-0" />
       <div className="flex-1 space-y-2">

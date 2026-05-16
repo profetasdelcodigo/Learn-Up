@@ -2,29 +2,29 @@
 @config "../../tailwind.config.ts";
 
 /* ─────────────────────────────────────────────────
-   DESIGN TOKENS
+   DESIGN TOKENS — Learn Up Premium Dark
 ───────────────────────────────────────────────── */
 :root {
-  --background: #000000;
-  --foreground: #ededed;
+  --background: #0A0A0F;
+  --foreground: #E8E8ED;
 
   /* Radius scale */
-  --radius-sm: 0.75rem; /* 12px */
-  --radius-md: 1rem; /* 16px */
-  --radius-lg: 1.25rem; /* 20px */
-  --radius-xl: 1.5rem; /* 24px */
-  --radius-2xl: 2rem; /* 32px */
+  --radius-sm: 0.75rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
   --radius-full: 9999px;
 
-  /* Typography scale — used to keep all text consistent */
-  --text-xs: 0.7rem; /* 11px  — micro labels        */
-  --text-sm: 0.813rem; /* 13px  — captions, meta      */
-  --text-base: 0.938rem; /* 15px  — body / default      */
-  --text-md: 1.063rem; /* 17px  — card titles         */
-  --text-lg: 1.25rem; /* 20px  — section titles      */
-  --text-xl: 1.5rem; /* 24px  — page headers        */
-  --text-2xl: 1.875rem; /* 30px  — hero headings       */
-  --text-3xl: 2.5rem; /* 40px  — display / greeting  */
+  /* Typography scale */
+  --text-xs: 0.7rem;
+  --text-sm: 0.813rem;
+  --text-base: 0.938rem;
+  --text-md: 1.063rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 1.875rem;
+  --text-3xl: 2.5rem;
 
   /* Spacing base */
   --space-page-x: 1rem;
@@ -34,8 +34,8 @@
 @theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-space-grotesk);
 }
 
 /* ─────────────────────────────────────────────────
@@ -68,76 +68,80 @@ body::-webkit-scrollbar {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), 'Inter', system-ui, sans-serif;
   font-size: var(--text-base);
   line-height: 1.6;
-  /* Safe area handled globally via env() variables */
   padding-top: env(safe-area-inset-top);
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
 }
 
-/* Native smooth scroll for scollable containers (replaces Lenis) */
 * {
   scroll-behavior: smooth;
 }
 
 /* ─────────────────────────────────────────────────
-   COMPONENTS LAYER
-   All reusable class tokens go here.
-   Do NOT add a 'button { }' bare reset — that breaks
-   every icon button and link-button in the app.
+   COMPONENTS LAYER — Premium Design System
 ───────────────────────────────────────────────── */
 @layer components {
   /* ── Buttons ── */
-  /* Primary: gold filled */
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2
-           bg-brand-gold text-brand-black font-semibold
-           rounded-full px-5 py-3
-           hover:bg-white hover:text-brand-black
-           active:scale-95 transition-all
+           bg-gradient-to-r from-brand-gold to-brand-gold-dim
+           text-brand-black font-bold font-display
+           rounded-2xl px-6 py-3.5
+           hover:shadow-glow-gold hover:scale-[1.02]
+           active:scale-95 transition-all duration-300
            disabled:opacity-50 disabled:cursor-not-allowed
            border-0;
   }
 
-  /* Secondary / ghost outline */
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-2
-           bg-transparent border border-gray-700 text-gray-300
-           rounded-2xl px-4 py-2.5
-           hover:border-brand-gold hover:text-brand-gold
-           active:scale-95 transition-all
+           bg-transparent border border-white/10 text-gray-300
+           rounded-2xl px-5 py-3
+           hover:border-brand-gold/40 hover:text-brand-gold hover:bg-brand-gold/5
+           active:scale-95 transition-all duration-300
            disabled:opacity-50;
   }
 
-  /* Icon button — no border, just subtle bg */
   .btn-icon {
     @apply inline-flex items-center justify-center
-           w-10 h-10 rounded-full
-           bg-gray-900 border border-gray-800
+           w-10 h-10 rounded-xl
+           bg-surface-2 border border-white/6
            text-gray-400
-           hover:text-white hover:border-brand-gold/40
-           active:scale-95 transition-all;
+           hover:text-brand-gold hover:border-brand-gold/30 hover:bg-brand-gold/5
+           hover:shadow-glow-gold
+           active:scale-95 transition-all duration-300;
   }
 
   /* ── Inputs ── */
   .input-base {
-    @apply w-full px-4 py-3
-           bg-gray-900/80 border border-gray-700 rounded-2xl
-           text-white placeholder-gray-500 text-sm
-           focus:outline-none focus:border-brand-gold
-           transition-colors;
+    @apply w-full px-4 py-3.5
+           bg-surface-1 border border-white/8 rounded-xl
+           text-white placeholder-gray-500 text-sm font-body
+           focus:outline-none focus:border-brand-gold/50 focus:ring-1 focus:ring-brand-gold/20
+           focus:shadow-glow-gold
+           transition-all duration-300;
   }
 
   /* ── Cards / Panels ── */
   .card {
-    @apply bg-gray-900/60 backdrop-blur-xl
-           border border-brand-gold/20 rounded-3xl;
+    @apply bg-surface-2/80 backdrop-blur-2xl
+           border border-white/6 rounded-2xl
+           shadow-card;
   }
 
   .card-flat {
-    @apply bg-gray-900/80 border border-gray-800 rounded-2xl;
+    @apply bg-surface-2 border border-white/6 rounded-2xl;
+  }
+
+  .card-glow {
+    @apply bg-surface-2/60 backdrop-blur-2xl
+           border border-brand-gold/10 rounded-2xl
+           shadow-card
+           hover:border-brand-gold/25 hover:shadow-card-hover
+           transition-all duration-500;
   }
 
   /* ── Page wrappers ── */
@@ -145,45 +149,44 @@ body {
     @apply flex flex-col min-h-dvh bg-brand-black text-white overflow-x-hidden;
   }
 
-  /* Page inner padding — standard horizontal padding for all pages */
   .page-inner {
     @apply px-4 md:px-6 lg:px-8 py-6 max-w-6xl mx-auto w-full;
   }
 
-  /* ── Section headers (used on all pages) ── */
+  /* ── Section headers ── */
   .section-title {
-    @apply text-lg font-bold text-white flex items-center gap-2 mb-4;
+    @apply text-lg font-bold text-white flex items-center gap-2 mb-4 font-display;
   }
 
   /* ── Modal overlays ── */
   .modal-overlay {
-    @apply fixed inset-0 bg-black/70 backdrop-blur-sm z-50
+    @apply fixed inset-0 bg-black/80 backdrop-blur-md z-50
            flex items-center justify-center p-4;
   }
 
   .modal-panel {
-    @apply bg-gray-900 border border-brand-gold/30 rounded-3xl
+    @apply bg-surface-2 border border-white/10 rounded-2xl
            p-6 md:p-8 w-full max-w-lg shadow-2xl;
   }
 
   /* ── Back button (universal) ── */
   .back-btn {
     @apply inline-flex items-center justify-center
-           w-10 h-10 rounded-full shrink-0
-           bg-gray-900 border border-gray-800
+           w-10 h-10 rounded-xl shrink-0
+           bg-surface-2 border border-white/6
            text-gray-400
-           hover:text-white hover:border-brand-gold/40
-           active:scale-95 transition-all;
+           hover:text-brand-gold hover:border-brand-gold/30
+           active:scale-95 transition-all duration-300;
   }
 
-  /* ── Page header bar (used in AI, chat, etc.) ── */
+  /* ── Page header bar ── */
   .page-header {
     @apply shrink-0 relative flex items-center justify-between
-           px-4 py-3 border-b border-gray-800/80
-           bg-brand-black/95 backdrop-blur-xl z-30;
+           px-4 py-3 border-b border-white/6
+           bg-brand-black/90 backdrop-blur-2xl z-30;
   }
 
-  /* ── Page hero header (icon + title + subtitle block) ── */
+  /* ── Page hero header ── */
   .page-head {
     @apply flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8;
   }
@@ -192,32 +195,35 @@ body {
   }
   .page-head-icon {
     @apply w-14 h-14 shrink-0 rounded-2xl
-           bg-brand-gold/10 border border-brand-gold/30
-           flex items-center justify-center;
+           bg-brand-gold/8 border border-brand-gold/20
+           flex items-center justify-center
+           shadow-glow-gold;
   }
   .page-head-icon-blue {
     @apply w-14 h-14 shrink-0 rounded-2xl
-           bg-brand-blue-glow/10 border border-brand-blue-glow/30
-           flex items-center justify-center;
+           bg-brand-blue-glow/8 border border-brand-blue-glow/20
+           flex items-center justify-center
+           shadow-glow-blue;
   }
   .page-head-title {
-    @apply text-3xl font-black text-white leading-tight;
+    @apply text-3xl font-black text-white leading-tight font-display;
   }
   .page-head-subtitle {
-    @apply text-sm text-gray-400 mt-0.5;
+    @apply text-sm text-gray-400 mt-0.5 font-body;
   }
 
   /* ── Tab bar ── */
   .tab-bar {
-    @apply flex gap-1 p-1 bg-gray-900/80 border border-gray-800 rounded-2xl w-fit mb-8;
+    @apply flex gap-1 p-1.5 bg-surface-1 border border-white/6 rounded-2xl w-fit mb-8;
   }
   .tab-item {
-    @apply px-5 py-2.5 rounded-xl font-semibold text-sm
-           text-gray-400 hover:text-white transition-all cursor-pointer;
+    @apply px-5 py-2.5 rounded-xl font-semibold text-sm font-display
+           text-gray-400 hover:text-white hover:bg-surface-3 transition-all duration-300 cursor-pointer;
   }
   .tab-item-active {
-    @apply px-5 py-2.5 rounded-xl font-semibold text-sm
-           bg-brand-gold text-brand-black shadow-lg cursor-pointer;
+    @apply px-5 py-2.5 rounded-xl font-semibold text-sm font-display
+           bg-gradient-to-r from-brand-gold to-brand-gold-dim text-brand-black
+           shadow-glow-gold cursor-pointer;
   }
 
   /* ── Empty state ── */
@@ -225,37 +231,48 @@ body {
     @apply flex flex-col items-center justify-center text-center py-20 gap-4;
   }
   .empty-state-icon {
-    @apply w-20 h-20 rounded-full
-           bg-gray-900 border border-gray-800
+    @apply w-20 h-20 rounded-2xl
+           bg-surface-2 border border-white/6
            flex items-center justify-center
            text-gray-600 mb-2;
   }
   .empty-state-title {
-    @apply text-xl font-semibold text-gray-400;
+    @apply text-xl font-semibold text-gray-300 font-display;
   }
   .empty-state-desc {
-    @apply text-sm text-gray-600 max-w-xs;
+    @apply text-sm text-gray-500 max-w-xs font-body;
   }
 
   /* ── Stat / info card ── */
   .stat-card {
-    @apply bg-gray-900/60 border border-gray-800 rounded-2xl p-5
-           flex flex-col gap-1 hover:border-brand-gold/30 transition-all;
+    @apply bg-surface-2/60 border border-white/6 rounded-2xl p-5
+           flex flex-col gap-1
+           hover:border-brand-gold/20 hover:shadow-glow-gold
+           transition-all duration-500;
   }
   .stat-value {
-    @apply text-2xl font-black text-white;
+    @apply text-2xl font-black text-white font-display;
   }
   .stat-label {
-    @apply text-xs text-gray-500 uppercase tracking-wider font-medium;
+    @apply text-xs text-gray-500 uppercase tracking-wider font-medium font-body;
   }
 
   /* ── Notification card ── */
   .notification-item {
-    @apply w-full flex gap-4 bg-gray-900/80 border border-gray-800 rounded-2xl p-5
-           shadow-lg transition-all hover:border-brand-gold/20;
+    @apply w-full flex gap-4 bg-surface-2 border border-white/6 rounded-2xl p-5
+           shadow-card transition-all duration-300 hover:border-brand-gold/15;
   }
   .notification-item-unread {
-    @apply border-brand-gold/30 bg-brand-gold/5;
+    @apply border-brand-gold/20 bg-brand-gold/3;
+  }
+
+  /* ── Brand section titles ── */
+  .section-heading {
+    @apply text-2xl font-bold text-white mb-5 flex items-center gap-3 font-display;
+  }
+  .section-heading-icon {
+    @apply w-10 h-10 rounded-xl flex items-center justify-center text-lg
+           border shadow-lg;
   }
 }
 
@@ -263,7 +280,6 @@ body {
    UTILITIES LAYER
 ───────────────────────────────────────────────── */
 @layer utilities {
-  /* Safe area insets */
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
   }
@@ -280,7 +296,6 @@ body {
     padding-right: env(safe-area-inset-right);
   }
 
-  /* Dynamic viewport units */
   .h-dvh {
     height: 100dvh;
   }
@@ -288,13 +303,10 @@ body {
     min-height: 100dvh;
   }
 
-  /* BottomNav spacer — all authenticated non-fullscreen pages */
   .pb-nav {
-    /* 64px nav height + device safe area */
     padding-bottom: calc(4rem + env(safe-area-inset-bottom));
   }
 
-  /* Touch target safety */
   .min-touch {
     min-height: 44px;
     min-width: 44px;
@@ -302,23 +314,26 @@ body {
 
   /* Premium scrollbar */
   .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-    display: block; /* Override global none */
+    width: 5px;
+    display: block;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(212, 175, 55, 0.3);
+    background: rgba(240, 200, 80, 0.15);
     border-radius: 10px;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(212, 175, 55, 0.5);
+    background: rgba(240, 200, 80, 0.3);
   }
 
-  /* Text glow effect */
+  /* Text glow */
   .text-glow {
-    text-shadow: 0 0 12px rgba(212, 175, 55, 0.5);
+    text-shadow: 0 0 20px rgba(240, 200, 80, 0.4), 0 0 40px rgba(240, 200, 80, 0.1);
+  }
+  .text-glow-purple {
+    text-shadow: 0 0 20px rgba(139, 92, 246, 0.4), 0 0 40px rgba(139, 92, 246, 0.1);
   }
 
   /* Image blur/overlay utility */
@@ -326,7 +341,87 @@ body {
     background: linear-gradient(
       to bottom,
       transparent 40%,
-      rgba(0, 0, 0, 0.85)
+      rgba(10, 10, 15, 0.9)
     );
   }
+
+  /* Animated gradient border */
+  .border-gradient {
+    position: relative;
+  }
+  .border-gradient::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    background: linear-gradient(135deg, rgba(240,200,80,0.3), rgba(139,92,246,0.2), rgba(56,189,248,0.2));
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+  .border-gradient:hover::before {
+    opacity: 1;
+  }
+
+  /* Glass effect */
+  .glass {
+    background: rgba(17, 17, 24, 0.6);
+    backdrop-filter: blur(20px) saturate(1.5);
+    -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  }
+  .glass-strong {
+    background: rgba(17, 17, 24, 0.85);
+    backdrop-filter: blur(30px) saturate(1.8);
+    -webkit-backdrop-filter: blur(30px) saturate(1.8);
+  }
+
+  /* Gradient text */
+  .text-gradient-gold {
+    background: linear-gradient(135deg, #F0C850, #E8B830, #F5D060);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .text-gradient-purple {
+    background: linear-gradient(135deg, #8B5CF6, #A78BFA);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .text-gradient-multi {
+    background: linear-gradient(135deg, #F0C850, #8B5CF6, #38BDF8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Shimmer animation for loading */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255,255,255,0) 0%,
+      rgba(255,255,255,0.03) 50%,
+      rgba(255,255,255,0) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+}
+
+/* ─────────────────────────────────────────────────
+   GLOBAL ANIMATIONS
+───────────────────────────────────────────────── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
 }

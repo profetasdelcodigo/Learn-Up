@@ -153,7 +153,7 @@ export default function NotificationsPage() {
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="h-24 bg-gray-900 rounded-2xl animate-pulse border border-gray-800"
+              className="h-24 bg-surface-2 rounded-2xl animate-pulse border border-white/6"
             />
           ))}
         </div>
@@ -193,7 +193,7 @@ export default function NotificationsPage() {
                     <img
                       src={notification.sender.avatar_url}
                       alt={notification.sender.full_name}
-                      className="w-11 h-11 rounded-full object-cover shrink-0 border border-gray-700"
+                      className="w-11 h-11 rounded-full object-cover shrink-0 border border-white/10"
                     />
                   ) : (
                     <div

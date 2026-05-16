@@ -130,7 +130,7 @@ function ParticipantTileCard({
       className={`relative shrink-0 rounded-xl overflow-hidden border-2 transition-all duration-200 bg-brand-black ${
         isSpeaking
           ? "border-brand-gold shadow-[0_0_16px_rgba(212,175,55,0.6)]"
-          : "border-gray-800"
+          : "border-white/6"
       }`}
       style={{ width: "100%", aspectRatio: "16/9" }}
     >
@@ -819,7 +819,7 @@ function VideoRoomInner({
                     broadcastVideo(videoInput.trim())
                   }
                   placeholder="YouTube URL o link directo..."
-                  className="w-full bg-brand-black border border-gray-700 rounded-xl px-4 py-3 text-white placeholder:text-gray-600 focus:outline-none focus:border-brand-gold mb-4 text-sm"
+                  className="w-full bg-brand-black border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-gray-600 focus:outline-none focus:border-brand-gold mb-4 text-sm"
                 />
                 <div className="flex gap-3 justify-end">
                   <button

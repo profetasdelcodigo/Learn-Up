@@ -851,14 +851,14 @@ export default function ChatPage() {
             >
               {/* Sidebar Header */}
               <div
-                className="px-4 pb-3 border-b border-gray-800/80 bg-brand-black/80 backdrop-blur-xl"
+                className="px-4 pb-3 border-b border-white/6/80 bg-brand-black/80 backdrop-blur-xl"
                 style={{ paddingTop: "calc(env(safe-area-inset-top) + 1rem)" }}
               >
                 <div className="flex items-center justify-between mb-3">
                   {/* Back button — top-left, universal */}
                   <button
                     onClick={() => router.push("/dashboard")}
-                    className="flex items-center justify-center w-9 h-9 rounded-full bg-gray-900 border border-gray-800 text-gray-400 hover:text-white hover:border-brand-gold/40 transition-all shrink-0"
+                    className="flex items-center justify-center w-9 h-9 rounded-full bg-surface-2 border border-white/6 text-gray-400 hover:text-white hover:border-brand-gold/40 transition-all shrink-0"
                     title="Volver al Dashboard"
                   >
                     <ChevronLeft className="w-5 h-5" />
@@ -878,7 +878,7 @@ export default function ChatPage() {
                 </div>
 
                 {/* Tabs */}
-                <div className="flex p-1 bg-gray-900 rounded-xl">
+                <div className="flex p-1 bg-surface-2 rounded-xl">
                   <button
                     onClick={() => {
                       setSidebarTab("chats");
@@ -930,7 +930,7 @@ export default function ChatPage() {
                       placeholder="Buscar @usuario..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 bg-gray-900/50 border border-gray-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold/50 transition-all"
+                      className="w-full pl-10 pr-4 py-2 bg-surface-2/50 border border-white/6 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold/50 transition-all"
                       autoFocus
                     />
                   ) : (
@@ -943,7 +943,7 @@ export default function ChatPage() {
                       }
                       value={localFilter}
                       onChange={(e) => setLocalFilter(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 bg-gray-900/50 border border-gray-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold/50 transition-all"
+                      className="w-full pl-10 pr-4 py-2 bg-surface-2/50 border border-white/6 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold/50 transition-all"
                     />
                   )}
                 </div>
@@ -963,7 +963,7 @@ export default function ChatPage() {
                     {searchResults.map((user) => (
                       <div
                         key={user.id}
-                        className="p-3 bg-gray-900/40 rounded-xl mx-2 mb-2 flex items-center justify-between"
+                        className="p-3 bg-surface-2/40 rounded-xl mx-2 mb-2 flex items-center justify-between"
                       >
                         <div className="flex items-center gap-3 overflow-hidden">
                           <div className="w-10 h-10 rounded-full bg-gray-800 shrink-0 flex items-center justify-center overflow-hidden">
@@ -999,7 +999,7 @@ export default function ChatPage() {
                           ) : user.friendshipStatus === "pending" ? (
                             <button
                               disabled
-                              className="px-3 py-1 bg-gray-800 text-gray-400 text-xs rounded-full cursor-not-allowed border border-gray-700"
+                              className="px-3 py-1 bg-gray-800 text-gray-400 text-xs rounded-full cursor-not-allowed border border-white/10"
                             >
                               Pendiente
                             </button>
@@ -1037,11 +1037,11 @@ export default function ChatPage() {
                             className={`p-3 rounded-xl cursor-pointer transition-all mx-2 group border ${
                               isActive
                                 ? "bg-brand-gold/10 border-brand-gold/30 shadow-[0_0_15px_-5px_var(--brand-gold)]"
-                                : "border-transparent hover:bg-white/5 hover:border-gray-800"
+                                : "border-transparent hover:bg-white/5 hover:border-white/6"
                             }`}
                           >
                             <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 rounded-full bg-gray-800 border border-gray-700 overflow-hidden flex items-center justify-center">
+                              <div className="w-12 h-12 rounded-full bg-gray-800 border border-white/10 overflow-hidden flex items-center justify-center">
                                 {info.avatar_url ? (
                                   <img
                                     src={info.avatar_url}
@@ -1171,7 +1171,7 @@ export default function ChatPage() {
                   <>
                     {/* Chat Header */}
                     <div
-                      className="px-4 pb-3 border-b border-gray-800 flex items-center justify-between bg-brand-black/95 backdrop-blur-xl z-20 shrink-0"
+                      className="px-4 pb-3 border-b border-white/6 flex items-center justify-between bg-brand-black/95 backdrop-blur-xl z-20 shrink-0"
                       style={{
                         paddingTop: "calc(env(safe-area-inset-top) + 0.75rem)",
                       }}
@@ -1179,7 +1179,7 @@ export default function ChatPage() {
                       <div className="flex items-center gap-4">
                         <button
                           onClick={() => setMobileShowChat(false)}
-                          className="md:hidden flex items-center justify-center w-9 h-9 rounded-full bg-gray-900 border border-gray-800 text-gray-400 hover:text-white hover:border-brand-gold/40 transition-all shrink-0"
+                          className="md:hidden flex items-center justify-center w-9 h-9 rounded-full bg-surface-2 border border-white/6 text-gray-400 hover:text-white hover:border-brand-gold/40 transition-all shrink-0"
                         >
                           <ChevronLeft className="w-5 h-5" />
                         </button>
@@ -1320,7 +1320,7 @@ export default function ChatPage() {
                               className={`max-w-[80%] md:max-w-[65%] rounded-2xl p-4 shadow-sm relative ${
                                 isMe
                                   ? "bg-brand-gold text-brand-black rounded-tr-sm"
-                                  : "bg-gray-800 text-white rounded-tl-sm border border-gray-700"
+                                  : "bg-gray-800 text-white rounded-tl-sm border border-white/10"
                               }`}
                             >
                               {msg.is_deleted_for_everyone ? (
@@ -1500,7 +1500,7 @@ export default function ChatPage() {
                                                 </button>
                                               </div>
                                             ) : (
-                                              <div className="mt-2 py-2 bg-gray-800/50 rounded-xl text-gray-400 font-bold text-sm flex justify-center items-center gap-2 border border-gray-700">
+                                              <div className="mt-2 py-2 bg-gray-800/50 rounded-xl text-gray-400 font-bold text-sm flex justify-center items-center gap-2 border border-white/10">
                                                 <PhoneOff className="w-4 h-4" />{" "}
                                                 Llamada Finalizada
                                               </div>
@@ -1563,7 +1563,7 @@ export default function ChatPage() {
                                 if (!isMe && !isAdmin) return null;
 
                                 return (
-                                  <div className="absolute -top-3 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-gray-900 rounded-lg p-1 border border-gray-700 shadow-xl z-10">
+                                  <div className="absolute -top-3 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-surface-2 rounded-lg p-1 border border-white/10 shadow-xl z-10">
                                     {isMe && (
                                       <button
                                         className="p-1 hover:text-brand-gold text-gray-400"
@@ -1594,7 +1594,7 @@ export default function ChatPage() {
                     </div>
 
                     {/* ── Input Area ── */}
-                    <div className="p-4 bg-brand-black border-t border-gray-800 fixed bottom-0 left-0 w-full md:sticky md:bottom-0 md:w-auto z-40 pb-[max(1rem,env(safe-area-inset-bottom))] md:pb-4">
+                    <div className="p-4 bg-brand-black border-t border-white/6 fixed bottom-0 left-0 w-full md:sticky md:bottom-0 md:w-auto z-40 pb-[max(1rem,env(safe-area-inset-bottom))] md:pb-4">
                       {editingMessageId && (
                         <div className="flex items-center justify-between bg-brand-gold/10 p-2 px-4 rounded-t-xl border border-brand-gold/20 text-xs mb-2">
                           <span className="text-brand-gold font-bold">
@@ -1613,20 +1613,20 @@ export default function ChatPage() {
 
                       {/* ── File preview bar ── */}
                       {pendingFile && (
-                        <div className="flex items-center gap-2 bg-gray-900 px-3 py-2 rounded-xl border border-brand-gold/30 mb-2">
+                        <div className="flex items-center gap-2 bg-surface-2 px-3 py-2 rounded-xl border border-brand-gold/30 mb-2">
                           {pendingFile.type.startsWith("image/") ? (
                             <img
                               src={URL.createObjectURL(pendingFile)}
-                              className="w-10 h-10 rounded-lg object-cover border border-gray-700"
+                              className="w-10 h-10 rounded-lg object-cover border border-white/10"
                               alt="preview"
                             />
                           ) : pendingFile.type.startsWith("video/") ? (
                             <video
                               src={URL.createObjectURL(pendingFile)}
-                              className="w-10 h-10 rounded-lg object-cover border border-gray-700"
+                              className="w-10 h-10 rounded-lg object-cover border border-white/10"
                             />
                           ) : (
-                            <div className="w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center border border-gray-700 text-lg">
+                            <div className="w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center border border-white/10 text-lg">
                               {pendingFile.type.includes("pdf")
                                 ? "📄"
                                 : pendingFile.type.includes("audio")
@@ -1683,7 +1683,7 @@ export default function ChatPage() {
                         </div>
                       )}
 
-                      <div className="relative flex items-end gap-2 bg-gray-900/50 p-2 rounded-2xl border border-gray-800 focus-within:border-brand-gold/50 transition-colors">
+                      <div className="relative flex items-end gap-2 bg-surface-2/50 p-2 rounded-2xl border border-white/6 focus-within:border-brand-gold/50 transition-colors">
                         {/* Paperclip — all file types */}
                         <button
                           className="p-3 text-gray-400 hover:text-brand-gold hover:bg-brand-gold/10 rounded-full transition-colors"

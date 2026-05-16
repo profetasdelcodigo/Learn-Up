@@ -123,7 +123,7 @@ export default function Notifications() {
     <div className="relative" ref={panelRef}>
       <button
         onClick={() => setShowPanel(!showPanel)}
-        className="relative p-2 rounded-full border border-gray-700 text-brand-gold hover:bg-brand-gold/10 transition-all"
+        className="relative p-2 rounded-full border border-white/10 text-brand-gold hover:bg-brand-gold/10 transition-all"
       >
         <Bell className="w-6 h-6" />
         {unreadCount > 0 && (
@@ -141,7 +141,7 @@ export default function Notifications() {
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             className="absolute right-0 mt-3 w-80 md:w-96 bg-brand-black border border-brand-gold rounded-2xl shadow-2xl overflow-hidden z-50"
           >
-            <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-900/50">
+            <div className="p-4 border-b border-white/6 flex justify-between items-center bg-surface-2/50">
               <h3 className="font-bold text-white">Notificaciones</h3>
               {unreadCount > 0 && (
                 <button
@@ -163,7 +163,7 @@ export default function Notifications() {
                 notifications.map((notif) => (
                   <div
                     key={notif.id}
-                    className={`p-4 border-b border-gray-800 hover:bg-white/5 transition-colors relative group ${
+                    className={`p-4 border-b border-white/6 hover:bg-white/5 transition-colors relative group ${
                       !notif.is_read ? "bg-brand-gold/5" : ""
                     }`}
                   >

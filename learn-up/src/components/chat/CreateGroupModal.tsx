@@ -94,7 +94,7 @@ export default function CreateGroupModal({
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-brand-black border border-brand-gold/30 rounded-2xl w-full max-w-md shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-800">
+        <div className="flex items-center justify-between p-4 border-b border-white/6">
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <Users className="w-5 h-5 text-brand-gold" />
             Crear Nuevo Grupo
@@ -112,7 +112,7 @@ export default function CreateGroupModal({
           {/* Photo Upload */}
           <div className="flex flex-col items-center justify-center">
             <div
-              className="relative w-24 h-24 rounded-full bg-gray-800 border-2 border-dashed border-gray-600 flex items-center justify-center cursor-pointer hover:border-brand-gold hover:bg-gray-800/50 transition-all overflow-hidden group"
+              className="relative w-24 h-24 rounded-full bg-gray-800 border-2 border-dashed border-gray-600 flex items-center justify-center cursor-pointer hover:border-brand-gold hover:bg-white/5/50 transition-all overflow-hidden group"
               onClick={() => fileInputRef.current?.click()}
             >
               {previewUrl ? (
@@ -151,7 +151,7 @@ export default function CreateGroupModal({
                 value={groupName}
                 onChange={(e) => setGroupName(e.target.value)}
                 placeholder="Ej: Estudio de Matemáticas"
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-800 rounded-xl text-white focus:outline-none focus:border-brand-gold/50"
+                className="w-full px-4 py-3 bg-surface-2 border border-white/6 rounded-xl text-white focus:outline-none focus:border-brand-gold/50"
                 maxLength={50}
               />
             </div>
@@ -163,7 +163,7 @@ export default function CreateGroupModal({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Ej: Grupo para organizarnos para los exámenes"
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-800 rounded-xl text-white focus:outline-none focus:border-brand-gold/50 resize-none min-h-[80px]"
+                className="w-full px-4 py-3 bg-surface-2 border border-white/6 rounded-xl text-white focus:outline-none focus:border-brand-gold/50 resize-none min-h-[80px]"
                 maxLength={200}
               />
             </div>
@@ -184,10 +184,10 @@ export default function CreateGroupModal({
                     className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${
                       isSelected
                         ? "bg-brand-gold/20 border border-brand-gold/50"
-                        : "bg-gray-900 border border-gray-800 hover:bg-gray-800"
+                        : "bg-surface-2 border border-white/6 hover:bg-white/5"
                     }`}
                   >
-                    <div className="w-10 h-10 rounded-full bg-gray-800 border border-gray-700 overflow-hidden flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-gray-800 border border-white/10 overflow-hidden flex items-center justify-center">
                       {friend.avatar_url ? (
                         <img
                           src={friend.avatar_url}
@@ -222,7 +222,7 @@ export default function CreateGroupModal({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-800 flex gap-3">
+        <div className="p-4 border-t border-white/6 flex gap-3">
           <button
             onClick={onClose}
             className="flex-1 px-4 py-3 bg-gray-800 text-white rounded-xl hover:bg-gray-700 transition-colors font-medium"

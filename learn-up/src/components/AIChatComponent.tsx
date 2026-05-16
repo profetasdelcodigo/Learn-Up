@@ -51,7 +51,7 @@ function renderAIContent(text: string): string {
     // Images: ![alt](url) -> Only render if url is present
     .replace(/!\[([^\]]*)\]\(([^)]*)\)/g, (match, p1, p2) => {
       if (!p2 || p2.trim() === "") return ``; 
-      return `<img src="${p2}" alt="${p1}" class="rounded-xl max-w-full my-2 border border-gray-700" style="max-height:300px" />`;
+      return `<img src="${p2}" alt="${p1}" class="rounded-xl max-w-full my-2 border border-white/10" style="max-height:300px" />`;
     })
     // Links: [text](url)
     .replace(/\[([^\]]*)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-brand-gold hover:underline inline-flex items-center gap-1">$1 ↗</a>')
@@ -421,7 +421,7 @@ export default function AIChatComponent({
         >
           {/* ──────────────────── HEADER ──────────────────── */}
           <div
-            className="shrink-0 relative flex items-center justify-between px-4 border-b border-gray-800/80 bg-brand-black/95 backdrop-blur-xl z-30"
+            className="shrink-0 relative flex items-center justify-between px-4 border-b border-white/6/80 bg-brand-black/95 backdrop-blur-xl z-30"
             style={{
               paddingTop: "0.75rem",
               paddingBottom: "0.75rem",
@@ -430,7 +430,7 @@ export default function AIChatComponent({
             {/* LEFT: Back button */}
             <button
               onClick={() => router.back()}
-              className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-900 border border-gray-800 text-gray-400 hover:text-white hover:border-brand-gold/40 transition-all shrink-0"
+              className="flex items-center justify-center w-10 h-10 rounded-full bg-surface-2 border border-white/6 text-gray-400 hover:text-white hover:border-brand-gold/40 transition-all shrink-0"
               aria-label="Volver"
             >
               <ChevronLeft className="w-5 h-5" />
@@ -457,7 +457,7 @@ export default function AIChatComponent({
               className={`flex items-center justify-center w-10 h-10 rounded-full border transition-all shrink-0 ${
                 showHistory
                   ? "bg-brand-gold text-brand-black border-brand-gold"
-                  : "bg-gray-900 border-gray-800 text-gray-400 hover:border-brand-gold/40 hover:text-white"
+                  : "bg-surface-2 border-white/6 text-gray-400 hover:border-brand-gold/40 hover:text-white"
               }`}
               aria-label="Historial"
             >
@@ -483,12 +483,12 @@ export default function AIChatComponent({
                   animate={{ x: 0 }}
                   exit={{ x: "100%" }}
                   transition={{ type: "spring", damping: 28, stiffness: 300 }}
-                  className="fixed top-0 right-0 h-full w-72 bg-gray-950 border-l border-gray-800 z-30 flex flex-col"
+                  className="fixed top-0 right-0 h-full w-72 bg-surface-1 border-l border-white/6 z-30 flex flex-col"
                   style={{
                     paddingTop: "calc(env(safe-area-inset-top) + 0rem)",
                   }}
                 >
-                  <div className="flex items-center justify-between p-4 border-b border-gray-800">
+                  <div className="flex items-center justify-between p-4 border-b border-white/6">
                     <h3 className="font-bold text-white flex items-center gap-2 text-sm">
                       <Bot className="w-4 h-4 text-brand-gold" /> Historial
                     </h3>
@@ -519,8 +519,8 @@ export default function AIChatComponent({
                           onClick={() => loadSessionMessages(s.id)}
                           className={`p-3 rounded-xl cursor-pointer flex justify-between items-center group transition-colors ${
                             currentSessionId === s.id
-                              ? "bg-gray-800 border border-gray-700"
-                              : "hover:bg-gray-800/50"
+                              ? "bg-gray-800 border border-white/10"
+                              : "hover:bg-white/5/50"
                           }`}
                         >
                           <div className="truncate pr-2">
@@ -550,7 +550,7 @@ export default function AIChatComponent({
           <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 pb-8">
-                <div className="w-20 h-20 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center mb-4">
+                <div className="w-20 h-20 rounded-full bg-surface-2 border border-white/6 flex items-center justify-center mb-4">
                   {icon}
                 </div>
                 <p className="max-w-xs text-sm">
@@ -577,7 +577,7 @@ export default function AIChatComponent({
                   className={`max-w-[85%] md:max-w-[70%] p-4 rounded-2xl ${
                     message.role === "user"
                       ? "bg-brand-gold text-brand-black rounded-tr-sm"
-                      : "bg-gray-900 border border-gray-800 text-white rounded-tl-sm"
+                      : "bg-surface-2 border border-white/6 text-white rounded-tl-sm"
                   }`}
                 >
                   {message.media_url && message.media_type === "image" && (
@@ -605,7 +605,7 @@ export default function AIChatComponent({
                     <div>
                       {message.role === "assistant" ? (
                         <div
-                          className="prose-ai text-sm md:text-base leading-relaxed [&_a]:text-brand-gold [&_a]:hover:underline [&_img]:rounded-xl [&_img]:max-w-full [&_img]:my-2 [&_img]:border [&_img]:border-gray-700 [&_strong]:text-white [&_strong]:font-semibold"
+                          className="prose-ai text-sm md:text-base leading-relaxed [&_a]:text-brand-gold [&_a]:hover:underline [&_img]:rounded-xl [&_img]:max-w-full [&_img]:my-2 [&_img]:border [&_img]:border-white/10 [&_strong]:text-white [&_strong]:font-semibold"
                           dangerouslySetInnerHTML={{ __html: renderAIContent(message.content) }}
                         />
                       ) : (
@@ -644,7 +644,7 @@ export default function AIChatComponent({
 
             {loading && (
               <div className="flex justify-start">
-                <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 rounded-tl-sm flex items-center gap-3">
+                <div className="bg-surface-2 border border-white/6 rounded-2xl p-4 rounded-tl-sm flex items-center gap-3">
                   <Loader2 className="w-5 h-5 text-brand-gold animate-spin shrink-0" />
                   <motion.span 
                     key={loadingMessage}
@@ -670,7 +670,7 @@ export default function AIChatComponent({
                   {pendingActions.map((action, i) => (
                     <div
                       key={i}
-                      className="bg-gray-900 border border-brand-gold/30 rounded-2xl p-4 rounded-tl-sm"
+                      className="bg-surface-2 border border-brand-gold/30 rounded-2xl p-4 rounded-tl-sm"
                     >
                       <div className="flex items-center gap-2 mb-3">
                         <div className="w-8 h-8 rounded-full bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center text-brand-gold">
@@ -720,13 +720,13 @@ export default function AIChatComponent({
 
           {/* ──────────────────── INPUT AREA ──────────────────── */}
           <div
-            className="shrink-0 bg-brand-black/95 backdrop-blur-xl border-t border-gray-800/80 px-4 pt-3"
+            className="shrink-0 bg-brand-black/95 backdrop-blur-xl border-t border-white/6/80 px-4 pt-3"
             style={{
               paddingBottom: "calc(env(safe-area-inset-bottom) + 0.75rem)",
             }}
           >
             {file && (
-              <div className="mb-3 flex items-center gap-2 p-2 bg-gray-900 rounded-xl border border-brand-gold/30">
+              <div className="mb-3 flex items-center gap-2 p-2 bg-surface-2 rounded-xl border border-brand-gold/30">
                 {getMediaType(file) === "image" ? (
                   <ImageIcon className="w-4 h-4 text-brand-gold" />
                 ) : (
@@ -755,7 +755,7 @@ export default function AIChatComponent({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="p-3 rounded-full bg-gray-900 text-gray-400 hover:text-brand-gold hover:bg-gray-800 transition-colors shrink-0 border border-gray-800 flex items-center justify-center"
+                className="p-3 rounded-full bg-surface-2 text-gray-400 hover:text-brand-gold hover:bg-white/5 transition-colors shrink-0 border border-white/6 flex items-center justify-center"
               >
                 <Paperclip className="w-5 h-5" />
               </button>
@@ -765,7 +765,7 @@ export default function AIChatComponent({
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Escribe tu mensaje..."
                 disabled={loading || uploadingMedia}
-                className="flex-1 min-w-0 px-4 py-3.5 bg-gray-900 border border-gray-800 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors disabled:opacity-50 text-sm"
+                className="flex-1 min-w-0 px-4 py-3.5 bg-surface-2 border border-white/6 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors disabled:opacity-50 text-sm"
               />
               <button
                 type="submit"

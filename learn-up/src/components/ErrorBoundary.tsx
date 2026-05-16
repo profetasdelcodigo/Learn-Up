@@ -53,7 +53,7 @@ export class ErrorBoundary extends Component<Props, State> {
             Ocurrió un error inesperado en esta sección. Intenta recargarla o
             regresa al inicio.
           </p>
-          <p className="text-xs text-gray-600 font-mono bg-gray-900 px-3 py-2 rounded-lg mb-6 max-w-xs truncate">
+          <p className="text-xs text-gray-600 font-mono bg-surface-2 px-3 py-2 rounded-lg mb-6 max-w-xs truncate">
             {this.state.errorMessage}
           </p>
           <div className="flex gap-3">
@@ -66,7 +66,7 @@ export class ErrorBoundary extends Component<Props, State> {
             </button>
             <a
               href="/dashboard"
-              className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white border border-gray-700 font-semibold rounded-full hover:border-brand-gold/50 transition-all text-sm"
+              className="flex items-center gap-2 px-5 py-2.5 bg-surface-2 text-white border border-white/10 font-semibold rounded-full hover:border-brand-gold/50 transition-all text-sm"
             >
               <Home className="w-4 h-4" />
               Inicio

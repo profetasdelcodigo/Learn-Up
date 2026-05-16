@@ -193,16 +193,17 @@ function LoginForm() {
     /* Fixed full-screen container — independent of MainLayout overflow */
     <div className="fixed inset-0 bg-brand-black flex flex-col lg:flex-row">
       {/* Left Side — Branding (hidden on mobile) */}
-      <div className="hidden lg:flex lg:w-1/2 relative flex-col items-center justify-center p-12 overflow-hidden border-r border-brand-gold/20 bg-linear-to-br from-brand-black to-brand-brown/10">
+      <div className="hidden lg:flex lg:w-1/2 relative flex-col items-center justify-center p-12 overflow-hidden border-r border-white/6">
+        <div className="absolute inset-0 bg-mesh-1" />
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <motion.div
-            className="absolute top-1/4 -left-1/4 w-[500px] h-[500px] bg-brand-gold opacity-10 rounded-full blur-[100px]"
-            animate={{ scale: [1, 1.2, 1], opacity: [0.08, 0.14, 0.08] }}
+            className="absolute top-1/4 -left-1/4 w-[500px] h-[500px] bg-brand-purple/15 rounded-full blur-[120px]"
+            animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.2, 0.1] }}
             transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
           />
           <motion.div
-            className="absolute bottom-1/4 right-0 w-[400px] h-[400px] bg-brand-gold opacity-5 rounded-full blur-[80px]"
-            animate={{ scale: [1, 1.3, 1], opacity: [0.05, 0.1, 0.05] }}
+            className="absolute bottom-1/4 right-0 w-[400px] h-[400px] bg-brand-gold/10 rounded-full blur-[100px]"
+            animate={{ scale: [1, 1.3, 1], opacity: [0.05, 0.12, 0.05] }}
             transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
           />
         </div>
@@ -213,13 +214,13 @@ function LoginForm() {
           transition={{ duration: 0.8 }}
           className="relative z-10 text-center max-w-lg"
         >
-          <div className="inline-flex items-center justify-center w-24 h-24 mb-8 rounded-3xl border border-brand-gold/50 bg-brand-black/50 backdrop-blur-md shadow-[0_0_30px_rgba(212,175,55,0.2)]">
+          <div className="inline-flex items-center justify-center w-24 h-24 mb-8 rounded-3xl border border-brand-gold/20 bg-surface-2/50 backdrop-blur-md shadow-glow-gold">
             <Sparkles className="w-12 h-12 text-brand-gold" />
           </div>
-          <h1 className="text-5xl font-bold text-white mb-6">
-            Learn <span className="text-brand-gold">Up</span>
+          <h1 className="text-5xl font-bold text-white mb-6 font-display">
+            Learn <span className="text-gradient-gold">Up</span>
           </h1>
-          <p className="text-xl text-gray-300 leading-relaxed">
+          <p className="text-lg text-gray-400 leading-relaxed font-body">
             La plataforma educativa definitiva. Conéctate con{" "}
             {isSignup ? "tu futuro" : "tu comunidad"}, aprende a tu propio ritmo
             y alcanza todas tus metas.
@@ -228,10 +229,10 @@ function LoginForm() {
       </div>
 
       {/* Right Side — Auth Form (scrollable) */}
-      <div className="w-full lg:w-1/2 flex-1 min-h-dvh lg:min-h-0 flex items-center justify-center relative bg-brand-black overflow-y-auto">
+      <div className="w-full lg:w-1/2 flex-1 min-h-dvh lg:min-h-0 flex items-center justify-center relative bg-brand-black overflow-hidden">
         {/* Mobile background glow */}
         <div className="absolute inset-0 overflow-hidden lg:hidden pointer-events-none">
-          <motion.div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-72 h-72 bg-brand-gold opacity-10 rounded-full blur-[60px]" />
+          <motion.div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-72 h-72 bg-brand-purple/15 rounded-full blur-[80px]" />
         </div>
 
         <motion.div
@@ -240,15 +241,15 @@ function LoginForm() {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="relative z-10 w-full max-w-md p-4 sm:p-10 py-12 lg:py-10 mx-auto"
         >
-          <div className="bg-gray-900/60 backdrop-blur-xl border border-brand-gold/30 rounded-3xl p-8 sm:p-10 shadow-2xl">
+          <div className="glass-strong border border-white/8 rounded-2xl p-8 sm:p-10 shadow-2xl">
             <StaggerContainer delayOffset={0.3}>
               {/* Header */}
               <FadeUpItem>
                 <div className="text-center mb-8">
-                  <h2 className="text-3xl font-bold text-white mb-2">
+                  <h2 className="text-3xl font-bold text-white mb-2 font-display">
                     {isSignup ? "Crear Cuenta" : "Bienvenido"}
                   </h2>
-                  <p className="text-gray-400">
+                  <p className="text-gray-500 font-body">
                     {isSignup
                       ? "Únete a Learn Up"
                       : "Inicia sesión para continuar"}
@@ -261,7 +262,7 @@ function LoginForm() {
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-2xl text-red-400 text-sm"
+                  className="mb-6 p-4 bg-red-500/8 border border-red-500/30 rounded-xl text-red-400 text-sm font-body"
                 >
                   {error}
                 </motion.div>
@@ -272,7 +273,7 @@ function LoginForm() {
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="mb-6 p-4 bg-green-500/10 border border-green-500/50 rounded-2xl text-green-400 text-sm"
+                  className="mb-6 p-4 bg-brand-emerald/8 border border-brand-emerald/30 rounded-xl text-brand-emerald text-sm font-body"
                 >
                   {successMsg}
                 </motion.div>
@@ -285,7 +286,7 @@ function LoginForm() {
                   onClick={handleGoogleAuth}
                   disabled={loading}
                   id="google-auth-btn"
-                  className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-white text-gray-900 font-medium rounded-full hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-6"
+                  className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white text-gray-900 font-semibold rounded-xl hover:bg-gray-100 hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed mb-6 font-body"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path
@@ -312,9 +313,9 @@ function LoginForm() {
               {/* Divider */}
               <FadeUpItem>
                 <div className="flex items-center gap-4 mb-6">
-                  <div className="flex-1 h-px bg-gray-700" />
-                  <span className="text-gray-500 text-sm">o</span>
-                  <div className="flex-1 h-px bg-gray-700" />
+                  <div className="flex-1 h-px bg-white/8" />
+                  <span className="text-gray-600 text-xs font-body uppercase tracking-wider">o</span>
+                  <div className="flex-1 h-px bg-white/8" />
                 </div>
               </FadeUpItem>
 
@@ -324,7 +325,7 @@ function LoginForm() {
                   <div>
                     <label
                       htmlFor="email-input"
-                      className="block text-sm font-medium text-gray-300 mb-2"
+                      className="block text-sm font-medium text-gray-400 mb-2 font-body"
                     >
                       Correo Electrónico
                     </label>
@@ -338,7 +339,7 @@ function LoginForm() {
                         onChange={(e) => setEmail(e.target.value)}
                         required
                         autoComplete="email"
-                        className="w-full pl-12 pr-4 py-3 bg-brand-black border border-gray-700 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
+                        className="input-base pl-12 !rounded-xl"
                         placeholder="tu@email.com"
                       />
                     </div>
@@ -347,7 +348,7 @@ function LoginForm() {
                   <div>
                     <label
                       htmlFor="password-input"
-                      className="block text-sm font-medium text-gray-300 mb-2"
+                      className="block text-sm font-medium text-gray-400 mb-2 font-body"
                     >
                       Contraseña
                     </label>
@@ -364,7 +365,7 @@ function LoginForm() {
                         autoComplete={
                           isSignup ? "new-password" : "current-password"
                         }
-                        className="w-full pl-12 pr-4 py-3 bg-brand-black border border-gray-700 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
+                        className="input-base pl-12 !rounded-xl"
                         placeholder="••••••••"
                       />
                     </div>
@@ -374,7 +375,7 @@ function LoginForm() {
                     type="submit"
                     disabled={loading}
                     id="submit-auth-btn"
-                    className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-brand-gold text-brand-black font-semibold rounded-full hover:bg-brand-gold/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="btn-primary w-full !rounded-xl"
                   >
                     {loading ? (
                       <Loader2 className="w-5 h-5 animate-spin" />
@@ -390,11 +391,11 @@ function LoginForm() {
 
               {/* Toggle mode */}
               <FadeUpItem>
-                <div className="mt-6 text-center text-sm text-gray-400">
+                <div className="mt-6 text-center text-sm text-gray-500 font-body">
                   {isSignup ? "¿Ya tienes cuenta?" : "¿No tienes cuenta?"}{" "}
                   <Link
                     href={isSignup ? "/login" : "/login?mode=signup"}
-                    className="text-brand-gold hover:underline font-medium"
+                    className="text-brand-gold hover:underline font-semibold"
                   >
                     {isSignup ? "Inicia sesión" : "Regístrate"}
                   </Link>
@@ -406,7 +407,7 @@ function LoginForm() {
                 <div className="mt-4 text-center">
                   <Link
                     href="/"
-                    className="text-sm text-gray-500 hover:text-gray-300 transition-colors"
+                    className="text-sm text-gray-600 hover:text-gray-400 transition-colors font-body"
                   >
                     ← Volver al inicio
                   </Link>

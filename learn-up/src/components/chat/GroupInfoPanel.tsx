@@ -204,7 +204,7 @@ export default function GroupInfoPanel({
   return (
     <div className="fixed inset-y-0 right-0 w-full md:w-96 bg-brand-black border-l border-brand-gold/30 z-40 shadow-2xl overflow-y-auto custom-scrollbar">
       {/* Header */}
-      <div className="sticky top-0 bg-brand-black/95 backdrop-blur-xl border-b border-gray-800 p-4 z-10">
+      <div className="sticky top-0 bg-brand-black/95 backdrop-blur-xl border-b border-white/6 p-4 z-10">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-white">Info del Grupo</h2>
           <button
@@ -217,7 +217,7 @@ export default function GroupInfoPanel({
       </div>
 
       {/* Group Photo */}
-      <div className="p-6 flex flex-col items-center border-b border-gray-800">
+      <div className="p-6 flex flex-col items-center border-b border-white/6">
         <div
           className="w-24 h-24 rounded-full bg-brand-gold/20 border-2 border-brand-gold/50 flex items-center justify-center mb-4 relative group cursor-pointer overflow-hidden"
           onClick={() => isEditing && fileInputRef.current?.click()}
@@ -254,7 +254,7 @@ export default function GroupInfoPanel({
               type="text"
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-900 border border-gray-800 rounded-xl text-white text-center focus:outline-none focus:border-brand-gold/50"
+              className="w-full px-4 py-2 bg-surface-2 border border-white/6 rounded-xl text-white text-center focus:outline-none focus:border-brand-gold/50"
               maxLength={50}
               placeholder="Nombre del grupo"
               autoFocus
@@ -262,13 +262,13 @@ export default function GroupInfoPanel({
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-900 border border-gray-800 rounded-xl text-white text-sm focus:outline-none focus:border-brand-gold/50 resize-none"
+              className="w-full px-4 py-2 bg-surface-2 border border-white/6 rounded-xl text-white text-sm focus:outline-none focus:border-brand-gold/50 resize-none"
               placeholder="Añade una descripción (Opcional)"
               rows={3}
               maxLength={200}
             />
 
-            <label className="flex items-center gap-3 p-3 bg-gray-900 border border-gray-800 rounded-xl cursor-pointer hover:border-brand-gold/50 transition-colors">
+            <label className="flex items-center gap-3 p-3 bg-surface-2 border border-white/6 rounded-xl cursor-pointer hover:border-brand-gold/50 transition-colors">
               <input
                 type="checkbox"
                 checked={onlyAdminsMessage}
@@ -363,7 +363,7 @@ export default function GroupInfoPanel({
 
         {/* Add Member Search */}
         {showAddMember && (
-          <div className="mb-4 p-3 bg-gray-900/80 rounded-xl border border-brand-gold/20">
+          <div className="mb-4 p-3 bg-surface-2/80 rounded-xl border border-brand-gold/20">
             <div className="relative mb-2">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
@@ -371,7 +371,7 @@ export default function GroupInfoPanel({
                 value={memberSearch}
                 onChange={(e) => handleMemberSearch(e.target.value)}
                 placeholder="Buscar por nombre o @usuario..."
-                className="w-full pl-9 pr-3 py-2 bg-brand-black border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-brand-gold/50"
+                className="w-full pl-9 pr-3 py-2 bg-brand-black border border-white/10 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-brand-gold/50"
                 autoFocus
               />
             </div>
@@ -385,10 +385,10 @@ export default function GroupInfoPanel({
                 {searchResults.map((result) => (
                   <div
                     key={result.id}
-                    className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-gray-800 transition-colors border border-transparent hover:border-gray-700"
+                    className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors border border-transparent hover:border-white/10"
                   >
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-gray-800 border border-gray-700 overflow-hidden flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-gray-800 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
                         {result.avatar_url ? (
                           <img src={result.avatar_url} alt="" className="w-full h-full object-cover" />
                         ) : (
@@ -447,9 +447,9 @@ export default function GroupInfoPanel({
           {members.map((member) => (
             <div
               key={member.id}
-              className="flex items-center gap-3 p-3 bg-gray-900/50 rounded-xl"
+              className="flex items-center gap-3 p-3 bg-surface-2/50 rounded-xl"
             >
-              <div className="w-10 h-10 rounded-full bg-gray-800 border border-gray-700 overflow-hidden flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-full bg-gray-800 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
                 {member.avatar_url ? (
                   <img
                     src={member.avatar_url}
@@ -490,7 +490,7 @@ export default function GroupInfoPanel({
                   className={`p-2 rounded-lg transition-colors shrink-0 ${
                     groupAdmins.includes(member.id)
                       ? "text-brand-gold hover:bg-brand-red hover:text-white"
-                      : "text-gray-500 hover:text-brand-gold hover:bg-gray-800"
+                      : "text-gray-500 hover:text-brand-gold hover:bg-white/5"
                   }`}
                 >
                   <Users className="w-4 h-4" />
@@ -502,7 +502,7 @@ export default function GroupInfoPanel({
       </div>
 
       {/* Actions */}
-      <div className="p-4 border-t border-gray-800">
+      <div className="p-4 border-t border-white/6">
         <button
           onClick={onLeaveGroup}
           className="w-full px-4 py-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500/20 transition-colors font-medium flex items-center justify-center gap-2"

@@ -362,7 +362,7 @@ export default function LibraryPage() {
     return (
       <div className="w-full min-h-screen bg-brand-black p-6">
         <BackButton className="mb-6" />
-        <div className="h-12 bg-gray-900 rounded-2xl w-64 animate-pulse mb-8" />
+        <div className="h-12 bg-surface-2 rounded-2xl w-64 animate-pulse mb-8" />
         <SkeletonGrid count={6} />
       </div>
     );
@@ -415,7 +415,7 @@ export default function LibraryPage() {
                   {pendingItems.map((item) => (
                     <div
                       key={item.id}
-                      className="flex items-center justify-between p-4 bg-brand-black/60 rounded-2xl border border-gray-800"
+                      className="flex items-center justify-between p-4 bg-brand-black/60 rounded-2xl border border-white/6"
                     >
                       <div>
                         <p className="font-semibold text-white">{item.title}</p>
@@ -456,7 +456,7 @@ export default function LibraryPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Buscar por título, materia o @autor..."
-                  className="w-full pl-12 pr-4 py-3.5 bg-gray-900 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
+                  className="w-full pl-12 pr-4 py-3.5 bg-surface-2 border border-white/10 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
                 />
               </div>
               <div className="flex gap-2">
@@ -464,7 +464,7 @@ export default function LibraryPage() {
                   <button
                     key={section}
                     onClick={() => setActiveSection(section)}
-                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-1.5 ${activeSection === section ? "bg-brand-gold text-brand-black" : "bg-gray-900 text-gray-400 hover:text-white border border-gray-800"}`}
+                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-1.5 ${activeSection === section ? "bg-brand-gold text-brand-black" : "bg-surface-2 text-gray-400 hover:text-white border border-white/6"}`}
                   >
                     {section === "all" && <Sparkles className="w-3.5 h-3.5" />}
                     {section === "favorites" && (
@@ -650,7 +650,7 @@ export default function LibraryPage() {
                 animate={{ scale: 1 }}
                 exit={{ scale: 0.9 }}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-gray-900 border border-brand-gold rounded-3xl p-8 max-w-lg w-full"
+                className="bg-surface-2 border border-brand-gold rounded-3xl p-8 max-w-lg w-full"
               >
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold text-white">
@@ -658,7 +658,7 @@ export default function LibraryPage() {
                   </h2>
                   <button
                     onClick={() => setReviewItem(null)}
-                    className="p-2 rounded-full border border-gray-700 text-gray-400 hover:border-white"
+                    className="p-2 rounded-full border border-white/10 text-gray-400 hover:border-white"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -739,7 +739,7 @@ export default function LibraryPage() {
                     <X className="w-5 h-5" />
                   </button>
                 </div>
-                <div className="p-3 bg-gray-900 rounded-xl mb-4 border border-gray-800">
+                <div className="p-3 bg-surface-2 rounded-xl mb-4 border border-white/6">
                   <p className="text-sm text-white font-bold truncate">
                     {sharingItem.title}
                   </p>
@@ -758,7 +758,7 @@ export default function LibraryPage() {
                         key={room.id}
                         onClick={() => confirmShareToRoom(room.id)}
                         disabled={sharingToRooms}
-                        className="w-full text-left p-3 bg-black/40 border border-gray-800 rounded-xl hover:border-brand-gold flex items-center justify-between group disabled:opacity-50 transition-colors"
+                        className="w-full text-left p-3 bg-black/40 border border-white/6 rounded-xl hover:border-brand-gold flex items-center justify-between group disabled:opacity-50 transition-colors"
                       >
                         <span className="text-white text-sm font-medium pr-2 truncate">
                           {room.type === "group"
@@ -800,7 +800,7 @@ export default function LibraryPage() {
                   </h2>
                   <button
                     onClick={() => setShowModal(false)}
-                    className="w-10 h-10 rounded-full border border-gray-700 flex items-center justify-center text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
+                    className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -820,7 +820,7 @@ export default function LibraryPage() {
                       onChange={(e) =>
                         setFormData({ ...formData, title: e.target.value })
                       }
-                      className="w-full px-4 py-3 bg-black/40 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold"
+                      className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold"
                       placeholder="Ej: Resumen de Álgebra Cap. 1"
                       required
                     />
@@ -837,7 +837,7 @@ export default function LibraryPage() {
                           description: e.target.value,
                         })
                       }
-                      className="w-full px-4 py-3 bg-black/40 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold resize-none"
+                      className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold resize-none"
                       placeholder="Breve descripción del material..."
                       rows={2}
                     />
@@ -852,7 +852,7 @@ export default function LibraryPage() {
                       onChange={(e) =>
                         setFormData({ ...formData, subject: e.target.value })
                       }
-                      className="w-full px-4 py-3 bg-black/40 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold"
+                      className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold"
                       placeholder="Matemáticas, Historia, ..."
                     />
                   </div>
@@ -874,7 +874,7 @@ export default function LibraryPage() {
                             reviewer_username: e.target.value,
                           })
                         }
-                        className="w-full pl-10 pr-4 py-3 bg-black/40 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold"
+                        className="w-full pl-10 pr-4 py-3 bg-black/40 border border-white/10 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold"
                         placeholder="@usuario_del_docente"
                         required
                       />
@@ -891,7 +891,7 @@ export default function LibraryPage() {
                                 reviewer_username: d.username || "",
                               })
                             }
-                            className="px-3 py-1 text-xs bg-gray-800 text-gray-300 rounded-full hover:bg-brand-gold hover:text-black transition-all border border-gray-700"
+                            className="px-3 py-1 text-xs bg-gray-800 text-gray-300 rounded-full hover:bg-brand-gold hover:text-black transition-all border border-white/10"
                           >
                             @{d.username} ({d.full_name})
                           </button>
@@ -917,16 +917,16 @@ export default function LibraryPage() {
                           <img
                             src={URL.createObjectURL(formData.file)}
                             alt="Preview"
-                            className="w-full h-40 object-cover rounded-xl border border-gray-700"
+                            className="w-full h-40 object-cover rounded-xl border border-white/10"
                           />
                         ) : formData.file.type.startsWith("video/") ? (
                           <video
                             src={URL.createObjectURL(formData.file)}
                             controls
-                            className="w-full h-40 object-cover rounded-xl border border-gray-700 bg-black"
+                            className="w-full h-40 object-cover rounded-xl border border-white/10 bg-black"
                           />
                         ) : (
-                          <div className="w-full h-24 bg-gray-800 rounded-xl flex items-center justify-center border border-gray-700 text-gray-400">
+                          <div className="w-full h-24 bg-gray-800 rounded-xl flex items-center justify-center border border-white/10 text-gray-400">
                             <div className="flex items-center gap-3">
                               <FileText className="w-8 h-8 text-brand-gold" />
                               <span className="text-sm font-semibold truncate max-w-xs">
@@ -946,7 +946,7 @@ export default function LibraryPage() {
                           file: e.target.files?.[0] || null,
                         })
                       }
-                      className="w-full px-4 py-3 bg-black/40 border border-gray-700 rounded-2xl text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-gold file:text-brand-black hover:file:bg-white focus:outline-none focus:border-brand-gold"
+                      className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-2xl text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-gold file:text-brand-black hover:file:bg-white focus:outline-none focus:border-brand-gold"
                       accept=".pdf,.doc,.docx,.txt,.ppt,.pptx,.mp4,.webm,.png,.jpg,.jpeg,.gif"
                       required
                     />

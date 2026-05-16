@@ -229,9 +229,9 @@ export default function ExamenIAPage() {
     <div className="min-h-screen bg-brand-black flex flex-col md:flex-row">
       {/* Sidebar History (Desktop) */}
       <div
-        className={`fixed inset-y-0 left-0 z-40 w-64 bg-gray-900 border-r border-gray-800 transform ${showHistory ? "translate-x-0" : "-translate-x-full"} md:relative md:translate-x-0 transition-transform duration-300 ease-in-out`}
+        className={`fixed inset-y-0 left-0 z-40 w-64 bg-surface-2 border-r border-white/6 transform ${showHistory ? "translate-x-0" : "-translate-x-full"} md:relative md:translate-x-0 transition-transform duration-300 ease-in-out`}
       >
-        <div className="p-4 flex items-center justify-between border-b border-gray-800">
+        <div className="p-4 flex items-center justify-between border-b border-white/6">
           <h3 className="font-bold text-white flex items-center gap-2">
             <Bot className="w-5 h-5 text-brand-blue-glow" /> Historial
           </h3>
@@ -259,7 +259,7 @@ export default function ExamenIAPage() {
                 <div
                   key={s.id}
                   onClick={() => loadSessionDetails(s.id)}
-                  className={`p-3 rounded-xl cursor-pointer flex justify-between items-center group transition-colors hover:bg-gray-800/50`}
+                  className={`p-3 rounded-xl cursor-pointer flex justify-between items-center group transition-colors hover:bg-white/5/50`}
                 >
                   <div className="truncate pr-2">
                     <p className="text-sm text-white truncate font-medium">
@@ -311,7 +311,7 @@ export default function ExamenIAPage() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-gray-900/80 border border-brand-blue-glow/40 rounded-3xl p-8"
+              className="bg-surface-2/80 border border-brand-blue-glow/40 rounded-3xl p-8"
             >
               <form onSubmit={handleGenerateExam} className="space-y-6">
                 <div>
@@ -323,7 +323,7 @@ export default function ExamenIAPage() {
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
                     placeholder="Ej: Segunda Guerra Mundial, Álgebra Lineal, Ecosistemas..."
-                    className="w-full px-4 py-3 bg-black/40 border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue-glow transition-colors"
+                    className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue-glow transition-colors"
                     required
                   />
                 </div>
@@ -339,7 +339,7 @@ export default function ExamenIAPage() {
                           key={level}
                           type="button"
                           onClick={() => setDifficulty(level)}
-                          className={`py-3 px-4 rounded-2xl font-semibold text-sm transition-all ${difficulty === level ? "bg-brand-blue-glow text-white shadow-lg shadow-brand-blue-glow/20" : "bg-black/40 border border-gray-700 text-gray-400 hover:border-brand-blue-glow/50"}`}
+                          className={`py-3 px-4 rounded-2xl font-semibold text-sm transition-all ${difficulty === level ? "bg-brand-blue-glow text-white shadow-lg shadow-brand-blue-glow/20" : "bg-black/40 border border-white/10 text-gray-400 hover:border-brand-blue-glow/50"}`}
                         >
                           {level === "básico"
                             ? "🟢 Básico"
@@ -362,7 +362,7 @@ export default function ExamenIAPage() {
                   </label>
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className={`w-full p-4 border-2 border-dashed rounded-2xl cursor-pointer transition-all text-center ${file ? "border-brand-blue-glow/50 bg-brand-blue-glow/5" : "border-gray-700 hover:border-brand-blue-glow/40 hover:bg-brand-blue-glow/5"}`}
+                    className={`w-full p-4 border-2 border-dashed rounded-2xl cursor-pointer transition-all text-center ${file ? "border-brand-blue-glow/50 bg-brand-blue-glow/5" : "border-white/10 hover:border-brand-blue-glow/40 hover:bg-brand-blue-glow/5"}`}
                   >
                     {file ? (
                       <div className="flex items-center justify-center gap-2 text-brand-blue-glow">
@@ -439,7 +439,7 @@ export default function ExamenIAPage() {
               className="space-y-6"
             >
               {/* Exam Header */}
-              <div className="bg-gray-900/80 border border-brand-blue-glow/30 rounded-3xl p-6">
+              <div className="bg-surface-2/80 border border-brand-blue-glow/30 rounded-3xl p-6">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                   <div>
                     <h2 className="text-2xl font-bold text-white">
@@ -481,9 +481,9 @@ export default function ExamenIAPage() {
               {exam.sections.map((section, sIdx) => (
                 <div
                   key={sIdx}
-                  className="bg-gray-900/80 border border-gray-800 rounded-3xl p-6 space-y-6"
+                  className="bg-surface-2/80 border border-white/6 rounded-3xl p-6 space-y-6"
                 >
-                  <h3 className="text-lg font-bold text-brand-blue-glow border-b border-gray-800 pb-3">
+                  <h3 className="text-lg font-bold text-brand-blue-glow border-b border-white/6 pb-3">
                     {section.title}
                   </h3>
                   {section.questions.map((q, qIdx) => {
@@ -514,7 +514,7 @@ export default function ExamenIAPage() {
                             <div className="ml-10 space-y-2">
                               {q.options.map((opt, optIdx) => {
                                 let btnColor =
-                                  "bg-black/20 border-gray-700 text-gray-300 hover:border-brand-blue-glow/40";
+                                  "bg-black/20 border-white/10 text-gray-300 hover:border-brand-blue-glow/40";
                                 if (currentAnswer === optIdx)
                                   btnColor =
                                     "bg-brand-blue-glow/20 border-brand-blue-glow text-white font-medium";
@@ -529,7 +529,7 @@ export default function ExamenIAPage() {
                                       "bg-red-500/20 border-red-500 text-red-300 font-bold line-through";
                                   } else {
                                     btnColor =
-                                      "bg-black/20 border-gray-800 text-gray-600";
+                                      "bg-black/20 border-white/6 text-gray-600";
                                   }
                                 }
 
@@ -565,11 +565,11 @@ export default function ExamenIAPage() {
                               }
                               disabled={isReview}
                               placeholder="Escribe tu respuesta aquí..."
-                              className="w-[calc(100%-2.5rem)] px-4 py-3 bg-black/40 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-brand-blue-glow transition-colors resize-none disabled:opacity-75 disabled:cursor-not-allowed"
+                              className="w-[calc(100%-2.5rem)] px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-brand-blue-glow transition-colors resize-none disabled:opacity-75 disabled:cursor-not-allowed"
                               rows={4}
                             />
                             {isReview && q.correctAnswer && (
-                              <div className="mt-2 p-3 bg-gray-800/50 border border-gray-700 rounded-xl text-sm">
+                              <div className="mt-2 p-3 bg-gray-800/50 border border-white/10 rounded-xl text-sm">
                                 <span className="text-gray-400 font-semibold block mb-1">
                                   Respuesta Esperada:
                                 </span>
@@ -595,7 +595,7 @@ export default function ExamenIAPage() {
                               }
                               disabled={isReview}
                               placeholder="Completa el espacio..."
-                              className="px-4 py-2.5 bg-black/40 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-brand-blue-glow transition-colors w-64 disabled:opacity-75 disabled:cursor-not-allowed"
+                              className="px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-brand-blue-glow transition-colors w-64 disabled:opacity-75 disabled:cursor-not-allowed"
                             />
                             {isReview && q.correctAnswer && (
                               <div className="mt-2 text-sm text-gray-400">
@@ -619,7 +619,7 @@ export default function ExamenIAPage() {
                 {phase === "review" ? (
                   <button
                     onClick={() => setPhase("results")}
-                    className="flex-1 py-3 bg-gray-800 text-white font-bold rounded-full hover:bg-gray-700 border border-gray-700 transition-all flex items-center justify-center gap-2"
+                    className="flex-1 py-3 bg-gray-800 text-white font-bold rounded-full hover:bg-gray-700 border border-white/10 transition-all flex items-center justify-center gap-2"
                   >
                     Volver a Resultados
                   </button>
@@ -627,7 +627,7 @@ export default function ExamenIAPage() {
                   <>
                     <button
                       onClick={resetExam}
-                      className="px-6 py-3 border border-gray-700 text-gray-400 rounded-full hover:bg-white/5 transition-all"
+                      className="px-6 py-3 border border-white/10 text-gray-400 rounded-full hover:bg-white/5 transition-all"
                     >
                       Cancelar
                     </button>
@@ -663,7 +663,7 @@ export default function ExamenIAPage() {
               animate={{ opacity: 1, scale: 1 }}
               className="space-y-6"
             >
-              <div className="bg-gray-900/80 border border-brand-blue-glow rounded-3xl p-8 text-center">
+              <div className="bg-surface-2/80 border border-brand-blue-glow rounded-3xl p-8 text-center">
                 <div className="inline-flex items-center justify-center w-20 h-20 mb-4 rounded-2xl bg-brand-blue-glow/20 border-2 border-brand-blue-glow">
                   <Star className="w-10 h-10 text-brand-blue-glow" />
                 </div>
@@ -685,7 +685,7 @@ export default function ExamenIAPage() {
                 </p>
               </div>
 
-              <div className="bg-gray-900/80 border border-gray-800 rounded-3xl p-6">
+              <div className="bg-surface-2/80 border border-white/6 rounded-3xl p-6">
                 <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                   <GraduationCap className="w-5 h-5 text-brand-blue-glow" />{" "}
                   Retroalimentación del Profesor IA
@@ -700,7 +700,7 @@ export default function ExamenIAPage() {
               <div className="flex flex-col md:flex-row gap-3">
                 <button
                   onClick={() => setPhase("review")}
-                  className="w-full md:flex-1 py-3 bg-gray-800 text-white font-bold rounded-full hover:bg-gray-700 border border-gray-700 transition-all flex items-center justify-center gap-2"
+                  className="w-full md:flex-1 py-3 bg-gray-800 text-white font-bold rounded-full hover:bg-gray-700 border border-white/10 transition-all flex items-center justify-center gap-2"
                 >
                   <FileText className="w-5 h-5" /> Ver Mis Respuestas
                 </button>

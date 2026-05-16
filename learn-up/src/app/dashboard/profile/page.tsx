@@ -155,8 +155,8 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-brand-black relative overflow-hidden text-white">
       {/* Background glows */}
       <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
-        <div className="absolute -top-32 -left-20 w-[400px] h-[400px] rounded-full blur-3xl opacity-10" style={{ background: "#D4AF37" }} />
-        <div className="absolute -bottom-32 -right-20 w-[300px] h-[300px] rounded-full blur-3xl opacity-8" style={{ background: "#6366F1" }} />
+        <div className="absolute -top-32 -left-20 w-[400px] h-[400px] rounded-full blur-[150px] opacity-[0.08]" style={{ background: "#8B5CF6" }} />
+        <div className="absolute -bottom-32 -right-20 w-[300px] h-[300px] rounded-full blur-[150px] opacity-[0.06]" style={{ background: "#38BDF8" }} />
       </div>
       <div className="page-inner relative z-10">
         <StaggerContainer delayOffset={0.1}>
@@ -178,9 +178,9 @@ export default function ProfilePage() {
           <div className="grid md:grid-cols-3 gap-8">
             {/* LEFT: Avatar & Academic */}
             <FadeUpItem className="md:col-span-1 space-y-6">
-              <div className="bg-gray-900 rounded-3xl p-6 border border-gray-800 text-center relative overflow-hidden">
+              <div className="glass border border-white/6 rounded-2xl p-6 text-center relative overflow-hidden">
                 <div className="relative inline-block mb-4 mt-8">
-                  <div className="w-28 h-28 rounded-full bg-brand-black border-2 border-brand-gold flex items-center justify-center overflow-hidden">
+                  <div className="w-28 h-28 rounded-full bg-surface-2 border-2 border-brand-gold/30 flex items-center justify-center overflow-hidden shadow-glow-gold">
                     {profile?.avatar_url ? (
                       <img
                         src={profile.avatar_url}
@@ -202,7 +202,7 @@ export default function ProfilePage() {
                   </label>
                 </div>
 
-                <h2 className="text-xl font-bold">
+                <h2 className="text-xl font-bold font-display">
                   {profile?.full_name || "Usuario"}
                 </h2>
                 <p className="text-brand-gold text-sm mb-2">
@@ -225,7 +225,7 @@ export default function ProfilePage() {
                 {(formData.linkedin ||
                   formData.tiktok ||
                   formData.instagram) && (
-                  <div className="flex justify-center gap-3 mt-4 pt-4 border-t border-gray-800">
+                  <div className="flex justify-center gap-3 mt-4 pt-4 border-t border-white/6">
                     {formData.linkedin && (
                       <a
                         href={`https://linkedin.com/in/${formData.linkedin}`}
@@ -261,8 +261,8 @@ export default function ProfilePage() {
               </div>
 
               {/* Academic Info */}
-              <div className="bg-gray-900 rounded-3xl p-6 border border-gray-800 space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
+              <div className="glass border border-white/6 rounded-2xl p-6 space-y-4">
+                <h3 className="text-lg font-semibold flex items-center gap-2 font-display">
                   <School className="w-5 h-5 text-gray-400" /> Académico
                 </h3>
                 <div className="space-y-3 text-sm">
@@ -270,7 +270,7 @@ export default function ProfilePage() {
                     <label className="block text-gray-500 mb-1 text-xs uppercase tracking-wide">
                       Institución
                     </label>
-                    <p className="text-white bg-black/30 p-2 rounded-lg">
+                    <p className="text-white bg-surface-2 p-2 rounded-lg">
                       {profile?.school || "—"}
                     </p>
                   </div>
@@ -279,7 +279,7 @@ export default function ProfilePage() {
                       <label className="block text-gray-500 mb-1 text-xs uppercase tracking-wide">
                         Grado
                       </label>
-                      <p className="text-white bg-black/30 p-2 rounded-lg">
+                      <p className="text-white bg-surface-2 p-2 rounded-lg">
                         {profile?.grade || "—"}
                       </p>
                     </div>
@@ -287,7 +287,7 @@ export default function ProfilePage() {
                       <label className="block text-gray-500 mb-1 text-xs uppercase tracking-wide">
                         Sección
                       </label>
-                      <p className="text-white bg-black/30 p-2 rounded-lg">
+                      <p className="text-white bg-surface-2 p-2 rounded-lg">
                         {profile?.section || "—"}
                       </p>
                     </div>
@@ -298,8 +298,8 @@ export default function ProfilePage() {
 
             {/* RIGHT: Edit Form */}
             <FadeUpItem className="md:col-span-2 space-y-6">
-              <div className="bg-gray-900/50 backdrop-blur-sm rounded-3xl p-6 border border-gray-800">
-                <h3 className="text-lg font-semibold mb-6">
+              <div className="glass border border-white/6 rounded-2xl p-6">
+                <h3 className="text-lg font-semibold mb-6 font-display">
                   Información Personal
                 </h3>
                 <div className="space-y-4">
@@ -336,8 +336,8 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <div className="bg-gray-900/50 backdrop-blur-sm rounded-3xl p-6 border border-gray-800">
-                <h3 className="text-lg font-semibold mb-6">Redes Sociales</h3>
+              <div className="glass border border-white/6 rounded-2xl p-6">
+                <h3 className="text-lg font-semibold mb-6 font-display">Redes Sociales</h3>
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">

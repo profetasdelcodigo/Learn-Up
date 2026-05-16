@@ -37,7 +37,7 @@ export default function GlobalError({
         Puedes reintentar o volver al inicio.
       </p>
       {error.digest && (
-        <p className="text-xs text-gray-700 font-mono bg-gray-900 px-3 py-1.5 rounded-lg mb-6">
+        <p className="text-xs text-gray-700 font-mono bg-surface-2 px-3 py-1.5 rounded-lg mb-6">
           Ref: {error.digest}
         </p>
       )}
@@ -52,7 +52,7 @@ export default function GlobalError({
         </button>
         <a
           href="/dashboard"
-          className="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white border border-gray-700 font-semibold rounded-full hover:border-brand-gold/50 transition-all"
+          className="flex items-center gap-2 px-6 py-3 bg-surface-2 text-white border border-white/10 font-semibold rounded-full hover:border-brand-gold/50 transition-all"
         >
           <Home className="w-4 h-4" />
           Ir al inicio

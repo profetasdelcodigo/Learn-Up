@@ -546,9 +546,9 @@ export default function SharedCalendarDetail({
   }
 
   return (
-    <div className="bg-gray-900/80 backdrop-blur-xl border border-brand-gold/30 rounded-3xl p-6 min-h-[600px] flex flex-col">
+    <div className="bg-surface-2/80 backdrop-blur-xl border border-brand-gold/30 rounded-3xl p-6 min-h-[600px] flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6 pb-6 border-b border-gray-800">
+      <div className="flex items-center justify-between mb-6 pb-6 border-b border-white/6">
         <div className="flex items-center gap-4">
           <button
             onClick={onBack}
@@ -588,7 +588,7 @@ export default function SharedCalendarDetail({
 
       {/* Add Calendar Member Search */}
       {showAddCalMember && (
-        <div className="mb-4 p-3 bg-gray-900/80 rounded-xl border border-brand-gold/20">
+        <div className="mb-4 p-3 bg-surface-2/80 rounded-xl border border-brand-gold/20">
           <div className="relative mb-2">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -596,7 +596,7 @@ export default function SharedCalendarDetail({
               value={calMemberSearch}
               onChange={(e) => handleCalMemberSearch(e.target.value)}
               placeholder="Buscar por nombre o @usuario..."
-              className="w-full pl-9 pr-3 py-2 bg-brand-black border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-brand-gold/50"
+              className="w-full pl-9 pr-3 py-2 bg-brand-black border border-white/10 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-brand-gold/50"
               autoFocus
             />
           </div>
@@ -610,10 +610,10 @@ export default function SharedCalendarDetail({
               {calSearchResults.map((result) => (
                 <div
                   key={result.id}
-                  className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-gray-800 transition-colors border border-transparent hover:border-gray-700"
+                  className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors border border-transparent hover:border-white/10"
                 >
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-gray-800 border border-gray-700 overflow-hidden flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-gray-800 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
                       {result.avatar_url ? (
                         <img src={result.avatar_url} alt="" className="w-full h-full object-cover" />
                       ) : (
@@ -671,7 +671,7 @@ export default function SharedCalendarDetail({
       )}
 
       {/* Sub-Tabs */}
-      <div className="flex gap-2 p-1 bg-black/40 rounded-2xl mb-6 w-fit border border-gray-800">
+      <div className="flex gap-2 p-1 bg-black/40 rounded-2xl mb-6 w-fit border border-white/6">
         <button
           onClick={() => setActiveSubTab("events")}
           className={`px-4 py-2 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 ${activeSubTab === "events" ? "bg-brand-gold text-brand-black shadow-lg" : "text-gray-400 hover:text-white"}`}
@@ -694,11 +694,11 @@ export default function SharedCalendarDetail({
 
       {/* Events Tab - Unificado al grid de Calendario Personal */}
       {activeSubTab === "events" && (
-        <div className="flex-1 flex flex-col bg-gray-900/80 backdrop-blur-xl border border-brand-gold/30 rounded-3xl p-6">
+        <div className="flex-1 flex flex-col bg-surface-2/80 backdrop-blur-xl border border-brand-gold/30 rounded-3xl p-6">
           <div className="flex justify-between items-center mb-6">
             <button
               onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-              className="p-2 rounded-full border border-gray-700 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
+              className="p-2 rounded-full border border-white/10 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
@@ -712,12 +712,12 @@ export default function SharedCalendarDetail({
             </div>
             <button
               onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-              className="p-2 rounded-full border border-gray-700 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
+              className="p-2 rounded-full border border-white/10 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
             >
               <ChevronRight className="w-5 h-5" />
             </button>
           </div>
-          <div className="flex items-center gap-3 bg-gray-900/50 p-2 rounded-2xl w-fit mb-4">
+          <div className="flex items-center gap-3 bg-surface-2/50 p-2 rounded-2xl w-fit mb-4">
             <button
               onClick={() => {
                 const head = document.head.innerHTML;
@@ -738,7 +738,7 @@ export default function SharedCalendarDetail({
                   }, 500);
                 }
               }}
-              className="px-4 py-2 bg-gray-800 text-gray-300 border border-gray-700 rounded-xl hover:bg-gray-700 hover:text-white transition-all text-sm font-semibold flex items-center gap-2"
+              className="px-4 py-2 bg-gray-800 text-gray-300 border border-white/10 rounded-xl hover:bg-gray-700 hover:text-white transition-all text-sm font-semibold flex items-center gap-2"
             >
               Imprimir
             </button>
@@ -767,7 +767,7 @@ export default function SharedCalendarDetail({
               {Array.from({ length: monthStart.getDay() }).map((_, idx) => (
                 <div
                   key={`empty-${idx}`}
-                  className="p-2 bg-gray-900/30 rounded-2xl border border-gray-800/50"
+                  className="p-2 bg-surface-2/30 rounded-2xl border border-white/6/50"
                 />
               ))}
 
@@ -781,7 +781,7 @@ export default function SharedCalendarDetail({
                     key={day.toISOString()}
                     onClick={() => handleDayClick(day)}
                     className={`min-h-[100px] p-2 rounded-2xl transition-all cursor-pointer border flex flex-col gap-1 
-                      ${isCurrentDay ? "bg-brand-gold/10 border-brand-gold" : "bg-black/40 border-gray-800 hover:border-gray-600"}
+                      ${isCurrentDay ? "bg-brand-gold/10 border-brand-gold" : "bg-black/40 border-white/6 hover:border-gray-600"}
                       ${isSelected ? "ring-2 ring-brand-gold" : ""}
                     `}
                   >
@@ -823,7 +823,7 @@ export default function SharedCalendarDetail({
 
       {/* Chat Tab */}
       {activeSubTab === "chat" && (
-        <div className="flex-1 flex flex-col bg-black/40 rounded-2xl border border-gray-800 overflow-hidden min-h-[400px]">
+        <div className="flex-1 flex flex-col bg-black/40 rounded-2xl border border-white/6 overflow-hidden min-h-[400px]">
           <div className="flex-1 p-4 overflow-y-auto space-y-4">
             {messages.map((msg, i) => {
               if (msg.type === "system") {
@@ -873,7 +873,7 @@ export default function SharedCalendarDetail({
             <div ref={chatEndRef} />
           </div>
           <div
-            className="shrink-0 px-4 pt-3 bg-gray-900 border-t border-gray-800"
+            className="shrink-0 px-4 pt-3 bg-surface-2 border-t border-white/6"
             style={{
               paddingBottom: "calc(env(safe-area-inset-bottom) + 0.75rem)",
             }}
@@ -886,13 +886,13 @@ export default function SharedCalendarDetail({
                 type="text"
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                className="flex-1 bg-black/60 border border-gray-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-brand-gold text-sm transition-colors"
+                className="flex-1 bg-black/60 border border-white/10 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-brand-gold text-sm transition-colors"
                 placeholder="Escribe a los miembros del calendario..."
               />
               <button
                 type="button"
                 onClick={isRecording ? stopRecording : startRecording}
-                className={`p-3 rounded-full flex items-center justify-center transition-all ${isRecording ? "bg-red-500/10 text-red-500 animate-pulse border-red-500/40" : "bg-gray-800 text-gray-400 hover:text-brand-gold border-gray-700"}`}
+                className={`p-3 rounded-full flex items-center justify-center transition-all ${isRecording ? "bg-red-500/10 text-red-500 animate-pulse border-red-500/40" : "bg-gray-800 text-gray-400 hover:text-brand-gold border-white/10"}`}
               >
                 {isRecording ? (
                   <Square className="w-5 h-5 fill-current" />
@@ -915,7 +915,7 @@ export default function SharedCalendarDetail({
       {/* Habits Tab */}
       {activeSubTab === "habits" && (
         <div className="flex-1 flex flex-col">
-          <div className="flex items-center justify-between mb-6 bg-black/40 p-3 rounded-xl border border-gray-800">
+          <div className="flex items-center justify-between mb-6 bg-black/40 p-3 rounded-xl border border-white/6">
             <div>
               <h3 className="font-bold text-white text-sm">Hábitos Grupales</h3>
               <p className="text-xs text-gray-400">
@@ -950,7 +950,7 @@ export default function SharedCalendarDetail({
               onChange={(e) => setNewHabitName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addHabit()}
               placeholder="Nuevo hábito grupal (Enter para agregar)"
-              className="flex-1 px-4 py-2 bg-black/40 border border-gray-700 rounded-xl text-white focus:outline-none focus:border-brand-blue-glow text-sm"
+              className="flex-1 px-4 py-2 bg-black/40 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-blue-glow text-sm"
             />
             <button
               onClick={addHabit}
@@ -960,7 +960,7 @@ export default function SharedCalendarDetail({
             </button>
           </div>
 
-          <div className="flex-1 overflow-x-auto bg-black/40 p-4 rounded-2xl border border-gray-800">
+          <div className="flex-1 overflow-x-auto bg-black/40 p-4 rounded-2xl border border-white/6">
             {habits.length === 0 ? (
               <p className="text-sm text-gray-500 text-center mt-10">
                 Agreguen metas para cumplir como grupo esta semana.
@@ -985,7 +985,7 @@ export default function SharedCalendarDetail({
                 </thead>
                 <tbody className="space-y-1">
                   {habits.map((habit) => (
-                    <tr key={habit.id} className="border-t border-gray-800/50">
+                    <tr key={habit.id} className="border-t border-white/6/50">
                       <td className="py-3 px-3 text-white text-sm font-medium">
                         {habit.name}
                       </td>
@@ -1059,7 +1059,7 @@ export default function SharedCalendarDetail({
                     onChange={(e) =>
                       setEventData({ ...eventData, title: e.target.value })
                     }
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white focus:border-brand-gold outline-none"
+                    className="w-full px-3 py-2 bg-surface-2 border border-white/10 rounded-xl text-white focus:border-brand-gold outline-none"
                     required
                   />
                 </div>
@@ -1075,7 +1075,7 @@ export default function SharedCalendarDetail({
                         description: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white focus:border-brand-gold outline-none resize-none"
+                    className="w-full px-3 py-2 bg-surface-2 border border-white/10 rounded-xl text-white focus:border-brand-gold outline-none resize-none"
                     rows={2}
                   />
                 </div>
@@ -1090,7 +1090,7 @@ export default function SharedCalendarDetail({
                       onChange={(e) =>
                         setEventData({ ...eventData, start: e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white focus:border-brand-gold outline-none text-sm"
+                      className="w-full px-3 py-2 bg-surface-2 border border-white/10 rounded-xl text-white focus:border-brand-gold outline-none text-sm"
                       required
                     />
                   </div>
@@ -1104,7 +1104,7 @@ export default function SharedCalendarDetail({
                       onChange={(e) =>
                         setEventData({ ...eventData, end: e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white focus:border-brand-gold outline-none text-sm"
+                      className="w-full px-3 py-2 bg-surface-2 border border-white/10 rounded-xl text-white focus:border-brand-gold outline-none text-sm"
                       required
                     />
                   </div>
@@ -1137,9 +1137,9 @@ export default function SharedCalendarDetail({
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-gray-900 border border-brand-gold/30 rounded-3xl p-6 sm:p-8 max-w-lg w-full max-h-[80vh] flex flex-col"
+              className="bg-surface-2 border border-brand-gold/30 rounded-3xl p-6 sm:p-8 max-w-lg w-full max-h-[80vh] flex flex-col"
             >
-              <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-800">
+              <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/6">
                 <div>
                   <h2 className="text-2xl font-bold text-white tracking-tight">
                     {format(selectedDay, "d 'de' MMMM, yyyy", { locale: es })}
@@ -1168,7 +1168,7 @@ export default function SharedCalendarDetail({
                   </button>
                   <button
                     onClick={() => setShowDayModal(false)}
-                    className="p-2.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-full transition-colors self-start w-10 h-10"
+                    className="p-2.5 text-gray-400 hover:text-white hover:bg-white/5 rounded-full transition-colors self-start w-10 h-10"
                   >
                     <X className="w-5 h-5" />
                   </button>

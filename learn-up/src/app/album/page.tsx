@@ -487,7 +487,7 @@ export default function AlbumPage() {
                 <div className="flex justify-center mt-2">
                   <button
                     onClick={stopCamera}
-                    className="px-6 py-2 border border-gray-700 text-gray-400 rounded-full hover:bg-white/5 transition-all text-sm"
+                    className="px-6 py-2 border border-white/10 text-gray-400 rounded-full hover:bg-white/5 transition-all text-sm"
                   >
                     Apagar Cámara
                   </button>
@@ -495,7 +495,7 @@ export default function AlbumPage() {
               </div>
             ) : (
               <div
-                className="text-center py-16 border-2 border-dashed border-gray-700 rounded-3xl hover:border-emerald-500/40 transition-all cursor-pointer"
+                className="text-center py-16 border-2 border-dashed border-white/10 rounded-3xl hover:border-emerald-500/40 transition-all cursor-pointer"
                 onClick={startCamera}
               >
                 <Camera className="w-16 h-16 text-gray-600 mx-auto mb-4" />
@@ -537,7 +537,7 @@ export default function AlbumPage() {
                     key={media.id}
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="bg-gray-900/80 border border-gray-800 rounded-2xl overflow-hidden hover:border-emerald-500/40 transition-all group"
+                    className="bg-surface-2/80 border border-white/6 rounded-2xl overflow-hidden hover:border-emerald-500/40 transition-all group"
                   >
                     <div
                       className="aspect-square bg-black/40 flex items-center justify-center relative cursor-pointer"
@@ -637,7 +637,7 @@ export default function AlbumPage() {
                   </button>
                   <button
                     onClick={() => setSelectedMedia(null)}
-                    className="px-6 py-2.5 border border-gray-700 text-gray-400 rounded-full hover:bg-white/5 transition-all"
+                    className="px-6 py-2.5 border border-white/10 text-gray-400 rounded-full hover:bg-white/5 transition-all"
                   >
                     Cerrar
                   </button>
@@ -659,7 +659,7 @@ export default function AlbumPage() {
                 initial={{ scale: 0.9, y: 20 }}
                 animate={{ scale: 1, y: 0 }}
                 exit={{ scale: 0.9, y: 20 }}
-                className="bg-gray-900 border border-brand-gold/50 rounded-3xl p-6 w-full max-w-sm flex flex-col items-center text-center shadow-2xl"
+                className="bg-surface-2 border border-brand-gold/50 rounded-3xl p-6 w-full max-w-sm flex flex-col items-center text-center shadow-2xl"
               >
                 <h3 className="text-xl font-bold text-white mb-4">
                   Guardar Recuerdo
@@ -668,19 +668,19 @@ export default function AlbumPage() {
                 {uploadPreview.type === "photo" && (
                   <img
                     src={uploadPreview.url}
-                    className="w-full h-48 object-cover rounded-xl mb-4 border border-gray-700"
+                    className="w-full h-48 object-cover rounded-xl mb-4 border border-white/10"
                     alt="Preview"
                   />
                 )}
                 {uploadPreview.type === "video" && (
                   <video
                     src={uploadPreview.url}
-                    className="w-full h-48 object-cover rounded-xl mb-4 border border-gray-700 bg-black"
+                    className="w-full h-48 object-cover rounded-xl mb-4 border border-white/10 bg-black"
                     controls
                   />
                 )}
                 {uploadPreview.type === "document" && (
-                  <div className="w-full h-24 bg-gray-800 rounded-xl mb-4 flex items-center justify-center border border-gray-700">
+                  <div className="w-full h-24 bg-gray-800 rounded-xl mb-4 flex items-center justify-center border border-white/10">
                     <Download className="w-8 h-8 text-brand-gold" />
                   </div>
                 )}
@@ -690,7 +690,7 @@ export default function AlbumPage() {
                   value={uploadTitle}
                   onChange={(e) => setUploadTitle(e.target.value)}
                   placeholder="Escribe un título (ej. Apuntes Matemáticas)"
-                  className="w-full px-4 py-3 bg-black/50 border border-gray-700 rounded-xl text-white placeholder-gray-500 mb-6 text-sm focus:border-emerald-500 outline-none"
+                  className="w-full px-4 py-3 bg-black/50 border border-white/10 rounded-xl text-white placeholder-gray-500 mb-6 text-sm focus:border-emerald-500 outline-none"
                   autoFocus
                 />
 
@@ -702,7 +702,7 @@ export default function AlbumPage() {
                       setUploadTitle("");
                     }}
                     disabled={uploading}
-                    className="flex-1 py-2.5 rounded-full border border-gray-700 text-gray-400 font-semibold hover:bg-white/5 transition-all text-sm"
+                    className="flex-1 py-2.5 rounded-full border border-white/10 text-gray-400 font-semibold hover:bg-white/5 transition-all text-sm"
                   >
                     Cancelar
                   </button>

@@ -23,14 +23,13 @@ export default function BottomNav({ unreadCount = 0 }: BottomNavProps) {
       href: "/dashboard/notifications",
       icon: Bell,
       badge: true,
-    }, // Updated href to match Sidebar
+    },
     { name: "Perfil", href: "/dashboard/profile", icon: User },
   ];
 
-  // Hidden on desktop
   return (
     <div
-      className="md:hidden fixed bottom-0 left-0 right-0 bg-brand-black/95 backdrop-blur-xl border-t border-brand-gold/30 z-40"
+      className="md:hidden fixed bottom-0 left-0 right-0 glass-strong border-t border-white/6 z-40"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <div className="flex justify-around items-center h-16">
@@ -41,19 +40,19 @@ export default function BottomNav({ unreadCount = 0 }: BottomNavProps) {
             <Link
               key={item.href}
               href={item.href}
-              className={`relative flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive ? "text-brand-gold" : "text-gray-500"}`}
+              className={`relative flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-300 ${isActive ? "text-brand-gold" : "text-gray-500"}`}
             >
               <div className="relative">
-                <item.icon className="w-5 h-5" />
+                <item.icon className={`w-5 h-5 ${isActive ? "drop-shadow-[0_0_6px_rgba(240,200,80,0.5)]" : ""}`} />
                 {item.badge && unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 flex items-center justify-center w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full border-2 border-brand-black">
                     {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
                 )}
               </div>
-              <span className="text-[10px] font-medium">{item.name}</span>
+              <span className="text-[10px] font-medium font-body">{item.name}</span>
               {isActive && (
-                <span className="absolute bottom-0 w-8 h-1 bg-brand-gold rounded-t-full shadow-[0_0_10px_#D4AF37]" />
+                <span className="absolute bottom-0 w-8 h-0.5 bg-brand-gold rounded-t-full shadow-[0_0_8px_rgba(240,200,80,0.6)]" />
               )}
             </Link>
           );

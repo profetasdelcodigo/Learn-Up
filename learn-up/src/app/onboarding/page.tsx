@@ -167,10 +167,11 @@ export default function OnboardingPage() {
     /* Fixed full-screen container — independent of MainLayout overflow */
     <div className="fixed inset-0 bg-brand-black flex flex-col lg:flex-row">
       {/* Left Side - Branding (Visible on Desktop) */}
-      <div className="hidden lg:flex lg:w-1/2 relative flex-col items-center justify-center p-12 overflow-hidden border-r border-brand-gold/20 bg-linear-to-br from-brand-black to-brand-brown/10">
+      <div className="hidden lg:flex lg:w-1/2 relative flex-col items-center justify-center p-12 overflow-hidden border-r border-white/6">
+        <div className="absolute inset-0 bg-mesh-1" />
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <motion.div
-            className="absolute top-1/4 -left-1/4 w-[500px] h-[500px] bg-brand-gold opacity-10 rounded-full blur-[100px]"
+            className="absolute top-1/4 -left-1/4 w-[500px] h-[500px] bg-brand-purple/15 rounded-full blur-[120px]"
             animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.15, 0.1] }}
             transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
           />
@@ -182,11 +183,11 @@ export default function OnboardingPage() {
           transition={{ duration: 0.8 }}
           className="relative z-10 text-center max-w-lg"
         >
-          <div className="inline-flex items-center justify-center w-24 h-24 mb-8 rounded-3xl border border-brand-gold/50 bg-brand-black/50 backdrop-blur-md shadow-[0_0_30px_rgba(212,175,55,0.2)]">
+          <div className="inline-flex items-center justify-center w-24 h-24 mb-8 rounded-3xl border border-brand-gold/20 bg-surface-2/50 backdrop-blur-md shadow-glow-gold">
             <Sparkles className="w-12 h-12 text-brand-gold" />
           </div>
-          <h1 className="text-5xl font-bold text-white mb-6">Paso final</h1>
-          <p className="text-xl text-gray-300 leading-relaxed">
+          <h1 className="text-5xl font-bold text-white mb-6 font-display">Paso final</h1>
+          <p className="text-lg text-gray-400 leading-relaxed font-body">
             Completa tu perfil para acceder a todas las características, grupos
             y herramientas educativas impulsadas por IA.
           </p>
@@ -195,9 +196,8 @@ export default function OnboardingPage() {
 
       {/* Right Side - Form (scrollable) */}
       <div className="w-full lg:w-1/2 flex items-center justify-center relative bg-brand-black overflow-y-auto">
-        {/* Mobile-only background glow */}
         <div className="absolute inset-0 overflow-hidden lg:hidden pointer-events-none">
-          <motion.div className="absolute top-1/4 right-1/4 w-72 h-72 bg-brand-blue-glow opacity-10 rounded-full blur-[60px]" />
+          <motion.div className="absolute top-1/4 right-1/4 w-72 h-72 bg-brand-purple/15 rounded-full blur-[80px]" />
         </div>
 
         <motion.div
@@ -206,21 +206,21 @@ export default function OnboardingPage() {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="relative z-10 w-full max-w-2xl p-6 sm:p-12 my-auto"
         >
-          <div className="bg-brand-black/60 lg:bg-brand-black/40 backdrop-blur-xl border border-brand-gold/30 lg:border-brand-gold/50 rounded-3xl p-8 md:p-12 shadow-2xl">
+          <div className="glass-strong border border-white/8 rounded-2xl p-8 md:p-12 shadow-2xl">
             {/* Header */}
             <div className="text-center mb-8">
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.4, type: "spring" }}
-                className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-full bg-brand-gold/10 border border-brand-gold"
+                className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-2xl bg-brand-gold/8 border border-brand-gold/20 shadow-glow-gold"
               >
                 <CheckCircle className="w-8 h-8 text-brand-gold" />
               </motion.div>
-              <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
+              <h1 className="text-3xl md:text-4xl font-bold text-white mb-2 font-display">
                 ¡Bienvenido a Learn Up!
               </h1>
-              <p className="text-gray-400">Completa tu perfil para comenzar</p>
+              <p className="text-gray-500 font-body">Completa tu perfil para comenzar</p>
             </div>
 
             {/* New User Welcome Banner */}
@@ -228,16 +228,16 @@ export default function OnboardingPage() {
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="mb-6 p-4 bg-brand-gold/10 border border-brand-gold/30 rounded-2xl flex items-start gap-3"
+                className="mb-6 p-4 bg-brand-gold/5 border border-brand-gold/15 rounded-xl flex items-start gap-3"
               >
-                <div className="p-2 bg-brand-gold/20 rounded-full shrink-0 mt-0.5">
+                <div className="p-2 bg-brand-gold/10 rounded-lg shrink-0 mt-0.5">
                   <Sparkles className="w-5 h-5 text-brand-gold" />
                 </div>
                 <div>
-                  <h3 className="text-white font-bold mb-1 text-sm">
+                  <h3 className="text-white font-bold mb-1 text-sm font-display">
                     Estás a un paso de terminar
                   </h3>
-                  <p className="text-gray-300 text-xs leading-relaxed">
+                  <p className="text-gray-500 text-xs leading-relaxed font-body">
                     Tu cuenta con{" "}
                     {user?.app_metadata?.provider === "google"
                       ? "Google"
@@ -254,7 +254,7 @@ export default function OnboardingPage() {
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-2xl text-red-400 text-sm"
+                className="mb-6 p-4 bg-red-500/8 border border-red-500/30 rounded-xl text-red-400 text-sm font-body"
               >
                 {error}
               </motion.div>
@@ -267,7 +267,7 @@ export default function OnboardingPage() {
                 {/* Username Field - NEW */}
                 <FadeUpItem>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className="block text-sm font-medium text-gray-400 mb-2 font-body">
                       Nombre de Usuario (@){" "}
                       <span className="text-brand-gold">*</span>
                     </label>
@@ -328,7 +328,7 @@ export default function OnboardingPage() {
                           }
                           setIsCheckingUsername(false);
                         }}
-                        className={`w-full pl-10 pr-4 py-3 bg-brand-black border rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors ${usernameError ? "border-red-500" : "border-gray-700"}`}
+                        className={`input-base pl-10 !rounded-xl ${usernameError ? "!border-red-500" : ""}`}
                         placeholder="usuario_unico"
                       />
                       {isCheckingUsername && (
@@ -360,7 +360,7 @@ export default function OnboardingPage() {
                             full_name: e.target.value,
                           })
                         }
-                        className="w-full pl-12 pr-4 py-3 bg-brand-black border border-gray-700 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
+                        className="input-base pl-12 !rounded-xl"
                         placeholder="Juan Pérez"
                       />
                     </div>
@@ -379,10 +379,10 @@ export default function OnboardingPage() {
                         onClick={() =>
                           setFormData({ ...formData, role: "docente" })
                         }
-                        className={`p-4 rounded-2xl border-2 transition-all ${
+                        className={`p-4 rounded-xl border-2 transition-all duration-300 ${
                           formData.role === "docente"
-                            ? "border-brand-gold bg-brand-gold/10 text-white"
-                            : "border-gray-700 bg-brand-black text-gray-400 hover:border-gray-600"
+                            ? "border-brand-gold bg-brand-gold/8 text-white shadow-glow-gold"
+                            : "border-white/8 bg-surface-2 text-gray-400 hover:border-white/15"
                         }`}
                       >
                         <GraduationCap className="w-8 h-8 mx-auto mb-2" />
@@ -393,10 +393,10 @@ export default function OnboardingPage() {
                         onClick={() =>
                           setFormData({ ...formData, role: "estudiante" })
                         }
-                        className={`p-4 rounded-2xl border-2 transition-all ${
+                        className={`p-4 rounded-xl border-2 transition-all duration-300 ${
                           formData.role === "estudiante"
-                            ? "border-brand-gold bg-brand-gold/10 text-white"
-                            : "border-gray-700 bg-brand-black text-gray-400 hover:border-gray-600"
+                            ? "border-brand-gold bg-brand-gold/8 text-white shadow-glow-gold"
+                            : "border-white/8 bg-surface-2 text-gray-400 hover:border-white/15"
                         }`}
                       >
                         <Users className="w-8 h-8 mx-auto mb-2" />
@@ -421,7 +421,7 @@ export default function OnboardingPage() {
                           setFormData({ ...formData, school: e.target.value })
                         }
                         required
-                        className="w-full pl-12 pr-4 py-3 bg-brand-black border border-gray-700 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
+                        className="input-base pl-12 !rounded-xl"
                         placeholder="Nombre del colegio"
                       />
                     </div>
@@ -441,7 +441,7 @@ export default function OnboardingPage() {
                         setFormData({ ...formData, grade: e.target.value })
                       }
                       required
-                      className="w-full px-4 py-3 bg-brand-black border border-gray-700 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
+                      className="input-base !rounded-xl"
                       placeholder="5to, 1ro, etc."
                     />
                   </div>
@@ -455,7 +455,7 @@ export default function OnboardingPage() {
                       onChange={(e) =>
                         setFormData({ ...formData, section: e.target.value })
                       }
-                      className="w-full px-4 py-3 bg-brand-black border border-gray-700 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
+                      className="input-base !rounded-xl"
                       placeholder="A, B, C..."
                     />
                   </div>
@@ -468,7 +468,7 @@ export default function OnboardingPage() {
                     disabled={loading}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-brand-gold text-brand-black font-bold rounded-full hover:bg-brand-gold/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-8"
+                    className="btn-primary w-full !rounded-xl mt-8"
                   >
                     {loading ? (
                       <Loader2 className="w-5 h-5 animate-spin" />

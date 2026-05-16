@@ -215,14 +215,14 @@ export default function Sidebar() {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className="pointer-events-auto bg-brand-gold text-brand-black px-4 py-3 rounded-xl shadow-lg font-medium flex items-center justify-between min-w-[300px] animate-in slide-in-from-right-5 fade-in duration-300"
+            className="pointer-events-auto glass-strong border border-brand-gold/30 text-white px-4 py-3 rounded-xl shadow-glow-gold font-medium flex items-center justify-between min-w-[300px] animate-in slide-in-from-right-5 fade-in duration-300 font-body"
           >
-            <span>{toast.message}</span>
+            <span className="text-brand-gold">{toast.message}</span>
             <button
               onClick={() => removeToast(toast.id)}
-              className="ml-4 hover:bg-black/10 rounded-full p-1"
+              className="ml-4 hover:bg-white/5 rounded-full p-1"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4 text-gray-400" />
             </button>
           </div>
         ))}
@@ -232,9 +232,9 @@ export default function Sidebar() {
       <BottomNav unreadCount={unreadCount} />
 
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-64 h-full bg-brand-black border-r border-brand-gold flex-col">
+      <aside className="hidden md:flex w-64 h-full bg-surface-1 border-r border-white/6 flex-col">
         {/* Logo */}
-        <div className="p-6 border-b border-gray-800">
+        <div className="p-6 border-b border-white/6">
           <Link href="/dashboard">
             <Logo />
           </Link>
@@ -252,17 +252,17 @@ export default function Sidebar() {
                 <li key={item.name}>
                   <Link
                     href={item.href}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all relative ${
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 relative font-body ${
                       isActive
-                        ? "bg-brand-gold text-brand-black font-semibold shadow-[0_0_15px_rgba(212,175,55,0.3)]"
-                        : "text-gray-300 hover:bg-brand-gold/10 hover:text-brand-gold"
+                        ? "bg-gradient-to-r from-brand-gold to-brand-gold-dim text-brand-black font-semibold shadow-glow-gold"
+                        : "text-gray-400 hover:bg-white/5 hover:text-brand-gold"
                     }`}
                   >
                     <item.icon className="w-5 h-5" />
                     <span>{item.name}</span>
                     {/* Notification Badge */}
                     {item.showBadge && unreadCount > 0 && (
-                      <span className="absolute top-2 right-2 flex items-center justify-center w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full border-2 border-brand-black">
+                      <span className="absolute top-2 right-2 flex items-center justify-center w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full border-2 border-surface-1">
                         {unreadCount > 9 ? "9+" : unreadCount}
                       </span>
                     )}
@@ -275,10 +275,10 @@ export default function Sidebar() {
                         <li key={child.href}>
                           <Link
                             href={child.href}
-                            className={`block px-4 py-2 text-sm rounded-xl transition-all ${
+                            className={`block px-4 py-2 text-sm rounded-lg transition-all duration-300 font-body ${
                               pathname === child.href
-                                ? "bg-brand-gold/20 text-brand-gold"
-                                : "text-gray-400 hover:bg-brand-gold/10 hover:text-brand-gold"
+                                ? "bg-brand-gold/10 text-brand-gold border-l-2 border-brand-gold"
+                                : "text-gray-500 hover:bg-white/3 hover:text-brand-gold"
                             }`}
                           >
                             {child.name}
@@ -293,11 +293,11 @@ export default function Sidebar() {
           </ul>
         </nav>
         {/* Footer */}
-        <div className="p-4 border-t border-gray-800">
+        <div className="p-4 border-t border-white/6">
           <form action="/auth/signout" method="post">
             <button
               type="submit"
-              className="w-full px-4 py-3 text-sm text-gray-400 hover:text-brand-gold hover:bg-brand-gold/10 rounded-2xl transition-all text-center"
+              className="w-full px-4 py-3 text-sm text-gray-500 hover:text-brand-gold hover:bg-white/3 rounded-xl transition-all duration-300 text-center font-body"
             >
               Cerrar Sesión
             </button>

@@ -647,13 +647,13 @@ export default function CalendarPage() {
             <div className="space-y-8">
               {/* Calendar */}
               <FadeUpItem>
-                <div className="bg-gray-900/80 backdrop-blur-xl border border-brand-gold/30 rounded-3xl p-6">
+                <div className="bg-surface-2/80 backdrop-blur-xl border border-brand-gold/30 rounded-3xl p-6">
                   <div className="flex items-center justify-between mb-6">
                     <button
                       onClick={() =>
                         setCurrentMonth(subMonths(currentMonth, 1))
                       }
-                      className="p-2 rounded-full border border-gray-700 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
+                      className="p-2 rounded-full border border-white/10 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
                     >
                       <ChevronLeft className="w-5 h-5" />
                     </button>
@@ -681,7 +681,7 @@ export default function CalendarPage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={printCalendar}
-                        className="p-2 rounded-full border border-gray-700 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
+                        className="p-2 rounded-full border border-white/10 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
                         title="Imprimir calendario"
                       >
                         <Printer className="w-4 h-4" />
@@ -697,7 +697,7 @@ export default function CalendarPage() {
                         onClick={() =>
                           setCurrentMonth(addMonths(currentMonth, 1))
                         }
-                        className="p-2 rounded-full border border-gray-700 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
+                        className="p-2 rounded-full border border-white/10 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
                       >
                         <ChevronRight className="w-5 h-5" />
                       </button>
@@ -737,7 +737,7 @@ export default function CalendarPage() {
                               ? "bg-brand-gold/20 border-brand-gold"
                               : isSelected
                                 ? "bg-brand-gold/10 border-brand-gold/60"
-                                : "bg-brand-black/40 border-gray-800 hover:border-brand-gold/40"
+                                : "bg-brand-black/40 border-white/6 hover:border-brand-gold/40"
                           }`}
                         >
                           <div
@@ -774,7 +774,7 @@ export default function CalendarPage() {
 
               {/* ── Habit Tracker ──────────────────────────────────────────────── */}
               <FadeUpItem>
-                <div className="bg-gray-900/80 backdrop-blur-xl border border-brand-blue-glow/30 rounded-3xl p-6">
+                <div className="bg-surface-2/80 backdrop-blur-xl border border-brand-blue-glow/30 rounded-3xl p-6">
                   <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-brand-blue-glow/10 border border-brand-blue-glow/30 flex items-center justify-center">
@@ -801,7 +801,7 @@ export default function CalendarPage() {
                         onClick={() =>
                           setCurrentHabitWeek(subWeeks(currentHabitWeek, 1))
                         }
-                        className="p-2 rounded-full border border-gray-700 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
+                        className="p-2 rounded-full border border-white/10 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
                       >
                         <ChevronLeft className="w-4 h-4" />
                       </button>
@@ -815,13 +815,13 @@ export default function CalendarPage() {
                         onClick={() =>
                           setCurrentHabitWeek(addWeeks(currentHabitWeek, 1))
                         }
-                        className="p-2 rounded-full border border-gray-700 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
+                        className="p-2 rounded-full border border-white/10 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
                       >
                         <ChevronRight className="w-4 h-4" />
                       </button>
                       <button
                         onClick={printHabits}
-                        className="p-2 rounded-full border border-gray-700 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
+                        className="p-2 rounded-full border border-white/10 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all"
                         title="Imprimir Habit Tracker"
                       >
                         <Printer className="w-4 h-4" />
@@ -844,7 +844,7 @@ export default function CalendarPage() {
                       onChange={(e) => setNewHabitName(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && addHabit()}
                       placeholder="Nueva actividad/hábito (Enter para agregar)"
-                      className="flex-1 px-4 py-2.5 bg-black/40 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue-glow transition-colors text-sm"
+                      className="flex-1 px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-blue-glow transition-colors text-sm"
                     />
                     <button
                       onClick={addHabit}
@@ -888,7 +888,7 @@ export default function CalendarPage() {
                             return (
                               <tr
                                 key={habit.id}
-                                className="border-t border-gray-800/50 hover:bg-white/2 transition-colors"
+                                className="border-t border-white/6/50 hover:bg-white/2 transition-colors"
                               >
                                 <td className="py-3 px-3">
                                   <span className="text-white text-sm font-medium flex items-center gap-1.5">
@@ -961,7 +961,7 @@ export default function CalendarPage() {
                     }}
                   />
                 ) : (
-                  <div className="bg-gray-900/80 backdrop-blur-xl border border-brand-gold/30 rounded-3xl p-8">
+                  <div className="bg-surface-2/80 backdrop-blur-xl border border-brand-gold/30 rounded-3xl p-8">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                       <div>
                         <h2 className="text-2xl font-bold text-white">
@@ -994,7 +994,7 @@ export default function CalendarPage() {
                           <div
                             key={c.id}
                             onClick={() => setSelectedSharedCalendar(c)}
-                            className="bg-black/40 border border-gray-800 p-6 rounded-2xl hover:border-brand-gold/50 cursor-pointer transition-all flex items-start gap-4"
+                            className="bg-black/40 border border-white/6 p-6 rounded-2xl hover:border-brand-gold/50 cursor-pointer transition-all flex items-start gap-4"
                           >
                             <div className="p-3 bg-brand-gold/10 rounded-full min-w-[48px] flex justify-center">
                               <Users className="w-6 h-6 text-brand-gold" />
@@ -1033,7 +1033,7 @@ export default function CalendarPage() {
                 animate={{ scale: 1, y: 0 }}
                 exit={{ scale: 0.9, y: 20 }}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-gray-900 border border-brand-gold rounded-2xl p-6 max-w-sm w-full"
+                className="bg-surface-2 border border-brand-gold rounded-2xl p-6 max-w-sm w-full"
               >
                 <h3 className="text-lg font-bold text-white mb-4">
                   Ir a fecha
@@ -1049,7 +1049,7 @@ export default function CalendarPage() {
                       onChange={(e) =>
                         setPickerDate({ ...pickerDate, year: +e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-black/40 border border-gray-700 rounded-xl text-white text-sm focus:outline-none focus:border-brand-gold"
+                      className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-brand-gold"
                     />
                   </div>
                   <div>
@@ -1067,7 +1067,7 @@ export default function CalendarPage() {
                           month: +e.target.value - 1,
                         })
                       }
-                      className="w-full px-3 py-2 bg-black/40 border border-gray-700 rounded-xl text-white text-sm focus:outline-none focus:border-brand-gold"
+                      className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-brand-gold"
                     />
                   </div>
                   <div>
@@ -1082,7 +1082,7 @@ export default function CalendarPage() {
                       onChange={(e) =>
                         setPickerDate({ ...pickerDate, day: +e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-black/40 border border-gray-700 rounded-xl text-white text-sm focus:outline-none focus:border-brand-gold"
+                      className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-brand-gold"
                     />
                   </div>
                 </div>
@@ -1096,7 +1096,7 @@ export default function CalendarPage() {
                       });
                       applyDatePicker();
                     }}
-                    className="flex-1 py-2 border border-gray-700 rounded-xl text-gray-300 text-sm hover:bg-white/5 transition-colors"
+                    className="flex-1 py-2 border border-white/10 rounded-xl text-gray-300 text-sm hover:bg-white/5 transition-colors"
                   >
                     Volver a hoy
                   </button>
@@ -1149,7 +1149,7 @@ export default function CalendarPage() {
                       onChange={(e) =>
                         setFormData({ ...formData, title: e.target.value })
                       }
-                      className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white focus:border-brand-gold outline-none"
+                      className="w-full px-3 py-2 bg-surface-2 border border-white/10 rounded-xl text-white focus:border-brand-gold outline-none"
                       required
                     />
                   </div>
@@ -1165,7 +1165,7 @@ export default function CalendarPage() {
                           description: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white focus:border-brand-gold outline-none resize-none"
+                      className="w-full px-3 py-2 bg-surface-2 border border-white/10 rounded-xl text-white focus:border-brand-gold outline-none resize-none"
                       rows={2}
                     />
                   </div>
@@ -1180,7 +1180,7 @@ export default function CalendarPage() {
                         onChange={(e) =>
                           setFormData({ ...formData, start: e.target.value })
                         }
-                        className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white focus:border-brand-gold outline-none text-sm"
+                        className="w-full px-3 py-2 bg-surface-2 border border-white/10 rounded-xl text-white focus:border-brand-gold outline-none text-sm"
                         required
                       />
                     </div>
@@ -1194,7 +1194,7 @@ export default function CalendarPage() {
                         onChange={(e) =>
                           setFormData({ ...formData, end: e.target.value })
                         }
-                        className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white focus:border-brand-gold outline-none text-sm"
+                        className="w-full px-3 py-2 bg-surface-2 border border-white/10 rounded-xl text-white focus:border-brand-gold outline-none text-sm"
                         required
                       />
                     </div>
@@ -1233,9 +1233,9 @@ export default function CalendarPage() {
                 animate={{ scale: 1, y: 0 }}
                 exit={{ scale: 0.9, y: 20 }}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-gray-900 border border-brand-gold/30 rounded-3xl p-6 sm:p-8 max-w-lg w-full max-h-[80vh] flex flex-col"
+                className="bg-surface-2 border border-brand-gold/30 rounded-3xl p-6 sm:p-8 max-w-lg w-full max-h-[80vh] flex flex-col"
               >
-                <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-800">
+                <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/6">
                   <div>
                     <h2 className="text-2xl font-bold text-white tracking-tight">
                       {format(selectedDay, "d 'de' MMMM, yyyy", { locale: es })}
@@ -1249,7 +1249,7 @@ export default function CalendarPage() {
                   </div>
                   <button
                     onClick={() => setShowDayModal(false)}
-                    className="p-2.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-full transition-colors self-start"
+                    className="p-2.5 text-gray-400 hover:text-white hover:bg-white/5 rounded-full transition-colors self-start"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -1259,7 +1259,7 @@ export default function CalendarPage() {
                   {selectedDayEvents.map((ev) => (
                     <div
                       key={ev.id}
-                      className={`${ev.isShared ? "bg-blue-900/10 border-blue-500/20" : "bg-brand-black border-gray-800"} border p-5 rounded-2xl flex flex-col`}
+                      className={`${ev.isShared ? "bg-blue-900/10 border-blue-500/20" : "bg-brand-black border-white/6"} border p-5 rounded-2xl flex flex-col`}
                     >
                       <div className="flex justify-between items-start mb-3 gap-4">
                         <h3 className="font-bold text-lg text-white leading-tight">
@@ -1325,7 +1325,7 @@ export default function CalendarPage() {
                 </h2>
                 <button
                   onClick={() => setShowCreateSharedModal(false)}
-                  className="w-10 h-10 rounded-full border border-gray-700 flex items-center justify-center text-gray-400 hover:border-brand-gold hover:text-brand-gold"
+                  className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-gray-400 hover:border-brand-gold hover:text-brand-gold"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1339,7 +1339,7 @@ export default function CalendarPage() {
                     type="text"
                     value={newSharedName}
                     onChange={(e) => setNewSharedName(e.target.value)}
-                    className="w-full px-4 py-3 bg-brand-black border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold"
+                    className="w-full px-4 py-3 bg-brand-black border border-white/10 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold"
                     placeholder="Ej: Grupo de Estudio"
                     required
                   />
@@ -1350,7 +1350,7 @@ export default function CalendarPage() {
                     <label className="block text-sm font-medium text-gray-300 mb-2 mt-4">
                       Seleccionar Miembros (Opcional)
                     </label>
-                    <div className="max-h-48 overflow-y-auto space-y-2 border border-gray-800 rounded-xl p-3 bg-black/40 custom-scrollbar">
+                    <div className="max-h-48 overflow-y-auto space-y-2 border border-white/6 rounded-xl p-3 bg-black/40 custom-scrollbar">
                       {friends.map((f) => (
                         <label
                           key={f.id}
@@ -1367,7 +1367,7 @@ export default function CalendarPage() {
                                   selectedFriends.filter((id) => id !== f.id),
                                 );
                             }}
-                            className="w-4 h-4 rounded border-gray-700 text-brand-gold focus:ring-brand-gold focus:ring-offset-0 bg-transparent accent-brand-gold"
+                            className="w-4 h-4 rounded border-white/10 text-brand-gold focus:ring-brand-gold focus:ring-offset-0 bg-transparent accent-brand-gold"
                           />
                           <span className="text-sm text-gray-300 font-medium">
                             {f.name}
