@@ -191,22 +191,10 @@ function LoginForm() {
 
   return (
     /* Fixed full-screen container — independent of MainLayout overflow */
-    <div className="fixed inset-0 bg-brand-black flex flex-col lg:flex-row">
+    <div className="fixed inset-0 flex flex-col lg:flex-row overflow-y-auto">
       {/* Left Side — Branding (hidden on mobile) */}
       <div className="hidden lg:flex lg:w-1/2 relative flex-col items-center justify-center p-12 overflow-hidden border-r border-white/6">
-        <div className="absolute inset-0 bg-mesh-1" />
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <motion.div
-            className="absolute top-1/4 -left-1/4 w-[500px] h-[500px] bg-brand-purple/15 rounded-full blur-[120px]"
-            animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.2, 0.1] }}
-            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-          />
-          <motion.div
-            className="absolute bottom-1/4 right-0 w-[400px] h-[400px] bg-brand-gold/10 rounded-full blur-[100px]"
-            animate={{ scale: [1, 1.3, 1], opacity: [0.05, 0.12, 0.05] }}
-            transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-          />
-        </div>
+        <div className="absolute inset-0 pointer-events-none" />
 
         <motion.div
           initial={{ opacity: 0, x: -50 }}
@@ -229,11 +217,8 @@ function LoginForm() {
       </div>
 
       {/* Right Side — Auth Form (scrollable) */}
-      <div className="w-full lg:w-1/2 flex-1 min-h-dvh lg:min-h-0 flex items-center justify-center relative bg-brand-black overflow-hidden">
-        {/* Mobile background glow */}
-        <div className="absolute inset-0 overflow-hidden lg:hidden pointer-events-none">
-          <motion.div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-72 h-72 bg-brand-purple/15 rounded-full blur-[80px]" />
-        </div>
+      <div className="w-full lg:w-1/2 flex-1 min-h-dvh lg:min-h-0 flex items-center justify-center relative overflow-hidden">
+        {/* Mobile background glow fallback removed to use global glows */}
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}

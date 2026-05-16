@@ -6,21 +6,12 @@ import { Sparkles, BookOpen, Users, Brain, Calendar, LogIn } from "lucide-react"
 
 export default function Home() {
   return (
-    <div className="fixed inset-0 bg-brand-black overflow-hidden">
-      {/* Animated mesh background */}
+    <div className="fixed inset-0 overflow-hidden">
+      {/* Animated mesh background relying on global body glows */}
       <div className="absolute inset-0 overflow-hidden">
-        <motion.div
-          className="absolute top-0 left-0 w-full h-full"
-          style={{
-            background:
-              "radial-gradient(ellipse at 20% 20%, rgba(139,92,246,0.12) 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(240,200,80,0.08) 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, rgba(56,189,248,0.05) 0%, transparent 60%)",
-          }}
-          animate={{ opacity: [0.6, 1, 0.6] }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-        />
         {/* Floating orbs */}
         <motion.div
-          className="absolute top-1/4 -left-20 w-80 h-80 bg-brand-purple/20 rounded-full blur-[120px]"
+          className="absolute top-1/4 -left-20 w-80 h-80 bg-white/5 rounded-full blur-[120px]"
           animate={{
             x: [0, 80, 0],
             y: [0, 40, 0],

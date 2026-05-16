@@ -644,7 +644,7 @@ export default function AIChatComponent({
 
             {loading && (
               <div className="flex justify-start">
-                <div className="bg-surface-2 border border-white/6 rounded-2xl p-4 rounded-tl-sm flex items-center gap-3">
+                <div className="bg-surface-2 rounded-2xl p-4 rounded-tl-sm flex items-center gap-3">
                   <Loader2 className="w-5 h-5 text-brand-gold animate-spin shrink-0" />
                   <motion.span 
                     key={loadingMessage}
@@ -670,10 +670,10 @@ export default function AIChatComponent({
                   {pendingActions.map((action, i) => (
                     <div
                       key={i}
-                      className="bg-surface-2 border border-brand-gold/30 rounded-2xl p-4 rounded-tl-sm"
+                      className="bg-surface-2 rounded-2xl p-4 rounded-tl-sm shadow-lg"
                     >
                       <div className="flex items-center gap-2 mb-3">
-                        <div className="w-8 h-8 rounded-full bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center text-brand-gold">
+                        <div className="w-8 h-8 rounded-full bg-brand-gold/10 flex items-center justify-center text-brand-gold">
                           {getToolIcon(action.tool)}
                         </div>
                         <div>
@@ -726,7 +726,7 @@ export default function AIChatComponent({
             }}
           >
             {file && (
-              <div className="mb-3 flex items-center gap-2 p-2 bg-surface-2 rounded-xl border border-brand-gold/30">
+              <div className="mb-3 flex items-center gap-2 p-2 bg-surface-2 rounded-xl">
                 {getMediaType(file) === "image" ? (
                   <ImageIcon className="w-4 h-4 text-brand-gold" />
                 ) : (
@@ -755,7 +755,7 @@ export default function AIChatComponent({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="p-3 rounded-full bg-surface-2 text-gray-400 hover:text-brand-gold hover:bg-white/5 transition-colors shrink-0 border border-white/6 flex items-center justify-center"
+                className="p-3 rounded-full bg-surface-2 text-gray-400 hover:text-brand-gold hover:bg-white/5 transition-colors shrink-0 flex items-center justify-center"
               >
                 <Paperclip className="w-5 h-5" />
               </button>
@@ -765,7 +765,7 @@ export default function AIChatComponent({
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Escribe tu mensaje..."
                 disabled={loading || uploadingMedia}
-                className="flex-1 min-w-0 px-4 py-3.5 bg-surface-2 border border-white/6 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors disabled:opacity-50 text-sm"
+                className="flex-1 min-w-0 px-4 py-3.5 bg-surface-2 rounded-full text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-brand-gold transition-colors disabled:opacity-50 text-sm shadow-inner"
               />
               <button
                 type="submit"

@@ -294,14 +294,18 @@ export default function Sidebar() {
         </nav>
         {/* Footer */}
         <div className="p-4 border-t border-white/6">
-          <form action="/auth/signout" method="post">
-            <button
-              type="submit"
-              className="w-full px-4 py-3 text-sm text-gray-500 hover:text-brand-gold hover:bg-white/3 rounded-xl transition-all duration-300 text-center font-body"
-            >
-              Cerrar Sesión
-            </button>
-          </form>
+          <button
+            onClick={async () => {
+              setIsGlobalLoading(true);
+              await supabase.auth.signOut();
+              // Optional: call the route to clear server cookies in background
+              fetch('/auth/signout', { method: 'POST' }).catch(() => {});
+              window.location.href = '/login';
+            }}
+            className="w-full px-4 py-3 text-sm text-gray-500 hover:text-brand-gold hover:bg-white/3 rounded-xl transition-all duration-300 text-center font-body flex justify-center items-center gap-2"
+          >
+            Cerrar Sesión
+          </button>
         </div>
       </aside>
     </>

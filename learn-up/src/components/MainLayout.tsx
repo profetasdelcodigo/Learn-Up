@@ -33,7 +33,7 @@ export default function MainLayout({
 
   return (
     <div
-      className={`flex bg-brand-black w-full ${
+      className={`flex w-full ${
         isFullscreen ? "h-dvh overflow-hidden" : "min-h-dvh"
       }`}
     >
@@ -55,10 +55,10 @@ export default function MainLayout({
         {/* Content wrapper */}
         <div
           className={[
-            "w-full h-full",
+            "w-full",
             // Padding bottom for bottom nav
             showNav && !isFullscreen ? "pb-nav" : "",
-            isFullscreen ? "flex flex-col" : "",
+            isFullscreen ? "flex flex-col h-full" : "min-h-full",
           ]
             .filter(Boolean)
             .join(" ")}
