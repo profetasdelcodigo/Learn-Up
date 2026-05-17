@@ -19,6 +19,8 @@ import {
   PlusCircle,
   Trash2,
   X,
+  History,
+  ChevronLeft,
 } from "lucide-react";
 import PageLoader from "@/components/PageLoader";
 import { generateRealExam, gradeExam, ExamData } from "@/actions/ai-tutor";
@@ -217,32 +219,55 @@ export default function ExamenIAPage() {
     : false;
 
   return (
-    <div className="h-dvh flex flex-col md:flex-row relative z-10">
+    <div className="flex flex-col w-full relative z-10" style={{ height: "100dvh", overflow: "hidden" }}>
+      {/* ──────────────────── HEADER ──────────────────── */}
+      <div
+        className="shrink-0 relative flex items-center justify-between px-4 bg-surface-2/40 backdrop-blur-xl z-30 border-b border-white/6"
+        style={{
+          paddingTop: "0.75rem",
+          paddingBottom: "0.75rem",
+        }}
+      >
+        {/* LEFT: Back button */}
+        <button
+          onClick={() => router.back()}
+          className="flex items-center justify-center w-10 h-10 rounded-full bg-surface-2 border border-white/6 text-gray-400 hover:text-white hover:border-brand-blue-glow/40 transition-all shrink-0"
+          aria-label="Volver"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
 
-
-      <div className="flex-1 flex flex-col h-screen overflow-y-auto relative p-4 md:p-8">
-        <div className="max-w-4xl mx-auto w-full">
-          <div className="flex items-center justify-between mb-6">
-            <BackButton />
-            <button
-              className="md:hidden text-gray-400 hover:text-white bg-surface-2 p-2 rounded-xl"
-              onClick={() => setShowHistory(true)}
-            >
-              <Menu className="w-6 h-6" />
-            </button>
-          </div>
-
-          {/* Header */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-2xl bg-brand-blue-glow/10 border border-brand-blue-glow">
-              <GraduationCap className="w-8 h-8 text-brand-blue-glow" />
+        {/* CENTER: AI info */}
+        <div className="flex flex-col items-center flex-1 px-3 min-w-0">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-full bg-brand-blue-glow/10 border border-brand-blue-glow/30 flex items-center justify-center shrink-0">
+              <GraduationCap className="w-4 h-4 text-brand-blue-glow" />
             </div>
-            <h1 className="text-4xl font-black text-white mb-2">Examen IA</h1>
-            <p className="text-gray-400">
-              Exámenes reales con preguntas abiertas, opción múltiple, análisis
-              y más. Evaluados por IA.
-            </p>
+            <h1 className="font-bold text-white text-sm leading-tight truncate">
+              Examen IA
+            </h1>
           </div>
+          <p className="text-[11px] text-brand-blue-glow/80 mt-0.5">
+            Evaluador Oficial
+          </p>
+        </div>
+
+        {/* RIGHT: History */}
+        <button
+          onClick={() => setShowHistory((v) => !v)}
+          className={`flex items-center justify-center w-10 h-10 rounded-full border transition-all shrink-0 ${
+            showHistory
+              ? "bg-brand-blue-glow text-brand-black border-brand-blue-glow"
+              : "bg-surface-2 border-white/6 text-gray-400 hover:border-brand-blue-glow/40 hover:text-white"
+          }`}
+          aria-label="Historial"
+        >
+          <History className="w-5 h-5" />
+        </button>
+      </div>
+
+      <div className="flex-1 flex flex-col h-full overflow-y-auto relative p-4 md:p-8">
+        <div className="max-w-4xl mx-auto w-full">
 
           {/* SETUP PHASE */}
           {phase === "setup" && (
@@ -654,60 +679,80 @@ export default function ExamenIAPage() {
         </div>
       </div>
 
-      {/* Sidebar History (Desktop) - Moved to Right */}
-      <div
-        className={`fixed inset-y-0 right-0 z-40 w-64 bg-surface-2 border-l border-white/6 transform ${showHistory ? "translate-x-0" : "translate-x-full"} md:relative md:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl md:shadow-none`}
-      >
-        <div className="p-4 flex items-center justify-between border-b border-white/6">
-          <h3 className="font-bold text-white flex items-center gap-2">
-            <Bot className="w-5 h-5 text-brand-blue-glow" /> Historial
-          </h3>
-          <button
-            className="md:hidden text-gray-400"
-            onClick={() => setShowHistory(false)}
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <div className="p-4">
-          <button
-            onClick={resetExam}
-            className="w-full py-2.5 bg-brand-blue-glow/10 text-brand-blue-glow border border-brand-blue-glow/30 rounded-xl hover:bg-brand-blue-glow hover:text-white transition-all flex items-center justify-center gap-2 mb-4 font-semibold text-sm"
-          >
-            <PlusCircle className="w-4 h-4" /> Nuevo Examen
-          </button>
-          <div className="space-y-2 max-h-[calc(100vh-140px)] overflow-y-auto">
-            {sessions.length === 0 ? (
-              <p className="text-gray-500 text-xs text-center py-4">
-                No hay exámenes previos
-              </p>
-            ) : (
-              sessions.map((s) => (
-                <div
-                  key={s.id}
-                  onClick={() => loadSessionDetails(s.id)}
-                  className={`p-3 rounded-xl cursor-pointer flex justify-between items-center group transition-colors hover:bg-white/5/50`}
+      {/* ──────────────────── HISTORY DRAWER ──────────────────── */}
+      <AnimatePresence>
+        {showHistory && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 z-40"
+              onClick={() => setShowHistory(false)}
+            />
+            
+            {/* Sidebar History (Drawer from Right) */}
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 300 }}
+              className="fixed inset-y-0 right-0 z-50 w-72 bg-surface-1 border-l border-white/6 flex flex-col shadow-2xl"
+            >
+              <div className="p-4 flex items-center justify-between border-b border-white/6">
+                <h3 className="font-bold text-white flex items-center gap-2">
+                  <Bot className="w-5 h-5 text-brand-blue-glow" /> Historial
+                </h3>
+                <button
+                  className="text-gray-400 hover:text-white"
+                  onClick={() => setShowHistory(false)}
                 >
-                  <div className="truncate pr-2">
-                    <p className="text-sm text-white truncate font-medium">
-                      {s.title}
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-4 flex-1 flex flex-col min-h-0">
+                <button
+                  onClick={resetExam}
+                  className="w-full py-2.5 bg-brand-blue-glow/10 text-brand-blue-glow border border-brand-blue-glow/30 rounded-xl hover:bg-brand-blue-glow hover:text-white transition-all flex items-center justify-center gap-2 mb-4 font-semibold text-sm shrink-0"
+                >
+                  <PlusCircle className="w-4 h-4" /> Nuevo Examen
+                </button>
+                <div className="space-y-2 overflow-y-auto flex-1 pb-4">
+                  {sessions.length === 0 ? (
+                    <p className="text-gray-500 text-xs text-center py-4">
+                      No hay exámenes previos
                     </p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(s.updated_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <button
-                    onClick={(e) => handleDeleteSession(e, s.id)}
-                    className="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  ) : (
+                    sessions.map((s) => (
+                      <div
+                        key={s.id}
+                        onClick={() => loadSessionDetails(s.id)}
+                        className={`p-3 rounded-xl cursor-pointer flex justify-between items-center group transition-colors hover:bg-white/5/50`}
+                      >
+                        <div className="truncate pr-2">
+                          <p className="text-sm text-white truncate font-medium">
+                            {s.title}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(s.updated_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <button
+                          onClick={(e) => handleDeleteSession(e, s.id)}
+                          className="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))
+                  )}
                 </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
