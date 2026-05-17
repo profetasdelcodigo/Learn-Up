@@ -48,7 +48,9 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/api") ||
     request.nextUrl.pathname.endsWith(".xml") ||
     request.nextUrl.pathname.endsWith(".txt") ||
-    request.nextUrl.pathname.endsWith(".html");
+    request.nextUrl.pathname.endsWith(".html") ||
+    request.nextUrl.pathname.includes("opengraph-image") ||
+    request.nextUrl.pathname.includes("icon");
 
   // Redirect authenticated users away from public routes
   if (user && isPublicRoute) {
