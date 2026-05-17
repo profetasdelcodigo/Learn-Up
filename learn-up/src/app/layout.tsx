@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://learn-up-qmgx.onrender.com"),
   title: "Learn Up | La Plataforma Educativa Global del Futuro",
   description:
-    "Estudia de forma colaborativa con alumnos de todo el mundo. Learn Up ofrece salas de estudio interactivas, herramientas de dibujo en tiempo real, generador de exámenes a medida y un ecosistema potenciado por Inteligencia Artificial para acelerar tu aprendizaje.",
+    "Salas de estudio en vivo, exámenes con IA y aprendizaje colaborativo mundial. La educación del futuro, gratis y global.",
   keywords: [
     "educación online",
     "salas de estudio virtuales",
