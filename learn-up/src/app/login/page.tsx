@@ -11,7 +11,6 @@ import {
   FadeUpItem,
 } from "@/components/animations/StaggerReveal";
 import { Capacitor } from "@capacitor/core";
-import PageLoader from "@/components/PageLoader";
 
 function LoginForm() {
   const router = useRouter();
@@ -408,7 +407,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<PageLoader />}>
+    <Suspense fallback={<div className="min-h-screen bg-brand-black" />}>
       <LoginForm />
     </Suspense>
   );
