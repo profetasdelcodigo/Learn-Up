@@ -41,7 +41,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Learn Up | La Plataforma Educativa Global del Futuro",
     description:
-      "Estudia de forma colaborativa con alumnos de todo el mundo. Learn Up ofrece salas de estudio interactivas, herramientas de dibujo en tiempo real, generador de exámenes a medida y un ecosistema potenciado por Inteligencia Artificial para acelerar tu aprendizaje.",
+      "Salas de estudio en vivo, exámenes con IA y aprendizaje colaborativo mundial. La educación del futuro, gratis y global.",
     url: "https://learn-up-qmgx.onrender.com",
     siteName: "Learn Up",
     locale: "es",
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Learn Up | La Plataforma Educativa Global del Futuro",
     description:
-      "Estudia de forma colaborativa con alumnos de todo el mundo. Salas de estudio interactivas, generador de exámenes IA y aprendizaje colaborativo mundial.",
+      "Salas de estudio en vivo, exámenes con IA y aprendizaje colaborativo mundial. La educación del futuro, gratis y global.",
   },
   icons: {
     icon: "/favicon.svg",
