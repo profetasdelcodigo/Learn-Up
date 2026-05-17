@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 // Route segment config
-export const runtime = "edge";
+// Removed edge runtime so the favicon builds statically and doesn't timeout on Google
 
 // Image metadata
 export const size = {

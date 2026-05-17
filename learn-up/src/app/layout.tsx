@@ -24,23 +24,22 @@ import DeepLinkHandler from "@/components/DeepLinkHandler";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://learn-up-qmgx.onrender.com"),
-  title: "Learn Up | Tu Tutor Inteligente con IA",
+  title: "Learn Up | La Plataforma Educativa Global del Futuro",
   description:
-    "La plataforma educativa del futuro impulsada por Inteligencia Artificial. Estudia en cualquier lugar del mundo, resuelve exámenes a medida, crea salas de estudio virtuales y domina cualquier tema con tu Tutor IA.",
+    "Estudia de forma colaborativa con alumnos de todo el mundo. Learn Up ofrece salas de estudio interactivas, herramientas de dibujo en tiempo real, generador de exámenes a medida y un ecosistema potenciado por Inteligencia Artificial para acelerar tu aprendizaje.",
   keywords: [
-    "educación global",
-    "inteligencia artificial",
-    "tutor IA",
-    "aprender en línea",
+    "educación online",
     "salas de estudio virtuales",
+    "tutor con inteligencia artificial",
+    "aprender en línea",
+    "plataforma educativa colaborativa",
     "Learn Up",
-    "exámenes con IA",
-    "herramientas para estudiantes",
-    "latinoamérica",
+    "generador de exámenes IA",
+    "estudio global",
   ],
   authors: [{ name: "Learn Up Team" }],
   openGraph: {
-    title: "Learn Up | El futuro de la educación mundial con IA",
+    title: "Learn Up | El futuro de la educación mundial",
     description:
       "Únete a estudiantes de todo el mundo en Learn Up. Potencia tu aprendizaje con inteligencia artificial, salas interactivas y tutores 24/7.",
     url: "https://learn-up-qmgx.onrender.com",
