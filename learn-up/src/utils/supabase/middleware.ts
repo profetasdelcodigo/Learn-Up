@@ -45,7 +45,10 @@ export async function updateSession(request: NextRequest) {
   const isOnboarding = request.nextUrl.pathname.startsWith("/onboarding");
   const isBypass =
     request.nextUrl.pathname.startsWith("/_next") ||
-    request.nextUrl.pathname.startsWith("/api");
+    request.nextUrl.pathname.startsWith("/api") ||
+    request.nextUrl.pathname.endsWith(".xml") ||
+    request.nextUrl.pathname.endsWith(".txt") ||
+    request.nextUrl.pathname.endsWith(".html");
 
   // Redirect authenticated users away from public routes
   if (user && isPublicRoute) {
