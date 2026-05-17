@@ -15,14 +15,12 @@ const inter = Inter({
   weight: ["300", "400", "500", "600", "700", "800"],
 });
 
-import dynamic from "next/dynamic";
 import MainLayout from "@/components/MainLayout";
-
-const PushNotificationManager = dynamic(() => import("@/components/PushNotificationManager"), { ssr: false });
-const SmoothScroll = dynamic(() => import("@/components/SmoothScroll"), { ssr: false });
-const HardwareBackHandler = dynamic(() => import("@/components/HardwareBackHandler"), { ssr: false });
-const OfflineDetector = dynamic(() => import("@/components/OfflineDetector"), { ssr: false });
-const DeepLinkHandler = dynamic(() => import("@/components/DeepLinkHandler"), { ssr: false });
+import PushNotificationManager from "@/components/PushNotificationManager";
+import SmoothScroll from "@/components/SmoothScroll";
+import HardwareBackHandler from "@/components/HardwareBackHandler";
+import OfflineDetector from "@/components/OfflineDetector";
+import DeepLinkHandler from "@/components/DeepLinkHandler";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://learn-up-qmgx.onrender.com"),
