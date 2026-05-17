@@ -1113,7 +1113,7 @@ export default function ChatPage() {
             <div
               className={`${
                 mobileShowChat ? "flex" : "hidden"
-              } md:flex flex-1 flex-col bg-brand-black relative`}
+              } md:flex flex-1 flex-col bg-transparent relative`}
             >
               {activeChat ? (
                 showVideo ? (
@@ -1308,8 +1308,8 @@ export default function ChatPage() {
                             <div
                               className={`max-w-[80%] md:max-w-[65%] rounded-2xl p-4 shadow-sm relative ${
                                 isMe
-                                  ? "bg-brand-gold text-brand-black rounded-tr-sm"
-                                  : "bg-surface-2 text-white rounded-tl-sm"
+                                  ? "bg-brand-blue-glow/20 text-white rounded-tr-sm border border-brand-blue-glow/30 shadow-[0_0_15px_-5px_var(--brand-blue-glow)]"
+                                  : "bg-surface-2/60 backdrop-blur-sm text-white rounded-tl-sm border border-white/6"
                               }`}
                             >
                               {msg.is_deleted_for_everyone ? (
@@ -1583,7 +1583,7 @@ export default function ChatPage() {
                     </div>
 
                     {/* ── Input Area ── */}
-                    <div className="p-4 bg-brand-black border-t border-white/6 fixed bottom-0 left-0 w-full md:sticky md:bottom-0 md:w-auto z-40 pb-[max(1rem,env(safe-area-inset-bottom))] md:pb-4">
+                    <div className="p-4 border-t border-white/6 fixed bottom-0 left-0 w-full md:sticky md:bottom-0 md:w-auto z-40 pb-[max(1rem,env(safe-area-inset-bottom))] md:pb-4">
                       {editingMessageId && (
                         <div className="flex items-center justify-between bg-brand-gold/10 p-2 px-4 rounded-t-xl border border-brand-gold/20 text-xs mb-2">
                           <span className="text-brand-gold font-bold">
@@ -1754,7 +1754,7 @@ export default function ChatPage() {
                               ? !editContent
                               : !input && !pendingFile)
                           }
-                          className="p-3 bg-brand-gold text-brand-black rounded-xl hover:bg-white transition-all disabled:opacity-50"
+                          className="p-3 bg-brand-blue-glow/20 text-brand-blue-glow rounded-xl hover:bg-brand-blue-glow hover:text-white border border-brand-blue-glow/30 shadow-[0_0_15px_-5px_var(--brand-blue-glow)] transition-all disabled:opacity-50 disabled:shadow-none disabled:bg-surface-2 disabled:border-white/6 disabled:text-gray-500"
                         >
                           {uploadingMedia ? (
                             <Loader2 className="w-5 h-5 animate-spin" />
@@ -1768,8 +1768,8 @@ export default function ChatPage() {
                 )
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[url('/grid-pattern.svg')] bg-opacity-5">
-                  <div className="w-24 h-24 bg-brand-gold/10 rounded-full flex items-center justify-center mb-6 animate-pulse">
-                    <MessageCircle className="w-12 h-12 text-brand-gold" />
+                  <div className="w-24 h-24 bg-brand-blue-glow/10 rounded-full flex items-center justify-center mb-6 animate-pulse">
+                    <MessageCircle className="w-12 h-12 text-brand-blue-glow" />
                   </div>
                   <h2 className="text-2xl font-bold text-white mb-2">
                     Aprendamos Juntos
