@@ -23,6 +23,7 @@ import OfflineDetector from "@/components/OfflineDetector";
 import DeepLinkHandler from "@/components/DeepLinkHandler";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://learn-up-qmgx.onrender.com"),
   title: "Learn Up | Tu Tutor Inteligente con IA",
   description:
     "La plataforma educativa del futuro impulsada por Inteligencia Artificial. Estudia en cualquier lugar del mundo, resuelve exámenes a medida, crea salas de estudio virtuales y domina cualquier tema con tu Tutor IA.",
@@ -72,6 +73,22 @@ export default function RootLayout({
           <DeepLinkHandler />
           <MainLayout>{children}</MainLayout>
         </SmoothScroll>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": ["EducationalOrganization", "WebApplication"],
+              name: "Learn Up",
+              url: "https://learn-up-qmgx.onrender.com",
+              logo: "https://learn-up-qmgx.onrender.com/favicon.svg",
+              description:
+                "La plataforma educativa del futuro impulsada por Inteligencia Artificial. Estudia en cualquier lugar del mundo, resuelve exámenes a medida y crea salas de estudio.",
+              applicationCategory: "EducationalApplication",
+              operatingSystem: "All",
+            }),
+          }}
+        />
       </body>
     </html>
   );
