@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 // Elimino edge runtime para que se genere estáticamente y WhatsApp no sufra timeout.
 
-export const alt = "Learn Up - Plataforma Educativa con IA";
+export const alt = "Learn Up - La Plataforma Educativa Global del Futuro";
 export const size = {
   width: 1200,
   height: 630,
@@ -65,19 +65,32 @@ export default async function Image() {
             boxShadow: "0 0 60px rgba(0, 229, 255, 0.2)",
           }}
         >
-          {/* Lucide BookOpen Icon */}
+          {/* Learn Up Logo - Book + Sparkle + Neural Nodes */}
           <svg
             width="70"
             height="70"
             viewBox="0 0 24 24"
             fill="none"
-            stroke="#00E5FF"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+            xmlns="http://www.w3.org/2000/svg"
           >
-            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+            <path
+              d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"
+              stroke="#fbbf24"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M15 6.5l0.5 1.5l1.5 0.5l-1.5 0.5l-0.5 1.5l-0.5-1.5l-1.5-0.5l1.5-0.5z"
+              fill="#22d3ee"
+              stroke="#22d3ee"
+              strokeWidth="0.5"
+            />
+            <circle cx="10" cy="14" r="1" fill="#22d3ee" />
+            <circle cx="14" cy="14" r="1" fill="#22d3ee" />
+            <circle cx="12" cy="11" r="1" fill="#22d3ee" />
+            <path d="M12 11L10 14" stroke="#22d3ee" strokeWidth="1" />
+            <path d="M12 11L14 14" stroke="#22d3ee" strokeWidth="1" />
           </svg>
         </div>
         <h1
@@ -94,16 +107,27 @@ export default async function Image() {
         </h1>
         <p
           style={{
-            fontSize: "38px",
-            color: "#9ca3af",
+            fontSize: "32px",
+            color: "#fbbf24",
             textAlign: "center",
             maxWidth: "900px",
-            lineHeight: 1.4,
+            lineHeight: 1.3,
+            marginBottom: "16px",
+            fontWeight: "600",
           }}
         >
-          La plataforma educativa del futuro.
-          <br />
-          Domina cualquier tema con tu Tutor IA 24/7.
+          La Plataforma Educativa Global del Futuro
+        </p>
+        <p
+          style={{
+            fontSize: "24px",
+            color: "#9ca3af",
+            textAlign: "center",
+            maxWidth: "800px",
+            lineHeight: 1.5,
+          }}
+        >
+          Salas de estudio interactivas · Generador de exámenes IA · Aprendizaje colaborativo mundial
         </p>
       </div>
     ),
