@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const runtime = "edge";
+// Elimino edge runtime para que se genere estáticamente y WhatsApp no sufra timeout.
 
 export const alt = "Learn Up - Plataforma Educativa con IA";
 export const size = {
