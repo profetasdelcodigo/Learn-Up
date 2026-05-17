@@ -23,9 +23,30 @@ import OfflineDetector from "@/components/OfflineDetector";
 import DeepLinkHandler from "@/components/DeepLinkHandler";
 
 export const metadata: Metadata = {
-  title: "Learn Up | Tu Tutor IA",
+  title: "Learn Up | Tu Tutor Inteligente con IA",
   description:
-    "Plataforma educativa integral con IA, herramientas sociales y más.",
+    "La plataforma educativa del futuro impulsada por Inteligencia Artificial. Estudia en cualquier lugar del mundo, resuelve exámenes a medida, crea salas de estudio virtuales y domina cualquier tema con tu Tutor IA.",
+  keywords: [
+    "educación global",
+    "inteligencia artificial",
+    "tutor IA",
+    "aprender en línea",
+    "salas de estudio virtuales",
+    "Learn Up",
+    "exámenes con IA",
+    "herramientas para estudiantes",
+    "latinoamérica",
+  ],
+  authors: [{ name: "Learn Up Team" }],
+  openGraph: {
+    title: "Learn Up | El futuro de la educación mundial con IA",
+    description:
+      "Únete a estudiantes de todo el mundo en Learn Up. Potencia tu aprendizaje con inteligencia artificial, salas interactivas y tutores 24/7.",
+    url: "https://learn-up.onrender.com",
+    siteName: "Learn Up",
+    locale: "es",
+    type: "website",
+  },
   icons: {
     icon: "/favicon.svg",
   },
