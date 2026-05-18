@@ -82,8 +82,7 @@ export default function Home() {
             transition={{ duration: 0.8, delay: 0.5 }}
             className="text-lg md:text-xl text-gray-400 mb-14 max-w-2xl mx-auto font-body leading-relaxed"
           >
-            Tu compañero de estudio que nunca duerme. Tutores IA especializados,
-            aprendizaje colaborativo y organización inteligente — todo gratis.
+            Aprende con IA. Salas en vivo, exámenes a medida y más. ¡Gratis!
           </motion.p>
 
           {/* Feature pills */}
