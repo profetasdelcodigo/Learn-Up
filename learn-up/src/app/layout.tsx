@@ -48,7 +48,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/og-image.png",
+        url: "/og-image.jpg",
         width: 1200,
         height: 630,
         alt: "Learn Up - La Plataforma Educativa Global del Futuro",
@@ -60,7 +60,7 @@ export const metadata: Metadata = {
     title: "Learn Up | La Plataforma Educativa Global del Futuro",
     description:
       "Aprende con IA. Salas en vivo, exámenes a medida y más. ¡Gratis!",
-    images: ["/og-image.png"],
+    images: ["/og-image.jpg"],
   },
   icons: {
     icon: "/favicon.svg",
