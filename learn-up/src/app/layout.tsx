@@ -46,12 +46,21 @@ export const metadata: Metadata = {
     siteName: "Learn Up",
     locale: "es",
     type: "website",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Learn Up - La Plataforma Educativa Global del Futuro",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Learn Up | La Plataforma Educativa Global del Futuro",
     description:
       "Salas de estudio en vivo, exámenes con IA y aprendizaje colaborativo mundial. La educación del futuro, gratis y global.",
+    images: ["/og-image.png"],
   },
   icons: {
     icon: "/favicon.svg",
