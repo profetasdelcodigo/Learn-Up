@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://learn-up-qmgx.onrender.com"),
   title: "Learn Up | La Plataforma Educativa Global del Futuro",
   description:
-    "Salas de estudio en vivo, exámenes con IA y aprendizaje colaborativo mundial. La educación del futuro, gratis y global.",
+    "Aprende con IA. Salas en vivo, exámenes a medida y más. ¡Gratis!",
   keywords: [
     "educación online",
     "salas de estudio virtuales",
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Learn Up | La Plataforma Educativa Global del Futuro",
     description:
-      "Salas de estudio en vivo, exámenes con IA y aprendizaje colaborativo mundial. La educación del futuro, gratis y global.",
+      "Aprende con IA. Salas en vivo, exámenes a medida y más. ¡Gratis!",
     url: "https://learn-up-qmgx.onrender.com",
     siteName: "Learn Up",
     locale: "es",
@@ -59,7 +59,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Learn Up | La Plataforma Educativa Global del Futuro",
     description:
-      "Salas de estudio en vivo, exámenes con IA y aprendizaje colaborativo mundial. La educación del futuro, gratis y global.",
+      "Aprende con IA. Salas en vivo, exámenes a medida y más. ¡Gratis!",
     images: ["/og-image.png"],
   },
   icons: {
