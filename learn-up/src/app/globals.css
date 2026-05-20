@@ -281,7 +281,7 @@ body {
   }
 }
 
-/* ── Global background glows ── */
+/* ── Global background glows (Optimized for Performance) ── */
 body::before {
   content: '';
   position: fixed;
@@ -290,9 +290,8 @@ body::before {
   width: 600px;
   height: 600px;
   border-radius: 50%;
-  background: #D4AF37;
-  filter: blur(200px);
-  opacity: 0.15; /* Increased opacity for clear visibility */
+  /* Replaced filter: blur(200px) with radial-gradient for massive performance boost on mobile */
+  background: radial-gradient(circle, rgba(212, 175, 55, 0.15) 0%, rgba(212, 175, 55, 0) 70%);
   pointer-events: none;
   z-index: 0;
 }
@@ -304,9 +303,8 @@ body::after {
   width: 500px;
   height: 500px;
   border-radius: 50%;
-  background: #3B82F6;
-  filter: blur(200px);
-  opacity: 0.15; /* Increased opacity for clear visibility */
+  /* Replaced filter: blur(200px) with radial-gradient for massive performance boost on mobile */
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0) 70%);
   pointer-events: none;
   z-index: 0;
 }

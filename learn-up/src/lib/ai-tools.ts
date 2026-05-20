@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { ensurePrivateRoom, sendMessage } from "@/actions/chat";
+import { performWebSearch } from "@/lib/web-search";
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 export interface ToolAction {
@@ -46,18 +47,27 @@ LISTA DE HERRAMIENTAS:
    args: {"field": "bio|school|grade", "value": "nuevo valor"}
    Solo campos permitidos: bio, school, grade.
 
-REGLAS PARA USAR HERRAMIENTAS:
-- Solo usa una herramienta cuando el usuario lo pide explícita o implícitamente.
-- NUNCA uses herramientas si el usuario solo quiere conversar o aprender.
+6. add_habit — Crear un nuevo hábito en el Habit Tracker del usuario.
+   args: {"title": "Nombre del hábito"}
+   Ejemplo: Leer 20 páginas diarias, Tomar agua.
+
+7. search_web — Buscar información actualizada en internet en tiempo real.
+   args: {"query": "término de búsqueda específico"}
+   Ejemplo: Últimas noticias, datos históricos, descubrimientos científicos recientes.
+
+REGLAS ESTRICTAS PARA USAR HERRAMIENTAS:
+- NO uses herramientas (ni investigues en internet) si el usuario solo dice "Hola", "Buenos días", o hace comentarios casuales. Responde de forma natural y rápida.
+- Solo usa una herramienta cuando el usuario lo pide explícita o implícitamente de forma clara.
+- NUNCA uses herramientas si el usuario solo quiere conversar o aprender conceptos.
 - Si usas una herramienta, SIEMPRE acompáñala con texto explicativo.
 - Puedes usar máximo 1 herramienta por mensaje.
-- Las herramientas que modifican datos (calendario, mensajes, perfil) pedirán confirmación al usuario antes de ejecutarse.
+- Las herramientas que modifican datos (calendario, mensajes, perfil, hábitos) pedirán confirmación al usuario antes de ejecutarse.
 - open_url también pide confirmación para que el navegador pueda abrirla.
 - search_library se ejecuta automáticamente sin confirmación.
 `;
 
 // ── Herramientas que NO necesitan confirmación ────────────────────────────────
-const AUTO_EXECUTE_TOOLS = ["search_library"];
+const AUTO_EXECUTE_TOOLS = ["search_library", "search_web"];
 
 // ── Parsear respuesta del LLM buscando tool calls ─────────────────────────────
 export async function parseToolCall(response: string): Promise<{ cleanText: string; action: ToolAction | null }> {
@@ -83,6 +93,8 @@ export async function parseToolCall(response: string): Promise<{ cleanText: stri
       send_message: `Enviar mensaje a ${args.recipient_name}`,
       search_library: `Buscar "${args.query}" en la Biblioteca`,
       update_profile: `Actualizar tu ${args.field}`,
+      add_habit: `Añadir el hábito "${args.title}"`,
+      search_web: `Investigando en internet: "${args.query}"`,
     };
 
     return {
@@ -341,6 +353,49 @@ export async function executeToolAction(
           success: true,
           message: `✅ Tu ${fieldNames[field] || field} se actualizó a: "${value}"`,
         };
+      }
+
+      // ── Agregar Hábito ───────────────────────────────────────────────
+      case "add_habit": {
+        const { title } = args;
+        if (!title) return { success: false, message: "Falta el nombre del hábito." };
+
+        const { error } = await supabase
+          .from("habits")
+          .insert({
+            user_id: user.id,
+            title,
+            streak: 0,
+            completed_dates: [],
+            created_at: new Date().toISOString(),
+          });
+
+        if (error) {
+          console.error("Error creating habit:", error);
+          return { success: false, message: "Error al crear el hábito." };
+        }
+
+        return {
+          success: true,
+          message: `✅ Hábito "${title}" añadido exitosamente a tu Habit Tracker.`,
+        };
+      }
+
+      // ── Buscar en la web ───────────────────────────────────────────────
+      case "search_web": {
+        const { query } = args;
+        if (!query) return { success: false, message: "No especificaste qué buscar." };
+
+        try {
+          const results = await performWebSearch(query, 3);
+          return {
+            success: true,
+            message: `Resultados de la web para "${query}":\n\n${results}`,
+          };
+        } catch (e) {
+          console.error("Error searching web:", e);
+          return { success: false, message: "Hubo un error al buscar en internet." };
+        }
       }
 
       default:

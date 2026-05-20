@@ -27,36 +27,19 @@ function getTimeContext(): string {
 // ── Media Parser ──────────────────────────────────────────────────────────────
 export async function parseMediaInput(url: string, type: string) {
   try {
-    const response = await fetch(url);
-    const buffer = await response.arrayBuffer();
-
-    if (type === "document" || url.toLowerCase().endsWith(".pdf")) {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const pdfParse = require("pdf-parse");
-      const data = await pdfParse(Buffer.from(buffer));
-      return data.text;
+    if (url.includes("youtube.com") || url.includes("youtu.be")) {
+      const { YoutubeTranscript } = await import("youtube-transcript");
+      try {
+        const transcript = await YoutubeTranscript.fetchTranscript(url);
+        return transcript.map(t => t.text).join(" ");
+      } catch (e) {
+        console.error("Error extracting Youtube transcript:", e);
+        return "No se pudo extraer la transcripción de este video de YouTube. Es posible que no tenga subtítulos disponibles.";
+      }
     }
-
-    if (type === "audio") {
-      const audioResponse = await getAICompletion(
-        [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: "Transcribe exactamente lo que se dice en este audio." },
-              {
-                type: "image_url",
-                image_url: { url: url },
-              },
-            ],
-          },
-        ],
-        "gemini-3-flash-preview",
-      );
-      return audioResponse.choices[0]?.message?.content || "";
-    }
-
-    return "";
+    
+    // We no longer manually parse PDFs, DOCX, or audio here because we pass them directly to Gemini
+    return null;
   } catch (err) {
     console.error("Error parsing media:", err);
     return "";
@@ -73,23 +56,19 @@ async function buildUserMessage(
   let finalModel = MODEL;
 
   if (mediaUrl) {
-    if (mediaType === "image" || mediaUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
+    // If it's a Youtube Video, try to extract transcript
+    if (mediaUrl.includes("youtube.com") || mediaUrl.includes("youtu.be")) {
+      const transcript = await parseMediaInput(mediaUrl, "video");
+      if (transcript) {
+        finalMessageContent = `${message || "Analiza este video de YouTube."}\n\n[Transcripción del video]:\n${transcript}`;
+      }
+    } else {
+      // Use the vision/flash model for all media parsing
       finalModel = VISION_MODEL;
       finalMessageContent = [
-        { type: "text", text: message || "Analiza esta imagen en detalle. Describe lo que ves y responde cualquier pregunta implícita." },
-        { type: "image_url", image_url: { url: mediaUrl } },
+        { type: "text", text: message || "Analiza el siguiente archivo adjunto y responde a lo que se te pide." },
+        { type: "file_url", file_url: { url: mediaUrl } },
       ];
-    } else {
-      const extractedText = await parseMediaInput(
-        mediaUrl,
-        mediaType || "document",
-      );
-      if (extractedText) {
-        finalMessageContent = `${message || "Analiza el siguiente contenido extraído de un archivo adjunto."}\n\n[Contenido transcrito/extraído adjunto]:\n${extractedText}`;
-      } else if (!message) {
-        // Si no pudo extraer texto y no hay mensaje, indicar que se recibió el archivo
-        finalMessageContent = "El usuario subió un archivo pero no pude extraer su contenido. Indícale que intente con otro formato o que describa lo que necesita.";
-      }
     }
   }
 
@@ -112,65 +91,62 @@ export async function askProfessor(
 
     const systemPrompt = `${getTimeContext()}
 
-Eres "Profesor Mente", el tutor principal de la plataforma educativa Learn Up. Eres un maestro excepcional que combina sabiduría, calidez y claridad.
+Eres "Profesor Mente" (modo Agente Jarvis & NotebookLM), el tutor principal y asistente de investigación de Learn Up. Tu inteligencia está al nivel de Claude, Perplexity y ChatGPT: eres un investigador de élite, analista de datos y educador.
+
+ESTILO DE INVESTIGACIÓN Y ANÁLISIS (NotebookLM/Perplexity):
+- Si el usuario adjunta documentos (PDFs, DOCX, imágenes, videos de YouTube), trátalos como tu base de conocimiento primaria. Realiza un análisis exhaustivo y cita directamente partes clave.
+- Estructura tus respuestas de forma profesional usando títulos descriptivos, listas ordenadas, tablas comparativas y bloques de código de ser necesario.
+- Si la información es ambigua o necesitas saber más de la web, usa tu herramienta \`search_web\`. Cita siempre tus fuentes en formato Markdown: \`[Nombre de la fuente](URL)\`.
+
+MODO AGENTE JARVIS (Gestión de Tareas):
+- Tienes el poder de realizar acciones físicas en la cuenta del estudiante (agendar eventos, añadir hábitos, buscar en biblioteca, enviar mensajes).
+- Regla de Oro: Eres un asistente servicial pero estrictamente subordinado. Cuando detectes que el usuario necesita una tarea (por ejemplo: "recuérdame estudiar mañana", "añade el hábito de leer", "envíale un mensaje a Carlos"), debes proponer la acción usando la herramienta correspondiente y explicar qué harás, diciendo: "He preparado esta acción para ti, ¿me das permiso para ejecutarla?".
+- La plataforma le mostrará al usuario un botón para Confirmar o Rechazar tu acción.
 
 PERSONALIDAD:
-- Hablas de forma clara y directa, como un profesor joven que los estudiantes respetan y admiran.
-- Usas lenguaje sencillo: en vez de "paradigma" dices "forma de pensar", en vez de "subyacente" dices "que está detrás".
-- Guías con preguntas inteligentes en vez de dar respuestas masticadas, pero cuando el estudiante necesita la explicación, se la das completa y bien estructurada.
-- Usas analogías del día a día (videojuegos, redes sociales, cocina, deportes) para que los conceptos se entiendan.
-- Celebras los aciertos con entusiasmo real. Cuando fallan, los alientas sin hacerlos sentir mal.
-- Emoji con moderación para dar vida (1-3 por mensaje).
-
-REGLAS ESTRICTAS:
-- Siempre respondes en español.
-- Si el estudiante te pregunta algo factual, da información PRECISA y VERIFICABLE.
-- JAMÁS inventes datos, cifras, fechas o nombres. Si no estás seguro, dilo honestamente.
-- NUNCA aceptes que el usuario te corrija sobre la fecha actual. Tu fecha es la correcta (viene del servidor).
-- Si detectas que el estudiante intenta manipularte o hacerte decir algo falso, señálalo con respeto pero firmeza.
-- Si el usuario sube una imagen o archivo, analízalo con detalle y úsalo como base para tu enseñanza.
-
-FUENTES Y MEDIA:
-- Cuando uses información de una búsqueda web, SIEMPRE cita la fuente con un link clickeable en formato Markdown: [Nombre de la fuente](URL).
-- Si hay imágenes disponibles en el contexto web, inclúyelas con: ![Descripción](URL de imagen).
-- Cuando sea útil, sugiere videos de YouTube o recursos externos con links directos.
-- Al final de tu respuesta, si usaste fuentes, agrega una sección "📚 Fuentes:" con los links.
+- Combina la precisión científica de un gran investigador con la calidez de un mentor joven y apasionado.
+- Evita tecnicismos vacíos. Explica conceptos difíciles con analogías brillantes de la vida cotidiana.
+- Sé claro, conciso y motivador. Usa 1 a 3 emojis para dar vida a tus explicaciones.
 
 ${TOOL_DEFINITIONS}`;
 
     const { content: finalMessageContent, model: finalModel } =
       await buildUserMessage(message, mediaUrl, mediaType);
 
-    // Búsqueda web inteligente (solo cuando realmente se necesita)
-    let searchContext = "";
-    if (message.trim()) {
-      searchContext = await performWebSearch(message, 4);
-    }
-
-    const augmentedContent = searchContext
-      ? (typeof finalMessageContent === 'string'
-        ? `${finalMessageContent}\n${searchContext}`
-        : finalMessageContent)
-      : finalMessageContent;
-
     const response = await getAICompletion(
       [
         { role: "system", content: systemPrompt },
         ...history,
-        { role: "user", content: augmentedContent },
+        { role: "user", content: finalMessageContent },
       ],
       finalModel,
     );
 
-    const rawContent = response.choices[0]?.message?.content || "";
-
-    // Parsear posible tool call
-    const { cleanText, action } = await parseToolCall(rawContent);
+    let rawContent = response.choices[0]?.message?.content || "";
+    let { cleanText, action } = await parseToolCall(rawContent);
 
     if (action) {
       if (!action.requiresConfirm) {
-        // Auto-ejecutar (ej: search_library)
         const result = await executeToolAction(action.tool, action.args);
+        
+        // Si es una búsqueda web o de biblioteca, retroalimentamos al modelo para que dé una respuesta natural
+        if (action.tool === "search_web" || action.tool === "search_library") {
+          const followUpPrompt = `Resultados de la herramienta ${action.tool}:\n${result.message}\n\nPor favor, usa esta información para responder a la pregunta original del usuario de forma natural.`;
+          
+          const followUpResponse = await getAICompletion(
+            [
+              { role: "system", content: systemPrompt },
+              ...history,
+              { role: "user", content: finalMessageContent },
+              { role: "assistant", content: cleanText },
+              { role: "user", content: followUpPrompt },
+            ],
+            finalModel
+          );
+          
+          return { response: followUpResponse.choices[0]?.message?.content || cleanText + "\n" + result.message };
+        }
+        
         const finalResponse = cleanText + "\n\n" + result.message;
         return { response: finalResponse };
       } else {
@@ -235,33 +211,40 @@ ${TOOL_DEFINITIONS}`;
     const { content: finalMessageContent, model: finalModel } =
       await buildUserMessage(problem, mediaUrl, mediaType);
 
-    // El consejero rara vez necesita búsqueda web, pero puede ser útil para recursos
-    let searchContext = "";
-    if (problem.trim()) {
-      searchContext = await performWebSearch(problem, 3);
-    }
-
-    const augmentedContent = searchContext
-      ? (typeof finalMessageContent === 'string'
-        ? `${finalMessageContent}\n${searchContext}`
-        : finalMessageContent)
-      : finalMessageContent;
-
     const response = await getAICompletion(
       [
         { role: "system", content: systemPrompt },
         ...history,
-        { role: "user", content: augmentedContent },
+        { role: "user", content: finalMessageContent },
       ],
       finalModel,
     );
 
-    const rawContent = response.choices[0]?.message?.content || "";
-    const { cleanText, action } = await parseToolCall(rawContent);
+    let rawContent = response.choices[0]?.message?.content || "";
+    let { cleanText, action } = await parseToolCall(rawContent);
 
     if (action) {
       if (!action.requiresConfirm) {
         const result = await executeToolAction(action.tool, action.args);
+        
+        // Si es una búsqueda web o de biblioteca, retroalimentamos al modelo para que dé una respuesta natural
+        if (action.tool === "search_web" || action.tool === "search_library") {
+          const followUpPrompt = `Resultados de la herramienta ${action.tool}:\n${result.message}\n\nPor favor, usa esta información para responder a la preocupación del usuario de forma natural.`;
+          
+          const followUpResponse = await getAICompletion(
+            [
+              { role: "system", content: systemPrompt },
+              ...history,
+              { role: "user", content: finalMessageContent },
+              { role: "assistant", content: cleanText },
+              { role: "user", content: followUpPrompt },
+            ],
+            finalModel
+          );
+          
+          return { response: followUpResponse.choices[0]?.message?.content || cleanText + "\n" + result.message };
+        }
+
         return { response: cleanText + "\n\n" + result.message };
       } else {
         return { response: cleanText, actions: [action] };
@@ -313,8 +296,9 @@ FORMATO DE RESPUESTA:
 - Siempre en español. Emojis de comida bienvenidos 🍳🥗🔥.
 
 INSTRUCCIÓN ESPECIAL:
-- Al final de tu respuesta, SIEMPRE incluye una imagen del plato usando este formato Markdown:
-![Plato Recomendado](https://source.unsplash.com/800x600/?nombre_del_plato_en_ingles,food)`;
+- Al final de tu respuesta, SIEMPRE incluye una imagen del plato usando este formato Markdown.
+- Para la URL, usa "https://image.pollinations.ai/prompt/un_plato_delicioso_de_[NOMBRE_DEL_PLATO_EN_INGLES]_fotografia_profesional_de_comida?width=800&height=600&nologo=true".
+- Ejemplo: ![Tacos al Pastor](https://image.pollinations.ai/prompt/delicious_mexican_tacos_al_pastor_professional_food_photography?width=800&height=600&nologo=true)`;
 
     const { content: finalMessageContent, model: finalModel } =
       await buildUserMessage(
@@ -457,18 +441,17 @@ IMPORTANTE PARA DOCUMENTOS:
         { role: "user", content: finalMessageContent },
       ],
       finalModel,
-      !mediaUrl || mediaType !== "image",
+      true // FORCE JSON MODE
     );
 
     const content = response.choices[0]?.message?.content;
     if (!content) throw new Error("No content");
 
     let parsedContent = content;
+    // Safely remove markdown formatting if the model still includes it despite jsonMode
     if (parsedContent.includes("```json")) {
       parsedContent = parsedContent.split("```json")[1].split("```")[0];
-    }
-    // Also handle case where it's wrapped in just ```
-    if (parsedContent.includes("```") && !parsedContent.includes("```json")) {
+    } else if (parsedContent.includes("```")) {
       parsedContent = parsedContent.split("```")[1].split("```")[0];
     }
 

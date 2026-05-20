@@ -81,13 +81,21 @@ const getGeminiCompletion = async (
           const parts = await Promise.all(
             m.content.map(async (part) => {
               if (part.type === "text") return { text: part.text };
-              if (part.type === "image_url") {
-                const res = await fetch(part.image_url.url);
+              if (part.type === "image_url" || part.type === "file_url") {
+                const url = part.type === "image_url" ? part.image_url.url : part.file_url.url;
+                const res = await fetch(url);
                 const buf = await res.arrayBuffer();
+                
+                // Determine mime type from headers or extension
+                let mimeType = res.headers.get("content-type") || "application/octet-stream";
+                if (url.toLowerCase().endsWith(".pdf")) mimeType = "application/pdf";
+                if (url.toLowerCase().endsWith(".docx")) mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                if (url.toLowerCase().endsWith(".pptx")) mimeType = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+                
                 return {
                   inlineData: {
                     data: Buffer.from(buf).toString("base64"),
-                    mimeType: res.headers.get("content-type") || "image/jpeg",
+                    mimeType: mimeType,
                   },
                 };
               }

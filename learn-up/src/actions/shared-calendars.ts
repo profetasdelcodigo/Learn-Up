@@ -15,6 +15,27 @@ export async function createSharedCalendar(name: string, members: string[]) {
   // Ensure creator is in the members list uniquely
   const uniqueMembers = Array.from(new Set([...members, user.id]));
 
+  // Verify that all added members are accepted friends
+  const otherMembers = uniqueMembers.filter((m) => m !== user.id);
+  if (otherMembers.length > 0) {
+    const { data: friendships, error: fError } = await supabase
+      .from("friendships")
+      .select("id, sender_id, receiver_id")
+      .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+      .eq("status", "accepted");
+    
+    if (fError) throw fError;
+    
+    const friendIds = friendships
+      ? friendships.map((f: any) => f.sender_id === user.id ? f.receiver_id : f.sender_id)
+      : [];
+      
+    const nonFriends = otherMembers.filter(id => !friendIds.includes(id));
+    if (nonFriends.length > 0) {
+      return { success: false, error: "Solo puedes agregar a miembros que sean tus amigos aceptados." };
+    }
+  }
+
   try {
     const { data, error } = await supabase
       .from("shared_calendars")
@@ -202,6 +223,19 @@ export async function addCalendarMember(calendarId: string, newUserId: string) {
     // Check if already a member
     if (currentMembers.includes(newUserId)) {
       return { success: false, error: "El usuario ya es miembro de este calendario" };
+    }
+
+    // Verify friendship status before adding to the calendar
+    const { data: friendship, error: fError } = await supabase
+      .from("friendships")
+      .select("status")
+      .or(`and(sender_id.eq.${user.id},receiver_id.eq.${newUserId}),and(sender_id.eq.${newUserId},receiver_id.eq.${user.id})`)
+      .eq("status", "accepted")
+      .maybeSingle();
+
+    if (fError) throw fError;
+    if (!friendship) {
+      return { success: false, error: "Solo puedes agregar a miembros que sean tus amigos aceptados." };
     }
 
     const updatedMembers = [...currentMembers, newUserId];

@@ -211,13 +211,34 @@ export async function createGroup(
   // Validate participants are UUIDs — filter out ANY non-UUID value to prevent 22P02
   const rawIds: unknown[] = [user.id, ...participantIds];
   const validParticipants = Array.from(new Set(rawIds)).filter(
-    isValidUUID,
+    (id) => typeof id === "string" && id.length === 36, // fallback simple UUID check
   ) as string[];
 
   if (validParticipants.length < 2) {
     throw new Error(
       `Invalid participants: need at least 2 valid UUIDs, got ${validParticipants.length}`,
     );
+  }
+
+  // Verify that all added participants are accepted friends
+  const others = validParticipants.filter((id) => id !== user.id);
+  if (others.length > 0) {
+    const { data: friendships, error: fError } = await supabase
+      .from("friendships")
+      .select("id, sender_id, receiver_id")
+      .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+      .eq("status", "accepted");
+    
+    if (fError) throw fError;
+    
+    const friendIds = friendships
+      ? friendships.map((f: any) => f.sender_id === user.id ? f.receiver_id : f.sender_id)
+      : [];
+      
+    const nonFriends = others.filter(id => !friendIds.includes(id));
+    if (nonFriends.length > 0) {
+      throw new Error("Solo puedes agregar a usuarios que sean tus amigos aceptados.");
+    }
   }
 
   const { data, error } = await supabase
@@ -728,6 +749,19 @@ export async function addGroupMember(roomId: string, newUserId: string) {
   // Check if already a member
   if (currentParticipants.includes(newUserId)) {
     throw new Error("El usuario ya es miembro del grupo");
+  }
+
+  // Verify friendship status before adding to the group
+  const { data: friendship, error: fError } = await supabase
+    .from("friendships")
+    .select("status")
+    .or(`and(sender_id.eq.${user.id},receiver_id.eq.${newUserId}),and(sender_id.eq.${newUserId},receiver_id.eq.${user.id})`)
+    .eq("status", "accepted")
+    .maybeSingle();
+
+  if (fError) throw fError;
+  if (!friendship) {
+    throw new Error("Solo puedes agregar a miembros que sean tus amigos aceptados.");
   }
 
   const updatedParticipants = [...currentParticipants, newUserId];

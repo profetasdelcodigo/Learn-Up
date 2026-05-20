@@ -168,6 +168,7 @@ export default function CalendarPage() {
       const { data: personalEvents } = await supabase
         .from("calendar_events")
         .select("*")
+        .eq("user_id", user.id)
         .order("start_time");
 
       const { data: sCalendars } = await supabase
