@@ -113,7 +113,8 @@ const getGeminiCompletion = async (
                     const pdfData = await pdfParse(buffer);
                     extractedText = pdfData.text;
                   } else {
-                    const officeParser = (await import("officeparser")).default;
+                    const officeParserModule = (await import("officeparser")) as any;
+                    const officeParser = officeParserModule.default || officeParserModule;
                     extractedText = await officeParser.parseOfficeAsync(buffer);
                   }
                   
