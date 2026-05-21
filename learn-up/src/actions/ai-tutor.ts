@@ -54,22 +54,35 @@ async function buildUserMessage(
 ): Promise<{ content: string | any[]; model: string }> {
   let finalMessageContent: string | any[] = message;
   let finalModel = MODEL;
+  let extraText = "";
+
+  // Extract Youtube URL from message text if present (even without mediaUrl)
+  if (typeof message === "string") {
+    const ytRegex = /(https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/[^\s]+)/g;
+    const ytMatch = message.match(ytRegex);
+    if (ytMatch) {
+      const transcript = await parseMediaInput(ytMatch[0], "video");
+      if (transcript) extraText += `\n\n[Transcripción del video en el enlace]:\n${transcript}`;
+    }
+  }
 
   if (mediaUrl) {
     // If it's a Youtube Video, try to extract transcript
     if (mediaUrl.includes("youtube.com") || mediaUrl.includes("youtu.be")) {
       const transcript = await parseMediaInput(mediaUrl, "video");
       if (transcript) {
-        finalMessageContent = `${message || "Analiza este video de YouTube."}\n\n[Transcripción del video]:\n${transcript}`;
+        finalMessageContent = `${message || "Analiza este video de YouTube."}${extraText}\n\n[Transcripción del video adjunto]:\n${transcript}`;
       }
     } else {
       // Use the vision/flash model for all media parsing
       finalModel = VISION_MODEL;
       finalMessageContent = [
-        { type: "text", text: message || "Analiza el siguiente archivo adjunto y responde a lo que se te pide." },
+        { type: "text", text: (message || "Analiza el siguiente archivo adjunto y responde a lo que se te pide.") + extraText },
         { type: "file_url", file_url: { url: mediaUrl } },
       ];
     }
+  } else {
+    finalMessageContent = typeof finalMessageContent === "string" ? finalMessageContent + extraText : finalMessageContent;
   }
 
   return { content: finalMessageContent, model: finalModel };
@@ -89,6 +102,10 @@ export async function askProfessor(
         error: "Por favor escribe una pregunta o envía un archivo",
       };
 
+    // Skip tool definitions for short greetings to speed up response
+    const isShortGreeting = message.trim().length < 25 && !message.includes("?") && /^(hola|buenas|hey|buenos dias|buenas tardes|que tal|como estas)/i.test(message.trim());
+    const toolDefs = isShortGreeting ? "" : `\n${TOOL_DEFINITIONS}`;
+
     const systemPrompt = `${getTimeContext()}
 
 Eres "Profesor Mente" (modo Agente Jarvis & NotebookLM), el tutor principal y asistente de investigación de Learn Up. Tu inteligencia está al nivel de Claude, Perplexity y ChatGPT: eres un investigador de élite, analista de datos y educador.
@@ -107,8 +124,7 @@ PERSONALIDAD:
 - Combina la precisión científica de un gran investigador con la calidez de un mentor joven y apasionado.
 - Evita tecnicismos vacíos. Explica conceptos difíciles con analogías brillantes de la vida cotidiana.
 - Sé claro, conciso y motivador. Usa 1 a 3 emojis para dar vida a tus explicaciones.
-
-${TOOL_DEFINITIONS}`;
+${toolDefs}`;
 
     const { content: finalMessageContent, model: finalModel } =
       await buildUserMessage(message, mediaUrl, mediaType);
@@ -262,6 +278,8 @@ ${TOOL_DEFINITIONS}`;
 }
 
 // ── Nutrirecetas ──────────────────────────────────────────────────────────────
+import { searchRecipeImage } from "@/lib/unsplash";
+
 export async function generateRecipe(
   ingredients: string,
   history: { role: "user" | "assistant"; content: string | any[] }[] = [],
@@ -277,28 +295,25 @@ export async function generateRecipe(
 
     const systemPrompt = `${getTimeContext()}
 
-Eres "Chef Nutre", el chef nutricionista de Learn Up. Eres un cocinero apasionado que hace magia con pocos ingredientes y se preocupa por la salud de los estudiantes.
+Eres "Chef Nutre", el chef nutricionista de Learn Up. Haces magia con lo que hay.
 
 PERSONALIDAD:
-- Eres entusiasta y creativo. Adaptas recetas a lo que el estudiante tiene disponible.
+- Eres entusiasta y muy preciso. Si el estudiante pide una receta específica, dale exactamente lo que pide.
+- Si los ingredientes son pocos, dales un buen uso y propón algo rico.
 - Hablas como un chef amigable, no como un libro de cocina aburrido.
-- Si los ingredientes son pocos, haces maravillas. Nada de decir "necesitas más cosas".
 
-FORMATO DE RESPUESTA:
-1. 🍽️ Nombre creativo del plato
-2. 📝 Ingredientes con cantidades exactas
-3. 👨‍🍳 Pasos claros y numerados (fáciles de seguir)
-4. ⏰ Tiempo de preparación
-5. 💪 Info nutricional aproximada (calorías, proteínas)
-6. 💡 Tip extra o variación
+FORMATO ESTRICTO DE RESPUESTA:
+- La primera línea de tu respuesta DEBE ser el nombre del plato, empezando por "🍽️ " (Ej: "🍽️ Tacos al Pastor"). ESTO ES VITAL.
+- Luego:
+1. 📝 Ingredientes con cantidades exactas
+2. 👨‍🍳 Pasos claros y numerados
+3. ⏰ Tiempo de preparación
+4. 💪 Info nutricional aproximada
+5. 💡 Tip extra o variación
 
 - Si el usuario sube una foto de ingredientes, identifícalos y crea la receta.
 - Siempre en español. Emojis de comida bienvenidos 🍳🥗🔥.
-
-INSTRUCCIÓN ESPECIAL:
-- Al final de tu respuesta, SIEMPRE incluye una imagen del plato usando este formato Markdown.
-- Para la URL, usa "https://image.pollinations.ai/prompt/un_plato_delicioso_de_[NOMBRE_DEL_PLATO_EN_INGLES]_fotografia_profesional_de_comida?width=800&height=600&nologo=true".
-- Ejemplo: ![Tacos al Pastor](https://image.pollinations.ai/prompt/delicious_mexican_tacos_al_pastor_professional_food_photography?width=800&height=600&nologo=true)`;
+- NO incluyas imágenes Markdown tú mismo, el sistema las añade automáticamente.`;
 
     const { content: finalMessageContent, model: finalModel } =
       await buildUserMessage(
@@ -316,7 +331,24 @@ INSTRUCCIÓN ESPECIAL:
       finalModel,
     );
 
-    return { response: response.choices[0]?.message?.content || "" };
+    let finalResponse = response.choices[0]?.message?.content || "";
+
+    // Extract dish name from first line to fetch a real image from Unsplash
+    try {
+      const firstLine = finalResponse.split("\n")[0] || "";
+      const dishMatch = firstLine.match(/🍽️\s*(.*)/);
+      if (dishMatch && dishMatch[1]) {
+        const dishName = dishMatch[1].replace(/\*/g, "").trim();
+        const imageUrl = await searchRecipeImage(dishName);
+        if (imageUrl) {
+          finalResponse += `\n\n![${dishName}](${imageUrl})`;
+        }
+      }
+    } catch (imgErr) {
+      console.error("Error fetching recipe image:", imgErr);
+    }
+
+    return { response: finalResponse };
   } catch (error: any) {
     console.error("Error en generateRecipe:", error);
     return { response: "", error: "Hubo un problema. ¡Inténtalo de nuevo!" };

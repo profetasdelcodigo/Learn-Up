@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { ensurePrivateRoom, sendMessage } from "@/actions/chat";
 import { performWebSearch } from "@/lib/web-search";
+import { findRelatedConcepts, linkConcepts } from "@/lib/knowledge-graph";
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 export interface ToolAction {
@@ -55,6 +56,10 @@ LISTA DE HERRAMIENTAS:
    args: {"query": "término de búsqueda específico"}
    Ejemplo: Últimas noticias, datos históricos, descubrimientos científicos recientes.
 
+8. save_learned_concept — Guardar silenciosamente un concepto importante que el estudiante acaba de comprender en su "Learn Graph" (memoria a largo plazo).
+   args: {"title": "Nombre del concepto", "description": "Breve resumen de lo que el estudiante comprendió"}
+   Ejemplo: Guardar "Mitocondria" cuando el estudiante por fin entiende su función.
+
 REGLAS ESTRICTAS PARA USAR HERRAMIENTAS:
 - NO uses herramientas (ni investigues en internet) si el usuario solo dice "Hola", "Buenos días", o hace comentarios casuales. Responde de forma natural y rápida.
 - Solo usa una herramienta cuando el usuario lo pide explícita o implícitamente de forma clara.
@@ -67,7 +72,7 @@ REGLAS ESTRICTAS PARA USAR HERRAMIENTAS:
 `;
 
 // ── Herramientas que NO necesitan confirmación ────────────────────────────────
-const AUTO_EXECUTE_TOOLS = ["search_library", "search_web"];
+const AUTO_EXECUTE_TOOLS = ["search_library", "search_web", "save_learned_concept"];
 
 // ── Parsear respuesta del LLM buscando tool calls ─────────────────────────────
 export async function parseToolCall(response: string): Promise<{ cleanText: string; action: ToolAction | null }> {
@@ -95,6 +100,7 @@ export async function parseToolCall(response: string): Promise<{ cleanText: stri
       update_profile: `Actualizar tu ${args.field}`,
       add_habit: `Añadir el hábito "${args.title}"`,
       search_web: `Investigando en internet: "${args.query}"`,
+      save_learned_concept: `Guardando concepto "${args.title}" en tu mapa mental`,
     };
 
     return {
@@ -395,6 +401,61 @@ export async function executeToolAction(
         } catch (e) {
           console.error("Error searching web:", e);
           return { success: false, message: "Hubo un error al buscar en internet." };
+        }
+      }
+
+      // ── Guardar Concepto en Learn Graph ───────────────────────────────
+      case "save_learned_concept": {
+        const { title, description } = args;
+        if (!title) return { success: false, message: "El concepto debe tener un título." };
+
+        try {
+          const { getAIEmbedding } = await import("@/lib/ai");
+          const embedding = await getAIEmbedding(`Título: ${title}\nDescripción: ${description || ""}`);
+
+          const { data: newNode, error } = await supabase
+            .from("knowledge_nodes")
+            .insert({
+              user_id: user.id,
+              title,
+              description: description || "",
+              embedding: `[${embedding.join(',')}]`,
+              source_type: "chat_ia"
+            })
+            .select("id")
+            .single();
+
+          if (error) {
+            console.error("Error saving knowledge node:", error);
+            return { success: false, message: "Hubo un error al guardar el concepto en tu grafo de conocimiento." };
+          }
+
+          // Auto-link to related existing concepts
+          let linkedCount = 0;
+          if (newNode?.id) {
+            try {
+              const related = await findRelatedConcepts(user.id, `${title} ${description || ""}`, 3, 0.55);
+              const otherNodes = related.filter(n => n.id !== newNode.id);
+              for (const node of otherNodes) {
+                const linked = await linkConcepts(user.id, newNode.id, node.id, "related_to");
+                if (linked) linkedCount++;
+              }
+            } catch (linkErr) {
+              console.error("Auto-linking failed (non-critical):", linkErr);
+            }
+          }
+
+          const linkMsg = linkedCount > 0
+            ? ` y lo conecté con ${linkedCount} concepto(s) relacionado(s)`
+            : "";
+
+          return {
+            success: true,
+            message: `🧠 He guardado silenciosamente el concepto "${title}" en tu mapa de conocimiento a largo plazo (Learn Graph)${linkMsg}.`,
+          };
+        } catch (e) {
+          console.error("Error generating embedding:", e);
+          return { success: false, message: "Error al procesar el conocimiento." };
         }
       }
 

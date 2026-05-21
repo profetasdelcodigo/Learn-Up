@@ -28,6 +28,8 @@ import {
   Copy,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import ShareButton from "./ShareButton";
+import { type SharePayload } from "@/lib/store";
 import { useRouter } from "next/navigation";
 import {
   getAiSessions,
@@ -64,26 +66,7 @@ function renderAIContent(text: string): string {
   return html;
 }
 
-function shareAIMessage(content: string) {
-  const plainText = content
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '$2')
-    .replace(/\[([^\]]*)\]\(([^)]+)\)/g, '$1: $2')
-    .replace(/\*\*/g, '')
-    .replace(/\*/g, '');
-
-  const shareData = {
-    title: "Respuesta de Learn Up",
-    text: plainText.slice(0, 500),
-  };
-
-  if (navigator.share && navigator.canShare?.(shareData)) {
-    navigator.share(shareData).catch(() => {});
-  } else {
-    navigator.clipboard.writeText(plainText)
-      .then(() => alert("📋 Respuesta copiada al portapapeles"))
-      .catch(() => alert("No se pudo copiar"));
-  }
-}
+// shareAIMessage removed in favor of ShareButton
 
 interface Message {
   id?: string;
@@ -599,25 +582,13 @@ export default function AIChatComponent({
                       )}
                       {message.role === "assistant" && (
                         <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => shareAIMessage(message.content)}
-                            className="p-1 rounded text-gray-500 hover:text-brand-gold transition-colors"
-                            title="Compartir respuesta"
-                          >
-                            <Share2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(
-                                message.content.replace(/\*\*/g, '').replace(/\*/g, '').replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '$2').replace(/\[([^\]]*)\]\(([^)]+)\)/g, '$1: $2')
-                              );
-                              alert("📋 Copiado");
+                          <ShareButton
+                            payload={{
+                              title: "Respuesta de IA",
+                              text: message.content.slice(0, 300) + (message.content.length > 300 ? "..." : ""),
+                              type: "text"
                             }}
-                            className="p-1 rounded text-gray-500 hover:text-white transition-colors"
-                            title="Copiar texto"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                          </button>
+                          />
                         </div>
                       )}
                     </div>

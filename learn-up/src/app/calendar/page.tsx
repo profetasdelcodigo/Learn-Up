@@ -566,8 +566,13 @@ export default function CalendarPage() {
   const monthEnd = endOfMonth(currentMonth);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-  const getEventsForDay = (day: Date) =>
-    events.filter((event) => isSameDay(new Date(event.start_time), day));
+  const personalEvents = events.filter((e) => !e.isShared);
+  const sharedEvents = events.filter((e) => e.isShared);
+
+  const getEventsForDay = (day: Date) => {
+    const source = activeTab === "personal" ? personalEvents : sharedEvents;
+    return source.filter((event) => isSameDay(new Date(event.start_time), day));
+  };
 
   const handleDayClick = (day: Date) => {
     const dayEvts = getEventsForDay(day);

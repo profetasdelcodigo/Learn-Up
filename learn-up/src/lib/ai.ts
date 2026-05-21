@@ -85,19 +85,42 @@ const getGeminiCompletion = async (
                 const url = part.type === "image_url" ? part.image_url.url : part.file_url.url;
                 const res = await fetch(url);
                 const buf = await res.arrayBuffer();
+                const buffer = Buffer.from(buf);
                 
+                const urlLower = url.toLowerCase();
                 // Determine mime type from headers or extension
                 let mimeType = res.headers.get("content-type") || "application/octet-stream";
-                if (url.toLowerCase().endsWith(".pdf")) mimeType = "application/pdf";
-                if (url.toLowerCase().endsWith(".docx")) mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-                if (url.toLowerCase().endsWith(".pptx")) mimeType = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+                if (urlLower.endsWith(".pdf")) mimeType = "application/pdf";
                 
-                return {
-                  inlineData: {
-                    data: Buffer.from(buf).toString("base64"),
-                    mimeType: mimeType,
-                  },
-                };
+                const isImage = mimeType.startsWith("image/") || urlLower.match(/\\.(jpg|jpeg|png|webp|heic)$/i);
+                // Si es imagen, lo mandamos directo en inlineData
+                if (isImage) {
+                  return {
+                    inlineData: {
+                      data: buffer.toString("base64"),
+                      mimeType: mimeType === "application/octet-stream" ? "image/jpeg" : mimeType,
+                    },
+                  };
+                }
+
+                // Para documentos (PDF, DOCX, PPTX), extraemos el texto plano localmente.
+                try {
+                  let extractedText = "";
+                  
+                  if (urlLower.endsWith(".pdf") || mimeType === "application/pdf") {
+                    const pdfParse = (await import("pdf-parse")).default;
+                    const pdfData = await pdfParse(buffer);
+                    extractedText = pdfData.text;
+                  } else {
+                    const officeParser = (await import("officeparser")).default;
+                    extractedText = await officeParser.parseOfficeAsync(buffer);
+                  }
+                  
+                  return { text: `[Contenido del Documento Adjunto]:\\n${extractedText}` };
+                } catch (parseError) {
+                  console.error("Error parsing document:", parseError);
+                  return { text: "[No se pudo extraer el texto del documento]" };
+                }
               }
               return { text: "" };
             }),
@@ -119,7 +142,7 @@ const getGeminiCompletion = async (
       generationConfig: {
         responseMimeType: jsonMode ? "application/json" : "text/plain",
         temperature: 0.8,
-        maxOutputTokens: 2000,
+        maxOutputTokens: 8192,
       },
     });
 
@@ -190,7 +213,7 @@ export const getGroqCompletion = async (
       model: modelName,
       response_format: jsonMode ? { type: "json_object" } : undefined,
       temperature: 0.8,
-      max_tokens: 2000,
+      max_tokens: 8192,
     });
     return {
       choices: [
@@ -203,6 +226,19 @@ export const getGroqCompletion = async (
     };
   } catch (error) {
     console.error("Groq API Error:", error);
+    throw error;
+  }
+};
+
+// ── Embedding ─────────────────────────────────────────────────────────────────
+export const getAIEmbedding = async (text: string): Promise<number[]> => {
+  if (!genAI) throw new Error("Gemini AI not initialized for embeddings");
+  try {
+    const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
+    const result = await model.embedContent(text);
+    return result.embedding.values;
+  } catch (error) {
+    console.error("Gemini Embedding Error:", error);
     throw error;
   }
 };

@@ -20,14 +20,14 @@ export async function createSharedCalendar(name: string, members: string[]) {
   if (otherMembers.length > 0) {
     const { data: friendships, error: fError } = await supabase
       .from("friendships")
-      .select("id, sender_id, receiver_id")
-      .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+      .select("id, requester_id, addressee_id")
+      .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
       .eq("status", "accepted");
     
     if (fError) throw fError;
     
     const friendIds = friendships
-      ? friendships.map((f: any) => f.sender_id === user.id ? f.receiver_id : f.sender_id)
+      ? friendships.map((f: any) => f.requester_id === user.id ? f.addressee_id : f.requester_id)
       : [];
       
     const nonFriends = otherMembers.filter(id => !friendIds.includes(id));
@@ -229,7 +229,7 @@ export async function addCalendarMember(calendarId: string, newUserId: string) {
     const { data: friendship, error: fError } = await supabase
       .from("friendships")
       .select("status")
-      .or(`and(sender_id.eq.${user.id},receiver_id.eq.${newUserId}),and(sender_id.eq.${newUserId},receiver_id.eq.${user.id})`)
+      .or(`and(requester_id.eq.${user.id},addressee_id.eq.${newUserId}),and(requester_id.eq.${newUserId},addressee_id.eq.${user.id})`)
       .eq("status", "accepted")
       .maybeSingle();
 
