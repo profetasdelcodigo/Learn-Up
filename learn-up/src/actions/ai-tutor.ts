@@ -396,9 +396,9 @@ export async function generateRealExam(
 Eres un evaluador académico de élite. Tu tarea es crear exámenes completos y rigurosos tipo hoja en formato JSON.
 
 REGLA ESTRICTA DE PUNTUACIÓN:
-- Asigna EXACTAMENTE 10 puntos a cada pregunta ("points": 10).
-- Si generas 5 preguntas, el "totalPoints" debe ser 50.
-- El "totalPoints" debe ser la suma exacta de los puntos de todas las preguntas (ej. 50, 100, etc.).
+- DEBES generar un examen cuyos puntos sumen EXACTAMENTE 100 en total.
+- El "totalPoints" debe ser SIEMPRE 100.
+- Asigna el valor de "points" a cada pregunta de forma inteligente (ej. 10 preguntas de 10 puntos, o 20 preguntas de 5 puntos) para que la suma matemática exacta de todas las preguntas sea 100.
 
 FORMATO JSON REQUERIDO:
 {
@@ -447,11 +447,9 @@ FORMATO JSON REQUERIDO:
 }
 
 REGLAS:
-- Crea 3 secciones mínimo con distintos tipos de preguntas
-- Sección I: 5 preguntas de opción múltiple
-- Sección II: 3 preguntas abiertas de análisis/reflexión profunda
-- Sección III: mezcla de verdadero/falso y completar espacios
-- Las preguntas abiertas deben requerir pensamiento crítico
+- Crea 3 secciones mínimo con distintos tipos de preguntas (Opción múltiple, abiertas, verdadero/falso).
+- Las preguntas abiertas deben requerir pensamiento crítico.
+- Puedes elegir la cantidad de preguntas por sección, pero ASEGÚRATE de que la suma total de puntos de todo el examen sea 100.
 - Adapta el nivel según la dificultad solicitada
 
 IMPORTANTE PARA DOCUMENTOS:
