@@ -108,8 +108,7 @@ const getGeminiCompletion = async (
                   let extractedText = "";
                   
                   if (urlLower.endsWith(".pdf") || mimeType === "application/pdf") {
-                    // @ts-ignore
-                    const pdfParseModule = await import("pdf-parse");
+                    const pdfParseModule = (await import("pdf-parse")) as any;
                     const pdfParse = pdfParseModule.default || pdfParseModule;
                     const pdfData = await pdfParse(buffer);
                     extractedText = pdfData.text;
