@@ -531,7 +531,15 @@ Al corregir:
 - Explica POR QUÉ cada respuesta es correcta o incorrecta de forma clara y educativa.
 - Usa lenguaje sencillo y alentador.
 - Termina con un mensaje motivador personalizado basado en su desempeño.
-- Responde en español.`;
+- Responde en español.
+
+FORMATO VISUAL ESTRICTO:
+- Usa Markdown muy limpio, profesional y espaciado.
+- Para cada pregunta usa un subtítulo: "### Pregunta [Número]"
+- Luego indica de forma limpia: "**Tu respuesta:** [Respuesta]" y "**Corrección:** [Feedback]".
+- Usa emojis moderadamente para dar vida (✅, ❌, ⚠️).
+- NUNCA uses símbolos raros, asteriscos sueltos o caracteres basura como #"*.
+- Al final usa "### 📊 Veredicto Final" para tu conclusión.`;
 
     const userPrompt = `Califica este examen de "${exam.topic}":
 
