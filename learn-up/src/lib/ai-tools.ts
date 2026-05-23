@@ -76,46 +76,46 @@ const AUTO_EXECUTE_TOOLS = ["search_library", "search_web", "save_learned_concep
 
 // ── Parsear respuesta del LLM buscando tool calls ─────────────────────────────
 export async function parseToolCall(response: string): Promise<{ cleanText: string; action: ToolAction | null }> {
-  const toolMatch = response.match(/```tool\s*\n?([\s\S]*?)\n?```/);
-  
-  if (!toolMatch) {
-    return { cleanText: response, action: null };
-  }
+  // Regex corregido para capturar el bloque JSON de herramientas y eliminarlo del texto
+  const toolRegex = /```tool\s*\n?([\s\S]*?)\n?```/g;
+  let cleanText = response;
+  let action: ToolAction | null = null;
 
-  try {
-    const toolJson = JSON.parse(toolMatch[1].trim());
-    const toolName = toolJson.tool;
-    const args = toolJson.args || {};
+  const match = toolRegex.exec(response);
+  if (match) {
+    try {
+      const toolJson = JSON.parse(match[1].trim());
+      const toolName = toolJson.tool;
+      const args = toolJson.args || {};
 
-    // Limpiar el bloque tool del texto visible
-    const cleanText = response.replace(/```tool\s*\n?[\s\S]*?\n?```/g, "").trim();
+      const needsConfirm = !AUTO_EXECUTE_TOOLS.includes(toolName);
 
-    const needsConfirm = !AUTO_EXECUTE_TOOLS.includes(toolName);
+      const descriptions: Record<string, string> = {
+        open_url: `¿Quieres abrir ${args.title}?`,
+        add_calendar_event: `¿Agendar "${args.title}" para el ${args.date}?`,
+        send_message: `¿Enviar mensaje a ${args.recipient_name}?`,
+        search_library: `Buscando en la biblioteca...`,
+        update_profile: `¿Actualizar tu ${args.field} a "${args.value}"?`,
+        add_habit: `¿Añadir el hábito "${args.title}"?`,
+        search_web: `Investigando en internet...`,
+        save_learned_concept: `Guardando concepto en tu mapa mental...`,
+      };
 
-    const descriptions: Record<string, string> = {
-      open_url: `Abrir: ${args.title || args.url}`,
-      add_calendar_event: `Agregar evento "${args.title}" el ${args.date}`,
-      send_message: `Enviar mensaje a ${args.recipient_name}`,
-      search_library: `Buscar "${args.query}" en la Biblioteca`,
-      update_profile: `Actualizar tu ${args.field}`,
-      add_habit: `Añadir el hábito "${args.title}"`,
-      search_web: `Investigando en internet: "${args.query}"`,
-      save_learned_concept: `Guardando concepto "${args.title}" en tu mapa mental`,
-    };
-
-    return {
-      cleanText,
-      action: {
+      action = {
         tool: toolName,
         args,
         description: descriptions[toolName] || `Ejecutar ${toolName}`,
         requiresConfirm: needsConfirm,
-      },
-    };
-  } catch (e) {
-    console.error("Error parsing tool call:", e);
-    return { cleanText: response, action: null };
+      };
+
+      // Limpiar el texto: quitar el bloque tool
+      cleanText = response.replace(match[0], "").trim();
+    } catch (e) {
+      console.error("Error parsing tool call:", e);
+    }
   }
+
+  return { cleanText, action };
 }
 
 // ── Ejecutor de herramientas ──────────────────────────────────────────────────

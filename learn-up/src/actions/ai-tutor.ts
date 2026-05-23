@@ -170,7 +170,7 @@ ${toolDefs}`;
         const finalResponse = cleanText + "\n\n" + result.message;
         return { response: finalResponse };
       } else {
-        // Requiere confirmación del usuario
+        // Requiere confirmación del usuario, devolvemos el texto y la acción por separado
         return { response: cleanText, actions: [action] };
       }
     }
