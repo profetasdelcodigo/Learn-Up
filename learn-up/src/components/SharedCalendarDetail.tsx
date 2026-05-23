@@ -30,6 +30,7 @@ import {
   deleteSharedEvent,
   addCalendarMember,
   leaveSharedCalendar,
+  notifySharedHabitProgress,
 } from "@/actions/shared-calendars";
 import { searchUsers, sendFriendRequest, cancelFriendRequest } from "@/actions/friendship";
 import {
@@ -395,19 +396,7 @@ export default function SharedCalendarDetail({
         console.error("Habit sync-to-personal error:", err);
       }
 
-      // Notify other members occasionally or on progress
-      const others = calendar.members.filter((m) => m !== currentUserId);
-      for (const mId of others) {
-        await supabase.from("notifications").insert({
-          user_id: mId,
-          sender_id: currentUserId,
-          type: "system",
-          title: `Avance en ${calendar.name} 🔥`,
-          message: `Se han actualizado los hábitos del grupo. ¡Echemos un vistazo!`,
-          link: `/calendar`,
-          is_read: false,
-        });
-      }
+      await notifySharedHabitProgress(calendar.id);
     }
   };
 
@@ -447,6 +436,7 @@ export default function SharedCalendarDetail({
 
   const startRecording = async () => {
     try {
+      if (!currentUserId) return;
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
@@ -465,7 +455,7 @@ export default function SharedCalendarDetail({
         // Upload audio
         const fileExt = "webm";
         const fileName = `${calendar.id}_${Date.now()}.${fileExt}`;
-        const filePath = `shared_audios/${fileName}`;
+        const filePath = `shared_audios/${currentUserId}/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from("chat_files")

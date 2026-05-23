@@ -7,7 +7,6 @@ import { motion } from "framer-motion";
 import {
   User,
   School,
-  GraduationCap,
   Users,
   Loader2,
   CheckCircle,
@@ -30,7 +29,7 @@ export default function OnboardingPage() {
   const [formData, setFormData] = useState({
     username: "",
     full_name: "",
-    role: "",
+    role: "estudiante",
     school: "",
     grade: "",
     section: "",
@@ -65,7 +64,7 @@ export default function OnboardingPage() {
           ...prev,
           full_name: profile.full_name || user.user_metadata?.full_name || "",
           username: profile.username || user.user_metadata?.username || "",
-          role: profile.role || "",
+          role: "estudiante",
           school: profile.school || user.user_metadata?.school || "", // Sometimes metadata has it
           grade: profile.grade || "",
           section: profile.section || "",
@@ -105,7 +104,6 @@ export default function OnboardingPage() {
 
     if (
       !formData.username ||
-      !formData.role ||
       !formData.school ||
       !formData.grade
     ) {
@@ -135,7 +133,7 @@ export default function OnboardingPage() {
           id: user.id, // CRITICAL: Include user ID for upsert
           username: formData.username,
           full_name: formData.full_name || null,
-          role: formData.role,
+          role: "estudiante",
           school: formData.school,
           grade: formData.grade,
           section: formData.section || null,
@@ -373,35 +371,11 @@ export default function OnboardingPage() {
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                       Rol <span className="text-brand-gold">*</span>
                     </label>
-                    <div className="grid grid-cols-2 gap-4">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFormData({ ...formData, role: "docente" })
-                        }
-                        className={`p-4 rounded-xl border-2 transition-all duration-300 ${
-                          formData.role === "docente"
-                            ? "border-brand-gold bg-brand-gold/8 text-white shadow-glow-gold"
-                            : "border-white/8 bg-surface-2 text-gray-400 hover:border-white/15"
-                        }`}
-                      >
-                        <GraduationCap className="w-8 h-8 mx-auto mb-2" />
-                        <span className="font-medium">Docente</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFormData({ ...formData, role: "estudiante" })
-                        }
-                        className={`p-4 rounded-xl border-2 transition-all duration-300 ${
-                          formData.role === "estudiante"
-                            ? "border-brand-gold bg-brand-gold/8 text-white shadow-glow-gold"
-                            : "border-white/8 bg-surface-2 text-gray-400 hover:border-white/15"
-                        }`}
-                      >
-                        <Users className="w-8 h-8 mx-auto mb-2" />
-                        <span className="font-medium">Estudiante</span>
-                      </button>
+                    <div className="p-4 rounded-xl border-2 border-brand-gold bg-brand-gold/8 text-white">
+                      <Users className="w-8 h-8 mx-auto mb-2" />
+                      <span className="block text-center font-medium">
+                        Estudiante
+                      </span>
                     </div>
                   </div>
                 </FadeUpItem>

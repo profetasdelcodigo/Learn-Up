@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
-import webpush from "@/utils/push";
 
 export async function POST(req: Request) {
   try {
@@ -14,7 +13,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { action, subscription, payload, user_id } = body;
+    const { action, subscription } = body;
 
     // Subscribe Action (Save push subscription to DB)
     if (action === "subscribe") {
@@ -37,39 +36,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true });
     }
 
-    // Send Push Notification Action
-    if (action === "send" && user_id && payload) {
-      const { data: subData } = await supabase
-        .from("push_subscriptions")
-        .select("subscription")
-        .eq("user_id", user_id)
-        .single();
-
-      if (subData && subData.subscription) {
-        try {
-          await webpush.sendNotification(
-            subData.subscription,
-            JSON.stringify(payload),
-          );
-          return NextResponse.json({ success: true });
-        } catch (e) {
-          console.error("Error sending push notification:", e);
-          return NextResponse.json(
-            { error: "Push send failed" },
-            { status: 500 },
-          );
-        }
-      } else {
-        return NextResponse.json(
-          { warning: "No subscription found" },
-          { status: 404 },
-        );
-      }
-    }
-
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (error: any) {
     console.error("Push API Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Push API failed" }, { status: 500 });
   }
 }

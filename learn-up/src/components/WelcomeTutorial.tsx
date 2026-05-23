@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/utils/supabase/client";
@@ -18,17 +18,10 @@ import Logo from "./Logo";
 export default function WelcomeTutorial() {
   const [isVisible, setIsVisible] = useState(false);
   const [step, setStep] = useState(0);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const pathname = usePathname();
 
-  useEffect(() => {
-    // Only automatically show the tutorial on the dashboard
-    if (pathname === "/dashboard") {
-      checkTutorialStatus();
-    }
-  }, [pathname]);
-
-  async function checkTutorialStatus() {
+  const checkTutorialStatus = useCallback(async () => {
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -52,7 +45,14 @@ export default function WelcomeTutorial() {
       // Sync local state if DB says it's seen but local doesn't
       localStorage.setItem(`tutorial_seen_${user.id}`, "true");
     }
-  }
+  }, [supabase]);
+
+  useEffect(() => {
+    // Only automatically show the tutorial on the dashboard
+    if (pathname === "/dashboard") {
+      checkTutorialStatus();
+    }
+  }, [pathname, checkTutorialStatus]);
 
   const completeTutorial = async () => {
     const {

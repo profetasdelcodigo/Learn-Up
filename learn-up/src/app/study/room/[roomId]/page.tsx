@@ -122,7 +122,7 @@ export default function StudyRoomPage() {
 
       try {
         const resp = await fetch(
-          `/api/livekit?room=${roomId}&username=${encodeURIComponent(name)}`,
+          `/api/livekit?room=${encodeURIComponent(roomId)}&username=${encodeURIComponent(name)}`,
         );
         const data = await resp.json();
         if (data.token) {

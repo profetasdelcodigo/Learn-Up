@@ -122,7 +122,7 @@ export default function ProfilePage() {
     setSaving(true);
     const file = e.target.files[0];
     const fileExt = file.name.split(".").pop();
-    const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+    const fileName = `${user.id}/${Date.now()}.${fileExt}`;
 
     try {
       const { error: uploadError } = await supabase.storage

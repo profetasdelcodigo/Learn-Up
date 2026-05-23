@@ -1,7 +1,11 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import webpush from "@/utils/push";
+import { createAdminClient } from "@/utils/supabase/admin";
+import {
+  createServerNotification,
+  sendWebPushToUser,
+} from "@/utils/server-notifications";
 
 // ─── SAFETY HELPER ───────────────────────────────────────────────────────────
 // Supabase can return JSONB arrays as strings in some edge cases.
@@ -225,14 +229,14 @@ export async function createGroup(
   if (others.length > 0) {
     const { data: friendships, error: fError } = await supabase
       .from("friendships")
-      .select("id, sender_id, receiver_id")
-      .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+      .select("id, requester_id, addressee_id")
+      .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
       .eq("status", "accepted");
     
     if (fError) throw fError;
     
     const friendIds = friendships
-      ? friendships.map((f: any) => f.sender_id === user.id ? f.receiver_id : f.sender_id)
+      ? friendships.map((f: any) => f.requester_id === user.id ? f.addressee_id : f.requester_id)
       : [];
       
     const nonFriends = others.filter(id => !friendIds.includes(id));
@@ -264,7 +268,7 @@ export async function createGroup(
     try {
       const others = validParticipants.filter((id) => id !== user.id);
       for (const pId of others) {
-        await supabase.from("notifications").insert({
+        await createServerNotification({
           user_id: pId,
           sender_id: user.id,
           title: "Nuevo Grupo: " + name,
@@ -368,6 +372,37 @@ export async function sendMessage(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
+  if (!isValidUUID(roomId)) throw new Error("Invalid room ID");
+
+  const SYSTEM_TOKENS = [
+    "[CALL_OFFER_VIDEO]",
+    "[CALL_OFFER_VOICE]",
+    "[CALL_ENDED_VOICE]",
+    "[CALL_ENDED_VIDEO]",
+    "[CALL_ACCEPTED]",
+    "[CALL_REJECTED]",
+  ];
+  const isSystemMsg = SYSTEM_TOKENS.some((token) => content.includes(token));
+
+  const { data: room, error: roomFetchError } = await supabase
+    .from("chat_rooms")
+    .select("participants, admins, only_admins_message, type, name")
+    .eq("id", roomId)
+    .single();
+
+  if (roomFetchError || !room) {
+    throw roomFetchError || new Error("Room not found");
+  }
+
+  const participants = safeParseArray(room.participants);
+  if (!participants.includes(user.id)) {
+    throw new Error("Forbidden");
+  }
+
+  const admins = safeParseArray(room.admins);
+  if (room.only_admins_message && !admins.includes(user.id) && !isSystemMsg) {
+    throw new Error("Solo administradores pueden enviar mensajes en este grupo.");
+  }
 
   const messageData: any = {
     room_id: roomId,
@@ -386,7 +421,8 @@ export async function sendMessage(
 
   // Update room updated_at
   const now = new Date().toISOString();
-  const { error: roomUpdateError } = await supabase
+  const roomUpdateClient = createAdminClient() || supabase;
+  const { error: roomUpdateError } = await roomUpdateClient
     .from("chat_rooms")
     .update({
       updated_at: now,
@@ -454,7 +490,7 @@ export async function sendMessage(
               notificationMessage = "Entra para responder ahora.";
             }
 
-            await supabase.from("notifications").insert({
+            await createServerNotification({
               user_id: recipientId,
               sender_id: user.id,
               title: notificationTitle,
@@ -467,7 +503,8 @@ export async function sendMessage(
           }
 
           // Dispatch Native Web Push
-          const { data: subData } = await supabase
+          const pushLookupClient = createAdminClient() || supabase;
+          const { data: subData } = await pushLookupClient
             .from("push_subscriptions")
             .select("subscription")
             .eq("user_id", recipientId)
@@ -493,14 +530,11 @@ export async function sendMessage(
                 ? "Entra para responder."
                 : msgContent;
 
-              await webpush.sendNotification(
-                subData.subscription,
-                JSON.stringify({
-                  title: pushTitle,
-                  message: filteredContent,
-                  link: "/chat",
-                }),
-              );
+              await sendWebPushToUser(recipientId, {
+                title: pushTitle,
+                message: filteredContent,
+                link: "/chat",
+              });
             } catch (pushErr) {
               console.error(
                 "Push delivery failed for user",
@@ -603,7 +637,8 @@ export async function deleteMessage(
 
     // Delete for everyone — try soft delete with flag, fall back to content-wipe
     try {
-      const { error } = await supabase
+      const moderationClient = createAdminClient() || supabase;
+      const { error } = await moderationClient
         .from("chat_messages")
         .update({
           is_deleted_for_everyone: true,
@@ -617,7 +652,7 @@ export async function deleteMessage(
         (error.code === "PGRST204" || error.message?.includes("column"))
       ) {
         // Column doesn't exist yet — fall back to just wiping the content
-        const { error: fallbackErr } = await supabase
+        const { error: fallbackErr } = await moderationClient
           .from("chat_messages")
           .update({ content: "Este mensaje fue eliminado" })
           .eq("id", messageId);
@@ -709,7 +744,8 @@ export async function leaveGroup(roomId: string) {
     (id) => id !== user.id,
   );
 
-  const { error } = await supabase
+  const updateClient = createAdminClient() || supabase;
+  const { error } = await updateClient
     .from("chat_rooms")
     .update({
       participants: updatedParticipants,
@@ -755,7 +791,7 @@ export async function addGroupMember(roomId: string, newUserId: string) {
   const { data: friendship, error: fError } = await supabase
     .from("friendships")
     .select("status")
-    .or(`and(sender_id.eq.${user.id},receiver_id.eq.${newUserId}),and(sender_id.eq.${newUserId},receiver_id.eq.${user.id})`)
+    .or(`and(requester_id.eq.${user.id},addressee_id.eq.${newUserId}),and(requester_id.eq.${newUserId},addressee_id.eq.${user.id})`)
     .eq("status", "accepted")
     .maybeSingle();
 
@@ -783,7 +819,7 @@ export async function addGroupMember(roomId: string, newUserId: string) {
     .eq("id", user.id)
     .single();
 
-  await supabase.from("notifications").insert({
+  await createServerNotification({
     user_id: newUserId,
     sender_id: user.id,
     type: "group_invite",

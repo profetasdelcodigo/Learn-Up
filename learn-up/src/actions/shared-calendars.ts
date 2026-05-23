@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { createServerNotification } from "@/utils/server-notifications";
 
 export async function createSharedCalendar(name: string, members: string[]) {
   const supabase = await createClient();
@@ -52,7 +53,7 @@ export async function createSharedCalendar(name: string, members: string[]) {
     // Notify members (except creator)
     const otherMembers = uniqueMembers.filter((m) => m !== user.id);
     for (const memberId of otherMembers) {
-      await supabase.from("notifications").insert({
+      await createServerNotification({
         user_id: memberId,
         sender_id: user.id,
         type: "calendar_event",
@@ -118,7 +119,7 @@ export async function addSharedEvent(
       const members = Array.isArray(calendar.members) ? calendar.members : [];
       const others = members.filter((m: string) => m !== user.id);
       for (const mId of others) {
-        await supabase.from("notifications").insert({
+        await createServerNotification({
           user_id: mId,
           sender_id: user.id,
           type: "calendar_event",
@@ -248,7 +249,7 @@ export async function addCalendarMember(calendarId: string, newUserId: string) {
     if (error) throw error;
 
     // Notify the new member
-    await supabase.from("notifications").insert({
+    await createServerNotification({
       user_id: newUserId,
       sender_id: user.id,
       type: "calendar_event",
@@ -266,6 +267,51 @@ export async function addCalendarMember(calendarId: string, newUserId: string) {
 }
 
 // ── Salir de un calendario compartido ────────────────────────────────────────
+export async function notifySharedHabitProgress(calendarId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { success: false, error: "No autenticado" };
+
+  try {
+    const { data: calendar, error } = await supabase
+      .from("shared_calendars")
+      .select("members, name")
+      .eq("id", calendarId)
+      .single();
+
+    if (error || !calendar) throw error || new Error("Calendario no encontrado");
+
+    const members: string[] = Array.isArray(calendar.members)
+      ? calendar.members
+      : [];
+
+    if (!members.includes(user.id)) {
+      return { success: false, error: "No autorizado" };
+    }
+
+    const others = members.filter((memberId) => memberId !== user.id);
+    for (const memberId of others) {
+      await createServerNotification({
+        user_id: memberId,
+        sender_id: user.id,
+        type: "system",
+        title: `Avance en ${calendar.name}`,
+        message: "Se han actualizado los habitos del grupo.",
+        link: "/calendar",
+        is_read: false,
+      });
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("Error notifying shared habit progress:", err);
+    return { success: false, error: err.message };
+  }
+}
+
 export async function leaveSharedCalendar(calendarId: string) {
   const supabase = await createClient();
   const {

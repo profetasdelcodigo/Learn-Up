@@ -4,6 +4,8 @@ import Groq from "groq-sdk";
 const geminiApiKey = process.env.GEMINI_API_KEY || process.env.AI_API_KEY;
 const groqApiKey = process.env.GROQ_API_KEY;
 const provider = process.env.AI_PROVIDER || "gemini";
+const MAX_REMOTE_MEDIA_BYTES = 25 * 1024 * 1024;
+const REMOTE_MEDIA_TIMEOUT_MS = 15_000;
 
 if (!geminiApiKey && provider === "gemini") {
   console.error("AI Configuration Error: Missing AI_API_KEY or GEMINI_API_KEY");
@@ -14,6 +16,81 @@ const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null;
 
 // ── Groq Client ─────────────────────────────────────────────────────────────
 export const groq = groqApiKey ? new Groq({ apiKey: groqApiKey }) : null;
+
+function isAllowedRemoteMediaUrl(rawUrl: string): boolean {
+  try {
+    const url = new URL(rawUrl);
+    if (url.protocol !== "https:") return false;
+
+    const configuredSupabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
+      ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
+      : null;
+
+    return (
+      url.hostname === configuredSupabaseHost ||
+      url.hostname.endsWith(".supabase.co") ||
+      url.hostname.endsWith(".supabase.in")
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function fetchRemoteMediaBuffer(rawUrl: string): Promise<{
+  buffer: Buffer;
+  mimeType: string;
+  urlLower: string;
+}> {
+  if (!isAllowedRemoteMediaUrl(rawUrl)) {
+    throw new Error("URL de archivo no permitida para procesamiento de IA.");
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REMOTE_MEDIA_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(rawUrl, {
+      signal: controller.signal,
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      throw new Error(`No se pudo descargar el archivo (${res.status}).`);
+    }
+
+    const contentLength = Number(res.headers.get("content-length") || "0");
+    if (contentLength > MAX_REMOTE_MEDIA_BYTES) {
+      throw new Error("El archivo adjunto excede el limite permitido.");
+    }
+
+    if (!res.body) {
+      throw new Error("La respuesta del archivo no tiene cuerpo.");
+    }
+
+    const reader = res.body.getReader();
+    const chunks: Buffer[] = [];
+    let totalBytes = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      totalBytes += value.byteLength;
+      if (totalBytes > MAX_REMOTE_MEDIA_BYTES) {
+        throw new Error("El archivo adjunto excede el limite permitido.");
+      }
+      chunks.push(Buffer.from(value));
+    }
+
+    return {
+      buffer: Buffer.concat(chunks),
+      mimeType: res.headers.get("content-type") || "application/octet-stream",
+      urlLower: rawUrl.toLowerCase(),
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 // ── Ollama Implementation ────────────────────────────────────────────────────
 const getOllamaCompletion = async (
@@ -83,13 +160,11 @@ const getGeminiCompletion = async (
               if (part.type === "text") return { text: part.text };
               if (part.type === "image_url" || part.type === "file_url") {
                 const url = part.type === "image_url" ? part.image_url.url : part.file_url.url;
-                const res = await fetch(url);
-                const buf = await res.arrayBuffer();
-                const buffer = Buffer.from(buf);
-                
-                const urlLower = url.toLowerCase();
+                const { buffer, urlLower, mimeType: fetchedMimeType } =
+                  await fetchRemoteMediaBuffer(url);
+
                 // Determine mime type from headers or extension
-                let mimeType = res.headers.get("content-type") || "application/octet-stream";
+                let mimeType = fetchedMimeType;
                 if (urlLower.endsWith(".pdf")) mimeType = "application/pdf";
                 
                 const isImage = mimeType.startsWith("image/") || urlLower.match(/\\.(jpg|jpeg|png|webp|heic)$/i);

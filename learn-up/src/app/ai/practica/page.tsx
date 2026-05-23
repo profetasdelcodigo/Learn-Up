@@ -106,7 +106,10 @@ export default function ExamenIAPage() {
           data: { user },
         } = await supabase.auth.getUser();
         if (user) {
-          const filePath = `${user.id}/${Date.now()}_${file.name}`;
+          const safeFileName = file.name
+            .replace(/[^a-zA-Z0-9._-]/g, "_")
+            .slice(-120);
+          const filePath = `${user.id}/${Date.now()}_${safeFileName}`;
           const { error: uploadErr } = await supabase.storage
             .from("ai_media")
             .upload(filePath, file);

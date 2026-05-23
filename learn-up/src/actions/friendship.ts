@@ -1,7 +1,17 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import webpush from "@/utils/push";
+import {
+  createServerNotification,
+  sendWebPushToUser,
+} from "@/utils/server-notifications";
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isValidUUID(id: unknown): id is string {
+  return typeof id === "string" && UUID_REGEX.test(id);
+}
 
 export async function searchUsers(query: string) {
   const supabase = await createClient();
@@ -56,6 +66,9 @@ export async function sendFriendRequest(targetUserId: string) {
   } = await supabase.auth.getUser();
 
   if (!user) throw new Error("Unauthorized");
+  if (!isValidUUID(targetUserId) || targetUserId === user.id) {
+    throw new Error("Usuario destino invalido");
+  }
 
   // Check if already exists
   const { data: existing } = await supabase
@@ -84,7 +97,7 @@ export async function sendFriendRequest(targetUserId: string) {
   const notificationTitle = "Nueva Solicitud de Amistad";
   const notificationMessage = `${senderFullName} quiere conectar contigo.`;
 
-  await supabase.from("notifications").insert({
+  await createServerNotification({
     user_id: targetUserId, // Para quién es
     sender_id: user.id, // Quién la envía
     title: notificationTitle,
@@ -93,31 +106,11 @@ export async function sendFriendRequest(targetUserId: string) {
     is_read: false,
   });
 
-  // Dispatch Native Web Push
-  const { data: subData } = await supabase
-    .from("push_subscriptions")
-    .select("subscription")
-    .eq("user_id", targetUserId)
-    .single();
-
-  if (subData && subData.subscription) {
-    try {
-      await webpush.sendNotification(
-        subData.subscription,
-        JSON.stringify({
-          title: notificationTitle,
-          message: notificationMessage,
-          link: "/notifications",
-        }),
-      );
-    } catch (pushErr) {
-      console.error(
-        "Push delivery failed for friend request",
-        targetUserId,
-        pushErr,
-      );
-    }
-  }
+  await sendWebPushToUser(targetUserId, {
+    title: notificationTitle,
+    message: notificationMessage,
+    link: "/notifications",
+  });
 
   return { success: true };
 }
@@ -138,6 +131,9 @@ export async function acceptFriendRequest(senderId: string) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
+  if (!isValidUUID(senderId) || senderId === user.id) {
+    throw new Error("Usuario origen invalido");
+  }
 
   // Update status to accepted where I am the addressee and they are the requester
   const { error } = await supabase
@@ -154,7 +150,7 @@ export async function acceptFriendRequest(senderId: string) {
   const accTitle = "Solicitud Aceptada";
   const accMessage = `${acceptorName} aceptó tu solicitud de amistad.`;
 
-  await supabase.from("notifications").insert({
+  await createServerNotification({
     user_id: senderId,
     type: "system",
     title: accTitle,
@@ -162,31 +158,11 @@ export async function acceptFriendRequest(senderId: string) {
     link: "/chat",
   });
 
-  // Dispatch Native Web Push for Acceptance
-  const { data: subData } = await supabase
-    .from("push_subscriptions")
-    .select("subscription")
-    .eq("user_id", senderId)
-    .single();
-
-  if (subData && subData.subscription) {
-    try {
-      await webpush.sendNotification(
-        subData.subscription,
-        JSON.stringify({
-          title: accTitle,
-          message: accMessage,
-          link: "/chat",
-        }),
-      );
-    } catch (pushErr) {
-      console.error(
-        "Push delivery failed for friend request acceptance",
-        senderId,
-        pushErr,
-      );
-    }
-  }
+  await sendWebPushToUser(senderId, {
+    title: accTitle,
+    message: accMessage,
+    link: "/chat",
+  });
 
   return { success: true };
 }

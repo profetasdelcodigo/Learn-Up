@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { createServerNotification } from "@/utils/server-notifications";
 
 export async function uploadLibraryFile(
   formData: FormData,
@@ -49,7 +50,7 @@ export async function uploadLibraryFile(
 
     // Upload file to Supabase Storage
     const fileExt = file.name.split(".").pop()?.toLowerCase() || "pdf";
-    const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+    const fileName = `${user.id}/${Date.now()}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
       .from("library")
@@ -116,7 +117,7 @@ export async function uploadLibraryFile(
       const submitterName =
         submitterProfile?.full_name || submitterProfile?.username || user.email;
 
-      await supabase.from("notifications").insert({
+      await createServerNotification({
         user_id: reviewer.id, // TO: Docente Revisor
         sender_id: user.id, // FROM: Estudiante
         type: "library_review",
@@ -155,7 +156,7 @@ export async function approveLibraryItem(
     if (error || !item) return { success: false, error: "No se pudo aprobar" };
 
     // Notify submitter
-    await supabase.from("notifications").insert({
+    await createServerNotification({
       user_id: item.user_id,
       type: "library_approved",
       title: "Material aprobado ✅",
@@ -193,7 +194,7 @@ export async function rejectLibraryItem(
     if (error || !item) return { success: false, error: "No se pudo rechazar" };
 
     // Notify submitter
-    await supabase.from("notifications").insert({
+    await createServerNotification({
       user_id: item.user_id,
       type: "library_rejected",
       title: "Material rechazado ❌",
@@ -272,7 +273,7 @@ export async function adminDeleteLibraryItem(
     if (error || !item) return { success: false, error: "No se pudo eliminar" };
 
     // Notify owner
-    await supabase.from("notifications").insert({
+    await createServerNotification({
       user_id: item.user_id,
       sender_id: user.id,
       type: "library_rejected",

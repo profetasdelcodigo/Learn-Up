@@ -1,20 +1,37 @@
 import { AccessToken } from "livekit-server-sdk";
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/utils/supabase/server";
+
+const ROOM_NAME_REGEX = /^[a-zA-Z0-9_-]{1,120}$/;
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(req: NextRequest) {
-  const room = req.nextUrl.searchParams.get("room");
-  const username = req.nextUrl.searchParams.get("username");
+  const room = req.nextUrl.searchParams.get("room")?.trim();
 
-  if (!room) {
-    return NextResponse.json(
-      { error: 'Missing "room" query parameter' },
-      { status: 400 },
-    );
-  } else if (!username) {
-    return NextResponse.json(
-      { error: 'Missing "username" query parameter' },
-      { status: 400 },
-    );
+  if (!room || !ROOM_NAME_REGEX.test(room)) {
+    return NextResponse.json({ error: "Invalid room" }, { status: 400 });
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (UUID_REGEX.test(room)) {
+    const { data: chatRoom, error } = await supabase
+      .from("chat_rooms")
+      .select("id")
+      .eq("id", room)
+      .maybeSingle();
+
+    if (error || !chatRoom) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
   }
 
   const apiKey = process.env.LIVEKIT_API_KEY;
@@ -28,18 +45,28 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // TTL: 24 hours — prevents reconnect loops caused by short-lived tokens
-  const at = new AccessToken(apiKey, apiSecret, {
-    identity: username,
-    ttl: 86400, // 24 hours in seconds
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name, username")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const displayName =
+    profile?.full_name || profile?.username || user.email || "Usuario";
+
+  const token = new AccessToken(apiKey, apiSecret, {
+    identity: user.id,
+    name: displayName,
+    metadata: JSON.stringify({ name: displayName }),
+    ttl: 7200,
   });
 
-  at.addGrant({
+  token.addGrant({
     roomJoin: true,
-    room: room,
+    room,
     canPublish: true,
     canSubscribe: true,
   });
 
-  return NextResponse.json({ token: await at.toJwt() });
+  return NextResponse.json({ token: await token.toJwt() });
 }

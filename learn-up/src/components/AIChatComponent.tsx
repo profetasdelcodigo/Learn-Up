@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Loading from "@/app/loading";
 import {
@@ -47,23 +47,97 @@ interface ToolAction {
   requiresConfirm: boolean;
 }
 
-// Simple markdown renderer for AI messages
-function renderAIContent(text: string): string {
-  let html = text
-    // Images: ![alt](url) -> Only render if url is present
-    .replace(/!\[([^\]]*)\]\(([^)]*)\)/g, (match, p1, p2) => {
-      if (!p2 || p2.trim() === "") return ``; 
-      return `<img src="${p2}" alt="${p1}" class="rounded-xl max-w-full my-2 border border-white/10" style="max-height:300px" />`;
-    })
-    // Links: [text](url)
-    .replace(/\[([^\]]*)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-brand-gold hover:underline inline-flex items-center gap-1">$1 ↗</a>')
-    // Bold: **text**
-    .replace(/\*\*([^*]+)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
-    // Italic: *text*
-    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-    // Standalone URLs that weren't already converted
-    .replace(/(?<!href=")(?<!src=")(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-brand-gold hover:underline">$1 ↗</a>');
-  return html;
+function getSafeExternalUrl(rawUrl: unknown): string | null {
+  if (typeof rawUrl !== "string" || !rawUrl.trim()) return null;
+
+  try {
+    const url = new URL(rawUrl.trim());
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function AIMessageContent({ text }: { text: string }) {
+  const nodes: ReactNode[] = [];
+  const tokenRegex =
+    /!\[([^\]]*)\]\(([^)]*)\)|\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|\*([^*]+)\*|(https?:\/\/[^\s<]+)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = tokenRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(text.slice(lastIndex, match.index));
+    }
+
+    const key = `${match.index}-${tokenRegex.lastIndex}`;
+
+    if (match[2]) {
+      const safeUrl = getSafeExternalUrl(match[2]);
+      if (safeUrl) {
+        nodes.push(
+          <img
+            key={key}
+            src={safeUrl}
+            alt={match[1] || "Imagen"}
+            className="rounded-xl max-w-full my-2 border border-white/10"
+            style={{ maxHeight: 300 }}
+          />,
+        );
+      }
+    } else if (match[4]) {
+      const safeUrl = getSafeExternalUrl(match[4]);
+      nodes.push(
+        safeUrl ? (
+          <a
+            key={key}
+            href={safeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-brand-gold hover:underline inline-flex items-center gap-1"
+          >
+            {match[3]} -&gt;
+          </a>
+        ) : (
+          match[3]
+        ),
+      );
+    } else if (match[5]) {
+      nodes.push(
+        <strong key={key} className="text-white font-semibold">
+          {match[5]}
+        </strong>,
+      );
+    } else if (match[6]) {
+      nodes.push(<em key={key}>{match[6]}</em>);
+    } else if (match[7]) {
+      const safeUrl = getSafeExternalUrl(match[7]);
+      nodes.push(
+        safeUrl ? (
+          <a
+            key={key}
+            href={safeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-brand-gold hover:underline"
+          >
+            {match[7]} -&gt;
+          </a>
+        ) : (
+          match[7]
+        ),
+      );
+    }
+
+    lastIndex = tokenRegex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex));
+  }
+
+  return <>{nodes}</>;
 }
 
 // shareAIMessage removed in favor of ShareButton
@@ -79,7 +153,7 @@ interface Message {
 interface AIChatProps {
   title: string;
   subtitle: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   aiType: string;
   onSubmitAction: (
     message: string,
@@ -273,7 +347,10 @@ export default function AIChatComponent({
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        const filePath = `${user.id}/${Date.now()}_${file.name}`;
+        const safeFileName = file.name
+          .replace(/[^a-zA-Z0-9._-]/g, "_")
+          .slice(-120);
+        const filePath = `${user.id}/${Date.now()}_${safeFileName}`;
         const { error: uploadErr } = await supabase.storage
           .from("ai_media")
           .upload(filePath, file);
@@ -334,10 +411,14 @@ export default function AIChatComponent({
     try {
       if (action.tool === "open_url") {
         // Abrir URL en nueva pestaña (el click del usuario lo permite)
-        window.open(action.args.url, "_blank", "noopener,noreferrer");
+        const safeUrl = getSafeExternalUrl(action.args.url);
+        if (!safeUrl) {
+          throw new Error("URL no permitida");
+        }
+        window.open(safeUrl, "_blank", "noopener,noreferrer");
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: `✅ Abriendo: ${action.args.title || action.args.url}` },
+          { role: "assistant", content: `Abriendo: ${action.args.title || safeUrl}` },
         ]);
       } else {
         const result = await confirmAndExecuteTool(action.tool, action.args);
@@ -572,9 +653,10 @@ export default function AIChatComponent({
                     <div>
                       {message.role === "assistant" ? (
                         <div
-                          className="prose-ai text-sm md:text-base leading-relaxed [&_a]:text-brand-gold [&_a]:hover:underline [&_img]:rounded-xl [&_img]:max-w-full [&_img]:my-2 [&_img]:border [&_img]:border-white/10 [&_strong]:text-white [&_strong]:font-semibold"
-                          dangerouslySetInnerHTML={{ __html: renderAIContent(message.content) }}
-                        />
+                          className="prose-ai text-sm md:text-base leading-relaxed whitespace-pre-wrap break-words [&_a]:text-brand-gold [&_a]:hover:underline [&_img]:rounded-xl [&_img]:max-w-full [&_img]:my-2 [&_img]:border [&_img]:border-white/10 [&_strong]:text-white [&_strong]:font-semibold"
+                        >
+                          <AIMessageContent text={message.content} />
+                        </div>
                       ) : (
                         <p className="whitespace-pre-wrap text-sm md:text-base leading-relaxed">
                           {message.content}
