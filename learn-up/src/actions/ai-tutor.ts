@@ -27,6 +27,7 @@ function getTimeContext(): string {
 // ── Media Parser ──────────────────────────────────────────────────────────────
 export async function parseMediaInput(url: string, type: string) {
   try {
+    // 1. YouTube Transcription
     if (url.includes("youtube.com") || url.includes("youtu.be")) {
       const { YoutubeTranscript } = await import("youtube-transcript");
       try {
@@ -34,15 +35,32 @@ export async function parseMediaInput(url: string, type: string) {
         return transcript.map(t => t.text).join(" ");
       } catch (e) {
         console.error("Error extracting Youtube transcript:", e);
-        return "No se pudo extraer la transcripción de este video de YouTube. Es posible que no tenga subtítulos disponibles.";
+        return "No se pudo extraer la transcripción de este video de YouTube.";
       }
     }
-    
-    // We no longer manually parse PDFs, DOCX, or audio here because we pass them directly to Gemini
+
+    // 2. Download and Extract Content
+    const response = await fetch(url);
+    const buffer = Buffer.from(await response.arrayBuffer());
+
+    // PDF Extraction
+    if (url.toLowerCase().endsWith(".pdf")) {
+      const pdfParse = (await import("pdf-parse")).default;
+      const data = await pdfParse(buffer);
+      return data.text;
+    }
+
+    // DOCX Extraction
+    if (url.toLowerCase().endsWith(".docx")) {
+      const mammoth = await import("mammoth");
+      const result = await mammoth.extractRawText({ buffer });
+      return result.value;
+    }
+
     return null;
   } catch (err) {
     console.error("Error parsing media:", err);
-    return "";
+    return "No se pudo procesar este archivo.";
   }
 }
 
