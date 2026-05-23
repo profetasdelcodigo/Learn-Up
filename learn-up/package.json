@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack",
-    "start": "next start -p $PORT",
+    "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
@@ -17,7 +17,7 @@
     "@livekit/components-react": "^2.9.19",
     "@livekit/components-styles": "^1.2.0",
     "@supabase/ssr": "^0.8.0",
-    "@supabase/supabase-js": "^2.93.3",
+    "@supabase/supabase-js": "^2.106.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.29.2",
@@ -28,7 +28,7 @@
     "livekit-server-sdk": "^2.15.0",
     "lucide-react": "^0.563.0",
     "mammoth": "^1.12.0",
-    "next": "16.1.6",
+    "next": "16.2.6",
     "next-pwa": "^5.6.0",
     "officeparser": "^7.0.3",
     "pdf-parse": "^2.4.5",
@@ -51,10 +51,32 @@
     "@types/react-dom": "^19",
     "@types/web-push": "^3.6.4",
     "eslint": "^9",
-    "eslint-config-next": "16.1.6",
+    "eslint-config-next": "16.2.6",
     "eslint-plugin-react-hooks": "^7.0.1",
     "prettier": "^3.8.1",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "overrides": {
+    "@babel/plugin-transform-modules-systemjs": "^7.29.4",
+    "@xmldom/xmldom": "^0.9.10",
+    "brace-expansion": "^2.0.3",
+    "fast-uri": "^3.1.2",
+    "flatted": "^3.4.2",
+    "lodash": "^4.18.1",
+    "lodash-es": "^4.18.1",
+    "micromatch": {
+      "picomatch": "^2.3.2"
+    },
+    "@rollup/pluginutils": {
+      "picomatch": "^2.3.2"
+    },
+    "tinyglobby": {
+      "picomatch": "^4.0.4"
+    },
+    "postcss": "^8.5.10",
+    "serialize-javascript": "^7.0.5",
+    "tar": "^7.5.15",
+    "ws": "^8.20.1"
   }
 }

@@ -1,5 +1,4 @@
 import type { NextConfig } from "next";
-import path from "path";
 
 // @ts-expect-error: next-pwa lacks type declaration file
 import withPWAInit from "next-pwa";
@@ -59,7 +58,7 @@ const securityHeaders = [
       // Fuentes: self + Google Fonts
       "font-src 'self' https://fonts.gstatic.com",
       // Imágenes: self + Supabase Storage + data URIs
-      "img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in https://i.ytimg.com https://img.youtube.com",
+      "img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in https://i.ytimg.com https://img.youtube.com https://images.unsplash.com https://plus.unsplash.com",
       // Medios (audio/video): self + Supabase Storage
       "media-src 'self' blob: https://*.supabase.co https://*.supabase.in",
       // Conexiones API: self + Supabase + Google AI + LiveKit
@@ -96,9 +95,6 @@ const nextConfig: NextConfig = {
 
     return config;
   },
-
-  // Silencia el warning de workspace root en Render
-  outputFileTracingRoot: path.join(process.cwd(), "../../"),
 
   // Silence Next.js 16 Turbopack/webpack compatibility warning
   turbopack: {},

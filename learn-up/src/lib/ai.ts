@@ -92,6 +92,72 @@ async function fetchRemoteMediaBuffer(rawUrl: string): Promise<{
   }
 }
 
+function messageHasRemoteMedia(messages: { content: string | any[] }[]): boolean {
+  return messages.some((message) =>
+    Array.isArray(message.content)
+      ? message.content.some(
+          (part) => part?.type === "image_url" || part?.type === "file_url",
+        )
+      : false,
+  );
+}
+
+function toTextOnlyMessages(
+  messages: {
+    role: "system" | "user" | "assistant";
+    content: string | any[];
+  }[],
+) {
+  return messages.map((message) => ({
+    role: message.role,
+    content: Array.isArray(message.content)
+      ? message.content
+          .map((part) => (part?.type === "text" ? part.text : ""))
+          .filter(Boolean)
+          .join("\n")
+      : message.content,
+  }));
+}
+
+async function extractDocumentText(
+  buffer: Buffer,
+  urlLower: string,
+  mimeType: string,
+): Promise<string> {
+  if (urlLower.endsWith(".pdf") || mimeType === "application/pdf") {
+    const pdfParseModule = (await import("pdf-parse")) as any;
+    const pdfParse = pdfParseModule.default || pdfParseModule;
+    const pdfData = await pdfParse(buffer);
+    return pdfData.text;
+  }
+
+  if (urlLower.endsWith(".docx") || urlLower.endsWith(".doc")) {
+    const mammoth = await import("mammoth");
+    const result = await mammoth.extractRawText({ buffer });
+    return result.value;
+  }
+
+  const officeMatch = urlLower.match(/\.(pptx|xlsx|odt|odp|ods|rtf)$/);
+  if (officeMatch) {
+    const { OfficeParser } = await import("officeparser");
+    const ast = await OfficeParser.parseOffice(buffer, {
+      fileType: officeMatch[1],
+      ignoreNotes: false,
+    } as any);
+    const textResult = await ast.to("text");
+    return typeof textResult.value === "string" ? textResult.value : "";
+  }
+
+  if (
+    mimeType.startsWith("text/") ||
+    urlLower.match(/\.(txt|md|csv|json|xml|html|css|js|ts|py|java|c|cpp)$/)
+  ) {
+    return buffer.toString("utf-8");
+  }
+
+  throw new Error("Tipo de documento no soportado para extraccion.");
+}
+
 // ── Ollama Implementation ────────────────────────────────────────────────────
 const getOllamaCompletion = async (
   messages: any[],
@@ -178,21 +244,13 @@ const getGeminiCompletion = async (
                   };
                 }
 
-                // Para documentos (PDF, DOCX, PPTX), extraemos el texto plano localmente.
+                // Para documentos, extraemos el texto plano localmente.
                 try {
-                  let extractedText = "";
-                  
-                  if (urlLower.endsWith(".pdf") || mimeType === "application/pdf") {
-                    const pdfParseModule = (await import("pdf-parse")) as any;
-                    const pdfParse = pdfParseModule.default || pdfParseModule;
-                    const pdfData = await pdfParse(buffer);
-                    extractedText = pdfData.text;
-                  } else {
-                    const mammoth = (await import("mammoth")) as any;
-                    const result = await mammoth.extractRawText({ buffer });
-                    extractedText = result.value;
-                  }
-                  
+                  const extractedText = await extractDocumentText(
+                    buffer,
+                    urlLower,
+                    mimeType,
+                  );
                   return { text: `[Contenido del Documento Adjunto]:\\n${extractedText}` };
                 } catch (parseError) {
                   console.error("Error parsing document:", parseError);
@@ -247,15 +305,24 @@ export const getAICompletion = async (
   jsonMode: boolean = false,
 ) => {
   console.log(`[AI Debug] Provider actual: ${provider}`);
+  const hasRemoteMedia = messageHasRemoteMedia(messages);
   
   // 1. Si el proveedor es Groq, usamos Groq directamente
   if (provider === "groq") {
+    if (hasRemoteMedia) {
+      if (genAI) {
+        console.warn("[AI Debug] Groq no soporta adjuntos; usando Gemini para media.");
+        return await getGeminiCompletion(messages, model, jsonMode);
+      }
+      throw new Error("Groq no soporta adjuntos y Gemini no esta configurado.");
+    }
+
     console.log("[AI Debug] Usando Groq como proveedor principal...");
-    const simpleMessages = messages.map(m => ({
-      role: m.role,
-      content: Array.isArray(m.content) ? m.content.map(p => p.type === 'text' ? p.text : '').join('\n') : m.content
-    }));
-    return await getGroqCompletion(simpleMessages, "llama-3.3-70b-versatile", jsonMode);
+    return await getGroqCompletion(
+      toTextOnlyMessages(messages),
+      "llama-3.3-70b-versatile",
+      jsonMode,
+    );
   }
 
   // 2. Si el proveedor es Gemini, intentamos Gemini con fallback a Groq
@@ -264,12 +331,18 @@ export const getAICompletion = async (
     return await getGeminiCompletion(messages, model, jsonMode);
   } catch (error: any) {
     console.warn("[AI Debug] Gemini falló, intentando fallback a Groq...", error?.message || error);
+    if (hasRemoteMedia) {
+      throw new Error(
+        "No se pudo procesar el archivo adjunto con Gemini. Groq no se usa como fallback para adjuntos porque perderia el contenido del archivo.",
+      );
+    }
+
     try {
-      const simpleMessages = messages.map(m => ({
-        role: m.role,
-        content: Array.isArray(m.content) ? m.content.map(p => p.type === 'text' ? p.text : '').join('\n') : m.content
-      }));
-      return await getGroqCompletion(simpleMessages, "llama-3.3-70b-versatile", jsonMode);
+      return await getGroqCompletion(
+        toTextOnlyMessages(messages),
+        "llama-3.3-70b-versatile",
+        jsonMode,
+      );
     } catch (groqError) {
       console.error("[AI Debug] Ambos proveedores fallaron.");
       throw groqError;

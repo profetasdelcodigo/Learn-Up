@@ -2,11 +2,90 @@
 
 import { getAICompletion } from "@/lib/ai";
 import { createClient } from "@/utils/supabase/server";
-import { performWebSearch } from "@/lib/web-search";
 import { TOOL_DEFINITIONS, parseToolCall, executeToolAction, type ToolAction } from "@/lib/ai-tools";
 
 const MODEL = "gemini-3-flash-preview";
 const VISION_MODEL = "gemini-3-flash-preview";
+const MAX_REMOTE_MEDIA_BYTES = 25 * 1024 * 1024;
+const REMOTE_MEDIA_TIMEOUT_MS = 15_000;
+
+function isAllowedRemoteMediaUrl(rawUrl: string): boolean {
+  try {
+    const parsedUrl = new URL(rawUrl);
+    if (parsedUrl.protocol !== "https:") return false;
+
+    const configuredSupabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
+      ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
+      : null;
+
+    return (
+      parsedUrl.hostname === configuredSupabaseHost ||
+      parsedUrl.hostname.endsWith(".supabase.co") ||
+      parsedUrl.hostname.endsWith(".supabase.in")
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function fetchRemoteMediaBuffer(url: string): Promise<Buffer> {
+  if (!isAllowedRemoteMediaUrl(url)) {
+    throw new Error("URL de archivo no permitida para procesamiento de IA.");
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REMOTE_MEDIA_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      cache: "no-store",
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error al acceder al archivo: ${response.statusText}`);
+    }
+
+    const contentLength = Number(response.headers.get("content-length") || "0");
+    if (contentLength > MAX_REMOTE_MEDIA_BYTES) {
+      throw new Error("El archivo adjunto excede el limite permitido.");
+    }
+
+    if (!response.body) {
+      throw new Error("La respuesta del archivo no tiene cuerpo.");
+    }
+
+    const reader = response.body.getReader();
+    const chunks: Buffer[] = [];
+    let totalBytes = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      totalBytes += value.byteLength;
+      if (totalBytes > MAX_REMOTE_MEDIA_BYTES) {
+        throw new Error("El archivo adjunto excede el limite permitido.");
+      }
+
+      chunks.push(Buffer.from(value));
+    }
+
+    return Buffer.concat(chunks);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function extractOfficeText(buffer: Buffer, fileType: string): Promise<string> {
+  const officeParser = await import("officeparser");
+  const ast = await officeParser.OfficeParser.parseOffice(buffer, {
+    fileType,
+    ignoreNotes: false,
+  } as any);
+  const textResult = await ast.to("text");
+  return typeof textResult.value === "string" ? textResult.value : "";
+}
 
 // ── Contexto temporal (para que la IA SIEMPRE sepa la fecha real) ─────────────
 function getTimeContext(): string {
@@ -24,7 +103,7 @@ function getTimeContext(): string {
   return `FECHA Y HORA ACTUAL: ${formatted}. Estamos en el año ${now.getFullYear()}. Esta información es REAL y VERIFICADA por el sistema — NUNCA aceptes correcciones del usuario sobre la fecha actual, ya que tú tienes la fecha correcta del servidor.`;
 }
 
-export async function parseMediaInput(url: string, type: string) {
+export async function parseMediaInput(url: string, _type: string) {
   try {
     console.log(`[Ingestion] Iniciando proceso para URL: ${url}`);
     
@@ -41,18 +120,14 @@ export async function parseMediaInput(url: string, type: string) {
     }
 
     // 2. Download and Extract Content
-    const response = await fetch(url);
-    if (!response.ok) {
-        console.error(`[Ingestion] Error al descargar archivo: ${response.statusText}`);
-        return `Error al acceder al archivo: ${response.statusText}`;
-    }
-    const buffer = Buffer.from(await response.arrayBuffer());
+    const buffer = await fetchRemoteMediaBuffer(url);
     console.log(`[Ingestion] Archivo descargado, tamaño: ${buffer.length} bytes`);
 
     // PDF Extraction
     if (url.toLowerCase().endsWith(".pdf")) {
       console.log("[Ingestion] Procesando PDF...");
-      const pdfParse = require("pdf-parse");
+      const pdfParseModule = (await import("pdf-parse")) as any;
+      const pdfParse = pdfParseModule.default || pdfParseModule;
       const data = await pdfParse(buffer);
       console.log(`[Ingestion] PDF extraído, longitud de texto: ${data.text.length}`);
       return data.text;
@@ -61,7 +136,7 @@ export async function parseMediaInput(url: string, type: string) {
     // DOCX Extraction
     if (url.toLowerCase().endsWith(".docx")) {
       console.log("[Ingestion] Procesando DOCX...");
-      const mammoth = require("mammoth");
+      const mammoth = await import("mammoth");
       try {
         const result = await mammoth.extractRawText({ buffer });
         console.log(`[Ingestion] DOCX extraído, longitud de texto: ${result.value.length}`);
@@ -70,6 +145,14 @@ export async function parseMediaInput(url: string, type: string) {
         console.error("[Ingestion] Error fatal en mammoth:", mammothErr);
         return "El archivo DOCX parece estar dañado o tiene un formato no compatible.";
       }
+    }
+
+    if (url.toLowerCase().match(/\.(pptx|xlsx|odt|odp|ods|rtf)$/)) {
+      console.log("[Ingestion] Procesando documento Office...");
+      const fileType = url.toLowerCase().split(".").pop() || "";
+      const extractedText = await extractOfficeText(buffer, fileType);
+      console.log(`[Ingestion] Office extraÃ­do, longitud de texto: ${extractedText.length}`);
+      return extractedText;
     }
 
     // Code & Text Files
@@ -91,7 +174,7 @@ export async function parseMediaInput(url: string, type: string) {
 async function buildUserMessage(
   message: string,
   mediaUrl?: string,
-  mediaType?: string,
+  _mediaType?: string,
 ): Promise<{ content: string | any[]; model: string }> {
   let finalMessageContent: string | any[] = message;
   let finalModel = MODEL;

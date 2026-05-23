@@ -1,4 +1,5 @@
-const UNSPLASH_ACCESS_KEY = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
+const UNSPLASH_ACCESS_KEY =
+  process.env.UNSPLASH_ACCESS_KEY || process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
 
 export async function searchRecipeImage(
   dishName: string,

@@ -1,7 +1,25 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+const BYPASS_PATHS = new Set(["/sw.js", "/manifest.json", "/robots.txt"]);
+
+function isStaticBypass(pathname: string): boolean {
+  return (
+    BYPASS_PATHS.has(pathname) ||
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/workbox-") ||
+    pathname.startsWith("/worker-") ||
+    /\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|txt|xml|json|js|css|map|woff|woff2)$/i.test(
+      pathname,
+    )
+  );
+}
+
 export async function updateSession(request: NextRequest) {
+  if (isStaticBypass(request.nextUrl.pathname)) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -15,7 +33,7 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
+          cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value),
           );
           supabaseResponse = NextResponse.next({
@@ -44,10 +62,7 @@ export async function updateSession(request: NextRequest) {
   );
   const isOnboarding = request.nextUrl.pathname.startsWith("/onboarding");
   const isBypass =
-    request.nextUrl.pathname.startsWith("/_next") ||
     request.nextUrl.pathname.startsWith("/api") ||
-    request.nextUrl.pathname.endsWith(".xml") ||
-    request.nextUrl.pathname.endsWith(".txt") ||
     request.nextUrl.pathname.endsWith(".html") ||
     request.nextUrl.pathname.includes("opengraph-image") ||
     request.nextUrl.pathname.includes("icon");

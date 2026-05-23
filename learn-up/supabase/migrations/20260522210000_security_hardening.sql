@@ -176,6 +176,12 @@ to authenticated
 with check (
   bucket_id = 'chat-media'
   and (storage.foldername(name))[2] = (select auth.uid())::text
+  and exists (
+    select 1
+    from public.chat_rooms room
+    where room.id::text = (storage.foldername(name))[1]
+      and (select auth.uid()) = any(room.participants)
+  )
 );
 
 drop policy if exists "storage_upload_chat_files_shared_audio_user_folder" on storage.objects;
@@ -184,6 +190,239 @@ on storage.objects
 for insert
 to authenticated
 with check (
+  bucket_id = 'chat_files'
+  and (storage.foldername(name))[1] = 'shared_audios'
+  and (storage.foldername(name))[2] = (select auth.uid())::text
+);
+
+drop policy if exists "storage_read_avatars_public" on storage.objects;
+create policy "storage_read_avatars_public"
+on storage.objects
+for select
+to anon, authenticated
+using (bucket_id = 'avatars');
+
+drop policy if exists "storage_update_avatars_own_folder" on storage.objects;
+create policy "storage_update_avatars_own_folder"
+on storage.objects
+for update
+to authenticated
+using (
+  bucket_id = 'avatars'
+  and (storage.foldername(name))[1] = (select auth.uid())::text
+)
+with check (
+  bucket_id = 'avatars'
+  and (storage.foldername(name))[1] = (select auth.uid())::text
+  and lower(storage.extension(name)) in ('jpg', 'jpeg', 'png', 'webp')
+);
+
+drop policy if exists "storage_delete_avatars_own_folder" on storage.objects;
+create policy "storage_delete_avatars_own_folder"
+on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'avatars'
+  and (storage.foldername(name))[1] = (select auth.uid())::text
+);
+
+drop policy if exists "storage_read_library_authenticated" on storage.objects;
+create policy "storage_read_library_authenticated"
+on storage.objects
+for select
+to authenticated
+using (bucket_id = 'library');
+
+drop policy if exists "storage_update_library_own_folder" on storage.objects;
+create policy "storage_update_library_own_folder"
+on storage.objects
+for update
+to authenticated
+using (
+  bucket_id = 'library'
+  and (storage.foldername(name))[1] = (select auth.uid())::text
+)
+with check (
+  bucket_id = 'library'
+  and (storage.foldername(name))[1] = (select auth.uid())::text
+);
+
+drop policy if exists "storage_delete_library_own_folder" on storage.objects;
+create policy "storage_delete_library_own_folder"
+on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'library'
+  and (storage.foldername(name))[1] = (select auth.uid())::text
+);
+
+drop policy if exists "storage_read_ai_media_own_folder" on storage.objects;
+create policy "storage_read_ai_media_own_folder"
+on storage.objects
+for select
+to authenticated
+using (
+  bucket_id = 'ai_media'
+  and (storage.foldername(name))[1] = (select auth.uid())::text
+);
+
+drop policy if exists "storage_upload_ai_media_own_folder" on storage.objects;
+create policy "storage_upload_ai_media_own_folder"
+on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id = 'ai_media'
+  and (storage.foldername(name))[1] = (select auth.uid())::text
+  and lower(storage.extension(name)) in (
+    'pdf', 'txt', 'md', 'doc', 'docx', 'pptx', 'xlsx',
+    'jpg', 'jpeg', 'png', 'webp', 'gif',
+    'mp3', 'wav', 'ogg', 'm4a', 'mp4'
+  )
+);
+
+drop policy if exists "storage_update_ai_media_own_folder" on storage.objects;
+create policy "storage_update_ai_media_own_folder"
+on storage.objects
+for update
+to authenticated
+using (
+  bucket_id = 'ai_media'
+  and (storage.foldername(name))[1] = (select auth.uid())::text
+)
+with check (
+  bucket_id = 'ai_media'
+  and (storage.foldername(name))[1] = (select auth.uid())::text
+);
+
+drop policy if exists "storage_delete_ai_media_own_folder" on storage.objects;
+create policy "storage_delete_ai_media_own_folder"
+on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'ai_media'
+  and (storage.foldername(name))[1] = (select auth.uid())::text
+);
+
+drop policy if exists "storage_read_user_media_own_folder" on storage.objects;
+create policy "storage_read_user_media_own_folder"
+on storage.objects
+for select
+to authenticated
+using (
+  bucket_id = 'user-media'
+  and (storage.foldername(name))[1] = (select auth.uid())::text
+);
+
+drop policy if exists "storage_upload_user_media_own_folder" on storage.objects;
+create policy "storage_upload_user_media_own_folder"
+on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id = 'user-media'
+  and (storage.foldername(name))[1] = (select auth.uid())::text
+  and lower(storage.extension(name)) in (
+    'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'webp',
+    'gif', 'mp3', 'wav', 'ogg', 'm4a', 'mp4', 'webm'
+  )
+);
+
+drop policy if exists "storage_update_user_media_own_folder" on storage.objects;
+create policy "storage_update_user_media_own_folder"
+on storage.objects
+for update
+to authenticated
+using (
+  bucket_id = 'user-media'
+  and (storage.foldername(name))[1] = (select auth.uid())::text
+)
+with check (
+  bucket_id = 'user-media'
+  and (storage.foldername(name))[1] = (select auth.uid())::text
+);
+
+drop policy if exists "storage_delete_user_media_own_folder" on storage.objects;
+create policy "storage_delete_user_media_own_folder"
+on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'user-media'
+  and (storage.foldername(name))[1] = (select auth.uid())::text
+);
+
+drop policy if exists "storage_read_chat_media_room_participant" on storage.objects;
+create policy "storage_read_chat_media_room_participant"
+on storage.objects
+for select
+to authenticated
+using (
+  bucket_id = 'chat-media'
+  and exists (
+    select 1
+    from public.chat_rooms room
+    where room.id::text = (storage.foldername(name))[1]
+      and (select auth.uid()) = any(room.participants)
+  )
+);
+
+drop policy if exists "storage_update_chat_media_own_upload" on storage.objects;
+create policy "storage_update_chat_media_own_upload"
+on storage.objects
+for update
+to authenticated
+using (
+  bucket_id = 'chat-media'
+  and (storage.foldername(name))[2] = (select auth.uid())::text
+)
+with check (
+  bucket_id = 'chat-media'
+  and (storage.foldername(name))[2] = (select auth.uid())::text
+);
+
+drop policy if exists "storage_delete_chat_media_own_upload" on storage.objects;
+create policy "storage_delete_chat_media_own_upload"
+on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'chat-media'
+  and (storage.foldername(name))[2] = (select auth.uid())::text
+);
+
+drop policy if exists "storage_read_chat_files_authenticated" on storage.objects;
+create policy "storage_read_chat_files_authenticated"
+on storage.objects
+for select
+to authenticated
+using (bucket_id = 'chat_files');
+
+drop policy if exists "storage_update_chat_files_shared_audio_user_folder" on storage.objects;
+create policy "storage_update_chat_files_shared_audio_user_folder"
+on storage.objects
+for update
+to authenticated
+using (
+  bucket_id = 'chat_files'
+  and (storage.foldername(name))[1] = 'shared_audios'
+  and (storage.foldername(name))[2] = (select auth.uid())::text
+)
+with check (
+  bucket_id = 'chat_files'
+  and (storage.foldername(name))[1] = 'shared_audios'
+  and (storage.foldername(name))[2] = (select auth.uid())::text
+);
+
+drop policy if exists "storage_delete_chat_files_shared_audio_user_folder" on storage.objects;
+create policy "storage_delete_chat_files_shared_audio_user_folder"
+on storage.objects
+for delete
+to authenticated
+using (
   bucket_id = 'chat_files'
   and (storage.foldername(name))[1] = 'shared_audios'
   and (storage.foldername(name))[2] = (select auth.uid())::text
