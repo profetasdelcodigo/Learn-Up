@@ -2,6 +2,7 @@
 
 import { getAICompletion } from "@/lib/ai";
 import { searchRecipeImage } from "@/lib/unsplash";
+import { createClient } from "@/utils/supabase/server";
 
 export interface Recipe {
   title: string;
