@@ -88,9 +88,11 @@ const nextConfig: NextConfig = {
       { message: /Critical dependency: the request of a dependency is an expression/ },
     ];
     
-    // Suprime warnings adicionales de Webpack sobre expresiones dinámicas
-    config.exprContextCritical = false;
-    config.unknownContextCritical = false;
+    config.module = {
+      ...config.module,
+      exprContextCritical: false,
+      unknownContextCritical: false,
+    };
 
     return config;
   },
