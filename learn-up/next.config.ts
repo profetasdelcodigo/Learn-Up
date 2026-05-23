@@ -85,7 +85,13 @@ const nextConfig: NextConfig = {
     config.ignoreWarnings = [
       { module: /node_modules\/officeparser/ },
       { module: /node_modules\/file-type/ },
+      { message: /Critical dependency: the request of a dependency is an expression/ },
     ];
+    
+    // Suprime warnings adicionales de Webpack sobre expresiones dinámicas
+    config.exprContextCritical = false;
+    config.unknownContextCritical = false;
+
     return config;
   },
 
