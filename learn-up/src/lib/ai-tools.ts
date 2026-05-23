@@ -195,10 +195,10 @@ export async function executeToolAction(
 
         if (sharedCals && sharedCals.length > 0) {
           if (sharedCals.length > 1) {
-            const options = sharedCals.map((c: any, i: number) => `${i + 1}) ${c.name}`).join("\n");
             return { 
               success: false, 
-              message: `He encontrado varios calendarios con ese nombre. ¿A cuál te refieres?:\n${options}` 
+              message: `He encontrado varios calendarios similares.`,
+              data: { suggestions: sharedCals.map(c => ({ id: c.id, name: c.name, type: 'calendar' })) }
             };
           }
           const cal = sharedCals[0];
@@ -210,14 +210,11 @@ export async function executeToolAction(
               content,
               type: "text",
             });
-          if (error) {
-            console.error(error);
-            return { success: false, message: "Error al enviar el mensaje al calendario." };
-          }
+          if (error) return { success: false, message: "Error al enviar el mensaje al calendario." };
           return { success: true, message: `✅ Mensaje enviado al calendario "${cal.name}".` };
         }
 
-        // 2. Buscar en Grupos de Aprendamos Juntos (chat_rooms)
+        // 2. Buscar en Grupos
         const { data: userRooms } = await supabase
           .from("chat_rooms")
           .select("id, name, participants")
@@ -232,10 +229,10 @@ export async function executeToolAction(
 
         if (myRooms && myRooms.length > 0) {
           if (myRooms.length > 1) {
-            const options = myRooms.map((r: any, i: number) => `${i + 1}) ${r.name}`).join("\n");
             return { 
               success: false, 
-              message: `He encontrado varios grupos con ese nombre. ¿A cuál quieres enviar el mensaje?:\n${options}` 
+              message: `He encontrado varios grupos similares.`,
+              data: { suggestions: myRooms.map(r => ({ id: r.id, name: r.name, type: 'group' })) }
             };
           }
           const myRoom = myRooms[0];
@@ -272,29 +269,24 @@ export async function executeToolAction(
             
           if (friendProfiles && friendProfiles.length > 0) {
             if (friendProfiles.length > 1) {
-              const options = friendProfiles.map((p: any, i: number) => `${i + 1}) ${p.full_name} (@${p.username})`).join("\n");
               return { 
                 success: false, 
-                message: `He encontrado varios amigos que coinciden con "${recipient_name}". ¿A quién se lo envío?:\n${options}` 
+                message: `He encontrado varios amigos similares.`,
+                data: { suggestions: friendProfiles.map(p => ({ id: p.id, name: p.full_name, type: 'friend' })) }
               };
             }
             const friend = friendProfiles[0];
             try {
               const roomId = await ensurePrivateRoom(friend.id);
               await sendMessage(roomId, content);
-              
-              return {
-                success: true,
-                message: `✅ Mensaje enviado a ${friend.full_name}: "${content}"`,
-              };
+              return { success: true, message: `✅ Mensaje enviado a ${friend.full_name}: "${content}"` };
             } catch (error: any) {
-              console.error("Error sending message tool:", error);
               return { success: false, message: "Error al enviar el mensaje directo." };
             }
           }
         }
 
-        return { success: false, message: `No encontré ningún calendario, grupo o amigo con el nombre "${recipient_name}". Revisa el nombre o intenta con @usuario.` };
+        return { success: false, message: `No encontré ningún calendario, grupo o amigo con el nombre "${recipient_name}".` };
       }
 
       // ── Buscar en la biblioteca ─────────────────────────────────────────

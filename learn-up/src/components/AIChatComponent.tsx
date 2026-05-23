@@ -419,11 +419,8 @@ export default function AIChatComponent({
     setExecutingAction(true);
     try {
       if (action.tool === "open_url") {
-        // Abrir URL en nueva pestaña (el click del usuario lo permite)
         const safeUrl = getSafeExternalUrl(action.args.url);
-        if (!safeUrl) {
-          throw new Error("URL no permitida");
-        }
+        if (!safeUrl) throw new Error("URL no permitida");
         window.open(safeUrl, "_blank", "noopener,noreferrer");
         setMessages((prev) => [
           ...prev,
@@ -431,16 +428,34 @@ export default function AIChatComponent({
         ]);
       } else {
         const result = await confirmAndExecuteTool(action.tool, action.args);
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: result.message },
-        ]);
+        
+        // Manejar sugerencias si hay múltiples coincidencias
+        if (!result.success && result.data?.suggestions) {
+            setMessages((prev) => [
+                ...prev,
+                { role: "assistant", content: result.message },
+            ]);
+            // Convertimos las sugerencias en botones de acción temporales
+            const suggestionActions = result.data.suggestions.map((s: any) => ({
+                tool: action.tool,
+                args: { ...action.args, recipient_id: s.id, recipient_type: s.type, recipient_name: s.name },
+                description: `Enviar a: ${s.name} (${s.type})`,
+                requiresConfirm: false
+            }));
+            setPendingActions(suggestionActions);
+        } else {
+            setMessages((prev) => [
+              ...prev,
+              { role: "assistant", content: result.message },
+            ]);
+        }
       }
     } catch (err) {
       setError("Error al ejecutar la acción.");
     } finally {
-      setPendingActions([]);
       setExecutingAction(false);
+      // No limpiamos pendingActions si hay sugerencias, ya que las usamos para renderizar botones
+      if (!result?.data?.suggestions) setPendingActions([]);
     }
   };
 
@@ -705,8 +720,8 @@ export default function AIChatComponent({
               </div>
             )}
 
-            {/* ──── Tarjetas de confirmación de acciones ──── */}
-            {pendingActions.length > 0 && !loading && (
+            {/* ──── Tarjetas de confirmación de acciones y SUGERENCIAS ──── */}
+            {(pendingActions.length > 0 || (messages[messages.length - 1]?.role === 'assistant' && (messages[messages.length - 1]?.content.includes('He encontrado varios') || messages[messages.length - 1]?.content.includes('similares')))) && !loading && (
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -716,7 +731,7 @@ export default function AIChatComponent({
                   {pendingActions.map((action, i) => (
                     <div
                       key={i}
-                      className="bg-surface-2 rounded-2xl p-4 rounded-tl-sm shadow-lg"
+                      className="bg-surface-2 rounded-2xl p-4 rounded-tl-sm shadow-lg border border-white/5"
                     >
                       <div className="flex items-center gap-2 mb-3">
                         <div className="w-8 h-8 rounded-full bg-brand-gold/10 flex items-center justify-center text-brand-gold">
