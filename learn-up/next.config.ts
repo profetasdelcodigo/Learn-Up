@@ -81,6 +81,14 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  webpack: (config) => {
+    config.ignoreWarnings = [
+      { module: /node_modules\/officeparser/ },
+      { module: /node_modules\/file-type/ },
+    ];
+    return config;
+  },
+
   // Silencia el warning de workspace root en Render
   outputFileTracingRoot: path.join(process.cwd(), "../../"),
 

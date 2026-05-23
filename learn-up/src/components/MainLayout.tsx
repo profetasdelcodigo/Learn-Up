@@ -68,8 +68,8 @@ export default function MainLayout({
         ))}
       </div>
 
-      {/* Desktop sidebar — all authenticated routes */}
-      {showNav && (
+      {/* Desktop sidebar — only on dashboard */}
+      {showNav && isDashboard && (
         <div className="hidden md:flex shrink-0 sticky top-0 h-dvh">
           <Sidebar />
         </div>
