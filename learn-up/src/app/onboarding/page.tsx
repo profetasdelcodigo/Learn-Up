@@ -11,6 +11,7 @@ import {
   Loader2,
   CheckCircle,
   Sparkles,
+  GraduationCap,
 } from "lucide-react";
 import {
   StaggerContainer,
@@ -64,7 +65,7 @@ export default function OnboardingPage() {
           ...prev,
           full_name: profile.full_name || user.user_metadata?.full_name || "",
           username: profile.username || user.user_metadata?.username || "",
-          role: "estudiante",
+          role: profile.role || "estudiante",
           school: profile.school || user.user_metadata?.school || "", // Sometimes metadata has it
           grade: profile.grade || "",
           section: profile.section || "",
@@ -133,7 +134,7 @@ export default function OnboardingPage() {
           id: user.id, // CRITICAL: Include user ID for upsert
           username: formData.username,
           full_name: formData.full_name || null,
-          role: "estudiante",
+          role: formData.role,
           school: formData.school,
           grade: formData.grade,
           section: formData.section || null,
@@ -368,14 +369,35 @@ export default function OnboardingPage() {
                 {/* Role */}
                 <FadeUpItem>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className="block text-sm font-medium text-gray-300 mb-4">
                       Rol <span className="text-brand-gold">*</span>
                     </label>
-                    <div className="p-4 rounded-xl border-2 border-brand-gold bg-brand-gold/8 text-white">
-                      <Users className="w-8 h-8 mx-auto mb-2" />
-                      <span className="block text-center font-medium">
-                        Estudiante
-                      </span>
+                    <div className="grid grid-cols-2 gap-4">
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, role: "estudiante" })}
+                        className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
+                          formData.role === "estudiante"
+                            ? "border-brand-gold bg-brand-gold/10 text-white shadow-glow-gold/20"
+                            : "border-white/10 bg-white/5 text-gray-500 hover:border-white/20"
+                        }`}
+                      >
+                        <Users className={`w-8 h-8 ${formData.role === "estudiante" ? "text-brand-gold" : "text-gray-500"}`} />
+                        <span className="font-medium text-sm">Estudiante</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, role: "docente" })}
+                        className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
+                          formData.role === "docente"
+                            ? "border-blue-500 bg-blue-500/10 text-white shadow-blue-500/20"
+                            : "border-white/10 bg-white/5 text-gray-500 hover:border-white/20"
+                        }`}
+                      >
+                        <GraduationCap className={`w-8 h-8 ${formData.role === "docente" ? "text-blue-400" : "text-gray-500"}`} />
+                        <span className="font-medium text-sm">Docente</span>
+                      </button>
                     </div>
                   </div>
                 </FadeUpItem>
