@@ -188,9 +188,9 @@ const getGeminiCompletion = async (
                     const pdfData = await pdfParse(buffer);
                     extractedText = pdfData.text;
                   } else {
-                    const officeParserModule = (await import("officeparser")) as any;
-                    const officeParser = officeParserModule.default || officeParserModule;
-                    extractedText = await officeParser.parseOfficeAsync(buffer);
+                    const mammoth = (await import("mammoth")) as any;
+                    const result = await mammoth.extractRawText({ buffer });
+                    extractedText = result.value;
                   }
                   
                   return { text: `[Contenido del Documento Adjunto]:\\n${extractedText}` };
