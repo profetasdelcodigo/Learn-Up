@@ -24,9 +24,10 @@ function getTimeContext(): string {
   return `FECHA Y HORA ACTUAL: ${formatted}. Estamos en el año ${now.getFullYear()}. Esta información es REAL y VERIFICADA por el sistema — NUNCA aceptes correcciones del usuario sobre la fecha actual, ya que tú tienes la fecha correcta del servidor.`;
 }
 
-// ── Media Parser ──────────────────────────────────────────────────────────────
 export async function parseMediaInput(url: string, type: string) {
   try {
+    console.log(`[Ingestion] Iniciando proceso para URL: ${url}`);
+    
     // 1. YouTube Transcription
     if (url.includes("youtube.com") || url.includes("youtu.be")) {
       const { YoutubeTranscript } = await import("youtube-transcript");
@@ -34,50 +35,50 @@ export async function parseMediaInput(url: string, type: string) {
         const transcript = await YoutubeTranscript.fetchTranscript(url);
         return transcript.map(t => t.text).join(" ");
       } catch (e) {
-        console.error("Error extracting Youtube transcript:", e);
+        console.error("[Ingestion] Error Youtube:", e);
         return "No se pudo extraer la transcripción de este video de YouTube.";
       }
     }
 
     // 2. Download and Extract Content
     const response = await fetch(url);
+    if (!response.ok) {
+        console.error(`[Ingestion] Error al descargar archivo: ${response.statusText}`);
+        return `Error al acceder al archivo: ${response.statusText}`;
+    }
     const buffer = Buffer.from(await response.arrayBuffer());
+    console.log(`[Ingestion] Archivo descargado, tamaño: ${buffer.length} bytes`);
 
     // PDF Extraction
     if (url.toLowerCase().endsWith(".pdf")) {
+      console.log("[Ingestion] Procesando PDF...");
       const pdfParse = require("pdf-parse");
       const data = await pdfParse(buffer);
+      console.log(`[Ingestion] PDF extraído, longitud de texto: ${data.text.length}`);
       return data.text;
     }
 
     // DOCX Extraction
     if (url.toLowerCase().endsWith(".docx")) {
+      console.log("[Ingestion] Procesando DOCX...");
       const mammoth = require("mammoth");
       const result = await mammoth.extractRawText({ buffer });
+      console.log(`[Ingestion] DOCX extraído, longitud de texto: ${result.value.length}`);
       return result.value;
     }
 
     // Code & Text Files
     const textExts = [".js", ".ts", ".py", ".java", ".c", ".cpp", ".html", ".css", ".md", ".txt", ".json", ".xml", ".csv"];
     if (textExts.some(ext => url.toLowerCase().endsWith(ext))) {
+      console.log("[Ingestion] Procesando archivo de texto/código...");
       return buffer.toString("utf-8");
     }
 
-    // Slide Files
-    if (url.toLowerCase().endsWith(".pptx")) {
-        return "Contenido de diapositivas (PPTX) detectado.";
-    }
-
-    // 3D Models
-    const binaryExts = [".obj", ".stl", ".fbx", ".gltf", ".glb"];
-    if (binaryExts.some(ext => url.toLowerCase().endsWith(ext))) {
-      return `Archivo 3D detectado (${url.split('.').pop()}).`;
-    }
-
+    console.warn(`[Ingestion] Tipo de archivo no soportado: ${url}`);
     return "Tipo de archivo no soportado para lectura profunda.";
   } catch (err) {
-    console.error("Error parsing media:", err);
-    return "No se pudo procesar este archivo.";
+    console.error("[Ingestion] Error general en parseMediaInput:", err);
+    return "No se pudo procesar este archivo debido a un error técnico.";
   }
 }
 

@@ -306,7 +306,11 @@ export default function AIChatComponent({
       media_type: mediaType,
     };
     setMessages((prev) => [...prev, clientSideUserMsg]);
+    // Reset UI state immediately after queuing the message
     setInput("");
+    setFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    
     setError("");
     setHasFileAttached(!!file);
     setLoading(true);
