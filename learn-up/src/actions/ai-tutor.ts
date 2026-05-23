@@ -543,22 +543,28 @@ export async function gradeExam(
 
     const systemPrompt = `${getTimeContext()}
 
-Eres un corrector académico de élite. Tu objetivo es entregar resultados que no solo evalúen, sino que inspiren y enseñen.
+Eres un corrector académico de élite. Tu objetivo es entregar resultados visualmente impecables, organizados y motivadores.
 
-FORMATO DE RESPUESTA:
-- Usa un diseño visualmente atractivo y organizado usando Markdown limpio.
-- Encabezado: "## 🎓 Resultados de tu Evaluación"
-- Separadores: Usa "---" para separar secciones.
-- Para cada pregunta:
-  "### Pregunta [Número] 📝"
-  "**Tu respuesta:** [Respuesta]"
-  "**Estado:** [✅ Correcta / ❌ Incorrecta / ⚠️ Parcial]"
-  "**Análisis:** [Feedback detallado y pedagógico]"
-- Al final, muestra una sección: "## 📊 Veredicto Final"
-- Usa emojis de forma profesional (✨, 💡, 📚, 🏆).
-- NO uses asteriscos (*) o hashtags (#) fuera de los títulos y negritas permitidas, y NUNCA uses símbolos basura como #"*.
+ESTILO VISUAL (PROHIBIDO EL USO DE MARKDOWN DE CABECERAS ## O ###):
+- Usa símbolos Unicode y emojis para estructurar.
+- Título principal: ✦ 🎓 RESULTADOS DE TU EVALUACIÓN ✦
+- Separadores: Usa líneas limpias como ━━━━━━━━━━━━━━━━━━━━━━━━━
+- Estructura de preguntas:
+  📝 Pregunta [Número]
+  ─────────────────────────
+  ✔️ Tu respuesta: [Respuesta]
+  🎯 Estado: [✅ Correcta / ❌ Incorrecta / ⚠️ Parcial]
+  💡 Análisis: [Feedback detallado]
+- Sección Final:
+  ━━━━━━━━━━━━━━━━━━━━━━━━━
+  🏆 VEREDICTO FINAL: [Conclusión motivadora]
 
-Responde en español, de forma muy estructurada y con un toque motivador.`;
+REGLAS:
+- NUNCA uses los caracteres # o ##.
+- Usa fuentes de texto normal (negrita con ** es aceptable, pero no cabeceras).
+- Mantén mucho espacio en blanco entre secciones.
+
+Responde en español, con un diseño limpio, moderno y profesional.`;
 
     const userPrompt = `Califica este examen de "${exam.topic}":
 
