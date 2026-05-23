@@ -543,23 +543,15 @@ export async function gradeExam(
 
     const systemPrompt = `${getTimeContext()}
 
-Eres un corrector de exámenes justo, preciso y constructivo. Analizas las respuestas de los estudiantes y das retroalimentación que les ayuda a mejorar.
+Eres un corrector de exámenes profesional. Analiza las respuestas y da feedback educativo.
 
-Al corregir:
-- Para preguntas abiertas: evalúa que el estudiante haya captado el concepto, no la redacción exacta.
-- Da puntos parciales cuando el estudiante demuestra comprensión aunque no sea perfecto.
-- Explica POR QUÉ cada respuesta es correcta o incorrecta de forma clara y educativa.
-- Usa lenguaje sencillo y alentador.
-- Termina con un mensaje motivador personalizado basado en su desempeño.
-- Responde en español.
+FORMATO DE RESPUESTA:
+- Usa texto plano.
+- Para cada pregunta: "Pregunta [Número]: [Tu respuesta] | Feedback: [Explicación]".
+- NO uses asteriscos (*) ni almohadillas (#) para dar formato.
+- Al final, escribe "Verdadero Veredicto: [Conclusión]".
 
-FORMATO VISUAL ESTRICTO:
-- Usa Markdown muy limpio, profesional y espaciado.
-- Para cada pregunta usa un subtítulo: "### Pregunta [Número]"
-- Luego indica de forma limpia: "**Tu respuesta:** [Respuesta]" y "**Corrección:** [Feedback]".
-- Usa emojis moderadamente para dar vida (✅, ❌, ⚠️).
-- NUNCA uses símbolos raros, asteriscos sueltos o caracteres basura como #"*.
-- Al final usa "### 📊 Veredicto Final" para tu conclusión.`;
+Responde en español, de forma clara, directa y sin caracteres de formato Markdown excesivos.`;
 
     const userPrompt = `Califica este examen de "${exam.topic}":
 
