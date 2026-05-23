@@ -81,8 +81,7 @@ USING (auth.uid() = user_id);
 CREATE OR REPLACE FUNCTION public.match_knowledge_nodes(
   query_embedding vector(768),
   match_threshold float,
-  match_count int,
-  p_user_id uuid
+  match_count int
 )
 RETURNS TABLE (
   id uuid,
@@ -105,7 +104,7 @@ AS $$
     kn.created_at,
     (1 - (kn.embedding <=> query_embedding))::float AS similarity
   FROM public.knowledge_nodes kn
-  WHERE kn.user_id = p_user_id
+  WHERE kn.user_id = auth.uid()
     AND (1 - (kn.embedding <=> query_embedding)) > match_threshold
   ORDER BY kn.embedding <=> query_embedding
   LIMIT match_count;

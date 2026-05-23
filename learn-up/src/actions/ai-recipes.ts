@@ -19,6 +19,10 @@ export async function generateRecipe(
   mealType: string,
 ): Promise<{ recipe?: Recipe; error?: string }> {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: "No autorizado. Por favor inicia sesión." };
+
     if (!mealType.trim()) {
       return { error: "Por favor especifica un tipo de comida" };
     }

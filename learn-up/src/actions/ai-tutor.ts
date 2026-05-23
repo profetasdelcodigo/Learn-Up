@@ -96,6 +96,10 @@ export async function askProfessor(
   mediaType?: string,
 ): Promise<{ response: string; error?: string; actions?: ToolAction[] }> {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { response: "", error: "No autorizado. Por favor inicia sesión." };
+
     if (!message.trim() && !mediaUrl)
       return {
         response: "",
@@ -138,8 +142,8 @@ ${toolDefs}`;
       finalModel,
     );
 
-    let rawContent = response.choices[0]?.message?.content || "";
-    let { cleanText, action } = await parseToolCall(rawContent);
+    const rawContent = response.choices[0]?.message?.content || "";
+    const { cleanText, action } = await parseToolCall(rawContent);
 
     if (action) {
       if (!action.requiresConfirm) {
@@ -194,6 +198,10 @@ export async function askCounselor(
   mediaType?: string,
 ): Promise<{ response: string; error?: string; actions?: ToolAction[] }> {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { response: "", error: "No autorizado. Por favor inicia sesión." };
+
     if (!problem.trim() && !mediaUrl)
       return {
         response: "",
@@ -236,8 +244,8 @@ ${TOOL_DEFINITIONS}`;
       finalModel,
     );
 
-    let rawContent = response.choices[0]?.message?.content || "";
-    let { cleanText, action } = await parseToolCall(rawContent);
+    const rawContent = response.choices[0]?.message?.content || "";
+    const { cleanText, action } = await parseToolCall(rawContent);
 
     if (action) {
       if (!action.requiresConfirm) {
@@ -287,6 +295,10 @@ export async function generateRecipe(
   mediaType?: string,
 ): Promise<{ response: string; error?: string }> {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { response: "", error: "No autorizado. Por favor inicia sesión." };
+
     if (!ingredients.trim() && !mediaUrl)
       return {
         response: "",
@@ -386,6 +398,10 @@ export async function generateRealExam(
   mediaType?: string,
 ): Promise<{ exam?: ExamData; error?: string }> {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { exam: undefined, error: "No autorizado. Por favor inicia sesión." };
+
     if (!topic.trim() && !mediaUrl)
       return {
         error: "Por favor especifica el tema del examen o sube un documento",
@@ -510,6 +526,10 @@ export async function gradeExam(
   error?: string;
 }> {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { feedback: "", score: 0, maxScore: 0, error: "No autorizado. Por favor inicia sesión." };
+
     const questionsWithAnswers = exam.sections.flatMap((section) =>
       section.questions.map((q, i) => ({
         question: q.question,
@@ -594,5 +614,9 @@ export async function confirmAndExecuteTool(
   tool: string,
   args: Record<string, any>,
 ): Promise<{ success: boolean; message: string; data?: any }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, message: "No autorizado. Por favor inicia sesión." };
+
   return await executeToolAction(tool, args);
 }

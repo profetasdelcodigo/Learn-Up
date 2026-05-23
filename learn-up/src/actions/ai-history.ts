@@ -25,6 +25,17 @@ export async function getAiSessions(aiType: string) {
 
 export async function getAiMessages(sessionId: string) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data: session } = await supabase
+    .from("ai_sessions")
+    .select("user_id")
+    .eq("id", sessionId)
+    .single();
+
+  if (!session || session.user_id !== user.id) return [];
+
   const { data, error } = await supabase
     .from("ai_messages")
     .select("*")
@@ -63,6 +74,19 @@ export async function addAiMessage(
   mediaType?: string,
 ) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Unauthorized" };
+
+  const { data: session } = await supabase
+    .from("ai_sessions")
+    .select("user_id")
+    .eq("id", sessionId)
+    .single();
+
+  if (!session || session.user_id !== user.id) {
+    return { error: "Unauthorized or session not found" };
+  }
+
   const { data, error } = await supabase
     .from("ai_messages")
     .insert({
@@ -88,6 +112,19 @@ export async function addAiMessage(
 
 export async function deleteAiSession(sessionId: string) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Unauthorized" };
+
+  const { data: session } = await supabase
+    .from("ai_sessions")
+    .select("user_id")
+    .eq("id", sessionId)
+    .single();
+
+  if (!session || session.user_id !== user.id) {
+    return { error: "Unauthorized or session not found" };
+  }
+
   const { error } = await supabase
     .from("ai_sessions")
     .delete()
