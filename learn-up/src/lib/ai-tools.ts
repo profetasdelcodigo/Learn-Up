@@ -195,10 +195,10 @@ export async function executeToolAction(
 
         if (sharedCals && sharedCals.length > 0) {
           if (sharedCals.length > 1) {
-            const options = sharedCals.map((c: any, i: number) => `${i + 1}) ${c.name}`).join(", ");
+            const options = sharedCals.map((c: any, i: number) => `${i + 1}) ${c.name}`).join("\n");
             return { 
               success: false, 
-              message: `He encontrado varios calendarios con ese nombre: ${options}. ¿A cuál te refieres?` 
+              message: `He encontrado varios calendarios con ese nombre. ¿A cuál te refieres?:\n${options}` 
             };
           }
           const cal = sharedCals[0];
@@ -232,10 +232,10 @@ export async function executeToolAction(
 
         if (myRooms && myRooms.length > 0) {
           if (myRooms.length > 1) {
-            const options = myRooms.map((r: any, i: number) => `${i + 1}) ${r.name}`).join(", ");
+            const options = myRooms.map((r: any, i: number) => `${i + 1}) ${r.name}`).join("\n");
             return { 
               success: false, 
-              message: `He encontrado varios grupos con ese nombre: ${options}. ¿A cuál quieres enviar el mensaje?` 
+              message: `He encontrado varios grupos con ese nombre. ¿A cuál quieres enviar el mensaje?:\n${options}` 
             };
           }
           const myRoom = myRooms[0];
@@ -251,7 +251,7 @@ export async function executeToolAction(
           return { success: true, message: `✅ Mensaje enviado al grupo "${myRoom.name}".` };
         }
 
-        // 3. Buscar en Amigos (solo los que tienen amistad aceptada)
+        // 3. Buscar en Amigos
         const { data: friendships } = await supabase
           .from("friendships")
           .select("requester_id, addressee_id")
@@ -263,7 +263,6 @@ export async function executeToolAction(
             f.requester_id === user.id ? f.addressee_id : f.requester_id
           );
           
-          const cleanRecipient = recipient_name.replace(/^@/, '');
           const { data: friendProfiles } = await supabase
             .from("profiles")
             .select("id, full_name, username")
@@ -273,10 +272,10 @@ export async function executeToolAction(
             
           if (friendProfiles && friendProfiles.length > 0) {
             if (friendProfiles.length > 1) {
-              const options = friendProfiles.map((p: any, i: number) => `${i + 1}) ${p.full_name} (@${p.username})`).join(", ");
+              const options = friendProfiles.map((p: any, i: number) => `${i + 1}) ${p.full_name} (@${p.username})`).join("\n");
               return { 
                 success: false, 
-                message: `He encontrado varios amigos que coinciden: ${options}. ¿A quién se lo envío? (puedes usar el @usuario para ser exacto)` 
+                message: `He encontrado varios amigos que coinciden con "${recipient_name}". ¿A quién se lo envío?:\n${options}` 
               };
             }
             const friend = friendProfiles[0];
@@ -295,7 +294,7 @@ export async function executeToolAction(
           }
         }
 
-        return { success: false, message: `No encontré ningún calendario, grupo o amigo llamado "${recipient_name}".` };
+        return { success: false, message: `No encontré ningún calendario, grupo o amigo con el nombre "${recipient_name}". Revisa el nombre o intenta con @usuario.` };
       }
 
       // ── Buscar en la biblioteca ─────────────────────────────────────────
