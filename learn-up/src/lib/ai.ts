@@ -247,14 +247,10 @@ export const getAICompletion = async (
   jsonMode: boolean = false,
 ) => {
   console.log(`[AI Debug] Provider actual: ${provider}`);
-  console.log(`[AI Debug] Groq API Key detectada: ${groqApiKey ? "SI (longitud: " + groqApiKey.length + ")" : "NO"}`);
-
-  if (provider === "ollama") {
-    return await getOllamaCompletion(messages, model, jsonMode);
-  }
-
+  
+  // 1. Si el proveedor es Groq, usamos Groq directamente
   if (provider === "groq") {
-    console.log("[AI Debug] Intentando usar Groq explícitamente...");
+    console.log("[AI Debug] Usando Groq como proveedor principal...");
     const simpleMessages = messages.map(m => ({
       role: m.role,
       content: Array.isArray(m.content) ? m.content.map(p => p.type === 'text' ? p.text : '').join('\n') : m.content
@@ -262,7 +258,7 @@ export const getAICompletion = async (
     return await getGroqCompletion(simpleMessages, "llama-3.3-70b-versatile", jsonMode);
   }
 
-  // Default to Gemini with Groq fallback
+  // 2. Si el proveedor es Gemini, intentamos Gemini con fallback a Groq
   try {
     console.log("[AI Debug] Intentando usar Gemini...");
     return await getGeminiCompletion(messages, model, jsonMode);

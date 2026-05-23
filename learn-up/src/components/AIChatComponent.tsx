@@ -417,6 +417,7 @@ export default function AIChatComponent({
   // ── Manejar confirmación/rechazo de acciones de IA ────────────────────────
   const handleConfirmAction = async (action: ToolAction) => {
     setExecutingAction(true);
+    let actionResult: any = null;
     try {
       if (action.tool === "open_url") {
         const safeUrl = getSafeExternalUrl(action.args.url);
@@ -427,16 +428,16 @@ export default function AIChatComponent({
           { role: "assistant", content: `Abriendo: ${action.args.title || safeUrl}` },
         ]);
       } else {
-        const result = await confirmAndExecuteTool(action.tool, action.args);
+        actionResult = await confirmAndExecuteTool(action.tool, action.args);
         
         // Manejar sugerencias si hay múltiples coincidencias
-        if (!result.success && result.data?.suggestions) {
+        if (!actionResult.success && actionResult.data?.suggestions) {
             setMessages((prev) => [
                 ...prev,
-                { role: "assistant", content: result.message },
+                { role: "assistant", content: actionResult.message },
             ]);
             // Convertimos las sugerencias en botones de acción temporales
-            const suggestionActions = result.data.suggestions.map((s: any) => ({
+            const suggestionActions = actionResult.data.suggestions.map((s: any) => ({
                 tool: action.tool,
                 args: { ...action.args, recipient_id: s.id, recipient_type: s.type, recipient_name: s.name },
                 description: `Enviar a: ${s.name} (${s.type})`,
@@ -446,7 +447,7 @@ export default function AIChatComponent({
         } else {
             setMessages((prev) => [
               ...prev,
-              { role: "assistant", content: result.message },
+              { role: "assistant", content: actionResult.message },
             ]);
         }
       }
@@ -455,7 +456,7 @@ export default function AIChatComponent({
     } finally {
       setExecutingAction(false);
       // No limpiamos pendingActions si hay sugerencias, ya que las usamos para renderizar botones
-      if (!result?.data?.suggestions) setPendingActions([]);
+      if (!actionResult?.data?.suggestions) setPendingActions([]);
     }
   };
 
