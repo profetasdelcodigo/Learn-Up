@@ -45,7 +45,7 @@ export async function parseMediaInput(url: string, type: string) {
 
     // PDF Extraction
     if (url.toLowerCase().endsWith(".pdf")) {
-      const pdfParse = (await import("pdf-parse")).default;
+      const pdfParse = await import("pdf-parse");
       const data = await pdfParse(buffer);
       return data.text;
     }
@@ -57,12 +57,24 @@ export async function parseMediaInput(url: string, type: string) {
       return result.value;
     }
 
-    return null;
-  } catch (err) {
-    console.error("Error parsing media:", err);
-    return "No se pudo procesar este archivo.";
-  }
-}
+    // Code & Text Files (extensions: .js, .ts, .py, .java, .c, .cpp, .html, .css, .md, .txt)
+    const textExts = [".js", ".ts", ".py", ".java", ".c", ".cpp", ".html", ".css", ".md", ".txt", ".json", ".xml", ".csv"];
+    if (textExts.some(ext => url.toLowerCase().endsWith(ext))) {
+      return buffer.toString("utf-8");
+    }
+
+    // Slide Files (basic text content extraction for .pptx using mammoth placeholder if possible, or warning)
+    if (url.toLowerCase().endsWith(".pptx")) {
+        return "Contenido de diapositivas (PPTX) detectado. Por favor, asegúrate de que el contenido textual sea accesible.";
+    }
+
+    // 3D Models/Binary files (placeholder to prevent crash)
+    const binaryExts = [".obj", ".stl", ".fbx", ".gltf", ".glb"];
+    if (binaryExts.some(ext => url.toLowerCase().endsWith(ext))) {
+      return `Archivo 3D detectado (${url.split('.').pop()}). Los modelos 3D no pueden ser leídos textualmente, pero el archivo está en el sistema.`;
+    }
+
+    return "Tipo de archivo no soportado para lectura profunda.";
 
 // ── Shared Builder ────────────────────────────────────────────────────────────
 async function buildUserMessage(
