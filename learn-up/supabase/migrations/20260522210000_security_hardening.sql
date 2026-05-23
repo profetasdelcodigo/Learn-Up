@@ -23,8 +23,9 @@ begin
       new.role := 'estudiante';
     end if;
 
+    -- Allow 'estudiante' and 'docente' from client side; protect 'admin'.
     if coalesce((select auth.role()), 'authenticated') <> 'service_role'
-      and new.role <> 'estudiante' then
+      and new.role not in ('estudiante', 'docente') then
       new.role := 'estudiante';
     end if;
 
@@ -35,8 +36,11 @@ begin
     return new;
   end if;
 
+  -- Protect against unauthorized role escalation (e.g. to admin) from client.
+  -- Allow switching between 'estudiante' and 'docente' for now as requested.
   if coalesce((select auth.role()), 'authenticated') <> 'service_role'
-    and new.role is distinct from old.role then
+    and new.role is distinct from old.role
+    and new.role not in ('estudiante', 'docente') then
     new.role := old.role;
   end if;
 
