@@ -12,14 +12,12 @@ import {
   Bell,
   X,
   Camera,
-  GraduationCap,
 } from "lucide-react";
-import BottomNav from "./BottomNav";
 import Logo from "./Logo";
-import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { useSetAtom } from "jotai";
+import { useSetAtom, useAtomValue } from "jotai";
 import { isGlobalLoadingAtom } from "@/store/loader";
+import { unreadNotificationsAtom } from "@/store/notifications";
 
 const navigation = [
   {
@@ -89,148 +87,25 @@ const navigation = [
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const [unreadCount, setUnreadCount] = useState(0);
   const supabase = createClient();
   const setIsGlobalLoading = useSetAtom(isGlobalLoadingAtom);
+  const unreadCount = useAtomValue(unreadNotificationsAtom);
 
-  // Toast Notification State
-  const [toasts, setToasts] = useState<
-    {
-      id: string;
-      message: string;
-      type: "info" | "success" | "error" | "warning";
-    }[]
-  >([]);
-
-  const addToast = (
-    message: string,
-    type: "info" | "success" | "error" | "warning" = "info",
-  ) => {
-    const id = Math.random().toString(36).substring(7);
-    setToasts((prev) => [...prev, { id, message, type }]);
-
-    // Auto remove after 5 seconds
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 5000);
+  const handleSignOut = async () => {
+    setIsGlobalLoading(true);
+    try {
+      // Clear server cookies
+      await fetch('/auth/signout', { method: 'POST' });
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.error("Error signing out:", e);
+    } finally {
+      window.location.href = '/login';
+    }
   };
-
-  const removeToast = (id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
-
-  useEffect(() => {
-    const fetchUnreadCount = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { count } = await supabase
-        .from("notifications")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("is_read", false);
-
-      setUnreadCount(count || 0);
-    };
-
-    fetchUnreadCount();
-
-    // Real-time subscription for new notifications
-    const setupRealtime = async () => {
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser();
-
-      if (currentUser) {
-        const channel = supabase
-          .channel("notifications")
-          .on(
-            "postgres_changes",
-            {
-              event: "INSERT",
-              schema: "public",
-              table: "notifications",
-              filter: `user_id=eq.${currentUser.id}`,
-            },
-            async (payload) => {
-              fetchUnreadCount(); // Refresh count on new notification
-              // Show Toast
-              const newNotification = payload.new as any;
-              let toastMessage =
-                newNotification.message || "Tienes una nueva notificación";
-
-              if (newNotification.sender_id) {
-                const { data: senderProfile } = await supabase
-                  .from("profiles")
-                  .select("full_name")
-                  .eq("id", newNotification.sender_id)
-                  .single();
-
-                if (senderProfile) {
-                  const name = senderProfile.full_name || "Alguien";
-                  if (
-                    newNotification.type === "message" ||
-                    newNotification.title === "Nuevo Mensaje"
-                  ) {
-                    toastMessage = `Nuevo mensaje de: ${name}`;
-                  } else if (newNotification.type === "call") {
-                    toastMessage = `Llamada entrante de: ${name}`;
-                  } else {
-                    toastMessage = `${newNotification.title}: ${name}`;
-                  }
-                }
-              }
-
-              addToast(toastMessage, "info");
-            },
-          )
-          .on(
-            "postgres_changes",
-            {
-              event: "UPDATE",
-              schema: "public",
-              table: "notifications",
-              filter: `user_id=eq.${currentUser.id}`,
-            },
-            () => {
-              fetchUnreadCount(); // Refresh count when marked as read
-            },
-          )
-          .subscribe();
-
-        return () => {
-          supabase.removeChannel(channel);
-        };
-      }
-    };
-
-    setupRealtime();
-  }, [supabase]);
 
   return (
     <>
-      <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className="pointer-events-auto glass-strong border border-brand-gold/30 text-white px-4 py-3 rounded-xl shadow-glow-gold font-medium flex items-center justify-between min-w-[300px] animate-in slide-in-from-right-5 fade-in duration-300 font-body"
-          >
-            <span className="text-brand-gold">{toast.message}</span>
-            <button
-              onClick={() => removeToast(toast.id)}
-              className="ml-4 hover:bg-white/5 rounded-full p-1"
-            >
-              <X className="w-4 h-4 text-gray-400" />
-            </button>
-          </div>
-        ))}
-      </div>
-
-      {/* Mobile Bottom Navigation */}
-      <BottomNav unreadCount={unreadCount} />
-
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 h-full bg-surface-1 border-r border-white/6 flex-col">
         {/* Logo */}
@@ -295,13 +170,7 @@ export default function Sidebar() {
         {/* Footer */}
         <div className="p-4 border-t border-white/6">
           <button
-            onClick={async () => {
-              setIsGlobalLoading(true);
-              await supabase.auth.signOut();
-              // Optional: call the route to clear server cookies in background
-              fetch('/auth/signout', { method: 'POST' }).catch(() => {});
-              window.location.href = '/login';
-            }}
+            onClick={handleSignOut}
             className="w-full px-4 py-3 text-sm text-gray-500 hover:text-brand-gold hover:bg-white/3 rounded-xl transition-all duration-300 text-center font-body flex justify-center items-center gap-2"
           >
             Cerrar Sesión

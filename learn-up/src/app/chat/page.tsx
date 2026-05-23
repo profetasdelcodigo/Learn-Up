@@ -60,8 +60,9 @@ import dynamic from "next/dynamic";
 import CreateGroupModal from "@/components/chat/CreateGroupModal";
 import GroupInfoPanel from "@/components/chat/GroupInfoPanel";
 import UserInfoPanel from "@/components/chat/UserInfoPanel";
-import ToastContainer, { Toast } from "@/components/ToastContainer";
 import Loading from "@/app/loading";
+import { useSetAtom } from "jotai";
+import { addToastAtom } from "@/store/ui";
 
 const VideoRoom = dynamic(() => import("@/components/VideoRoom"), {
   ssr: false,
@@ -188,15 +189,8 @@ export default function ChatPage() {
   const audioChunksRef = useRef<Blob[]>([]);
   const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Toast notifications
-  const [toasts, setToasts] = useState<Toast[]>([]);
-  const addToast = (message: string, type: Toast["type"] = "info") => {
-    const id = crypto.randomUUID();
-    setToasts((prev) => [...prev, { id, message, type }]);
-  };
-  const removeToast = (id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
+  // Global Toast
+  const setAddToast = useSetAtom(addToastAtom);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -361,7 +355,7 @@ export default function ChatPage() {
     try {
       const res = await sendFriendRequest(targetId);
       if (res.success) {
-        addToast("Solicitud enviada", "success");
+        setAddToast({ message: "Solicitud enviada", type: "success" });
         // Update local state to reflect pending status
         setSearchResults((prev) =>
           prev.map((u) =>
@@ -369,11 +363,11 @@ export default function ChatPage() {
           ),
         );
       } else {
-        addToast(res.message || "Error al enviar solicitud", "info");
+        setAddToast({ message: res.message || "Error al enviar solicitud", type: "info" });
       }
     } catch (error) {
       console.error(error);
-      addToast("Error al enviar solicitud", "error");
+      setAddToast({ message: "Error al enviar solicitud", type: "error" });
     }
   };
 
@@ -567,7 +561,7 @@ export default function ChatPage() {
       await sendMessageAction(activeChat, content, tempId);
     } catch (error) {
       console.error("Error sending message:", error);
-      addToast("Error al enviar mensaje", "error");
+      setAddToast({ message: "Error al enviar mensaje", type: "error" });
     }
   };
 
@@ -596,7 +590,7 @@ export default function ChatPage() {
           setMobileShowChat(true);
         } catch (e) {
           console.error(e);
-          addToast("Error al iniciar chat", "error");
+          setAddToast({ message: "Error al iniciar chat", type: "error" });
         } finally {
           setInitialLoading(false);
         }
@@ -629,10 +623,10 @@ export default function ChatPage() {
         setMobileShowChat(false);
         const updatedRooms = await getUserRooms();
         setRooms(updatedRooms || []);
-        addToast("Has salido del grupo", "info");
+        setAddToast({ message: "Has salido del grupo", type: "info" });
       } catch (e) {
         console.error(e);
-        addToast("Error al salir del grupo", "error");
+        setAddToast({ message: "Error al salir del grupo", type: "error" });
       }
     }
   };
@@ -697,10 +691,10 @@ export default function ChatPage() {
       );
     } catch (e) {
       console.error(e);
-      addToast(
-        "Error al acceder a los dispositivos. Revisa los permisos.",
-        "error",
-      );
+      setAddToast({
+        message: "Error al acceder a los dispositivos. Revisa los permisos.",
+        type: "error",
+      });
     }
   };
 
@@ -739,7 +733,7 @@ export default function ChatPage() {
       }
       await sendMessageAction(activeChat, content);
     } catch {
-      addToast("Error al subir el archivo", "error");
+      setAddToast({ message: "Error al subir el archivo", type: "error" });
     } finally {
       setUploadingMedia(false);
       setUploadingMediaType(null);
@@ -775,7 +769,7 @@ export default function ChatPage() {
         1000,
       );
     } catch {
-      addToast("No se pudo acceder al micrófono", "error");
+      setAddToast({ message: "No se pudo acceder al micrófono", type: "error" });
     }
   };
 
@@ -819,8 +813,6 @@ export default function ChatPage() {
 
   return (
     <>
-      <ToastContainer toasts={toasts} removeToast={removeToast} />
-
       <AnimatePresence mode="wait">
         <motion.div
           key="chat-page-main"

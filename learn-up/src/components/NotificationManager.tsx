@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
+import { useSetAtom } from "jotai";
+import { unreadNotificationsAtom } from "@/store/notifications";
+import { addToastAtom } from "@/store/ui";
 
 // Regex to filter system call tokens like [CALL_REJECTED_VOICE], [CALL_ENDED_VIDEO], etc.
 const SYSTEM_REGEX = /\[CALL_[A-Z_]+\]/;
@@ -11,6 +14,23 @@ const isSystemMsg = (text?: string) => !!text && SYSTEM_REGEX.test(text);
 export default function NotificationManager() {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
+  const setUnreadCount = useSetAtom(unreadNotificationsAtom);
+  const addToast = useSetAtom(addToastAtom);
+
+  const fetchUnreadCount = useCallback(async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { count } = await supabase
+      .from("notifications")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("is_read", false);
+
+    setUnreadCount(count || 0);
+  }, [supabase, setUnreadCount]);
 
   useEffect(() => {
     // 1. Request permission on mount
@@ -30,6 +50,9 @@ export default function NotificationManager() {
 
       if (!user) return;
 
+      // Initial fetch
+      fetchUnreadCount();
+
       const channel = supabase
         .channel(`notifications:${user.id}`)
         .on(
@@ -40,8 +63,33 @@ export default function NotificationManager() {
             table: "notifications",
             filter: `user_id=eq.${user.id}`,
           },
-          (payload) => {
-            const newNotif = payload.new;
+          async (payload) => {
+            const newNotif = payload.new as any;
+            
+            // Refresh count
+            fetchUnreadCount();
+
+            // Handle In-App Toast
+            let toastMessage = newNotif.message || "Tienes una nueva notificación";
+            if (newNotif.sender_id) {
+              const { data: senderProfile } = await supabase
+                .from("profiles")
+                .select("full_name")
+                .eq("id", newNotif.sender_id)
+                .single();
+
+              if (senderProfile) {
+                const name = senderProfile.full_name || "Alguien";
+                if (newNotif.type === "message" || newNotif.title === "Nuevo Mensaje") {
+                  toastMessage = `Nuevo mensaje de: ${name}`;
+                } else if (newNotif.type === "call") {
+                  toastMessage = `Llamada entrante de: ${name}`;
+                } else {
+                  toastMessage = `${newNotif.title}: ${name}`;
+                }
+              }
+            }
+            addToast({ message: toastMessage, type: "info" });
 
             // Skip system call tokens — never show them as native notifications
             if (isSystemMsg(newNotif.message) || isSystemMsg(newNotif.title))
@@ -69,6 +117,18 @@ export default function NotificationManager() {
             }
           },
         )
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "notifications",
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            fetchUnreadCount();
+          }
+        )
         .subscribe();
 
       return () => {
@@ -81,7 +141,7 @@ export default function NotificationManager() {
     return () => {
       cleanupPromise.then((cleanup) => cleanup && cleanup());
     };
-  }, [supabase, router]);
+  }, [supabase, router, fetchUnreadCount, addToast]);
 
   return null; // Headless component
 }

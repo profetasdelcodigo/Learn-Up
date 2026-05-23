@@ -1,14 +1,12 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { X } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect } from 'react';
+import { X, CheckCircle2, AlertTriangle, Info } from 'lucide-react';
 
 export interface Toast {
   id: string;
   message: string;
-  type?: "info" | "success" | "error" | "warning";
-  duration?: number;
+  type: 'info' | 'success' | 'error' | 'warning';
 }
 
 interface ToastContainerProps {
@@ -16,57 +14,59 @@ interface ToastContainerProps {
   removeToast: (id: string) => void;
 }
 
-export default function ToastContainer({
-  toasts,
-  removeToast,
-}: ToastContainerProps) {
-  return (
-    <div className="fixed top-20 right-4 z-50 space-y-2 pointer-events-none">
-      <AnimatePresence>
-        {toasts.map((toast) => (
-          <ToastItem key={toast.id} toast={toast} onRemove={removeToast} />
-        ))}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-function ToastItem({
-  toast,
-  onRemove,
-}: {
-  toast: Toast;
-  onRemove: (id: string) => void;
-}) {
+export default function ToastContainer({ toasts, removeToast }: ToastContainerProps) {
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onRemove(toast.id);
-    }, toast.duration || 4000);
+    // Auto-remove toasts after 5 seconds (except for errors which stay until dismissed)
+    const timers = toasts
+      .filter((toast) => toast.type !== 'error')
+      .map((toast) => {
+        return setTimeout(() => {
+          removeToast(toast.id);
+        }, 5000);
+      });
 
-    return () => clearTimeout(timer);
-  }, [toast, onRemove]);
+    return () => {
+      timers.forEach((timer) => clearTimeout(timer));
+    };
+  }, [toasts, removeToast]);
 
-  const bgColor = {
-    info: "bg-blue-600",
-    success: "bg-green-600",
-    error: "bg-red-600",
-    warning: "bg-yellow-600",
-  }[toast.type || "info"];
+  if (toasts.length === 0) return null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: 100, scale: 0.8 }}
-      animate={{ opacity: 1, x: 0, scale: 1 }}
-      exit={{ opacity: 0, x: 100, scale: 0.8 }}
-      className={`${bgColor} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 min-w-[300px] max-w-md pointer-events-auto`}
-    >
-      <p className="flex-1 text-sm font-medium">{toast.message}</p>
-      <button
-        onClick={() => onRemove(toast.id)}
-        className="p-1 hover:bg-white/20 rounded transition-colors"
-      >
-        <X className="w-4 h-4" />
-      </button>
-    </motion.div>
+    <div className="fixed z-50 flex-1 p-4 pointer-events-none">
+      <div className="max-w-screen-sm mx-auto space-y-4 w-full">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className="flex w-full items-center p-4 mb-4 text-sm rounded-lg border"
+            role="alert"
+          >
+            <div className="flex-shrink-0">
+              {toast.type === 'success' && (
+                <CheckCircle2 className="h-5 w-5 text-green-400" />
+              )}
+              {toast.type === 'error' && (
+                <AlertTriangle className="h-5 w-5 text-red-400" />
+              )}
+              {toast.type === 'warning' && (
+                <AlertTriangle className="h-5 w-5 text-amber-400" />
+              )}
+              {toast.type === 'info' && (
+                <Info className="h-5 w-5 text-blue-400" />
+              )}
+            </div>
+            <div className="ml-3 w-0 flex-1">{toast.message}</div>
+            <div className="flex-shrink-0">
+              <button
+                onClick={() => removeToast(toast.id)}
+                className="ml-1 flex h-4 w-4 items-center justify-center rounded-full hover:text-gray-400"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

@@ -3,16 +3,14 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Home, Brain, MessageCircle, Bell, User } from "lucide-react";
-import { useSetAtom } from "jotai";
+import { useSetAtom, useAtomValue } from "jotai";
 import { isGlobalLoadingAtom } from "@/store/loader";
+import { unreadNotificationsAtom } from "@/store/notifications";
 
-interface BottomNavProps {
-  unreadCount?: number;
-}
-
-export default function BottomNav({ unreadCount = 0 }: BottomNavProps) {
+export default function BottomNav() {
   const pathname = usePathname();
   const setIsGlobalLoading = useSetAtom(isGlobalLoadingAtom);
+  const unreadCount = useAtomValue(unreadNotificationsAtom);
 
   const navItems = [
     { name: "Inicio", href: "/dashboard", icon: Home },

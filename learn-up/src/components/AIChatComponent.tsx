@@ -359,6 +359,11 @@ export default function AIChatComponent({
             .from("ai_media")
             .getPublicUrl(filePath);
           mediaUrl = data.publicUrl;
+
+          // Update message with real URL
+          setMessages((prev) => 
+            prev.map(m => m === clientSideUserMsg ? { ...m, media_url: mediaUrl } : m)
+          );
         }
       }
 
@@ -470,11 +475,11 @@ export default function AIChatComponent({
         {/* ──────────────────── HEADER ──────────────────── */}
         <div
           className="shrink-0 relative flex items-center justify-between px-4 bg-surface-2/40 backdrop-blur-xl z-30"
-            style={{
-              paddingTop: "0.75rem",
-              paddingBottom: "0.75rem",
-            }}
-          >
+          style={{
+            paddingTop: "calc(env(safe-area-inset-top) + 0.75rem)",
+            paddingBottom: "0.75rem",
+          }}
+        >
             {/* LEFT: Back button */}
             <button
               onClick={() => router.back()}

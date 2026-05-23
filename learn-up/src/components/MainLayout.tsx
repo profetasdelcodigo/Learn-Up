@@ -2,6 +2,9 @@
 
 import { usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
+import { useAtomValue, useSetAtom } from "jotai";
+import { toastsAtom, removeToastAtom } from "@/store/ui";
+import { X } from "lucide-react";
 
 const Sidebar = dynamic(() => import("./Sidebar"), { ssr: false });
 const BottomNav = dynamic(() => import("./BottomNav"), { ssr: false });
@@ -20,6 +23,8 @@ export default function MainLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const toasts = useAtomValue(toastsAtom);
+  const removeToast = useSetAtom(removeToastAtom);
 
   const isPublicRoute =
     PUBLIC_ROUTES.includes(pathname) || pathname.startsWith("/auth/");
@@ -42,8 +47,29 @@ export default function MainLayout({
       <NotificationManager />
       <WelcomeTutorial />
 
-      {/* Desktop sidebar — only on dashboard */}
-      {showNav && isDashboard && (
+      {/* Global Toast Container */}
+      <div 
+        className="fixed right-4 z-[100] flex flex-col gap-2 pointer-events-none"
+        style={{ top: "calc(env(safe-area-inset-top) + 1rem)" }}
+      >
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className="pointer-events-auto glass-strong border border-brand-gold/30 text-white px-4 py-3 rounded-xl shadow-glow-gold font-medium flex items-center justify-between min-w-[300px] animate-in slide-in-from-right-5 fade-in duration-300 font-body"
+          >
+            <span className="text-brand-gold">{toast.message}</span>
+            <button
+              onClick={() => removeToast(toast.id)}
+              className="ml-4 hover:bg-white/5 rounded-full p-1"
+            >
+              <X className="w-4 h-4 text-gray-400" />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop sidebar — all authenticated routes */}
+      {showNav && (
         <div className="hidden md:flex shrink-0 sticky top-0 h-dvh">
           <Sidebar />
         </div>
