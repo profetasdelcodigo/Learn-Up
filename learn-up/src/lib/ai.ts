@@ -238,7 +238,6 @@ const getGeminiCompletion = async (
   }
 };
 
-// ── Unified Completion ────────────────────────────────────────────────────────
 export const getAICompletion = async (
   messages: {
     role: "system" | "user" | "assistant";
@@ -247,11 +246,15 @@ export const getAICompletion = async (
   model: string = "gemini-3-flash-preview",
   jsonMode: boolean = false,
 ) => {
+  console.log(`[AI Debug] Provider actual: ${provider}`);
+  console.log(`[AI Debug] Groq API Key detectada: ${groqApiKey ? "SI (longitud: " + groqApiKey.length + ")" : "NO"}`);
+
   if (provider === "ollama") {
     return await getOllamaCompletion(messages, model, jsonMode);
   }
 
   if (provider === "groq") {
+    console.log("[AI Debug] Intentando usar Groq explícitamente...");
     const simpleMessages = messages.map(m => ({
       role: m.role,
       content: Array.isArray(m.content) ? m.content.map(p => p.type === 'text' ? p.text : '').join('\n') : m.content
@@ -261,9 +264,10 @@ export const getAICompletion = async (
 
   // Default to Gemini with Groq fallback
   try {
+    console.log("[AI Debug] Intentando usar Gemini...");
     return await getGeminiCompletion(messages, model, jsonMode);
   } catch (error: any) {
-    console.warn("Gemini API Error, falling back to Groq...", error?.message || error);
+    console.warn("[AI Debug] Gemini falló, intentando fallback a Groq...", error?.message || error);
     try {
       const simpleMessages = messages.map(m => ({
         role: m.role,
@@ -271,7 +275,7 @@ export const getAICompletion = async (
       }));
       return await getGroqCompletion(simpleMessages, "llama-3.3-70b-versatile", jsonMode);
     } catch (groqError) {
-      console.error("Both Gemini and Groq failed.");
+      console.error("[AI Debug] Ambos proveedores fallaron.");
       throw groqError;
     }
   }
