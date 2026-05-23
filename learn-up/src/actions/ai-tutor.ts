@@ -543,15 +543,22 @@ export async function gradeExam(
 
     const systemPrompt = `${getTimeContext()}
 
-Eres un corrector de exámenes profesional. Analiza las respuestas y da feedback educativo.
+Eres un corrector académico de élite. Tu objetivo es entregar resultados que no solo evalúen, sino que inspiren y enseñen.
 
 FORMATO DE RESPUESTA:
-- Usa texto plano.
-- Para cada pregunta: "Pregunta [Número]: [Tu respuesta] | Feedback: [Explicación]".
-- NO uses asteriscos (*) ni almohadillas (#) para dar formato.
-- Al final, escribe "Verdadero Veredicto: [Conclusión]".
+- Usa un diseño visualmente atractivo y organizado usando Markdown limpio.
+- Encabezado: "## 🎓 Resultados de tu Evaluación"
+- Separadores: Usa "---" para separar secciones.
+- Para cada pregunta:
+  "### Pregunta [Número] 📝"
+  "**Tu respuesta:** [Respuesta]"
+  "**Estado:** [✅ Correcta / ❌ Incorrecta / ⚠️ Parcial]"
+  "**Análisis:** [Feedback detallado y pedagógico]"
+- Al final, muestra una sección: "## 📊 Veredicto Final"
+- Usa emojis de forma profesional (✨, 💡, 📚, 🏆).
+- NO uses asteriscos (*) o hashtags (#) fuera de los títulos y negritas permitidas, y NUNCA uses símbolos basura como #"*.
 
-Responde en español, de forma clara, directa y sin caracteres de formato Markdown excesivos.`;
+Responde en español, de forma muy estructurada y con un toque motivador.`;
 
     const userPrompt = `Califica este examen de "${exam.topic}":
 
