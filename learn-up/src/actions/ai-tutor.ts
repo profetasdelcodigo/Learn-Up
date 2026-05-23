@@ -62,9 +62,14 @@ export async function parseMediaInput(url: string, type: string) {
     if (url.toLowerCase().endsWith(".docx")) {
       console.log("[Ingestion] Procesando DOCX...");
       const mammoth = require("mammoth");
-      const result = await mammoth.extractRawText({ buffer });
-      console.log(`[Ingestion] DOCX extraído, longitud de texto: ${result.value.length}`);
-      return result.value;
+      try {
+        const result = await mammoth.extractRawText({ buffer });
+        console.log(`[Ingestion] DOCX extraído, longitud de texto: ${result.value.length}`);
+        return result.value;
+      } catch (mammothErr) {
+        console.error("[Ingestion] Error fatal en mammoth:", mammothErr);
+        return "El archivo DOCX parece estar dañado o tiene un formato no compatible.";
+      }
     }
 
     // Code & Text Files
