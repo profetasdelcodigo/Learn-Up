@@ -2,7 +2,42 @@ import { createClient } from "@/utils/supabase/server";
 import { ensurePrivateRoom, sendMessage } from "@/actions/chat";
 import { performWebSearch } from "@/lib/web-search";
 import { findRelatedConcepts, linkConcepts } from "@/lib/knowledge-graph";
+import { z } from "zod";
 
+// ── Schemas Zod para validar argumentos del LLM ──────────────────────────────
+const ToolSchemas: Record<string, z.ZodType> = {
+  open_url: z.object({
+    url: z.url(),
+    title: z.string().optional(),
+  }),
+  add_calendar_event: z.object({
+    title: z.string().min(1),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    start_time: z.string().optional(),
+    end_time: z.string().optional(),
+  }),
+  send_message: z.object({
+    recipient_name: z.string().min(1),
+    content: z.string().min(1),
+  }),
+  search_library: z.object({
+    query: z.string().min(1),
+  }),
+  update_profile: z.object({
+    field: z.enum(["bio", "school", "grade"]),
+    value: z.string().min(1),
+  }),
+  add_habit: z.object({
+    title: z.string().min(1),
+  }),
+  search_web: z.object({
+    query: z.string().min(1),
+  }),
+  save_learned_concept: z.object({
+    title: z.string().min(1),
+    description: z.string().optional(),
+  }),
+};
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 export interface ToolAction {
   tool: string;
@@ -86,7 +121,19 @@ export async function parseToolCall(response: string): Promise<{ cleanText: stri
     try {
       const toolJson = JSON.parse(match[1].trim());
       const toolName = toolJson.tool;
-      const args = toolJson.args || {};
+      let args = toolJson.args || {};
+
+      // Zod Validation
+      const schema = ToolSchemas[toolName];
+      if (schema) {
+        const result = schema.safeParse(args);
+        if (!result.success) {
+          console.error(`Tool validation failed for ${toolName}:`, result.error.format());
+          // Invalid args, skip this tool execution
+          return { cleanText: response.replace(match[0], "").trim(), action: null };
+        }
+        args = result.data; // Use the parsed (and possibly transformed/coerced) data
+      }
 
       const needsConfirm = !AUTO_EXECUTE_TOOLS.includes(toolName);
 

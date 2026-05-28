@@ -1,81 +1,11 @@
 "use server";
 
-import { getAICompletion } from "@/lib/ai";
+import { getAICompletion, fetchRemoteMediaBuffer } from "@/lib/ai";
 import { createClient } from "@/utils/supabase/server";
 import { TOOL_DEFINITIONS, parseToolCall, executeToolAction, type ToolAction } from "@/lib/ai-tools";
 
 const MODEL = "gemini-3-flash-preview";
 const VISION_MODEL = "gemini-3-flash-preview";
-const MAX_REMOTE_MEDIA_BYTES = 25 * 1024 * 1024;
-const REMOTE_MEDIA_TIMEOUT_MS = 15_000;
-
-function isAllowedRemoteMediaUrl(rawUrl: string): boolean {
-  try {
-    const parsedUrl = new URL(rawUrl);
-    if (parsedUrl.protocol !== "https:") return false;
-
-    const configuredSupabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
-      ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
-      : null;
-
-    return (
-      parsedUrl.hostname === configuredSupabaseHost ||
-      parsedUrl.hostname.endsWith(".supabase.co") ||
-      parsedUrl.hostname.endsWith(".supabase.in")
-    );
-  } catch {
-    return false;
-  }
-}
-
-async function fetchRemoteMediaBuffer(url: string): Promise<Buffer> {
-  if (!isAllowedRemoteMediaUrl(url)) {
-    throw new Error("URL de archivo no permitida para procesamiento de IA.");
-  }
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REMOTE_MEDIA_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(url, {
-      cache: "no-store",
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Error al acceder al archivo: ${response.statusText}`);
-    }
-
-    const contentLength = Number(response.headers.get("content-length") || "0");
-    if (contentLength > MAX_REMOTE_MEDIA_BYTES) {
-      throw new Error("El archivo adjunto excede el limite permitido.");
-    }
-
-    if (!response.body) {
-      throw new Error("La respuesta del archivo no tiene cuerpo.");
-    }
-
-    const reader = response.body.getReader();
-    const chunks: Buffer[] = [];
-    let totalBytes = 0;
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      totalBytes += value.byteLength;
-      if (totalBytes > MAX_REMOTE_MEDIA_BYTES) {
-        throw new Error("El archivo adjunto excede el limite permitido.");
-      }
-
-      chunks.push(Buffer.from(value));
-    }
-
-    return Buffer.concat(chunks);
-  } finally {
-    clearTimeout(timeout);
-  }
-}
 
 async function extractOfficeText(buffer: Buffer, fileType: string): Promise<string> {
   const officeParser = await import("officeparser");
@@ -120,7 +50,7 @@ export async function parseMediaInput(url: string, _type: string) {
     }
 
     // 2. Download and Extract Content
-    const buffer = await fetchRemoteMediaBuffer(url);
+    const { buffer } = await fetchRemoteMediaBuffer(url);
     console.log(`[Ingestion] Archivo descargado, tamaño: ${buffer.length} bytes`);
 
     // PDF Extraction
@@ -171,7 +101,7 @@ export async function parseMediaInput(url: string, _type: string) {
 }
 
 // ── Shared Builder ────────────────────────────────────────────────────────────
-async function buildUserMessage(
+export async function buildUserMessage(
   message: string,
   mediaUrl?: string,
   _mediaType?: string,
@@ -257,10 +187,12 @@ ${toolDefs}`;
     const { content: finalMessageContent, model: finalModel } =
       await buildUserMessage(message, mediaUrl, mediaType);
 
+    const truncatedHistory = history.slice(-15);
+
     const response = await getAICompletion(
       [
         { role: "system", content: systemPrompt },
-        ...history,
+        ...truncatedHistory,
         { role: "user", content: finalMessageContent },
       ],
       finalModel,
@@ -280,7 +212,7 @@ ${toolDefs}`;
           const followUpResponse = await getAICompletion(
             [
               { role: "system", content: systemPrompt },
-              ...history,
+              ...truncatedHistory,
               { role: "user", content: finalMessageContent },
               { role: "assistant", content: cleanText },
               { role: "user", content: followUpPrompt },
@@ -359,10 +291,12 @@ ${TOOL_DEFINITIONS}`;
     const { content: finalMessageContent, model: finalModel } =
       await buildUserMessage(problem, mediaUrl, mediaType);
 
+    const truncatedHistory = history.slice(-15);
+
     const response = await getAICompletion(
       [
         { role: "system", content: systemPrompt },
-        ...history,
+        ...truncatedHistory,
         { role: "user", content: finalMessageContent },
       ],
       finalModel,
@@ -382,7 +316,7 @@ ${TOOL_DEFINITIONS}`;
           const followUpResponse = await getAICompletion(
             [
               { role: "system", content: systemPrompt },
-              ...history,
+              ...truncatedHistory,
               { role: "user", content: finalMessageContent },
               { role: "assistant", content: cleanText },
               { role: "user", content: followUpPrompt },
@@ -458,10 +392,12 @@ FORMATO ESTRICTO DE RESPUESTA:
         mediaType,
       );
 
+    const truncatedHistory = history.slice(-15);
+
     const response = await getAICompletion(
       [
         { role: "system", content: systemPrompt },
-        ...history,
+        ...truncatedHistory,
         { role: "user", content: finalMessageContent },
       ],
       finalModel,

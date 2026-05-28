@@ -421,6 +421,9 @@ export async function sendMessage(
 
   // Update room updated_at
   const now = new Date().toISOString();
+  // JUSTIFICACIÓN: Se utiliza createAdminClient para permitir que cualquier participante del chat
+  // actualice la fecha de última actividad (updated_at) del cuarto de chat sin necesidad de
+  // otorgar permisos de edición/actualización completos en las políticas de RLS de chat_rooms.
   const roomUpdateClient = createAdminClient() || supabase;
   const { error: roomUpdateError } = await roomUpdateClient
     .from("chat_rooms")
@@ -503,6 +506,10 @@ export async function sendMessage(
           }
 
           // Dispatch Native Web Push
+          // JUSTIFICACIÓN: Se requiere createAdminClient para consultar la tabla push_subscriptions
+          // del destinatario. Por seguridad y privacidad, las políticas de RLS restringen la lectura
+          // de suscripciones de push a su propio usuario, por lo que el emisor necesita privilegios
+          // de admin para obtener el endpoint de push del destinatario.
           const pushLookupClient = createAdminClient() || supabase;
           const { data: subData } = await pushLookupClient
             .from("push_subscriptions")
@@ -637,6 +644,9 @@ export async function deleteMessage(
 
     // Delete for everyone — try soft delete with flag, fall back to content-wipe
     try {
+      // JUSTIFICACIÓN: Se usa createAdminClient para permitir el borrado de mensajes para todos.
+      // Si el borrado lo realiza un administrador del grupo (y no el autor del mensaje), las políticas
+      // de RLS normales restringirían la edición del mensaje de otro usuario, requiriendo bypass RLS.
       const moderationClient = createAdminClient() || supabase;
       const { error } = await moderationClient
         .from("chat_messages")
@@ -744,6 +754,9 @@ export async function leaveGroup(roomId: string) {
     (id) => id !== user.id,
   );
 
+  // JUSTIFICACIÓN: Se usa createAdminClient para permitir que un usuario salga del grupo.
+  // Las políticas normales de RLS de chat_rooms pueden no permitir que miembros que no son
+  // dueños del grupo editen la lista de participantes, por lo que se requiere bypass.
   const updateClient = createAdminClient() || supabase;
   const { error } = await updateClient
     .from("chat_rooms")

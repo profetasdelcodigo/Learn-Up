@@ -36,7 +36,7 @@ function isAllowedRemoteMediaUrl(rawUrl: string): boolean {
   }
 }
 
-async function fetchRemoteMediaBuffer(rawUrl: string): Promise<{
+export async function fetchRemoteMediaBuffer(rawUrl: string): Promise<{
   buffer: Buffer;
   mimeType: string;
   urlLower: string;
@@ -119,7 +119,7 @@ function toTextOnlyMessages(
   }));
 }
 
-async function extractDocumentText(
+export async function extractDocumentText(
   buffer: Buffer,
   urlLower: string,
   mimeType: string,
