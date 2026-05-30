@@ -2,6 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import { ensurePrivateRoom, sendMessage } from "@/actions/chat";
 import { performWebSearch } from "@/lib/web-search";
 import { findRelatedConcepts, linkConcepts } from "@/lib/knowledge-graph";
+import { searchRecipeImage } from "@/lib/unsplash";
 import { z } from "zod";
 
 // ── Schemas Zod para validar argumentos del LLM ──────────────────────────────
@@ -550,27 +551,50 @@ export async function executeToolAction(
       }
 
       case "generate_document": {
+        const content = `# ${args.title}
+
+${args.outline}
+`;
         return {
           success: true,
-          message: `Documento preparado: **${args.title}**\n\n${args.outline}`,
-          data: { title: args.title, format: args.format, content: args.outline },
+          message: `Documento generado: **${args.title}**\n\nSe preparo como archivo Markdown descargable.`,
+          data: { title: args.title, format: args.format, content },
         };
       }
 
       case "generate_image": {
+        const imageUrl = await searchRecipeImage(args.prompt);
+        if (imageUrl) {
+          return {
+            success: true,
+            message: `Imagen sugerida para **${args.prompt}**:\n\n![${args.prompt}](${imageUrl})`,
+            data: { prompt: args.prompt, purpose: args.purpose || null, imageUrl },
+          };
+        }
+
         return {
           success: true,
           message:
-            "Solicitud de imagen preparada. Para producir la imagen final se necesita un proveedor de imagenes configurado o una busqueda aprobada por el usuario.",
+            "Solicitud de imagen preparada. No hay proveedor de imagenes configurado o no devolvio resultados.",
           data: { prompt: args.prompt, purpose: args.purpose || null },
         };
       }
 
       case "create_exam": {
+        const content = `# Examen: ${args.topic}
+
+- Dificultad: ${args.difficulty}
+- Preguntas: ${args.question_count}
+- Duracion: ${args.duration_minutes} minutos
+- Puntaje total: 100
+
+## Instrucciones
+Responde con claridad. El profesor puede adaptar esta plantilla a preguntas especificas desde Examenes IA.
+`;
         return {
           success: true,
           message: `Examen preparado sobre "${args.topic}" (${args.question_count} preguntas, dificultad ${args.difficulty}, ${args.duration_minutes} minutos).`,
-          data: args,
+          data: { ...args, title: `Examen - ${args.topic}`, content },
         };
       }
 

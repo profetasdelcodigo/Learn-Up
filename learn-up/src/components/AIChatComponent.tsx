@@ -59,6 +59,24 @@ function getSafeExternalUrl(rawUrl: unknown): string | null {
   }
 }
 
+function downloadTextArtifact(title: string, content: string) {
+  const safeTitle = (title || "documento")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9_-]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 80) || "documento";
+  const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${safeTitle}.md`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 function AIMessageContent({ text }: { text: string }) {
   const nodes: ReactNode[] = [];
   const tokenRegex =
@@ -485,6 +503,16 @@ export default function AIChatComponent({
             }));
             setPendingActions(suggestionActions);
         } else {
+            if (
+              actionResult.success &&
+              (action.tool === "generate_document" || action.tool === "create_exam") &&
+              typeof actionResult.data?.content === "string"
+            ) {
+              downloadTextArtifact(
+                actionResult.data.title || action.args.title || action.args.topic || "documento",
+                actionResult.data.content,
+              );
+            }
             setMessages((prev) => [
               ...prev,
               { role: "assistant", content: actionResult.message },
