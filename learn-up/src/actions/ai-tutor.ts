@@ -3,6 +3,7 @@
 import { getAICompletion, fetchRemoteMediaBuffer } from "@/lib/ai";
 import { createClient } from "@/utils/supabase/server";
 import { TOOL_DEFINITIONS, parseToolCall, executeToolAction, type ToolAction } from "@/lib/ai-tools";
+import { buildAgentSystemPrompt } from "@/lib/ai/agent-registry";
 
 const MODEL = "gemini-3-flash-preview";
 const VISION_MODEL = "gemini-3-flash-preview";
@@ -166,6 +167,10 @@ export async function askProfessor(
 
     const systemPrompt = `${getTimeContext()}
 
+${buildAgentSystemPrompt("consejero")}
+
+${buildAgentSystemPrompt("profesor")}
+
 Eres "Profesor Mente" (modo Agente Jarvis & NotebookLM), el tutor principal y asistente de investigación de Learn Up. Tu inteligencia está al nivel de Claude, Perplexity y ChatGPT: eres un investigador de élite, analista de datos y educador.
 
 ESTILO DE INVESTIGACIÓN Y ANÁLISIS (NotebookLM/Perplexity):
@@ -266,6 +271,8 @@ export async function askCounselor(
 
     const systemPrompt = `${getTimeContext()}
 
+${buildAgentSystemPrompt("nutrirecetas")}
+
 Eres "Alma", la consejera estudiantil de Learn Up. Eres como esa amiga mayor que siempre sabe qué decir — comprensiva, genuina y con los pies en la tierra.
 
 PERSONALIDAD:
@@ -364,6 +371,8 @@ export async function generateRecipe(
       };
 
     const systemPrompt = `${getTimeContext()}
+
+${buildAgentSystemPrompt("examenes")}
 
 Eres "Chef Nutre", el chef nutricionista de Learn Up. Haces magia con lo que hay.
 
@@ -565,6 +574,47 @@ IMPORTANTE PARA DOCUMENTOS:
     if (!exam.sections || exam.sections.length === 0)
       throw new Error("Invalid exam structure");
 
+    // Post-procesador matemático programático para garantizar que el total de puntos de las preguntas sea EXACTAMENTE 100
+    let currentTotal = 0;
+    exam.sections.forEach((section) => {
+      section.questions.forEach((q) => {
+        currentTotal += q.points || 0;
+      });
+    });
+
+    if (currentTotal !== 100 && currentTotal > 0) {
+      console.log(`[Exam Correction] La suma de puntos era ${currentTotal}. Redistribuyendo proporcionalmente a 100.`);
+      let distributed = 0;
+      const allQuestions = exam.sections.flatMap((s) => s.questions);
+      allQuestions.forEach((q, idx) => {
+        if (idx === allQuestions.length - 1) {
+          q.points = 100 - distributed;
+        } else {
+          const newPoints = Math.round(((q.points || 0) / currentTotal) * 100);
+          q.points = newPoints;
+          distributed += newPoints;
+        }
+      });
+      exam.totalPoints = 100;
+    } else if (currentTotal === 0) {
+      // Fallback si no se asignaron puntos
+      const allQuestions = exam.sections.flatMap((s) => s.questions);
+      const count = allQuestions.length || 1;
+      const basePoints = Math.floor(100 / count);
+      let distributed = 0;
+      allQuestions.forEach((q, idx) => {
+        if (idx === allQuestions.length - 1) {
+          q.points = 100 - distributed;
+        } else {
+          q.points = basePoints;
+          distributed += basePoints;
+        }
+      });
+      exam.totalPoints = 100;
+    } else {
+      exam.totalPoints = 100;
+    }
+
     return { exam };
   } catch (error: any) {
     console.error("Error en generateRealExam:", error);
@@ -590,6 +640,32 @@ export async function gradeExam(
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { feedback: "", score: 0, maxScore: 0, error: "No autorizado. Por favor inicia sesión." };
 
+    // Calculate auto-gradeable score and question breakdowns
+    let autoScore = 0;
+    let maxScore = 0;
+    let maxClosedScore = 0;
+    let maxOpenScore = 0;
+    let openQuestionsCount = 0;
+
+    exam.sections.forEach((section) => {
+      section.questions.forEach((q, i) => {
+        maxScore += q.points || 0;
+        if (q.type !== "open") {
+          maxClosedScore += q.points || 0;
+          const studentAns = answers[`${section.title}-${i}`];
+          if (
+            studentAns !== undefined &&
+            String(studentAns) === String(q.correctAnswer)
+          ) {
+            autoScore += q.points || 0;
+          }
+        } else {
+          maxOpenScore += q.points || 0;
+          openQuestionsCount++;
+        }
+      });
+    });
+
     const questionsWithAnswers = exam.sections.flatMap((section) =>
       section.questions.map((q, i) => ({
         question: q.question,
@@ -604,6 +680,13 @@ export async function gradeExam(
     const systemPrompt = `${getTimeContext()}
 
 Eres un corrector académico de élite. Tu objetivo es entregar resultados visualmente impecables, organizados y motivadores.
+
+REGLAS DE CALIFICACIÓN OBLIGATORIAS:
+- Las preguntas cerradas (opción múltiple, verdadero/falso, completar espacio) ya han sido calificadas automáticamente por el servidor. El alumno ha obtenido exactamente la puntuación que se te indica en "Puntuación automática del Servidor".
+- Debes calificar únicamente las preguntas abiertas (tipo "open"). Para cada pregunta abierta, otorga una puntuación entre 0 y el valor asignado a "points" de esa pregunta, según la calidad de la respuesta.
+- Suma los puntos que asignes a las preguntas abiertas a la puntuación automática del Servidor para obtener la "Puntuación Final".
+- NUNCA cambies el total de puntos ni la puntuación de las preguntas cerradas.
+- En tu sección final (VEREDICTO FINAL), DEBES mostrar de forma muy destacada la puntuación final en el formato: "Puntuación Final: [Total] / [Puntuación Máxima]" (ej. "Puntuación Final: 75 / 100"). Esta puntuación debe ser exactamente la suma matemática.
 
 ESTILO VISUAL (PROHIBIDO EL USO DE MARKDOWN DE CABECERAS ## O ###):
 - Usa símbolos Unicode y emojis para estructurar.
@@ -630,7 +713,16 @@ Responde en español, con un diseño limpio, moderno y profesional.`;
 
 ${JSON.stringify(questionsWithAnswers, null, 2)}
 
-Proporciona: puntuación obtenida, feedback por pregunta, y mensaje final motivador.`;
+INFORMACIÓN DE CALIFICACIÓN (DEBES RESPETARLA):
+- Puntuación automática del Servidor (Preguntas Cerradas): ${autoScore} de un total de ${maxClosedScore} puntos.
+- Puntuación máxima total del Examen: ${maxScore} puntos (de los cuales ${maxOpenScore} puntos corresponden a las ${openQuestionsCount} preguntas abiertas).
+
+INSTRUCCIONES DE CORRECCIÓN:
+1. Las preguntas cerradas ya han sido calificadas por el servidor de forma objetiva.
+2. Evalúa las respuestas del alumno en las preguntas abiertas ("open"). Asigna a cada una los puntos que consideres (de 0 a su valor máximo de puntos).
+3. Suma tus puntos de preguntas abiertas al "Puntuación automática del Servidor" (${autoScore}) para hallar el puntaje total final.
+4. Reporta el total final claramente en el veredicto final como: "Puntuación Final: [Total] / ${maxScore}".
+5. Responde con feedback constructivo e individualizado para cada pregunta.`;
 
     const response = await getAICompletion(
       [
@@ -639,24 +731,6 @@ Proporciona: puntuación obtenida, feedback por pregunta, y mensaje final motiva
       ],
       MODEL,
     );
-
-    // Calculate auto-gradeable score
-    let autoScore = 0;
-    let maxScore = 0;
-    exam.sections.forEach((section) => {
-      section.questions.forEach((q, i) => {
-        maxScore += q.points;
-        if (q.type !== "open") {
-          const studentAns = answers[`${section.title}-${i}`];
-          if (
-            studentAns !== undefined &&
-            String(studentAns) === String(q.correctAnswer)
-          ) {
-            autoScore += q.points;
-          }
-        }
-      });
-    });
 
     return {
       feedback: response.choices[0]?.message?.content || "",

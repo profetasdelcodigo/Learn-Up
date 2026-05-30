@@ -22,14 +22,26 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (UUID_REGEX.test(room)) {
+  const chatRoomId = room.startsWith("learn-up-") ? room.slice("learn-up-".length) : room;
+
+  if (UUID_REGEX.test(chatRoomId)) {
     const { data: chatRoom, error } = await supabase
       .from("chat_rooms")
-      .select("id")
-      .eq("id", room)
+      .select("id, participants")
+      .eq("id", chatRoomId)
       .maybeSingle();
 
     if (error || !chatRoom) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const participants = Array.isArray(chatRoom.participants)
+      ? chatRoom.participants
+      : typeof chatRoom.participants === "string"
+        ? JSON.parse(chatRoom.participants || "[]")
+        : [];
+
+    if (!participants.includes(user.id)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
   }
@@ -47,7 +59,7 @@ export async function GET(req: NextRequest) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, username")
+    .select("full_name, username, avatar_url, role")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -57,7 +69,13 @@ export async function GET(req: NextRequest) {
   const token = new AccessToken(apiKey, apiSecret, {
     identity: user.id,
     name: displayName,
-    metadata: JSON.stringify({ name: displayName }),
+    metadata: JSON.stringify({
+      userId: user.id,
+      displayName,
+      username: profile?.username || null,
+      avatar_url: profile?.avatar_url || null,
+      role: profile?.role || null,
+    }),
     ttl: 7200,
   });
 

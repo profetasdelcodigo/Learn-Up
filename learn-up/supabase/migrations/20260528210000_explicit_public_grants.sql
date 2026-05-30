@@ -23,6 +23,8 @@ do $$
 declare
   table_grants jsonb := jsonb_build_object(
     'ai_media', 'select, insert, update, delete',
+    'ai_document_chunks', 'select, insert, update, delete',
+    'ai_documents', 'select, insert, update, delete',
     'ai_messages', 'select, insert, update, delete',
     'ai_sessions', 'select, insert, update, delete',
     'calendar_events', 'select, insert, update, delete',
@@ -43,6 +45,7 @@ declare
     'shared_calendar_messages', 'select, insert, update, delete',
     'shared_calendars', 'select, insert, update, delete',
     'shared_habit_tracker', 'select, insert, update, delete',
+    'user_sessions', 'select, insert, update, delete',
     'user_media', 'select, insert, update, delete'
   );
   item record;

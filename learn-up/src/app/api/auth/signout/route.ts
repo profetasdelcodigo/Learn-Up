@@ -1,6 +1,6 @@
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { getSessionIdFromAccessToken } from "@/lib/session-devices";
-import { NextRequest, NextResponse } from "next/server";
 
 type SignOutScope = "local" | "others" | "global";
 
@@ -8,10 +8,25 @@ function normalizeScope(value: unknown): SignOutScope {
   return value === "others" || value === "global" ? value : "local";
 }
 
-export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const body = await request.json().catch(() => ({}));
+function clearSupabaseCookies(req: NextRequest, response: NextResponse) {
+  const allCookies = req.headers.get("cookie");
+  if (!allCookies) return;
+
+  allCookies.split(";").forEach((cookie) => {
+    const name = cookie.split("=")[0]?.trim();
+    if (name?.startsWith("sb-")) {
+      response.cookies.set(name, "", {
+        expires: new Date(0),
+        path: "/",
+      });
+    }
+  });
+}
+
+export async function POST(req: NextRequest) {
+  const body = await req.json().catch(() => ({}));
   const scope = normalizeScope(body?.scope);
+  const supabase = await createClient();
 
   const {
     data: { user },
@@ -22,10 +37,13 @@ export async function POST(request: NextRequest) {
   const sessionId = getSessionIdFromAccessToken(session?.access_token);
 
   if (!user) {
-    return NextResponse.redirect(new URL("/login", request.url), { status: 302 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  await supabase.auth.signOut({ scope });
+  const { error } = await supabase.auth.signOut({ scope });
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   const now = new Date().toISOString();
   if (scope === "local" && sessionId) {
@@ -47,26 +65,9 @@ export async function POST(request: NextRequest) {
       .eq("user_id", user.id);
   }
 
-  // Use the request's origin for the redirect (works in local and production)
-  const requestUrl = new URL(request.url);
-  const redirectUrl = `${requestUrl.origin}/login`;
-
-  const response = NextResponse.redirect(redirectUrl, { status: 302 });
-
+  const response = NextResponse.json({ ok: true, scope });
   if (scope === "local" || scope === "global") {
-    const allCookies = request.headers.get("cookie");
-    if (allCookies) {
-      allCookies.split(";").forEach((cookie) => {
-        const name = cookie.split("=")[0].trim();
-        if (name.startsWith("sb-")) {
-          response.cookies.set(name, "", {
-            expires: new Date(0),
-            path: "/",
-          });
-        }
-      });
-    }
+    clearSupabaseCookies(req, response);
   }
-
   return response;
 }

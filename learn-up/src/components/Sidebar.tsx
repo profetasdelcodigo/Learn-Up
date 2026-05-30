@@ -10,14 +10,13 @@ import {
   BookOpen,
   MessageCircle,
   Bell,
-  X,
   Camera,
 } from "lucide-react";
 import Logo from "./Logo";
-import { createClient } from "@/utils/supabase/client";
-import { useSetAtom, useAtomValue } from "jotai";
-import { isGlobalLoadingAtom } from "@/store/loader";
+import { useState } from "react";
+import { useAtomValue } from "jotai";
 import { unreadNotificationsAtom } from "@/store/notifications";
+import SignOutModal from "./SignOutModal";
 
 const navigation = [
   {
@@ -87,22 +86,8 @@ const navigation = [
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const supabase = createClient();
-  const setIsGlobalLoading = useSetAtom(isGlobalLoadingAtom);
   const unreadCount = useAtomValue(unreadNotificationsAtom);
-
-  const handleSignOut = async () => {
-    setIsGlobalLoading(true);
-    try {
-      // Clear server cookies
-      await fetch('/auth/signout', { method: 'POST' });
-      await supabase.auth.signOut();
-    } catch (e) {
-      console.error("Error signing out:", e);
-    } finally {
-      window.location.href = '/login';
-    }
-  };
+  const [showSignOut, setShowSignOut] = useState(false);
 
   return (
     <>
@@ -170,13 +155,14 @@ export default function Sidebar() {
         {/* Footer */}
         <div className="p-4 border-t border-white/6">
           <button
-            onClick={handleSignOut}
+            onClick={() => setShowSignOut(true)}
             className="w-full px-4 py-3 text-sm text-gray-500 hover:text-brand-gold hover:bg-white/3 rounded-xl transition-all duration-300 text-center font-body flex justify-center items-center gap-2"
           >
             Cerrar Sesión
           </button>
         </div>
       </aside>
+      <SignOutModal open={showSignOut} onClose={() => setShowSignOut(false)} />
     </>
   );
 }

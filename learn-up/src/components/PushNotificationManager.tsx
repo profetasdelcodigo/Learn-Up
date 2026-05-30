@@ -1,12 +1,25 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 
 export default function PushNotificationManager() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+  const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
+    const syncEnabled = () => {
+      setEnabled(localStorage.getItem("learnup_push_enabled") === "true");
+    };
+
+    syncEnabled();
+    window.addEventListener("learnup:push-enabled", syncEnabled);
+    return () => window.removeEventListener("learnup:push-enabled", syncEnabled);
+  }, []);
+
+  useEffect(() => {
+    if (!enabled) return;
+
     async function setupPush() {
       const {
         data: { session },
@@ -46,7 +59,7 @@ export default function PushNotificationManager() {
     }
 
     setupPush();
-  }, [supabase.auth]);
+  }, [enabled, supabase]);
 
   return null;
 }

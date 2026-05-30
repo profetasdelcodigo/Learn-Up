@@ -90,6 +90,7 @@ interface Message {
   deleted_for?: string[];
   profiles?: {
     full_name: string;
+    username?: string;
     avatar_url: string | null;
     school?: string;
     grade?: string;
@@ -444,7 +445,7 @@ export default function ChatPage() {
         const { data, error } = await supabase
           .from("chat_messages")
           .select(
-            `*, profiles:user_id (full_name, avatar_url, role, school, grade)`,
+            `*, profiles:user_id (full_name, username, avatar_url, role, school, grade)`,
           )
           .eq("room_id", roomId)
           .order("created_at", { ascending: false })
@@ -486,7 +487,7 @@ export default function ChatPage() {
           const { data } = await supabase
             .from("chat_messages")
             .select(
-              `*, profiles:user_id (full_name, avatar_url, role, school, grade)`,
+              `*, profiles:user_id (full_name, username, avatar_url, role, school, grade)`,
             )
             .eq("id", payload.new.id)
             .single();
@@ -1673,6 +1674,8 @@ export default function ChatPage() {
                           <Paperclip className="w-5 h-5" />
                         </button>
                         <input
+                          id="chat-file-input"
+                          name="chat-file"
                           type="file"
                           ref={fileInputRef}
                           className="hidden"
@@ -1681,6 +1684,8 @@ export default function ChatPage() {
                         />
 
                         <textarea
+                          id="chat-message-input"
+                          name="chat-message"
                           value={editingMessageId ? editContent : input}
                           onChange={(e) =>
                             editingMessageId

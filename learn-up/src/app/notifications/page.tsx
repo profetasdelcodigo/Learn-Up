@@ -16,6 +16,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import ClientDate from "@/components/ClientDate";
 import PageLayout from "@/components/PageLayout";
+import PushPermissionButton from "@/components/PushPermissionButton";
 
 interface Notification {
   id: string;
@@ -135,15 +136,18 @@ export default function NotificationsPage() {
           : "Todo al día"
       }
       actions={
-        notifications.length > 0 ? (
-          <button
-            onClick={clearAll}
-            className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-full text-sm font-semibold hover:bg-red-500/20 transition-all"
-          >
-            <Trash2 className="w-4 h-4" />
-            Limpiar todo
-          </button>
-        ) : undefined
+        <div className="flex flex-wrap items-center gap-2">
+          <PushPermissionButton />
+          {notifications.length > 0 && (
+            <button
+              onClick={clearAll}
+              className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-full text-sm font-semibold hover:bg-red-500/20 transition-all"
+            >
+              <Trash2 className="w-4 h-4" />
+              Limpiar todo
+            </button>
+          )}
+        </div>
       }
       glow
     >

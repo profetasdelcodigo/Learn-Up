@@ -63,6 +63,7 @@ export interface Message {
   deleted_for?: string[];
   profiles?: {
     full_name: string;
+    username?: string;
     avatar_url: string | null;
     school?: string;
     grade?: string;
@@ -344,7 +345,7 @@ export async function getChatMessages(roomId: string) {
       .select(
         `
       *,
-      profiles:user_id (full_name, avatar_url, role, school, grade)
+      profiles:user_id (full_name, username, avatar_url, role, school, grade)
     `,
       )
       .eq("room_id", roomId)
@@ -502,6 +503,22 @@ export async function sendMessage(
               link: `/chat`,
               is_read: false,
               created_at: new Date().toISOString(),
+              room_id: roomId,
+              event_type: notificationType === "video_call"
+                ? "chat.video_call"
+                : notificationType === "call"
+                  ? "chat.voice_call"
+                  : "chat.message",
+              source: "chat",
+              priority:
+                notificationType === "video_call" || notificationType === "call"
+                  ? "urgent"
+                  : "normal",
+              metadata: {
+                room_id: roomId,
+                room_type: room.type,
+                room_name: room.name || null,
+              },
             });
           }
 
@@ -568,17 +585,23 @@ export async function markMessagesAsRead(roomId: string) {
 
   if (!user) return;
 
-  // Since chat_messages doesn't have an is_read column in the schema provided in PLANES,
-  // we will update the NOTIFICATIONS table to mark relevant notifications as read.
-
-  await supabase
+  const { error } = await supabase
     .from("notifications")
-    .update({ is_read: true })
-    .eq("user_id", user.id) // My notifications
-    .like("title", `%${roomId}%`); // Heuristic or add metadata to notifications
+    .update({ is_read: true, read_at: new Date().toISOString() })
+    .eq("user_id", user.id)
+    .eq("room_id", roomId)
+    .eq("is_read", false);
 
-  // If we truly want read receipts, we need to alter the schema or add a separate table.
-  // For now, this stub is sufficient to prevent errors.
+  if (
+    error &&
+    (error.code === "PGRST204" || /room_id|read_at|column/i.test(error.message || ""))
+  ) {
+    console.warn(
+      "markMessagesAsRead skipped until notification metadata migration is applied.",
+    );
+  } else if (error) {
+    console.error("markMessagesAsRead failed:", error);
+  }
 }
 
 export async function updateMessage(messageId: string, newContent: string) {

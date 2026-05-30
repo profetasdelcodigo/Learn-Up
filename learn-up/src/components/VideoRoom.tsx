@@ -46,6 +46,38 @@ interface VideoRoomProps {
   isCreator?: boolean;
 }
 
+type ParticipantMetadata = {
+  userId?: string;
+  displayName?: string;
+  name?: string;
+  username?: string | null;
+  avatar_url?: string | null;
+  role?: string | null;
+};
+
+function getParticipantMetadata(
+  participant: RemoteParticipant | LocalParticipant,
+): ParticipantMetadata {
+  try {
+    return JSON.parse(participant.metadata || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function getParticipantDisplayName(
+  participant: RemoteParticipant | LocalParticipant,
+) {
+  const metadata = getParticipantMetadata(participant);
+  return (
+    metadata.displayName ||
+    metadata.name ||
+    (participant as any).name ||
+    metadata.username ||
+    "Usuario"
+  );
+}
+
 // ─── Root Component ──────────────────────────────────────────────────────────
 export default function VideoRoom({
   roomName,
@@ -56,25 +88,32 @@ export default function VideoRoom({
   isCreator = false,
 }: VideoRoomProps) {
   const [token, setToken] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
-        const resp = await fetch(
-          `/api/livekit?room=${encodeURIComponent(roomName)}&username=${encodeURIComponent(username)}`,
-        );
+        setError(null);
+        const resp = await fetch(`/api/livekit?room=${encodeURIComponent(roomName)}`);
         const data = await resp.json();
+        if (!resp.ok || !data.token) {
+          setError(data.error || "No se pudo entrar a la sala.");
+          return;
+        }
         setToken(data.token);
       } catch (e) {
         console.error("Error fetching LiveKit token:", e);
+        setError("No se pudo conectar con LiveKit.");
       }
     })();
-  }, [roomName, username]);
+  }, [roomName]);
 
   if (!token) {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-brand-black border border-brand-gold/20 rounded-2xl gap-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-gold" />
+        {!error && (
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-gold" />
+        )}
         <p className="text-brand-gold font-mono animate-pulse text-sm">
           Estableciendo conexión segura...
         </p>
@@ -116,6 +155,8 @@ function ParticipantTileCard({
   const isMicOn = participant.isMicrophoneEnabled;
   const isCamOn = participant.isCameraEnabled;
   const isSpeaking = (participant as any).isSpeaking ?? false;
+  const displayName = getParticipantDisplayName(participant);
+  const avatarUrl = getParticipantMetadata(participant).avatar_url;
 
   // Get camera track using LiveKit's useTracks (only works inside LiveKitRoom)
   const allTracks = useTracks([
@@ -142,11 +183,19 @@ function ParticipantTileCard({
         />
       ) : (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
-          <div className="w-12 h-12 rounded-full bg-linear-to-br from-brand-gold to-brand-brown flex items-center justify-center text-brand-black font-bold text-xl select-none">
-            {participant.identity.charAt(0).toUpperCase()}
-          </div>
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={displayName}
+              className="w-12 h-12 rounded-full object-cover border border-brand-gold/30"
+            />
+          ) : (
+            <div className="w-12 h-12 rounded-full bg-linear-to-br from-brand-gold to-brand-brown flex items-center justify-center text-brand-black font-bold text-xl select-none">
+              {displayName.charAt(0).toUpperCase()}
+            </div>
+          )}
           <span className="text-white text-[10px] font-medium truncate max-w-[90%] text-center mt-0.5">
-            {participant.identity}
+            {displayName}
           </span>
         </div>
       )}
@@ -154,7 +203,7 @@ function ParticipantTileCard({
       {/* Bottom status bar */}
       <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-1.5 py-1 bg-linear-to-t from-black/80 to-transparent">
         <span className="text-white text-[9px] font-medium truncate max-w-[60%]">
-          {participant.identity}
+          {displayName}
           {isLocal && <span className="text-brand-gold ml-0.5">(Tú)</span>}
         </span>
         <div className="flex items-center gap-0.5">

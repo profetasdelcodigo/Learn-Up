@@ -23,6 +23,9 @@ const ToolSchemas: Record<string, z.ZodType> = {
   search_library: z.object({
     query: z.string().min(1),
   }),
+  search_documents: z.object({
+    query: z.string().min(1),
+  }),
   update_profile: z.object({
     field: z.enum(["bio", "school", "grade"]),
     value: z.string().min(1),
@@ -36,6 +39,21 @@ const ToolSchemas: Record<string, z.ZodType> = {
   save_learned_concept: z.object({
     title: z.string().min(1),
     description: z.string().optional(),
+  }),
+  generate_document: z.object({
+    title: z.string().min(1),
+    outline: z.string().min(1),
+    format: z.enum(["markdown", "study_guide", "summary"]).default("markdown"),
+  }),
+  generate_image: z.object({
+    prompt: z.string().min(1),
+    purpose: z.string().optional(),
+  }),
+  create_exam: z.object({
+    topic: z.string().min(1),
+    difficulty: z.enum(["facil", "media", "dificil"]).default("media"),
+    question_count: z.number().int().min(1).max(50).default(10),
+    duration_minutes: z.number().int().min(5).max(240).default(30),
   }),
 };
 // ── Tipos ─────────────────────────────────────────────────────────────────────
@@ -95,6 +113,12 @@ LISTA DE HERRAMIENTAS:
    args: {"title": "Nombre del concepto", "description": "Breve resumen de lo que el estudiante comprendió"}
    Ejemplo: Guardar "Mitocondria" cuando el estudiante por fin entiende su función.
 
+HERRAMIENTAS NUEVAS DE AGENTES:
+- search_documents: buscar en documentos privados del usuario. args: {"query": "..."}.
+- generate_document: preparar un documento estructurado. args: {"title": "...", "outline": "...", "format": "markdown|study_guide|summary"}.
+- generate_image: preparar una solicitud de imagen. args: {"prompt": "...", "purpose": "..."}.
+- create_exam: preparar un examen personalizado. args: {"topic": "...", "difficulty": "facil|media|dificil", "question_count": 10, "duration_minutes": 30}.
+
 REGLAS ESTRICTAS PARA USAR HERRAMIENTAS:
 - NO uses herramientas (ni investigues en internet) si el usuario solo dice "Hola", "Buenos días", o hace comentarios casuales. Responde de forma natural y rápida.
 - Solo usa una herramienta cuando el usuario lo pide explícita o implícitamente de forma clara.
@@ -107,7 +131,7 @@ REGLAS ESTRICTAS PARA USAR HERRAMIENTAS:
 `;
 
 // ── Herramientas que NO necesitan confirmación ────────────────────────────────
-const AUTO_EXECUTE_TOOLS = ["search_library", "search_web", "save_learned_concept"];
+const AUTO_EXECUTE_TOOLS = ["search_library", "search_documents", "search_web", "save_learned_concept"];
 
 // ── Parsear respuesta del LLM buscando tool calls ─────────────────────────────
 export async function parseToolCall(response: string): Promise<{ cleanText: string; action: ToolAction | null }> {
@@ -495,6 +519,59 @@ export async function executeToolAction(
           console.error("Error generating embedding:", e);
           return { success: false, message: "Error al procesar el conocimiento." };
         }
+      }
+
+      case "search_documents": {
+        const { query } = args;
+        const { data: chunks, error } = await supabase
+          .from("ai_document_chunks")
+          .select("content, chunk_index, ai_documents:document_id (title, source_url)")
+          .eq("user_id", user.id)
+          .ilike("content", `%${query}%`)
+          .limit(6);
+
+        if (error || !chunks || chunks.length === 0) {
+          return {
+            success: true,
+            message: `No encontre fragmentos en tus documentos para "${query}".`,
+          };
+        }
+
+        const message = chunks
+          .map((chunk: any, index: number) => {
+            const doc = Array.isArray(chunk.ai_documents)
+              ? chunk.ai_documents[0]
+              : chunk.ai_documents;
+            return `${index + 1}. ${doc?.title || "Documento"} [fragmento ${chunk.chunk_index}]\n${chunk.content.slice(0, 700)}`;
+          })
+          .join("\n\n");
+
+        return { success: true, message, data: chunks };
+      }
+
+      case "generate_document": {
+        return {
+          success: true,
+          message: `Documento preparado: **${args.title}**\n\n${args.outline}`,
+          data: { title: args.title, format: args.format, content: args.outline },
+        };
+      }
+
+      case "generate_image": {
+        return {
+          success: true,
+          message:
+            "Solicitud de imagen preparada. Para producir la imagen final se necesita un proveedor de imagenes configurado o una busqueda aprobada por el usuario.",
+          data: { prompt: args.prompt, purpose: args.purpose || null },
+        };
+      }
+
+      case "create_exam": {
+        return {
+          success: true,
+          message: `Examen preparado sobre "${args.topic}" (${args.question_count} preguntas, dificultad ${args.difficulty}, ${args.duration_minutes} minutos).`,
+          data: args,
+        };
       }
 
       default:

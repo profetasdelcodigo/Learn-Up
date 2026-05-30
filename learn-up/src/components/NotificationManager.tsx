@@ -33,16 +33,7 @@ export default function NotificationManager() {
   }, [supabase, setUnreadCount]);
 
   useEffect(() => {
-    // 1. Request permission on mount
-    const requestPermission = async () => {
-      if (!("Notification" in window)) return;
-      if (Notification.permission === "default") {
-        await Notification.requestPermission();
-      }
-    };
-    requestPermission();
-
-    // 2. Setup Realtime Listener
+    // Setup Realtime Listener. Push permission is requested only from an explicit user action.
     const setupListener = async () => {
       const {
         data: { user },

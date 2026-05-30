@@ -10,6 +10,7 @@ const Sidebar = dynamic(() => import("./Sidebar"), { ssr: false });
 const BottomNav = dynamic(() => import("./BottomNav"), { ssr: false });
 const WelcomeTutorial = dynamic(() => import("./WelcomeTutorial"), { ssr: false });
 const NotificationManager = dynamic(() => import("./NotificationManager"), { ssr: false });
+const SessionHeartbeat = dynamic(() => import("./SessionHeartbeat"), { ssr: false });
 
 // Routes where the nav and layout chrome should NOT appear
 const PUBLIC_ROUTES = ["/", "/login", "/onboarding"];
@@ -46,6 +47,7 @@ export default function MainLayout({
     >
       <NotificationManager />
       <WelcomeTutorial />
+      {showNav && <SessionHeartbeat />}
 
       {/* Global Toast Container */}
       <div 

@@ -17,6 +17,7 @@ import { es } from "date-fns/locale";
 import { acceptFriendRequest } from "@/actions/friendship";
 import { useRouter } from "next/navigation";
 import BackButton from "@/components/BackButton";
+import PushPermissionButton from "@/components/PushPermissionButton";
 
 interface Notification {
   id: string;
@@ -194,6 +195,8 @@ export default function NotificationsPage() {
               </p>
             </div>
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <PushPermissionButton />
           {unreadCount > 0 && (
             <button
               onClick={markAllRead}
@@ -202,6 +205,7 @@ export default function NotificationsPage() {
               <Check className="w-4 h-4" /> Marcar todas como leídas
             </button>
           )}
+          </div>
         </div>
 
         {loading ? (
