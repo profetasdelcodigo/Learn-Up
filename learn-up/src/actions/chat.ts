@@ -467,6 +467,15 @@ export async function sendMessage(
         ];
         const isSystemMsg = SYSTEM_TOKENS.some((t) => content.includes(t));
 
+        const notificationPromises: Promise<void>[] = [];
+        const pushPromises: Promise<void>[] = [];
+        const { data: senderData } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", user.id)
+          .single();
+        const senderName = senderData?.full_name || "Alguien";
+
         // Explicitly insert for each recipient as requested
         for (const recipientId of recipients) {
           const title =
@@ -494,7 +503,7 @@ export async function sendMessage(
               notificationMessage = "Entra para responder ahora.";
             }
 
-            await createServerNotification({
+            notificationPromises.push(createServerNotification({
               user_id: recipientId,
               sender_id: user.id,
               title: notificationTitle,
@@ -519,7 +528,7 @@ export async function sendMessage(
                 room_type: room.type,
                 room_name: room.name || null,
               },
-            });
+            }));
           }
 
           // Dispatch Native Web Push
@@ -527,23 +536,7 @@ export async function sendMessage(
           // del destinatario. Por seguridad y privacidad, las políticas de RLS restringen la lectura
           // de suscripciones de push a su propio usuario, por lo que el emisor necesita privilegios
           // de admin para obtener el endpoint de push del destinatario.
-          const pushLookupClient = createAdminClient() || supabase;
-          const { data: subData } = await pushLookupClient
-            .from("push_subscriptions")
-            .select("subscription")
-            .eq("user_id", recipientId)
-            .single();
-
-          if (subData && subData.subscription) {
-            try {
-              // Get the sender's full name for the push notification
-              const { data: senderData } = await supabase
-                .from("profiles")
-                .select("full_name")
-                .eq("id", user.id)
-                .single();
-
-              const senderName = senderData?.full_name || "Alguien";
+          try {
               const pushTitle = content.includes("[CALL_OFFER_VIDEO]")
                 ? `Videollamada de: ${senderName}`
                 : content.includes("[CALL_OFFER_VOICE]")
@@ -554,20 +547,20 @@ export async function sendMessage(
                 ? "Entra para responder."
                 : msgContent;
 
-              await sendWebPushToUser(recipientId, {
+              pushPromises.push(sendWebPushToUser(recipientId, {
                 title: pushTitle,
                 message: filteredContent,
                 link: "/chat",
-              });
-            } catch (pushErr) {
-              console.error(
-                "Push delivery failed for user",
-                recipientId,
-                pushErr,
-              );
-            }
+              }));
+          } catch (pushErr) {
+            console.error(
+              "Push scheduling failed for user",
+              recipientId,
+              pushErr,
+            );
           }
         }
+        await Promise.all([...notificationPromises, ...pushPromises]);
       }
     } catch (e) {
       console.error("Error sending notifications logic:", e);
