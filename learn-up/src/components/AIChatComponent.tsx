@@ -38,7 +38,7 @@ import {
   addAiMessage,
   deleteAiSession,
 } from "@/actions/ai-history";
-import { confirmAndExecuteTool } from "@/actions/ai-tutor";
+import { confirmAndExecuteTool, indexAiDocumentFromUrl } from "@/actions/ai-tutor";
 
 interface ToolAction {
   tool: string;
@@ -287,6 +287,10 @@ export default function AIChatComponent({
     e.preventDefault();
     if ((!input.trim() && !file) || loading) return;
 
+    // Respaldar estados locales por si falla el envío
+    const backupInput = input;
+    const backupFile = file;
+
     // Auto-generar mensaje si solo hay archivo sin texto
     let userMessage = input.trim();
     if (!userMessage && file) {
@@ -305,8 +309,30 @@ export default function AIChatComponent({
       media_url: file ? URL.createObjectURL(file) : undefined,
       media_type: mediaType,
     };
+
+    const handleFailure = (errMessage: string) => {
+      setError(errMessage);
+      setInput(backupInput);
+      setFile(backupFile);
+      if (fileInputRef.current) {
+        try {
+          if (backupFile) {
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(backupFile);
+            fileInputRef.current.files = dataTransfer.files;
+          } else {
+            fileInputRef.current.value = "";
+          }
+        } catch (e) {
+          fileInputRef.current.value = "";
+        }
+      }
+      setMessages((prev) => prev.filter((m) => m !== clientSideUserMsg));
+      setLoading(false);
+      setUploadingMedia(false);
+    };
+
     setMessages((prev) => [...prev, clientSideUserMsg]);
-    // Reset UI state immediately after queuing the message
     setInput("");
     setFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -331,51 +357,66 @@ export default function AIChatComponent({
           newSession = true;
         }
       } catch (err: any) {
-        setError("Error al iniciar sesión de IA. Verifica tu conexión.");
-        setLoading(false);
+        handleFailure("Error al iniciar sesión de IA. Verifica tu conexión.");
         return;
       }
     }
 
     if (!sessionId) {
-      setError("Error al crear sesión.");
-      setLoading(false);
+      handleFailure("Error al crear sesión.");
       return;
     }
 
     let mediaUrl: string | undefined;
 
-    if (file) {
+    if (backupFile) {
       setUploadingMedia(true);
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        const safeFileName = file.name
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new Error("No autenticado");
+
+        const safeFileName = backupFile.name
           .replace(/[^a-zA-Z0-9._-]/g, "_")
           .slice(-120);
         const filePath = `${user.id}/${Date.now()}_${safeFileName}`;
         const { error: uploadErr } = await supabase.storage
           .from("ai_media")
-          .upload(filePath, file);
-        if (!uploadErr) {
-          const { data } = supabase.storage
-            .from("ai_media")
-            .getPublicUrl(filePath);
-          mediaUrl = data.publicUrl;
+          .upload(filePath, backupFile);
+        if (uploadErr) throw uploadErr;
 
-          // Update message with real URL
-          setMessages((prev) => 
-            prev.map(m => m === clientSideUserMsg ? { ...m, media_url: mediaUrl } : m)
-          );
+        const { data } = supabase.storage
+          .from("ai_media")
+          .getPublicUrl(filePath);
+        mediaUrl = data.publicUrl;
+
+        const indexResult = await indexAiDocumentFromUrl({
+          title: backupFile.name,
+          url: mediaUrl,
+          mimeType: backupFile.type,
+          sessionId,
+        });
+        if (!indexResult.success) {
+          console.warn("AI document indexing skipped:", indexResult.error);
         }
-      }
 
+        setMessages((prev) => 
+          prev.map(m => m === clientSideUserMsg ? { ...m, media_url: mediaUrl } : m)
+        );
+      } catch (uploadErr: any) {
+        handleFailure("Error al subir el archivo adjunto. Intenta de nuevo.");
+        return;
+      }
       setUploadingMedia(false);
-      setFile(null);
     }
 
-    await addAiMessage(sessionId, "user", userMessage, mediaUrl, mediaType);
+    try {
+      await addAiMessage(sessionId, "user", userMessage, mediaUrl, mediaType);
+    } catch (msgErr: any) {
+      handleFailure("Error al guardar tu mensaje en la base de datos.");
+      return;
+    }
 
     try {
       const historyForGroq = messages.map((m) => ({
@@ -391,7 +432,7 @@ export default function AIChatComponent({
       );
 
       if (result.error) {
-        setError(result.error);
+        handleFailure(result.error);
       } else if (result.response) {
         await addAiMessage(sessionId, "assistant", result.response);
         setMessages((prev) => [
@@ -399,13 +440,12 @@ export default function AIChatComponent({
           { role: "assistant", content: result.response },
         ]);
 
-        // Si hay acciones pendientes de confirmación
         if (result.actions && result.actions.length > 0) {
           setPendingActions(result.actions);
         }
       }
     } catch (err) {
-      setError("Ocurrió un error inesperado.");
+      handleFailure("Ocurrió un error inesperado al procesar la IA.");
     } finally {
       if (newSession) {
         loadSessions(false);
@@ -808,6 +848,8 @@ export default function AIChatComponent({
 
             <form onSubmit={handleSubmit} className="flex gap-2">
               <input
+                id="ai-chat-file-input"
+                name="ai-chat-file"
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileSelect}
@@ -822,6 +864,8 @@ export default function AIChatComponent({
                 <Paperclip className="w-5 h-5" />
               </button>
               <input
+                id="ai-chat-message-input"
+                name="ai-chat-message"
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}

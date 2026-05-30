@@ -1,6 +1,6 @@
 "use server";
 
-import { getAICompletion, fetchRemoteMediaBuffer } from "@/lib/ai";
+import { getAICompletion, fetchRemoteMediaBuffer, getAIEmbedding } from "@/lib/ai";
 import { createClient } from "@/utils/supabase/server";
 import { TOOL_DEFINITIONS, parseToolCall, executeToolAction, type ToolAction } from "@/lib/ai-tools";
 import { buildAgentSystemPrompt } from "@/lib/ai/agent-registry";
@@ -143,6 +143,99 @@ export async function buildUserMessage(
   return { content: finalMessageContent, model: finalModel };
 }
 
+function chunkTextForSearch(text: string, chunkSize = 1600, overlap = 180) {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  const chunks: string[] = [];
+  for (let start = 0; start < normalized.length; start += chunkSize - overlap) {
+    const chunk = normalized.slice(start, start + chunkSize).trim();
+    if (chunk.length >= 80) chunks.push(chunk);
+    if (chunks.length >= 40) break;
+  }
+  return chunks;
+}
+
+export async function indexAiDocumentFromUrl({
+  title,
+  url,
+  mimeType,
+  sessionId,
+}: {
+  title: string;
+  url: string;
+  mimeType?: string;
+  sessionId?: string | null;
+}): Promise<{ success: boolean; error?: string; chunks?: number }> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: "No autorizado" };
+
+    const extracted = await parseMediaInput(url, mimeType || "");
+    if (
+      !extracted ||
+      extracted.length < 80 ||
+      /no se pudo|no soportado|no compatible/i.test(extracted)
+    ) {
+      return { success: false, error: extracted || "No se pudo leer el documento" };
+    }
+
+    const { data: document, error: docError } = await supabase
+      .from("ai_documents")
+      .insert({
+        user_id: user.id,
+        session_id: sessionId || null,
+        title,
+        source_url: url,
+        mime_type: mimeType || null,
+        status: "ready",
+        metadata: { indexed_by: "ai_chat_upload" },
+      })
+      .select("id")
+      .single();
+
+    if (docError || !document) {
+      return { success: false, error: "No se pudo registrar el documento" };
+    }
+
+    const chunks = chunkTextForSearch(extracted);
+    const rows = [];
+    for (let index = 0; index < chunks.length; index++) {
+      let embedding: string | null = null;
+      try {
+        const values = await getAIEmbedding(chunks[index]);
+        embedding = `[${values.join(",")}]`;
+      } catch (embeddingError) {
+        console.error("AI document embedding failed:", embeddingError);
+      }
+
+      rows.push({
+        document_id: document.id,
+        user_id: user.id,
+        chunk_index: index,
+        content: chunks[index],
+        embedding,
+        metadata: { title, source_url: url },
+      });
+    }
+
+    if (rows.length > 0) {
+      const { error: chunkError } = await supabase
+        .from("ai_document_chunks")
+        .insert(rows);
+      if (chunkError) {
+        return { success: false, error: "No se pudieron guardar los fragmentos" };
+      }
+    }
+
+    return { success: true, chunks: rows.length };
+  } catch (error) {
+    console.error("indexAiDocumentFromUrl failed:", error);
+    return { success: false, error: "Error al indexar el documento" };
+  }
+}
+
 // ── Profesor IA ───────────────────────────────────────────────────────────────
 export async function askProfessor(
   message: string,
@@ -166,8 +259,6 @@ export async function askProfessor(
     const toolDefs = isShortGreeting ? "" : `\n${TOOL_DEFINITIONS}`;
 
     const systemPrompt = `${getTimeContext()}
-
-${buildAgentSystemPrompt("consejero")}
 
 ${buildAgentSystemPrompt("profesor")}
 
@@ -271,7 +362,7 @@ export async function askCounselor(
 
     const systemPrompt = `${getTimeContext()}
 
-${buildAgentSystemPrompt("nutrirecetas")}
+${buildAgentSystemPrompt("consejero")}
 
 Eres "Alma", la consejera estudiantil de Learn Up. Eres como esa amiga mayor que siempre sabe qué decir — comprensiva, genuina y con los pies en la tierra.
 
@@ -372,7 +463,7 @@ export async function generateRecipe(
 
     const systemPrompt = `${getTimeContext()}
 
-${buildAgentSystemPrompt("examenes")}
+${buildAgentSystemPrompt("nutrirecetas")}
 
 Eres "Chef Nutre", el chef nutricionista de Learn Up. Haces magia con lo que hay.
 
@@ -477,6 +568,8 @@ export async function generateRealExam(
       };
 
     const systemPrompt = `${getTimeContext()}
+
+${buildAgentSystemPrompt("examenes")}
 
 Eres un evaluador académico de élite. Tu tarea es crear exámenes completos y rigurosos tipo hoja en formato JSON.
 
