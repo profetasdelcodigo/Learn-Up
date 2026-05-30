@@ -94,7 +94,11 @@ interface Message {
     avatar_url: string | null;
     school?: string;
     grade?: string;
+    section?: string;
     role?: string;
+    description?: string | null;
+    country?: string | null;
+    socials?: Record<string, string | null> | null;
   };
 }
 
@@ -107,7 +111,11 @@ interface UserProfile {
   friendshipId?: string; // for actions
   school?: string | null;
   grade?: string | null;
+  section?: string | null;
   role?: string | null;
+  description?: string | null;
+  country?: string | null;
+  socials?: Record<string, string | null> | null;
 }
 
 interface ChatRoom {
@@ -121,8 +129,12 @@ interface ChatRoom {
     avatar_url: string | null;
     school?: string;
     grade?: string;
+    section?: string;
     role?: string;
     username?: string;
+    description?: string | null;
+    country?: string | null;
+    socials?: Record<string, string | null> | null;
   }[];
   last_message?: string;
   updated_at: string;
@@ -253,7 +265,7 @@ export default function ChatPage() {
           );
           const { data: friendProfiles } = await supabase
             .from("profiles")
-            .select("id, username, full_name, avatar_url, school, grade, role")
+            .select("*")
             .in("id", friendIds);
 
           const profileMap = new Map(
@@ -272,7 +284,11 @@ export default function ChatPage() {
                 avatar_url: p?.avatar_url,
                 school: p?.school,
                 grade: p?.grade,
+                section: p?.section,
                 role: p?.role,
+                description: p?.description,
+                country: p?.country,
+                socials: p?.socials,
               };
             }),
           );
@@ -445,7 +461,7 @@ export default function ChatPage() {
         const { data, error } = await supabase
           .from("chat_messages")
           .select(
-            `*, profiles:user_id (full_name, username, avatar_url, role, school, grade)`,
+            `*, profiles:user_id (*)`,
           )
           .eq("room_id", roomId)
           .order("created_at", { ascending: false })
@@ -487,7 +503,7 @@ export default function ChatPage() {
           const { data } = await supabase
             .from("chat_messages")
             .select(
-              `*, profiles:user_id (full_name, username, avatar_url, role, school, grade)`,
+              `*, profiles:user_id (*)`,
             )
             .eq("id", payload.new.id)
             .single();
@@ -1791,11 +1807,10 @@ export default function ChatPage() {
                 isOpen={showGroupInfo}
                 onClose={() => setShowGroupInfo(false)}
                 room={rooms.find((r) => r.id === activeChat)!}
-                members={friends.filter((f) =>
-                  rooms
-                    .find((r) => r.id === activeChat)
-                    ?.participants.includes(f.id),
-                )} // Best effort members
+                members={
+                  rooms.find((r) => r.id === activeChat)
+                    ?.participants_profiles || []
+                }
                 currentUserId={currentUserId!}
                 onLeaveGroup={handleLeaveGroup}
               />

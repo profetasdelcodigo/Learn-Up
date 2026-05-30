@@ -30,9 +30,13 @@ interface GroupInfoPanelProps {
   };
   members: Array<{
     id: string;
-    username: string;
-    full_name: string;
+    username?: string | null;
+    full_name?: string | null;
     avatar_url: string | null;
+    school?: string | null;
+    grade?: string | null;
+    section?: string | null;
+    role?: string | null;
   }>;
   currentUserId: string;
   onLeaveGroup: () => void;
@@ -453,7 +457,7 @@ export default function GroupInfoPanel({
                 {member.avatar_url ? (
                   <img
                     src={member.avatar_url}
-                    alt={member.username}
+                    alt={member.full_name || member.username || "Usuario"}
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -462,7 +466,7 @@ export default function GroupInfoPanel({
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-white font-medium text-sm truncate flex items-center gap-2">
-                  {member.full_name || member.username}
+                  {member.full_name || member.username || "Usuario"}
                   {member.id === currentUserId && (
                     <span className="text-xs text-brand-gold shrink-0">
                       (Tú)
@@ -475,8 +479,15 @@ export default function GroupInfoPanel({
                   )}
                 </p>
                 <p className="text-xs text-gray-400 truncate">
-                  @{member.username}
+                  @{member.username || "usuario"}
                 </p>
+                {(member.school || member.grade || member.section) && (
+                  <p className="text-[11px] text-gray-500 truncate">
+                    {[member.school, member.grade, member.section]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                )}
               </div>
 
               {isCurrentUserAdmin && member.id !== currentUserId && (

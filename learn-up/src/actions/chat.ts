@@ -40,8 +40,12 @@ export interface ChatRoom {
     avatar_url: string | null;
     school?: string;
     grade?: string;
+    section?: string;
     role?: string;
     username?: string;
+    description?: string | null;
+    country?: string | null;
+    socials?: Record<string, string | null> | null;
   }[];
   last_message?: string;
   updated_at: string; // ISO string
@@ -67,7 +71,11 @@ export interface Message {
     avatar_url: string | null;
     school?: string;
     grade?: string;
+    section?: string;
     role?: string;
+    description?: string | null;
+    country?: string | null;
+    socials?: Record<string, string | null> | null;
   };
 }
 
@@ -110,7 +118,7 @@ export async function getUserRooms() {
     // Fetch profiles for all participants to ensure Header has info even if not friends
     const { data: profiles, error: profError } = await supabase
       .from("profiles")
-      .select("id, full_name, avatar_url, school, grade, role, username")
+      .select("*")
       .in(
         "id",
         allParticipantIds.length > 0
@@ -345,7 +353,7 @@ export async function getChatMessages(roomId: string) {
       .select(
         `
       *,
-      profiles:user_id (full_name, username, avatar_url, role, school, grade)
+      profiles:user_id (*)
     `,
       )
       .eq("room_id", roomId)
