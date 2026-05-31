@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { createClient } from "@/utils/supabase/client";
 import { useSetAtom } from "jotai";
 import { addToastAtom } from "@/store/ui";
-import { Monitor, Smartphone, X } from "lucide-react";
+import { Check, Monitor, Smartphone, X } from "lucide-react";
 
 type SessionRow = {
   id: string;
@@ -30,6 +30,7 @@ export default function SignOutModal({
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [submitting, setSubmitting] = useState<string | null>(null);
+  const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
   const addToast = useSetAtom(addToastAtom);
   const supabase = createClient();
 
@@ -37,17 +38,36 @@ export default function SignOutModal({
     setMounted(true);
   }, []);
 
+  const finishLocalSignOut = useCallback(async () => {
+    await Promise.race([
+      supabase.auth.signOut({ scope: "local" }),
+      new Promise((resolve) => window.setTimeout(resolve, 800)),
+    ]).catch(() => {});
+    window.location.replace("/login");
+  }, [supabase]);
+
+  const refreshSessions = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/sessions");
+      if (res.status === 401) {
+        await finishLocalSignOut();
+        return;
+      }
+      const data = await res.json();
+      setSessions(data.sessions || []);
+    } catch {
+      addToast({ message: "No se pudieron cargar las sesiones", type: "error" });
+    } finally {
+      setLoading(false);
+    }
+  }, [addToast, finishLocalSignOut]);
+
   useEffect(() => {
     if (!open) return;
-    setLoading(true);
-    fetch("/api/auth/sessions")
-      .then((res) => res.json())
-      .then((data) => setSessions(data.sessions || []))
-      .catch(() => {
-        addToast({ message: "No se pudieron cargar las sesiones", type: "error" });
-      })
-      .finally(() => setLoading(false));
-  }, [open, addToast]);
+    refreshSessions();
+    setSelectedSessionIds([]);
+  }, [open, refreshSessions]);
 
   useEffect(() => {
     if (!open) return;
@@ -69,6 +89,49 @@ export default function SignOutModal({
 
   if (!open || !mounted) return null;
 
+  function toggleSession(sessionId: string) {
+    setSelectedSessionIds((current) =>
+      current.includes(sessionId)
+        ? current.filter((id) => id !== sessionId)
+        : [...current, sessionId],
+    );
+  }
+
+  const signOutSelected = async () => {
+    if (selectedSessionIds.length === 0) {
+      addToast({ message: "Selecciona al menos una sesion", type: "info" });
+      return;
+    }
+
+    setSubmitting("selected");
+    try {
+      const res = await fetch("/api/auth/signout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_ids: selectedSessionIds }),
+      });
+      if (!res.ok) throw new Error("signout_failed");
+
+      const closesCurrentSession = sessions.some(
+        (session) =>
+          session.is_current && selectedSessionIds.includes(session.session_id),
+      );
+
+      if (closesCurrentSession) {
+        await finishLocalSignOut();
+        return;
+      }
+
+      addToast({ message: "Sesiones seleccionadas cerradas", type: "success" });
+      setSelectedSessionIds([]);
+      await refreshSessions();
+      setSubmitting(null);
+    } catch {
+      setSubmitting(null);
+      addToast({ message: "No se pudieron cerrar las sesiones", type: "error" });
+    }
+  };
+
   const signOut = async (scope: "local" | "others" | "global") => {
     setSubmitting(scope);
     try {
@@ -81,14 +144,12 @@ export default function SignOutModal({
 
       if (scope === "others") {
         addToast({ message: "Se cerraron las otras sesiones", type: "success" });
-        const refreshed = await fetch("/api/auth/sessions").then((r) => r.json());
-        setSessions(refreshed.sessions || []);
+        await refreshSessions();
         setSubmitting(null);
         return;
       }
 
-      await supabase.auth.signOut({ scope: "local" });
-      window.location.href = "/login";
+      await finishLocalSignOut();
     } catch {
       setSubmitting(null);
       addToast({ message: "No se pudo cerrar la sesion", type: "error" });
@@ -96,6 +157,10 @@ export default function SignOutModal({
   };
 
   const activeSessions = sessions.filter((s) => !s.revoked_at);
+  const selectableSessions = activeSessions.filter((s) => !s.is_current);
+  const allSelectableSelected =
+    selectableSessions.length > 0 &&
+    selectableSessions.every((s) => selectedSessionIds.includes(s.session_id));
 
   return createPortal(
     <div
@@ -118,7 +183,7 @@ export default function SignOutModal({
               Cerrar sesion
             </h2>
             <p className="mt-1 text-sm text-gray-300">
-              Elige si quieres cerrar solo este dispositivo o tambien otros.
+              Selecciona sesiones especificas o usa una accion rapida.
             </p>
           </div>
           <button
@@ -131,6 +196,31 @@ export default function SignOutModal({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          {selectableSessions.length > 0 && (
+            <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-white/8 bg-white/[0.03] px-4 py-3">
+              <div>
+                <p className="text-sm font-semibold text-white">
+                  Cierre individual
+                </p>
+                <p className="text-xs text-gray-400">
+                  Elige uno o varios dispositivos sin cerrar todos los demas.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedSessionIds(
+                    allSelectableSelected
+                      ? []
+                      : selectableSessions.map((s) => s.session_id),
+                  )
+                }
+                className="shrink-0 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-white transition hover:border-brand-gold/40"
+              >
+                {allSelectableSelected ? "Limpiar" : "Seleccionar otros"}
+              </button>
+            </div>
+          )}
           {loading ? (
             <div className="space-y-2">
               {[1, 2, 3].map((item) => (
@@ -142,12 +232,21 @@ export default function SignOutModal({
               {activeSessions.map((session) => {
                 const isMobile = /movil|android|ios/i.test(session.device_name);
                 const Icon = isMobile ? Smartphone : Monitor;
+                const selected = selectedSessionIds.includes(session.session_id);
                 return (
-                  <div
+                  <button
+                    type="button"
                     key={session.id}
-                    className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${
+                    onClick={() =>
+                      session.is_current
+                        ? undefined
+                        : toggleSession(session.session_id)
+                    }
+                    className={`flex w-full items-start gap-3 rounded-xl border px-4 py-3 text-left transition ${
                       session.is_current
                         ? "border-brand-gold/50 bg-brand-gold/12 shadow-[0_0_0_1px_rgba(250,204,21,0.08)]"
+                        : selected
+                          ? "border-brand-gold/50 bg-brand-gold/10"
                         : "border-white/8 bg-white/[0.04]"
                     }`}
                   >
@@ -164,6 +263,12 @@ export default function SignOutModal({
                             Actual
                           </span>
                         )}
+                        {!session.is_current && selected && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-brand-gold px-2 py-0.5 text-[10px] font-bold text-brand-black">
+                            <Check className="h-3 w-3" />
+                            Seleccionada
+                          </span>
+                        )}
                       </div>
                       <p className="mt-1 text-xs text-gray-300">
                         Inicio: {new Date(session.created_at).toLocaleString()}
@@ -172,7 +277,7 @@ export default function SignOutModal({
                         Ultima actividad: {new Date(session.last_seen_at).toLocaleString()}
                       </p>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
               {activeSessions.length === 0 && (
@@ -182,7 +287,17 @@ export default function SignOutModal({
           )}
         </div>
 
-        <div className="grid gap-2 border-t border-white/8 bg-black/20 px-5 py-4 sm:grid-cols-3">
+        <div className="grid gap-2 border-t border-white/8 bg-black/20 px-5 py-4 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={signOutSelected}
+            disabled={!!submitting || selectedSessionIds.length === 0}
+            className="rounded-xl border border-brand-gold/40 bg-brand-gold/10 px-3 py-3 text-sm font-bold text-brand-gold transition hover:bg-brand-gold hover:text-brand-black disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {submitting === "selected"
+              ? "Cerrando..."
+              : `Cerrar seleccionadas (${selectedSessionIds.length})`}
+          </button>
           <button
             type="button"
             onClick={() => signOut("local")}
@@ -197,7 +312,7 @@ export default function SignOutModal({
             disabled={!!submitting}
             className="rounded-xl border border-white/12 bg-white/[0.03] px-3 py-3 text-sm font-semibold text-white transition hover:border-brand-gold/40 hover:bg-white/[0.06] disabled:opacity-60"
           >
-            {submitting === "others" ? "Cerrando..." : "Cerrar otros"}
+            {submitting === "others" ? "Cerrando..." : "Cerrar todas las demas"}
           </button>
           <button
             type="button"
