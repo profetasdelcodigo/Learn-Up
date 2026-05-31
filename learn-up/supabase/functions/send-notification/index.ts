@@ -51,9 +51,39 @@ serve(async (req) => {
         });
     }
 
-    // Verify Relationship (Simplified: usually check friends or room members)
-    // Assuming the application logic validates it before calling, or we add RLS equivalents here.
-    
+    // --- RELATIONSHIP VALIDATION ---
+    // 1. Check Friendship
+    const { data: isFriend } = await supabaseAdmin
+      .from("friendships")
+      .select("id")
+      .or(`and(requester_id.eq.${user.id},addressee_id.eq.${targetUserId},status.eq.accepted),and(requester_id.eq.${targetUserId},addressee_id.eq.${user.id},status.eq.accepted)`)
+      .maybeSingle();
+
+    let isRoomMember = false;
+    if (!isFriend) {
+        // 2. Check Shared Room
+        const { data: rooms } = await supabaseAdmin
+          .from("chat_rooms")
+          .select("id")
+          .contains("participants", [user.id])
+          .contains("participants", [targetUserId]);
+        
+        if (rooms && rooms.length > 0) {
+            isRoomMember = true;
+        }
+    }
+
+    if (!isFriend && !isRoomMember) {
+        // 3. Admin bypass
+        const { data: profile } = await supabaseAdmin.from("profiles").select("role").eq("id", user.id).single();
+        if (profile?.role !== 'admin') {
+            return new Response(JSON.stringify({ error: "Forbidden: No valid relationship" }), {
+              status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" }
+            });
+        }
+    }
+    // -------------------------------
+
     const { data: subscriptions, error: fetchError } = await supabaseAdmin
       .from("push_subscriptions")
       .select("subscription")
@@ -75,6 +105,17 @@ serve(async (req) => {
     const sendPromises = subscriptions.map(async (subRecord) => {
       try {
         const sub = typeof subRecord.subscription === 'string' ? JSON.parse(subRecord.subscription) : subRecord.subscription;
+        
+        // Handle native Capacitor tokens vs standard Web Push
+        if (sub.endpoint === "native-capacitor") {
+            // This would normally go via FCM or APNS. 
+            // For now, we log it, but standard web-push won't work with it.
+            // If we have FCM server key, we could send it here.
+            console.log("Native push requested for token:", sub.keys.token);
+            // TODO: Implement FCM sending logic if possible
+            return { success: false, error: "Native push delivery not implemented in this version" };
+        }
+
         await webPush.sendNotification(sub, payload);
         
         // Log success
@@ -96,7 +137,7 @@ serve(async (req) => {
         });
         // If 410 Gone, we should delete the subscription
         if (err.statusCode === 410 || err.statusCode === 404) {
-            await supabaseAdmin.from("push_subscriptions").delete().eq("user_id", targetUserId);
+            await supabaseAdmin.from("push_subscriptions").delete().eq("user_id", targetUserId).eq("subscription", subRecord.subscription);
         }
         return { success: false, error: err.message };
       }

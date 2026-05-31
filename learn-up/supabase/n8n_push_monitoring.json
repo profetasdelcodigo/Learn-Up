@@ -1,0 +1,126 @@
+{
+  "name": "Push Notification Monitoring",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  COUNT(*) as total, \n  SUM(CASE WHEN status LIKE 'failed%' THEN 1 ELSE 0 END) as failed \nFROM public.notification_log \nWHERE sent_at > NOW() - INTERVAL '1 hour';"
+      },
+      "name": "Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_SUPABASE_CREDENTIAL_ID"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$node[\"Supabase\"].json[\"total\"]}}",
+              "operation": "larger",
+              "value2": 10
+            },
+            {
+              "value1": "={{($node[\"Supabase\"].json[\"failed\"] / $node[\"Supabase\"].json[\"total\"]) * 100}}",
+              "operation": "larger",
+              "value2": 10
+            }
+          ]
+        }
+      },
+      "name": "IF Failure > 10%",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        650,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "owner": "profetasdelcodigo",
+        "repository": "Learn-Up",
+        "title": "ALERTA: Tasa de fallo en notificaciones push elevada",
+        "body": "Se ha detectado una tasa de fallo del {{Math.round(($node[\"Supabase\"].json[\"failed\"] / $node[\"Supabase\"].json[\"total\"]) * 100)}}% en las últimas 24 horas.\nTotal: {{$node[\"Supabase\"].json[\"total\"]}}\nFallos: {{$node[\"Supabase\"].json[\"failed\"]}}",
+        "labels": [
+          "bug",
+          "critical",
+          "automated-alert"
+        ]
+      },
+      "name": "GitHub Issue",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1,
+      "position": [
+        850,
+        280
+      ],
+      "credentials": {
+        "githubApi": {
+          "id": "YOUR_GITHUB_CREDENTIAL_ID"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase": {
+      "main": [
+        [
+          {
+            "node": "IF Failure > 10%",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Failure > 10%": {
+      "main": [
+        [
+          {
+            "node": "GitHub Issue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

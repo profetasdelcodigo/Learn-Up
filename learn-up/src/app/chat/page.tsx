@@ -862,13 +862,13 @@ export default function ChatPage() {
                     <ChevronLeft className="w-5 h-5" />
                   </button>
 
-                  <h1 className="text-base font-bold text-center flex-1 bg-linear-to-r from-brand-gold via-white to-brand-gold bg-clip-text text-transparent">
+                  <h1 className="text-base font-bold text-center flex-1 bg-gradient-to-r from-violet-400 to-purple-400 bg-clip-text text-transparent">
                     Aprendamos Juntos
                   </h1>
 
                   <button
                     onClick={() => setShowCreateGroup(true)}
-                    className="flex items-center justify-center w-9 h-9 rounded-full bg-brand-gold/10 border border-brand-gold/30 text-brand-gold hover:bg-brand-gold hover:text-brand-black transition-all shrink-0"
+                    className="flex items-center justify-center w-9 h-9 rounded-full bg-brand-violet/10 border border-brand-violet/30 text-brand-violet hover:bg-brand-violet hover:text-white transition-all shrink-0"
                     title="Crear Nuevo Grupo"
                   >
                     <Plus className="w-5 h-5" />
@@ -876,7 +876,7 @@ export default function ChatPage() {
                 </div>
 
                 {/* Tabs */}
-                <div className="flex p-1 bg-surface-2 rounded-xl">
+                <div className="flex p-1 bg-surface-3 rounded-xl mb-4">
                   <button
                     onClick={() => {
                       setSidebarTab("chats");
@@ -884,7 +884,7 @@ export default function ChatPage() {
                     }}
                     className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all ${
                       sidebarTab === "chats"
-                        ? "bg-brand-gold text-brand-black shadow-lg"
+                        ? "bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-lg shadow-violet-500/20"
                         : "text-gray-400 hover:text-white"
                     }`}
                   >
@@ -897,7 +897,7 @@ export default function ChatPage() {
                     }}
                     className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all ${
                       sidebarTab === "friends"
-                        ? "bg-brand-gold text-brand-black shadow-lg"
+                        ? "bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-lg shadow-violet-500/20"
                         : "text-gray-400 hover:text-white"
                     }`}
                   >
@@ -911,7 +911,7 @@ export default function ChatPage() {
                     }}
                     className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all ${
                       sidebarTab === "search"
-                        ? "bg-brand-gold text-brand-black shadow-lg"
+                        ? "bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-lg shadow-violet-500/20"
                         : "text-gray-400 hover:text-white"
                     }`}
                   >
@@ -921,14 +921,14 @@ export default function ChatPage() {
 
                 {/* Dynamic Search/Filter Bar */}
                 <div className="relative group">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-brand-gold transition-colors" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-brand-violet transition-colors" />
                   {sidebarTab === "search" ? (
                     <input
                       type="text"
                       placeholder="Buscar @usuario..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 bg-surface-2/50 border border-white/6 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold/50 transition-all"
+                      className="w-full pl-10 pr-4 py-2 bg-surface-3/50 border border-white/6 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-violet/50 transition-all"
                       autoFocus
                     />
                   ) : (
@@ -941,7 +941,7 @@ export default function ChatPage() {
                       }
                       value={localFilter}
                       onChange={(e) => setLocalFilter(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 bg-surface-2/50 border border-white/6 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold/50 transition-all"
+                      className="w-full pl-10 pr-4 py-2 bg-surface-3/50 border border-white/6 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-violet/50 transition-all"
                     />
                   )}
                 </div>
@@ -1028,31 +1028,51 @@ export default function ChatPage() {
                       filteredRooms.map((room) => {
                         const info = getRoomInfo(room);
                         const isActive = activeChat === room.id;
+                        const isLive = room.last_message?.startsWith("[CALL_OFFER");
+
                         return (
                           <div
                             key={room.id}
                             onClick={() => handleSelectRoom(room.id)}
-                            className={`p-3 rounded-xl cursor-pointer transition-all mx-2 group border ${
+                            className={`p-3 rounded-2xl cursor-pointer transition-all mx-2 group border relative overflow-hidden ${
                               isActive
-                                ? "bg-brand-gold/10 border-brand-gold/30 shadow-[0_0_15px_-5px_var(--brand-gold)]"
+                                ? "bg-brand-violet/10 border-brand-violet/30 shadow-glow-violet/20"
                                 : "border-transparent hover:bg-white/5 hover:border-white/6"
                             }`}
                           >
+                            {isLive && (
+                              <div className="absolute top-0 right-0 p-1">
+                                <motion.div
+                                  animate={{ opacity: [0.5, 1, 0.5] }}
+                                  transition={{ duration: 2, repeat: Infinity }}
+                                  className="px-2 py-0.5 bg-red-500 text-[10px] font-bold text-white rounded-bl-xl rounded-tr-xl flex items-center gap-1"
+                                >
+                                  <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                                  EN VIVO
+                                </motion.div>
+                              </div>
+                            )}
+
                             <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 rounded-full bg-surface-2 border border-white/10 overflow-hidden flex items-center justify-center">
-                                {info.avatar_url ? (
-                                  <img
-                                    src={info.avatar_url}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <Users className="w-5 h-5 text-gray-400" />
+                              <div className="relative">
+                                <div className={`w-12 h-12 rounded-full bg-surface-3 border ${isActive ? "border-brand-violet/50" : "border-white/10"} overflow-hidden flex items-center justify-center`}>
+                                  {info.avatar_url ? (
+                                    <img
+                                      src={info.avatar_url}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <Users className={`w-5 h-5 ${isActive ? "text-brand-violet" : "text-gray-400"}`} />
+                                  )}
+                                </div>
+                                {info.status === "online" && (
+                                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-surface-2 rounded-full" />
                                 )}
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex justify-between items-center mb-0.5">
                                   <h3
-                                    className={`font-bold truncate max-w-[70%] ${isActive ? "text-brand-gold" : "text-white"}`}
+                                    className={`font-bold truncate max-w-[70%] text-sm ${isActive ? "text-brand-violet" : "text-white"}`}
                                   >
                                     {info.name}
                                   </h3>
@@ -1064,8 +1084,12 @@ export default function ChatPage() {
                                     />
                                   )}
                                 </div>
-                                <p className="text-xs text-gray-400 truncate">
-                                  {room.last_message || "Iniciar chat..."}
+                                <p className="text-xs text-gray-500 truncate">
+                                  {isLive ? (
+                                    <span className="text-brand-violet font-medium">Llamada en curso...</span>
+                                  ) : (
+                                    room.last_message || "Iniciar chat..."
+                                  )}
                                 </p>
                               </div>
                             </div>
@@ -1780,16 +1804,74 @@ export default function ChatPage() {
                   </>
                 )
               ) : (
-                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[url('/grid-pattern.svg')] bg-opacity-5">
-                  <div className="w-24 h-24 bg-brand-blue-glow/10 rounded-full flex items-center justify-center mb-6 animate-pulse">
-                    <MessageCircle className="w-12 h-12 text-brand-blue-glow" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-white mb-2">
-                    Aprendamos Juntos
-                  </h2>
-                  <p className="text-gray-400 max-w-md">
-                    Selecciona una conversación para empezar a chatear.
-                  </p>
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[url('/grid-pattern.svg')] bg-opacity-5 relative overflow-hidden">
+                  {/* Decorative Orbs */}
+                  <motion.div
+                    animate={{
+                      scale: [1, 1.2, 1],
+                      opacity: [0.3, 0.5, 0.3],
+                    }}
+                    transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+                    className="absolute top-1/4 left-1/4 w-64 h-64 bg-brand-violet/20 rounded-full blur-[100px] -z-10"
+                  />
+                  <motion.div
+                    animate={{
+                      scale: [1, 1.3, 1],
+                      opacity: [0.2, 0.4, 0.2],
+                    }}
+                    transition={{ duration: 10, repeat: Infinity, ease: "linear", delay: 2 }}
+                    className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-brand-indigo/10 rounded-full blur-[120px] -z-10"
+                  />
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8 }}
+                    className="relative z-10 flex flex-col items-center"
+                  >
+                    <div className="w-24 h-24 bg-gradient-to-br from-brand-violet to-brand-indigo rounded-3xl flex items-center justify-center mb-8 shadow-glow-violet rotate-12 hover:rotate-0 transition-transform duration-500">
+                      <MessageCircle className="w-12 h-12 text-white" />
+                    </div>
+                    
+                    <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-violet-400 to-purple-400 bg-clip-text text-transparent">
+                      Aprendamos Juntos
+                    </h2>
+                    
+                    <p className="text-gray-400 max-w-md text-lg mb-8 leading-relaxed">
+                      Conéctate con tus compañeros, resuelve dudas y colabora en tiempo real con audio y video de alta calidad.
+                    </p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-lg">
+                      <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xl flex items-center gap-4 text-left">
+                        <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center shrink-0">
+                          <Users className="w-5 h-5 text-violet-400" />
+                        </div>
+                        <div>
+                          <h4 className="text-white font-semibold text-sm">Grupos de Estudio</h4>
+                          <p className="text-xs text-gray-500">Crea salas para tus materias favoritas.</p>
+                        </div>
+                      </div>
+                      <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xl flex items-center gap-4 text-left">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center shrink-0">
+                          <Video className="w-5 h-5 text-indigo-400" />
+                        </div>
+                        <div>
+                          <h4 className="text-white font-semibold text-sm">Videollamadas HD</h4>
+                          <p className="text-xs text-gray-500">Estudia cara a cara con tus amigos.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setSidebarTab("search")}
+                      className="mt-12 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 rounded-xl px-8 py-4 font-bold text-white transition-all duration-300 shadow-lg shadow-violet-500/25 flex items-center gap-3"
+                    >
+                      <UserPlus className="w-5 h-5" />
+                      Buscar compañeros
+                    </motion.button>
+                  </motion.div>
                 </div>
               )}
             </div>
