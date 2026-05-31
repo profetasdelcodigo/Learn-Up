@@ -26,6 +26,17 @@ export async function trackCurrentSession(userAgent?: string | null) {
   const device = parseUserAgent(userAgent);
   const now = new Date().toISOString();
 
+  const { data: existingSession } = await supabase
+    .from("user_sessions")
+    .select("revoked_at")
+    .eq("user_id", user.id)
+    .eq("session_id", sessionId)
+    .maybeSingle();
+
+  if (existingSession?.revoked_at) {
+    return { user, sessionId, revoked: true };
+  }
+
   await supabase.from("user_sessions").upsert(
     {
       user_id: user.id,
@@ -39,5 +50,5 @@ export async function trackCurrentSession(userAgent?: string | null) {
     { onConflict: "user_id,session_id" },
   );
 
-  return { user, sessionId };
+  return { user, sessionId, revoked: false };
 }
