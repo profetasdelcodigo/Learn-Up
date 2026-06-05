@@ -182,11 +182,7 @@ function ParticipantTileCard({
 
   return (
     <div
-      className={`relative shrink-0 rounded-xl overflow-hidden border-2 transition-all duration-200 bg-brand-black ${
-        isSpeaking
-          ? "border-brand-gold shadow-[0_0_16px_rgba(212,175,55,0.6)]"
-          : "border-white/6"
-      }`}
+      className={`relative shrink-0 rounded-3xl overflow-hidden border transition-all duration-300 bg-zinc-900 ${isSpeaking ? "border-[#00a884] shadow-[0_0_20px_rgba(0,168,132,0.4)]" : "border-white/10"}`}
       style={{ width: "100%", aspectRatio: "16/9" }}
     >
       {/* Camera or avatar */}
@@ -215,7 +211,7 @@ function ParticipantTileCard({
       )}
 
       {/* Bottom status bar */}
-      <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-1.5 py-1 bg-linear-to-t from-black/80 to-transparent">
+      <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between px-3 py-1.5 bg-black/50 backdrop-blur-md rounded-2xl border border-white/10">
         <span className="text-white text-[9px] font-medium truncate max-w-[60%]">
           {displayName}
           {isLocal && <span className="text-brand-gold ml-0.5">(Tú)</span>}
@@ -760,7 +756,7 @@ function VideoRoomInner({
         <div className="flex-1 flex flex-col overflow-hidden relative">
           {/* Mode tabs — only for privileged users */}
           {canShare && (
-            <div className="flex items-center gap-1 px-3 py-1.5 bg-zinc-900 border-b border-brand-gold/10 shrink-0">
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full shrink-0 z-50 shadow-2xl">
               <button
                 onClick={() => {
                   setPresentationMode("whiteboard");

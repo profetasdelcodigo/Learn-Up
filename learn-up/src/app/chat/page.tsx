@@ -1332,21 +1332,219 @@ export default function ChatPage() {
                           className="p-2.5 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-brand-gold"
                           title="Iniciar Videollamada"
                         >
+                                position: "absolute",
+                                right: 16,
+                                top: 80,
+                                width: 320,
+                                height: 480,
+                                zIndex: 50,
+                                borderRadius: 16,
+                                opacity: 1,
+                                scale: 1,
+                              }
+                            : {
+                                position: "absolute",
+                                inset: 0,
+                                zIndex: 50,
+                                borderRadius: 0,
+                                opacity: 1,
+                                scale: 1,
+                              }
+                        }
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        className="bg-brand-black shadow-2xl overflow-hidden flex flex-col border border-brand-gold/30"
+                      >
+                        <div className="absolute top-4 left-4 z-50 flex gap-2">
+                          <button
+                            onClick={() => setIsMinimizedCall(!isMinimizedCall)}
+                            className="p-2 bg-black/50 hover:bg-black/80 border border-white/10 rounded-full text-white backdrop-blur-md transition-all shadow-lg"
+                            title={isMinimizedCall ? "Maximizar Llamada" : "Minimizar a PIP"}
+                          >
+                            {isMinimizedCall ? <Monitor className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        <VideoRoom
+                          roomName={`learn-up-${activeChat}`}
+                          username={currentProfile?.full_name || "Usuario"}
+                          role={currentProfile?.role || "estudiante"}
+                          isCreator={isCallCreator}
+                          onLeave={async () => {
+                            setShowVideo(false);
+                            setShowWhiteboard(false);
+                            setIsMinimizedCall(false);
+                            await sendMessageAction(
+                              activeChat,
+                              isVideoCall
+                                ? "[CALL_ENDED_VIDEO]"
+                                : "[CALL_ENDED_VOICE]",
+                            );
+                          }}
+                          videoEnabled={isVideoCall}
+                        />
+                        <AnimatePresence>
+                          {showWhiteboard && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.95 }}
+                              className="absolute inset-4 md:inset-12 z-60 bg-white rounded-2xl shadow-2xl overflow-hidden border-2 border-brand-gold"
+                            >
+                              <div className="w-full h-full relative">
+                                <Whiteboard roomId={activeChat || "temp-room"} />
+                                <button
+                                  onClick={() => setShowWhiteboard(false)}
+                                  className="absolute top-4 right-4 p-2 bg-red-500/10 text-red-500 hover:bg-red-500/20 rounded-full z-10 transition-colors"
+                                >
+                                  <X className="w-5 h-5" />
+                                </button>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <>
+                    {/* Chat Header */}
+                    <div
+                      className="px-4 pb-3 border-b border-white/6 flex items-center justify-between bg-[#202c33]/90 backdrop-blur-xl z-20 shrink-0"
+                      style={{
+                        paddingTop: "calc(env(safe-area-inset-top) + 0.75rem)",
+                      }}
+                    >
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={() => setMobileShowChat(false)}
+                          className="md:hidden flex items-center justify-center w-9 h-9 rounded-full bg-surface-2 border border-white/6 text-gray-400 hover:text-white hover:border-brand-gold/40 transition-all shrink-0"
+                        >
+                          <ChevronLeft className="w-5 h-5" />
+                        </button>
+
+                        {(() => {
+                          const activeRoom = rooms.find(
+                            (r) => r.id === activeChat,
+                          );
+                          if (!activeRoom) return null;
+
+                          // Use fetch profiles if available, fallback to existing logic
+                          let name = activeRoom.name;
+                          let avatarUrl = activeRoom.avatar_url;
+                          let statusInfo = "";
+                          let userTarget: any = null;
+
+                          if (activeRoom.type === "private") {
+                            // null-safe participants access
+                            const participants = Array.isArray(
+                              activeRoom.participants,
+                            )
+                              ? activeRoom.participants
+                              : [];
+                            const otherId = participants.find(
+                              (id) => id !== currentUserId,
+                            );
+                            // Try to find in room profiles first (more reliable)
+                            const profile =
+                              activeRoom.participants_profiles?.find(
+                                (p) => p.id === otherId,
+                              );
+                            // Fallback to friends list
+                            const friend = friends.find(
+                              (f) => f.id === otherId,
+                            );
+
+                            userTarget = profile || friend;
+
+                            if (userTarget) {
+                              name = userTarget.full_name;
+                              avatarUrl = userTarget.avatar_url;
+                              if (userTarget.school) {
+                                statusInfo = `${userTarget.school} ${userTarget.grade ? `| ${userTarget.grade}` : ""}`;
+                              }
+                            }
+                          }
+
+                          return (
+                            <div
+                              className="flex items-center gap-3 cursor-pointer hover:bg-white/5 p-2 rounded-xl transition-all"
+                              onClick={() => {
+                                if (activeRoom.type === "group") {
+                                  setShowGroupInfo(true);
+                                } else if (userTarget) {
+                                  setActiveUserTarget(userTarget);
+                                  setShowUserInfo(true);
+                                }
+                              }}
+                            >
+                              <div className="w-10 h-10 rounded-full bg-surface-2 overflow-hidden flex items-center justify-center">
+                                {avatarUrl ? (
+                                  <img
+                                    src={avatarUrl}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <Users className="w-5 h-5 text-gray-400" />
+                                )}
+                              </div>
+                              <div>
+                                <h2 className="font-bold text-white flex items-center gap-2">
+                                  {name}
+                                  {activeRoom.type === "group" && (
+                                    <span className="text-[10px] px-1.5 py-0.5 bg-brand-gold/20 text-brand-gold rounded font-mono uppercase">
+                                      GRUPO
+                                    </span>
+                                  )}
+                                </h2>
+                                {activeRoom.type === "private" &&
+                                  statusInfo && (
+                                    <p className="text-xs text-brand-gold/80 flex items-center gap-1">
+                                      {statusInfo}
+                                    </p>
+                                  )}
+                                {activeRoom.type === "group" && (
+                                  <p className="text-xs text-gray-400">
+                                    {activeRoom.participants.length} miembros •
+                                    Toca para info
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+
+                      {/* Header Actions */}
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => startCall(false)}
+                          className="p-2.5 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-brand-gold"
+                          title="Llamada de Voz"
+                        >
+                          <Phone className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => startCall(true)}
+                          className="p-2.5 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-brand-gold"
+                          title="Iniciar Videollamada"
+                        >
                           <Video className="w-5 h-5" />
                         </button>
                       </div>
                     </div>
 
                     {/* Messages Area */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-[url('/grid-pattern.svg')] bg-opacity-5">
-                      {messages.map((msg) => {
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-[#0b141a] bg-[url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')] bg-cover bg-fixed bg-center">
+                      {messages.map((msg, idx) => {
                         const isMe = msg.user_id === currentUserId;
                         const senderAvatar = msg.profiles?.avatar_url;
                         const senderInitial = (msg.profiles?.full_name || "?")[0].toUpperCase();
                         return (
-                          <div
+                          <motion.div
+                            initial={{ opacity: 0, y: 15, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            transition={{ duration: 0.2, ease: "easeOut" }}
                             key={msg.id}
-                            className={`flex items-end gap-2 ${isMe ? "justify-end" : "justify-start"} group animate-in slide-in-from-bottom-2 duration-300`}
+                            className={`flex items-end gap-2 ${isMe ? "justify-end" : "justify-start"} group`}
                           >
                             {/* Avatar for incoming messages */}
                             {!isMe && (
@@ -1359,11 +1557,7 @@ export default function ChatPage() {
                               </div>
                             )}
                             <div
-                              className={`max-w-[85%] md:max-w-[70%] p-3 pb-6 shadow-sm relative flex flex-col gap-1 ${
-                                isMe
-                                  ? "bg-brand-blue-glow/20 text-white rounded-2xl rounded-tr-sm border border-brand-blue-glow/30 shadow-[0_0_15px_-5px_var(--brand-blue-glow)]"
-                                  : "bg-surface-2/80 backdrop-blur-sm text-white rounded-2xl rounded-tl-sm border border-white/6"
-                              }`}
+                              className={`max-w-[85%] md:max-w-[70%] p-2 pb-5 relative flex flex-col gap-1 ${isMe ? "bg-[#005c4b]/95 backdrop-blur-md text-white rounded-2xl rounded-tr-md border border-[#005c4b] shadow-md" : "bg-[#202c33]/95 backdrop-blur-md text-white rounded-2xl rounded-tl-md border border-white/5 shadow-md"}`}
                             >
                               {msg.is_deleted_for_everyone ? (
                                 <p className="italic text-sm opacity-70 flex items-center gap-2">
@@ -1590,7 +1784,7 @@ export default function ChatPage() {
                                         minute: "2-digit",
                                       })}
                                     </span>
-                                    {isMe && <CheckCheck className="w-3.5 h-3.5 text-brand-blue-glow ml-0.5" />}
+                                    {isMe && <CheckCheck className="w-4 h-4 text-[#53bdeb] ml-0.5" />}
                                   </div>
                                 </>
                               )}
@@ -1727,7 +1921,7 @@ export default function ChatPage() {
                         </div>
                       )}
 
-                      <div className="relative flex items-end gap-2 bg-surface-2/50 p-2 rounded-2xl border border-white/6 focus-within:border-brand-gold/50 transition-colors">
+                      <div className="relative flex items-end gap-2 bg-[#202c33] p-1.5 rounded-full border border-white/10 shadow-lg transition-colors">
                         {/* Paperclip — all file types */}
                         <button
                           className="p-3 text-gray-400 hover:text-brand-gold hover:bg-brand-gold/10 rounded-full transition-colors"
@@ -1813,7 +2007,7 @@ export default function ChatPage() {
                               ? !editContent
                               : !input && !pendingFile)
                           }
-                          className="p-3 bg-brand-blue-glow/20 text-brand-blue-glow rounded-xl hover:bg-brand-blue-glow hover:text-white border border-brand-blue-glow/30 shadow-[0_0_15px_-5px_var(--brand-blue-glow)] transition-all disabled:opacity-50 disabled:shadow-none disabled:bg-surface-2 disabled:border-white/6 disabled:text-gray-500"
+                          className="p-3.5 bg-[#00a884] text-white rounded-full hover:bg-[#008f6f] shadow-lg transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
                         >
                           {uploadingMedia ? (
                             <Loader2 className="w-5 h-5 animate-spin" />
@@ -1838,8 +2032,7 @@ export default function ChatPage() {
                   </p>
                 </div>
               )}
-            </div>
-
+            </motion.div>
             {/* Modals */}
             <CreateGroupModal
               isOpen={showCreateGroup}
