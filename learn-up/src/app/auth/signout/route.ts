@@ -40,8 +40,6 @@ export async function POST(request: NextRequest) {
     if (sessionId && uniqueSessionIds.includes(sessionId)) {
       await supabase.auth.signOut({ scope: "local" });
     }
-  } else {
-    await supabase.auth.signOut({ scope });
   }
 
   if (requestedSessionIds.length === 0 && scope === "local" && sessionId) {
@@ -61,6 +59,10 @@ export async function POST(request: NextRequest) {
       .from("user_sessions")
       .update({ revoked_at: now })
       .eq("user_id", user.id);
+  }
+
+  if (requestedSessionIds.length === 0) {
+    await supabase.auth.signOut({ scope });
   }
 
   // Use the request's origin for the redirect (works in local and production)

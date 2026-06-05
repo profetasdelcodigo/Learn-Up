@@ -71,11 +71,6 @@ export async function POST(req: NextRequest) {
     return response;
   }
 
-  const { error } = await supabase.auth.signOut({ scope });
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
   if (scope === "local" && sessionId) {
     await supabase
       .from("user_sessions")
@@ -93,6 +88,11 @@ export async function POST(req: NextRequest) {
       .from("user_sessions")
       .update({ revoked_at: now })
       .eq("user_id", user.id);
+  }
+
+  const { error } = await supabase.auth.signOut({ scope });
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   const response = NextResponse.json({ ok: true, scope });

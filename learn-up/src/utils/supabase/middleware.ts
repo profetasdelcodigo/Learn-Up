@@ -3,6 +3,34 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const BYPASS_PATHS = new Set(["/sw.js", "/manifest.json", "/robots.txt"]);
 
+function getSessionIdFromJwt(token?: string | null) {
+  const payload = token?.split(".")[1];
+  if (!payload) return null;
+
+  try {
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(
+      normalized.length + ((4 - (normalized.length % 4)) % 4),
+      "=",
+    );
+    const decoded = JSON.parse(globalThis.atob(padded));
+    return typeof decoded.session_id === "string" ? decoded.session_id : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearSupabaseCookies(request: NextRequest, response: NextResponse) {
+  request.cookies.getAll().forEach((cookie) => {
+    if (cookie.name.startsWith("sb-")) {
+      response.cookies.set(cookie.name, "", {
+        expires: new Date(0),
+        path: "/",
+      });
+    }
+  });
+}
+
 function isStaticBypass(pathname: string): boolean {
   return (
     BYPASS_PATHS.has(pathname) ||
@@ -66,6 +94,30 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.endsWith(".html") ||
     request.nextUrl.pathname.includes("opengraph-image") ||
     request.nextUrl.pathname.includes("icon");
+
+  if (user && !isAuthRoute && !isBypass) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const sessionId = getSessionIdFromJwt(session?.access_token);
+
+    if (sessionId) {
+      const { data: trackedSession } = await supabase
+        .from("user_sessions")
+        .select("revoked_at")
+        .eq("user_id", user.id)
+        .eq("session_id", sessionId)
+        .maybeSingle();
+
+      if (trackedSession?.revoked_at) {
+        const response = isPublicRoute
+          ? NextResponse.next({ request })
+          : NextResponse.redirect(new URL("/login?reason=session_closed", request.url));
+        clearSupabaseCookies(request, response);
+        return response;
+      }
+    }
+  }
 
   // Redirect authenticated users away from public routes
   if (user && isPublicRoute) {

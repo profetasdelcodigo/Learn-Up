@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { createClient } from "@/utils/supabase/client";
 import { useSetAtom } from "jotai";
@@ -32,7 +32,7 @@ export default function SignOutModal({
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
   const addToast = useSetAtom(addToastAtom);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     setMounted(true);
@@ -97,6 +97,15 @@ export default function SignOutModal({
     );
   }
 
+  function postSignOut(payload: Record<string, unknown>) {
+    return fetch("/api/auth/signout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      keepalive: true,
+    });
+  }
+
   const signOutSelected = async () => {
     if (selectedSessionIds.length === 0) {
       addToast({ message: "Selecciona al menos una sesion", type: "info" });
@@ -105,11 +114,7 @@ export default function SignOutModal({
 
     setSubmitting("selected");
     try {
-      const res = await fetch("/api/auth/signout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_ids: selectedSessionIds }),
-      });
+      const res = await postSignOut({ session_ids: selectedSessionIds });
       if (!res.ok) throw new Error("signout_failed");
 
       const closesCurrentSession = sessions.some(
@@ -135,11 +140,18 @@ export default function SignOutModal({
   const signOut = async (scope: "local" | "others" | "global") => {
     setSubmitting(scope);
     try {
-      const res = await fetch("/api/auth/signout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scope }),
-      });
+      const request = postSignOut({ scope });
+
+      if (scope === "local" || scope === "global") {
+        await Promise.race([
+          request,
+          new Promise((resolve) => window.setTimeout(resolve, 1200)),
+        ]);
+        await finishLocalSignOut();
+        return;
+      }
+
+      const res = await request;
       if (!res.ok) throw new Error("signout_failed");
 
       if (scope === "others") {
@@ -149,7 +161,6 @@ export default function SignOutModal({
         return;
       }
 
-      await finishLocalSignOut();
     } catch {
       setSubmitting(null);
       addToast({ message: "No se pudo cerrar la sesion", type: "error" });
