@@ -4,7 +4,8 @@ import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
 import {
   createServerNotification,
-  sendWebPushToUser,
+  createServerNotifications,
+  sendWebPushToUsers,
 } from "@/utils/server-notifications";
 
 // ─── SAFETY HELPER ───────────────────────────────────────────────────────────
@@ -475,8 +476,8 @@ export async function sendMessage(
         ];
         const isSystemMsg = SYSTEM_TOKENS.some((t) => content.includes(t));
 
-        const notificationPromises: Promise<void>[] = [];
-        const pushPromises: Promise<void>[] = [];
+        const notificationsToInsert: Parameters<typeof createServerNotifications>[0] = [];
+        const pushRecipients: string[] = [];
         const { data: senderData } = await supabase
           .from("profiles")
           .select("full_name")
@@ -484,7 +485,6 @@ export async function sendMessage(
           .single();
         const senderName = senderData?.full_name || "Alguien";
 
-        // Explicitly insert for each recipient as requested
         for (const recipientId of recipients) {
           const title =
             room.type === "group"
@@ -492,7 +492,6 @@ export async function sendMessage(
               : "Nuevo Mensaje";
           const msgContent = content.substring(0, 80);
 
-          // Skip in-app notification for minor system messages, but INCLUDE calls
           const shouldNotifyInApp =
             !isSystemMsg || content.includes("[CALL_OFFER");
 
@@ -511,21 +510,22 @@ export async function sendMessage(
               notificationMessage = "Entra para responder ahora.";
             }
 
-            notificationPromises.push(createServerNotification({
+            notificationsToInsert.push({
               user_id: recipientId,
               sender_id: user.id,
               title: notificationTitle,
               message: notificationMessage,
               type: notificationType,
-              link: `/chat`,
+              link: "/chat",
               is_read: false,
               created_at: new Date().toISOString(),
               room_id: roomId,
-              event_type: notificationType === "video_call"
-                ? "chat.video_call"
-                : notificationType === "call"
-                  ? "chat.voice_call"
-                  : "chat.message",
+              event_type:
+                notificationType === "video_call"
+                  ? "chat.video_call"
+                  : notificationType === "call"
+                    ? "chat.voice_call"
+                    : "chat.message",
               source: "chat",
               priority:
                 notificationType === "video_call" || notificationType === "call"
@@ -536,39 +536,30 @@ export async function sendMessage(
                 room_type: room.type,
                 room_name: room.name || null,
               },
-            }));
+            });
           }
 
-          // Dispatch Native Web Push
-          // JUSTIFICACIÓN: Se requiere createAdminClient para consultar la tabla push_subscriptions
-          // del destinatario. Por seguridad y privacidad, las políticas de RLS restringen la lectura
-          // de suscripciones de push a su propio usuario, por lo que el emisor necesita privilegios
-          // de admin para obtener el endpoint de push del destinatario.
-          try {
-              const pushTitle = content.includes("[CALL_OFFER_VIDEO]")
-                ? `Videollamada de: ${senderName}`
-                : content.includes("[CALL_OFFER_VOICE]")
-                  ? `Llamada de: ${senderName}`
-                  : `Nuevo mensaje de: ${senderName}`;
-
-              const filteredContent = content.startsWith("[CALL_OFFER")
-                ? "Entra para responder."
-                : msgContent;
-
-              pushPromises.push(sendWebPushToUser(recipientId, {
-                title: pushTitle,
-                message: filteredContent,
-                link: "/chat",
-              }));
-          } catch (pushErr) {
-            console.error(
-              "Push scheduling failed for user",
-              recipientId,
-              pushErr,
-            );
-          }
+          pushRecipients.push(recipientId);
         }
-        await Promise.all([...notificationPromises, ...pushPromises]);
+
+        const pushTitle = content.includes("[CALL_OFFER_VIDEO]")
+          ? `Videollamada de: ${senderName}`
+          : content.includes("[CALL_OFFER_VOICE]")
+            ? `Llamada de: ${senderName}`
+            : `Nuevo mensaje de: ${senderName}`;
+
+        const filteredContent = content.startsWith("[CALL_OFFER")
+          ? "Entra para responder."
+          : content.substring(0, 80);
+
+        await Promise.all([
+          createServerNotifications(notificationsToInsert),
+          sendWebPushToUsers(pushRecipients, () => ({
+            title: pushTitle,
+            message: filteredContent,
+            link: "/chat",
+          })),
+        ]);
       }
     } catch (e) {
       console.error("Error sending notifications logic:", e);
