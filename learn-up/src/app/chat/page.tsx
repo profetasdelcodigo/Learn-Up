@@ -33,6 +33,7 @@ import {
   FileText,
   Music,
   StopCircle,
+  Monitor,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
@@ -162,6 +163,7 @@ export default function ChatPage() {
   const [activeChat, setActiveChat] = useState<string | null>(null);
   const [mobileShowChat, setMobileShowChat] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
+  const [isMinimizedCall, setIsMinimizedCall] = useState(false);
   const [showWhiteboard, setShowWhiteboard] = useState(false);
 
   // New Tab State
@@ -844,8 +846,10 @@ export default function ChatPage() {
             animate={{ x: 0, opacity: 1 }}
             transition={{ delay: 0.2, duration: 0.5 }}
             className={`${
-              mobileShowChat || showVideo ? "hidden" : "flex"
-            } ${showVideo ? "md:hidden" : "md:flex"} w-full md:w-80 border-r border-white/6 flex-col bg-surface-2/40 backdrop-blur-xl relative z-10 transition-all duration-300`}
+              mobileShowChat || (showVideo && !isMinimizedCall) ? "hidden" : "flex"
+            } ${
+              showVideo && !isMinimizedCall ? "md:hidden" : "md:flex"
+            } w-full md:w-80 lg:w-[400px] flex-shrink-0 border-r border-white/6 flex-col bg-surface-2/40 backdrop-blur-xl relative z-10 transition-all duration-300`}
           >
               {/* Sidebar Header */}
             <div
@@ -1125,47 +1129,87 @@ export default function ChatPage() {
               } md:flex flex-1 flex-col bg-transparent relative`}
             >
               {activeChat ? (
-                showVideo ? (
-                  <div className="w-full h-full relative">
-                    <VideoRoom
-                      roomName={`learn-up-${activeChat}`}
-                      username={currentProfile?.full_name || "Usuario"}
-                      role={currentProfile?.role || "estudiante"}
-                      isCreator={isCallCreator}
-                      onLeave={async () => {
-                        setShowVideo(false);
-                        setShowWhiteboard(false);
-                        await sendMessageAction(
-                          activeChat,
-                          isVideoCall
-                            ? "[CALL_ENDED_VIDEO]"
-                            : "[CALL_ENDED_VOICE]",
-                        );
-                      }}
-                      videoEnabled={isVideoCall}
-                    />
-                    <AnimatePresence>
-                      {showWhiteboard && (
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.95 }}
-                          className="absolute inset-4 md:inset-12 z-60 bg-white rounded-2xl shadow-2xl overflow-hidden border-2 border-brand-gold"
-                        >
-                          <div className="w-full h-full relative">
-                            <Whiteboard roomId={activeChat || "temp-room"} />
-                            <button
-                              onClick={() => setShowWhiteboard(false)}
-                              className="absolute top-4 right-4 p-2 bg-red-500/10 text-red-500 hover:bg-red-500/20 rounded-full z-10 transition-colors"
+                <>
+                  <AnimatePresence>
+                    {showVideo && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={
+                          isMinimizedCall
+                            ? {
+                                position: "absolute",
+                                right: 16,
+                                top: 80,
+                                width: 320,
+                                height: 480,
+                                zIndex: 50,
+                                borderRadius: 16,
+                                opacity: 1,
+                                scale: 1,
+                              }
+                            : {
+                                position: "absolute",
+                                inset: 0,
+                                zIndex: 50,
+                                borderRadius: 0,
+                                opacity: 1,
+                                scale: 1,
+                              }
+                        }
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        className="bg-brand-black shadow-2xl overflow-hidden flex flex-col border border-brand-gold/30"
+                      >
+                        <div className="absolute top-4 left-4 z-50 flex gap-2">
+                          <button
+                            onClick={() => setIsMinimizedCall(!isMinimizedCall)}
+                            className="p-2 bg-black/50 hover:bg-black/80 border border-white/10 rounded-full text-white backdrop-blur-md transition-all shadow-lg"
+                            title={isMinimizedCall ? "Maximizar Llamada" : "Minimizar a PIP"}
+                          >
+                            {isMinimizedCall ? <Monitor className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        <VideoRoom
+                          roomName={`learn-up-${activeChat}`}
+                          username={currentProfile?.full_name || "Usuario"}
+                          role={currentProfile?.role || "estudiante"}
+                          isCreator={isCallCreator}
+                          onLeave={async () => {
+                            setShowVideo(false);
+                            setShowWhiteboard(false);
+                            setIsMinimizedCall(false);
+                            await sendMessageAction(
+                              activeChat,
+                              isVideoCall
+                                ? "[CALL_ENDED_VIDEO]"
+                                : "[CALL_ENDED_VOICE]",
+                            );
+                          }}
+                          videoEnabled={isVideoCall}
+                        />
+                        <AnimatePresence>
+                          {showWhiteboard && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.95 }}
+                              className="absolute inset-4 md:inset-12 z-60 bg-white rounded-2xl shadow-2xl overflow-hidden border-2 border-brand-gold"
                             >
-                              <X className="w-5 h-5" />
-                            </button>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                ) : (
+                              <div className="w-full h-full relative">
+                                <Whiteboard roomId={activeChat || "temp-room"} />
+                                <button
+                                  onClick={() => setShowWhiteboard(false)}
+                                  className="absolute top-4 right-4 p-2 bg-red-500/10 text-red-500 hover:bg-red-500/20 rounded-full z-10 transition-colors"
+                                >
+                                  <X className="w-5 h-5" />
+                                </button>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   <>
                     {/* Chat Header */}
                     <div
@@ -1315,10 +1359,10 @@ export default function ChatPage() {
                               </div>
                             )}
                             <div
-                              className={`max-w-[80%] md:max-w-[65%] rounded-2xl p-4 shadow-sm relative ${
+                              className={`max-w-[85%] md:max-w-[70%] p-3 pb-6 shadow-sm relative flex flex-col gap-1 ${
                                 isMe
-                                  ? "bg-brand-blue-glow/20 text-white rounded-tr-sm border border-brand-blue-glow/30 shadow-[0_0_15px_-5px_var(--brand-blue-glow)]"
-                                  : "bg-surface-2/60 backdrop-blur-sm text-white rounded-tl-sm border border-white/6"
+                                  ? "bg-brand-blue-glow/20 text-white rounded-2xl rounded-tr-sm border border-brand-blue-glow/30 shadow-[0_0_15px_-5px_var(--brand-blue-glow)]"
+                                  : "bg-surface-2/80 backdrop-blur-sm text-white rounded-2xl rounded-tl-sm border border-white/6"
                               }`}
                             >
                               {msg.is_deleted_for_everyone ? (
@@ -1358,17 +1402,19 @@ export default function ChatPage() {
                                       className="rounded-lg max-w-full max-h-60"
                                     />
                                   ) : msg.content.startsWith("[audio]") ? (
-                                    <div className="flex flex-col gap-1">
-                                      <p className="text-[10px] opacity-70 flex items-center gap-1 mb-1">
-                                        <span>🎤</span> Mensaje de voz
-                                      </p>
-                                      <audio
-                                        src={msg.content.replace("[audio]", "")}
-                                        controls
-                                        className="max-w-full"
-                                        style={{ height: 36 }}
-                                      />
-                                    </div>
+                                      <div className="flex flex-col gap-1 min-w-[200px]">
+                                        <p className="text-[10px] opacity-70 flex items-center gap-1 mb-1 font-medium">
+                                          <Mic className="w-3 h-3 text-brand-gold" /> Nota de voz
+                                        </p>
+                                        <div className="bg-black/20 rounded-full px-2 py-1 backdrop-blur-sm border border-white/10 shadow-inner">
+                                          <audio
+                                            src={msg.content.replace("[audio]", "")}
+                                            controls
+                                            className="w-full outline-none sepia-[.3] hue-rotate-[180deg] saturate-[2]"
+                                            style={{ height: 32 }}
+                                          />
+                                        </div>
+                                      </div>
                                   ) : msg.content.startsWith("[file:") ? (
                                     <a
                                       href={msg.content.replace(
@@ -1533,8 +1579,9 @@ export default function ChatPage() {
                                   )}
 
                                   <div
-                                    className={`text-[10px] mt-1.5 flex items-center justify-end gap-1 ${isMe ? "text-brand-black/60" : "text-gray-400"}`}
+                                    className={`text-[10px] mt-auto self-end flex items-center justify-end gap-1 ${isMe ? "text-white/70" : "text-gray-400"}`}
                                   >
+                                    {msg.is_edited && <span className="italic mr-1">Editado</span>}
                                     <span>
                                       {new Date(
                                         msg.created_at,
@@ -1543,8 +1590,7 @@ export default function ChatPage() {
                                         minute: "2-digit",
                                       })}
                                     </span>
-                                    {msg.is_edited && <span>• Editado</span>}
-                                    {isMe && <CheckCheck className="w-3 h-3" />}
+                                    {isMe && <CheckCheck className="w-3.5 h-3.5 text-brand-blue-glow ml-0.5" />}
                                   </div>
                                 </>
                               )}
@@ -1778,7 +1824,7 @@ export default function ChatPage() {
                       </div>
                     </div>
                   </>
-                )
+                </>
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[url('/grid-pattern.svg')] bg-opacity-5">
                   <div className="w-24 h-24 bg-brand-blue-glow/10 rounded-full flex items-center justify-center mb-6 animate-pulse">

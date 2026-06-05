@@ -31,7 +31,7 @@ export default function SessionHeartbeat() {
       cancelled = true;
       await Promise.race([
         supabase.auth.signOut({ scope: "local" }),
-        new Promise((resolve) => window.setTimeout(resolve, 800)),
+        new Promise((resolve) => window.setTimeout(resolve, 400)),
       ]).catch(() => {});
       window.location.replace("/login?reason=session_closed");
     };
@@ -51,6 +51,7 @@ export default function SessionHeartbeat() {
       currentSessionId = getSessionIdFromJwt(data.session?.access_token);
     });
 
+    // Listen for UPDATE (revoked_at set) on user_sessions
     const channel = supabase
       .channel("session-revocation")
       .on(
@@ -71,19 +72,32 @@ export default function SessionHeartbeat() {
           }
         },
       )
+      // Also listen for DELETE (row removed entirely)
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "user_sessions" },
+        async (payload) => {
+          const old = payload.old as { session_id?: string };
+          if (currentSessionId && old.session_id === currentSessionId) {
+            await forceLocalSignOut();
+          }
+        },
+      )
       .subscribe();
 
+    // Initial ping + periodic heartbeat (every 30s instead of 5s to reduce load)
     ping();
-    const interval = window.setInterval(ping, 5_000);
+    const interval = window.setInterval(ping, 30_000);
     window.addEventListener("focus", ping);
-    document.addEventListener("visibilitychange", ping);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") ping();
+    });
 
     return () => {
       cancelled = true;
       supabase.removeChannel(channel);
       window.clearInterval(interval);
       window.removeEventListener("focus", ping);
-      document.removeEventListener("visibilitychange", ping);
     };
   }, []);
 

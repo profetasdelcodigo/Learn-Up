@@ -206,7 +206,7 @@ export default function GroupInfoPanel({
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 w-full md:w-96 bg-brand-black border-l border-brand-gold/30 z-40 shadow-2xl overflow-y-auto custom-scrollbar">
+    <div className="fixed md:static inset-y-0 right-0 w-full md:w-80 lg:w-96 bg-surface-2/40 backdrop-blur-xl border-l border-white/6 z-40 md:z-10 shadow-2xl md:shadow-none overflow-y-auto custom-scrollbar flex-shrink-0 transition-all duration-300">
       {/* Header */}
       <div className="sticky top-0 bg-brand-black/95 backdrop-blur-xl border-b border-white/6 p-4 z-10">
         <div className="flex items-center justify-between">

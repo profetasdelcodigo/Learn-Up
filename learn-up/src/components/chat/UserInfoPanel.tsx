@@ -106,7 +106,7 @@ export default function UserInfoPanel({
   const instagram = socialValue(user, "instagram");
 
   return (
-    <div className="fixed inset-y-0 right-0 z-40 w-full overflow-y-auto border-l border-brand-gold/30 bg-brand-black shadow-2xl md:w-96">
+    <div className="fixed md:static inset-y-0 right-0 z-40 md:z-10 w-full overflow-y-auto border-l border-brand-gold/30 bg-surface-2/40 backdrop-blur-xl shadow-2xl md:shadow-none md:w-80 lg:w-96 flex-shrink-0 transition-all duration-300">
       <div className="sticky top-0 z-10 border-b border-white/6 bg-brand-black/95 p-4 backdrop-blur-xl">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-white">Info del Contacto</h2>

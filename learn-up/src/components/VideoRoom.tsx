@@ -69,13 +69,23 @@ function getParticipantDisplayName(
   participant: RemoteParticipant | LocalParticipant,
 ) {
   const metadata = getParticipantMetadata(participant);
-  return (
-    metadata.displayName ||
-    metadata.name ||
-    (participant as any).name ||
-    metadata.username ||
-    "Usuario"
-  );
+  const pName = (participant as any).name || "";
+  const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+  
+  const candidates = [
+    metadata.displayName,
+    metadata.name,
+    pName,
+    metadata.username,
+  ];
+
+  for (const name of candidates) {
+    if (name && typeof name === "string" && !isUUID(name) && name.trim() !== "") {
+      return name.trim();
+    }
+  }
+  
+  return "Usuario";
 }
 
 // ─── Root Component ──────────────────────────────────────────────────────────

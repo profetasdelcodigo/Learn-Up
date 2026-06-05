@@ -41,7 +41,7 @@ export default function SignOutModal({
   const finishLocalSignOut = useCallback(async () => {
     await Promise.race([
       supabase.auth.signOut({ scope: "local" }),
-      new Promise((resolve) => window.setTimeout(resolve, 800)),
+      new Promise((resolve) => window.setTimeout(resolve, 400)),
     ]).catch(() => {});
     window.location.replace("/login");
   }, [supabase]);
@@ -107,6 +107,7 @@ export default function SignOutModal({
   }
 
   const signOutSelected = async () => {
+    if (submitting) return;
     if (selectedSessionIds.length === 0) {
       addToast({ message: "Selecciona al menos una sesion", type: "info" });
       return;
@@ -138,6 +139,7 @@ export default function SignOutModal({
   };
 
   const signOut = async (scope: "local" | "others" | "global") => {
+    if (submitting) return;
     setSubmitting(scope);
     try {
       const request = postSignOut({ scope });
@@ -145,7 +147,7 @@ export default function SignOutModal({
       if (scope === "local" || scope === "global") {
         await Promise.race([
           request,
-          new Promise((resolve) => window.setTimeout(resolve, 1200)),
+          new Promise((resolve) => window.setTimeout(resolve, 600)),
         ]);
         await finishLocalSignOut();
         return;
