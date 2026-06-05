@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Bell, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -22,27 +22,63 @@ export default function Notifications() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showPanel, setShowPanel] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+
+  const handleNewNotification = useCallback(
+    (newNotif: Notification, userId: string | null) => {
+      if (userId && newNotif.user_id === userId) {
+        setNotifications((prev) => [newNotif, ...prev]);
+        setUnreadCount((c) => c + 1);
+      }
+    },
+    [],
+  );
+
+  const fetchNotifications = useCallback(
+    async (userId?: string) => {
+      const resolvedUserId =
+        userId || (await supabase.auth.getUser()).data.user?.id;
+      if (!resolvedUserId) return;
+      const { data } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", resolvedUserId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (data) {
+        setNotifications(data);
+        setUnreadCount(data.filter((n) => !n.is_read).length);
+      }
+    },
+    [supabase],
+  );
 
   useEffect(() => {
-    fetchNotifications();
+    let currentUserId: string | null = null;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    const channel = supabase
-      .channel("public:notifications")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${(async () => (await supabase.auth.getUser()).data.user?.id)()}`, // Filters don't support async/await like this directly in setup usually, handled below
-        },
-        (payload) => {
-          // Robust real-time check in callback
-          handleNewNotification(payload.new as Notification);
-        },
-      )
-      .subscribe();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      currentUserId = user.id;
+      fetchNotifications(user.id);
+
+      channel = supabase
+        .channel(`notifications_panel:${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "notifications",
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            handleNewNotification(payload.new as Notification, currentUserId);
+          },
+        )
+        .subscribe();
+    });
 
     // Click outside to close
     const handleClickOutside = (event: MouseEvent) => {
@@ -57,45 +93,9 @@ export default function Notifications() {
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
     };
-  }, []);
-
-  // Filter hack for Realtime: Subscription receives ALL events if RLS allows,
-  // but "postgres_changes" with filter `user_id=eq.X` works IF we know X.
-  // Better approach: Subscribe generic, filter in callback.
-  async function handleNewNotification(newNotif: Notification) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (user && newNotif.user_id === user.id) {
-      setNotifications((prev) => [newNotif, ...prev]);
-      setUnreadCount((c) => c + 1);
-      // Optional: Toast sound or popup
-    }
-  }
-
-  async function fetchNotifications() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
-
-    // Use channel with correct filter now that we have user
-    // Re-subscribing inside useEffect might be cleaner but let's just fetch for now
-
-    const { data } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(20);
-
-    if (data) {
-      setNotifications(data);
-      setUnreadCount(data.filter((n) => !n.is_read).length);
-    }
-  }
+  }, [fetchNotifications, handleNewNotification, supabase]);
 
   const markAsRead = async (id: string) => {
     await supabase.from("notifications").update({ is_read: true }).eq("id", id);

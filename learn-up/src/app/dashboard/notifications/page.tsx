@@ -120,20 +120,30 @@ export default function NotificationsPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchNotifications();
 
-    const channel = supabase
-      .channel("notifications_dashboard_v3")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "notifications" },
-        () => fetchNotifications(),
-      )
-      .subscribe();
-
     const onFocus = () => fetchNotifications();
     window.addEventListener("focus", onFocus);
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+
+      channel = supabase
+        .channel(`notifications_dashboard:${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "notifications",
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => fetchNotifications(),
+        )
+        .subscribe();
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
       window.removeEventListener("focus", onFocus);
     };
   }, [supabase, fetchNotifications]);

@@ -480,7 +480,7 @@ export async function sendMessage(
         const pushRecipients: string[] = [];
         const { data: senderData } = await supabase
           .from("profiles")
-          .select("full_name")
+          .select("full_name, avatar_url")
           .eq("id", user.id)
           .single();
         const senderName = senderData?.full_name || "Alguien";
@@ -535,6 +535,8 @@ export async function sendMessage(
                 room_id: roomId,
                 room_type: room.type,
                 room_name: room.name || null,
+                sender_name: senderName,
+                sender_avatar: senderData?.avatar_url || null,
               },
             });
           }
