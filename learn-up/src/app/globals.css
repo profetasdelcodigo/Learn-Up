@@ -29,6 +29,12 @@
   /* Spacing base */
   --space-page-x: 1rem;
   --space-page-x-md: 1.5rem;
+  
+  /* WhatsApp Premium Chat Colors */
+  --chat-bg: #0A0A0F;
+  --chat-sent: #005c4b;
+  --chat-received: #202c33;
+  --chat-seen: #53bdeb;
 }
 
 @theme {
@@ -279,6 +285,15 @@ body {
     @apply w-10 h-10 rounded-xl flex items-center justify-center text-lg
            border shadow-lg;
   }
+  
+  /* ── Glassmorphism ── */
+  .glass-strong {
+    @apply bg-black/40 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)];
+  }
+  
+  .glass-light {
+    @apply bg-white/5 backdrop-blur-lg border border-white/5;
+  }
 }
 
 /* ── Global background glows (Optimized for Performance) ── */
@@ -313,6 +328,31 @@ body::after {
    UTILITIES LAYER
 ───────────────────────────────────────────────── */
 @layer utilities {
+  .chat-bg-pattern {
+    background-color: var(--chat-bg);
+    background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+  
+  .chat-bubble-sent {
+    background-color: var(--chat-sent);
+    color: #e9edef;
+    border-radius: 12px;
+    border-top-right-radius: 2px;
+    box-shadow: 0 1px 0.5px rgba(11,20,26,.13);
+  }
+  
+  .chat-bubble-received {
+    background-color: var(--chat-received);
+    color: #e9edef;
+    border-radius: 12px;
+    border-top-left-radius: 2px;
+    box-shadow: 0 1px 0.5px rgba(11,20,26,.13);
+  }
+  
+  .chat-seen-icon {
+    color: var(--chat-seen);
+  }
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
   }
@@ -458,3 +498,9 @@ body::after {
   0%, 100% { opacity: 0.4; }
   50% { opacity: 1; }
 }
+
+@keyframes typing-dot {
+  0%, 100% { transform: translateY(0); opacity: 0.5; }
+  50% { transform: translateY(-4px); opacity: 1; }
+}
+

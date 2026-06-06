@@ -1016,7 +1016,7 @@ function CustomControlBar({
     "p-3 rounded-full transition-all duration-200 hover:scale-110 border border-white/10 flex items-center justify-center";
 
   return (
-    <div className="flex items-center gap-2 bg-black/70 px-5 py-2.5 rounded-2xl border border-brand-gold/20 shadow-2xl backdrop-blur-xl">
+    <div className="flex items-center gap-2 px-5 py-2.5 rounded-2xl glass-strong">
       {/* Mic */}
       <button
         onClick={toggleMic}

@@ -56,6 +56,10 @@ const ToolSchemas: Record<string, z.ZodType> = {
     question_count: z.number().int().min(1).max(50).default(10),
     duration_minutes: z.number().int().min(5).max(240).default(30),
   }),
+  load_claude_skill: z.object({
+    repository: z.string().min(1),
+    skill_name: z.string().min(1),
+  }),
 };
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
@@ -118,6 +122,10 @@ LISTA DE HERRAMIENTAS:
 
 12. create_exam — Generar un examen autocalificable.
     args: {"topic": "Tema", "difficulty": "facil|media|dificil", "question_count": 10, "duration_minutes": 30}
+
+13. load_claude_skill — Cargar un Cookbook o Skill desde los repositorios locales clonados de Claude.
+    args: {"repository": "claude-code|claude-cookbooks|awesome-claude-skills|...", "skill_name": "ej. database, mcp, prompt-engineering"}
+
 
 REGLAS ESTRICTAS DE USO DE HERRAMIENTAS:
 - NO uses herramientas si el usuario solo dice "Hola". Responde rápido y natural.
@@ -592,6 +600,56 @@ Responde con claridad. El profesor puede adaptar esta plantilla a preguntas espe
           message: `Examen preparado sobre "${args.topic}" (${args.question_count} preguntas, dificultad ${args.difficulty}, ${args.duration_minutes} minutos).`,
           data: { ...args, title: `Examen - ${args.topic}`, content },
         };
+      }
+
+      case "load_claude_skill": {
+        const { repository, skill_name } = args;
+        try {
+          const fs = await import("fs/promises");
+          const path = await import("path");
+          const repoPath = path.join(process.cwd(), "src", "lib", "ai", "repositories", repository);
+          
+          try {
+             await fs.access(repoPath);
+          } catch {
+             return { success: false, message: `Repositorio no encontrado: ${repository}` };
+          }
+          
+          const items = await fs.readdir(repoPath, { withFileTypes: true, recursive: true });
+          const matches = items.filter(item => item.name.toLowerCase().includes(skill_name.toLowerCase()));
+          
+          if (matches.length === 0) {
+            return { success: false, message: `No encontré el skill "${skill_name}" en el repositorio "${repository}".` };
+          }
+          
+          const match = matches[0];
+          const itemParentPath = (match as any).parentPath || (match as any).path || repoPath;
+          const matchPath = path.join(itemParentPath, match.name);
+          
+          if (match.isDirectory()) {
+             const subItems = await fs.readdir(matchPath);
+             let content = `Directorio del skill: ${match.name}\nContenido: ${subItems.join(', ')}\n\n`;
+             try {
+                const readme = await fs.readFile(path.join(matchPath, 'README.md'), 'utf-8');
+                content += `README:\n${readme.slice(0, 1500)}...`;
+             } catch {}
+             return {
+                success: true,
+                message: `Skill cargado: ${match.name}\n\n${content}`,
+                data: { content }
+             };
+          } else {
+             const content = await fs.readFile(matchPath, 'utf-8');
+             return {
+                success: true,
+                message: `Skill cargado: ${match.name}\n\n${content.slice(0, 1500)}...`,
+                data: { content }
+             };
+          }
+        } catch (e: any) {
+          console.error("Error loading skill:", e);
+          return { success: false, message: `Error al cargar el skill: ${e.message}` };
+        }
       }
 
       default:

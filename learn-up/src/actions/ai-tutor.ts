@@ -248,19 +248,11 @@ export async function askProfessor(
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { response: "", error: "No autorizado. Por favor inicia sesión." };
 
-    if (!message.trim() && !mediaUrl)
-
-// ── Profesor IA ───────────────────────────────────────────────────────────────
-export async function askProfessor(
-  message: string,
-  history: { role: "user" | "assistant"; content: string | any[] }[] = [],
-  mediaUrl?: string,
-  mediaType?: string,
-): Promise<{ response: string; error?: string; actions?: ToolAction[] }> {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { response: "", error: "No autorizado. Por favor inicia sesión." };
+    const { checkJarvisSecurity } = await import("../lib/ai/jarvis-guard");
+    const securityCheck = await checkJarvisSecurity(null as any, user.id, message);
+    if (!securityCheck.safe) {
+      return { response: securityCheck.message || "Error de seguridad detectado." };
+    }
 
     if (!message.trim() && !mediaUrl)
       return {
@@ -367,6 +359,12 @@ export async function askCounselor(
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { response: "", error: "No autorizado. Por favor inicia sesión." };
+
+    const { checkJarvisSecurity } = await import("../lib/ai/jarvis-guard");
+    const securityCheck = await checkJarvisSecurity(null as any, user.id, problem);
+    if (!securityCheck.safe) {
+      return { response: securityCheck.message || "Error de seguridad detectado." };
+    }
 
     if (!problem.trim() && !mediaUrl)
       return {
@@ -475,6 +473,12 @@ export async function generateRecipe(
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { response: "", error: "No autorizado. Por favor inicia sesión." };
+
+    const { checkJarvisSecurity } = await import("../lib/ai/jarvis-guard");
+    const securityCheck = await checkJarvisSecurity(null as any, user.id, ingredients);
+    if (!securityCheck.safe) {
+      return { response: securityCheck.message || "Error de seguridad detectado." };
+    }
 
     if (!ingredients.trim() && !mediaUrl)
       return {

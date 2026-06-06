@@ -688,7 +688,7 @@ export default function AIChatComponent({
           </AnimatePresence>
 
           {/* ──────────────────── MESSAGES ──────────────────── */}
-          <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 chat-bg-pattern" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 pb-8">
                 <div className="w-20 h-20 rounded-full bg-surface-2 border border-white/6 flex items-center justify-center mb-4">
@@ -715,10 +715,10 @@ export default function AIChatComponent({
                 className={`flex ${message.role === "user" ? "justify-end" : "justify-start group"}`}
               >
                 <div
-                  className={`max-w-[85%] md:max-w-[70%] p-4 rounded-2xl ${
+                  className={`max-w-[85%] md:max-w-[70%] p-3 md:p-4 relative ${
                     message.role === "user"
-                      ? "bg-brand-gold text-brand-black rounded-tr-sm"
-                      : "bg-surface-2 text-white rounded-tl-sm"
+                      ? "chat-bubble-sent"
+                      : "chat-bubble-received"
                   }`}
                 >
                   {message.media_url && message.media_type === "image" && (
@@ -751,9 +751,20 @@ export default function AIChatComponent({
                           <AIMessageContent text={message.content} />
                         </div>
                       ) : (
-                        <p className="whitespace-pre-wrap text-sm md:text-base leading-relaxed">
-                          {message.content}
-                        </p>
+                        <div className="flex items-end justify-between gap-3">
+                          <p className="whitespace-pre-wrap text-sm md:text-base leading-relaxed">
+                            {message.content}
+                          </p>
+                          <div className="flex items-center gap-1 opacity-80 shrink-0 mb-1">
+                            <span className="text-[10px] text-gray-300">
+                              {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            <div className="relative w-4 h-4 ml-0.5">
+                              <Check className="w-4 h-4 chat-seen-icon absolute left-0" />
+                              <Check className="w-4 h-4 chat-seen-icon absolute left-1.5" />
+                            </div>
+                          </div>
+                        </div>
                       )}
                       {message.role === "assistant" && (
                         <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -775,13 +786,17 @@ export default function AIChatComponent({
             {loading && (
               <div className="flex justify-start">
                 <div className="bg-surface-2 rounded-2xl p-4 rounded-tl-sm flex items-center gap-3">
-                  <Loader2 className="w-5 h-5 text-brand-gold animate-spin shrink-0" />
+                  <div className="flex items-center gap-1 opacity-70">
+                    <div className="w-2 h-2 bg-brand-gold rounded-full" style={{ animation: 'typing-dot 1.4s infinite ease-in-out both' }} />
+                    <div className="w-2 h-2 bg-brand-gold rounded-full" style={{ animation: 'typing-dot 1.4s infinite ease-in-out both', animationDelay: '0.2s' }} />
+                    <div className="w-2 h-2 bg-brand-gold rounded-full" style={{ animation: 'typing-dot 1.4s infinite ease-in-out both', animationDelay: '0.4s' }} />
+                  </div>
                   <motion.span 
                     key={loadingMessage}
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -5 }}
-                    className="text-sm text-gray-400 font-medium"
+                    className="text-sm text-gray-400 font-medium ml-1"
                   >
                     {loadingMessage}
                   </motion.span>
