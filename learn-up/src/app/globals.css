@@ -504,3 +504,22 @@ body::after {
   50% { transform: translateY(-4px); opacity: 1; }
 }
 
+/* ─────────────────────────────────────────────────
+   Chat background patterns
+   NOTE: URLs must live here in CSS (not in TSX style props)
+   so Webpack can resolve them correctly from /public
+───────────────────────────────────────────────── */
+.chat-bg-pattern {
+  background-image: url('/grid-pattern.svg');
+  background-size: cover;
+  background-attachment: fixed;
+  background-position: center;
+}
+
+.chat-grid-bg {
+  background-image: url('/grid-pattern.svg');
+  background-repeat: repeat;
+  background-size: 40px 40px;
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
