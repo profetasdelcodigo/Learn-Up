@@ -1339,7 +1339,7 @@ export default function ChatPage() {
                     {/* Messages Area */}
                     <div 
                       className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-[#0b141a] bg-cover bg-fixed bg-center"
-                      style={{ backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')" }}
+                      style={{ backgroundImage: "url" + "('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')" }}
                     >
                       {messages.map((msg, idx) => {
                         const isMe = msg.user_id === currentUserId;
@@ -1829,7 +1829,7 @@ export default function ChatPage() {
               ) : (
                 <div 
                   className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-opacity-5"
-                  style={{ backgroundImage: "url('/grid-pattern.svg')" }}
+                  style={{ backgroundImage: "url" + "('/grid-pattern.svg')" }}
                 >
                   <div className="w-24 h-24 bg-brand-blue-glow/10 rounded-full flex items-center justify-center mb-6 animate-pulse">
                     <MessageCircle className="w-12 h-12 text-brand-blue-glow" />
