@@ -42,3 +42,9 @@ next-env.d.ts
 
 # claude code
 .claude/
+
+# local dev utility scripts (not needed in production)
+update_ui.js
+update_ui.cjs
+update_ui2.cjs
+update_ui3.cjs
