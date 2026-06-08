@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
-import { Ratelimit } from "@upstash/ratelimit";
-// Mock de Redis o Supabase KV si no hay Upstash
-// import { Redis } from "@upstash/redis"; 
+// TODO: import { Ratelimit } from "@upstash/ratelimit"; when Upstash Redis is configured
+// TODO: import { Redis } from "@upstash/redis";
 
 const JAILBREAK_PATTERNS = [
   /ignora( todas)? las instrucciones/i,
