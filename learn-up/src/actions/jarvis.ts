@@ -1,6 +1,7 @@
 "use server";
 
-import { getAICompletion, buildUserMessage, getTimeContext } from "./ai-tutor";
+import { getAICompletion } from "@/lib/ai";
+import { buildUserMessage, getTimeContext } from "./ai-tutor";
 import { createClient } from "@/utils/supabase/server";
 import { TOOL_DEFINITIONS, parseToolCall, executeToolAction, type ToolAction } from "@/lib/ai-tools";
 import { buildAgentSystemPrompt } from "@/lib/ai/agent-registry";
