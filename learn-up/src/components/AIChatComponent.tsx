@@ -178,6 +178,7 @@ interface AIChatProps {
     history: { role: "user" | "assistant"; content: string }[],
     mediaUrl?: string,
     mediaType?: string,
+  ) => Promise<{ response: string; error?: string; actions?: ToolAction[] }>;
   rightPanel?: ReactNode;
   className?: string;
   containerStyle?: React.CSSProperties;
