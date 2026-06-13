@@ -19,7 +19,7 @@ async function extractOfficeText(buffer: Buffer, fileType: string): Promise<stri
 }
 
 // ── Contexto temporal (para que la IA SIEMPRE sepa la fecha real) ─────────────
-function getTimeContext(): string {
+export function getTimeContext(): string {
   const now = new Date();
   const options: Intl.DateTimeFormatOptions = {
     weekday: "long",
@@ -260,9 +260,13 @@ export async function askProfessor(
         error: "Por favor escribe una pregunta o envía un archivo",
       };
 
-    // Skip tool definitions for short greetings to speed up response
-    const isShortGreeting = message.trim().length < 25 && !message.includes("?") && /^(hola|buenas|hey|buenos dias|buenas tardes|que tal|como estas)/i.test(message.trim());
-    const toolDefs = isShortGreeting ? "" : `\n${TOOL_DEFINITIONS}`;
+    // Fast-Path: Si es un saludo corto o mensaje simple de cortesía, no cargamos las definiciones de herramientas completas.
+    // Esto baja la latencia dramáticamente.
+    const isSimpleMessage = message.trim().length < 50 && !message.includes("?") && !message.includes("/") && !mediaUrl;
+    const isGreeting = /^(hola|buenas|hey|buenos|que tal|como estas|gracias|adios|ok|vale|perfecto)/i.test(message.trim());
+    
+    // Si es un mensaje simple/saludo, pasamos un set de herramientas vacío o muy reducido para ahorrar tokens y latencia
+    const toolDefs = (isSimpleMessage && isGreeting) ? "\n" : `\n${TOOL_DEFINITIONS}`;
 
     const systemPrompt = `${getTimeContext()}
 
@@ -403,7 +407,13 @@ HERRAMIENTAS:
 - Si hay imágenes disponibles en el contexto web, inclúyelas con: ![Descripción](URL).
 - Al final de tu respuesta, si usaste fuentes externas, agrega "📚 Fuentes:" con los links.
 
-${TOOL_DEFINITIONS}`;
+`;
+    
+    const isSimpleMessage = problem.trim().length < 50 && !problem.includes("?") && !problem.includes("/") && !mediaUrl;
+    const isGreeting = /^(hola|buenas|hey|buenos|que tal|como estas|gracias|adios|ok|vale|perfecto)/i.test(problem.trim());
+    const toolDefs = (isSimpleMessage && isGreeting) ? "\n" : `\n${TOOL_DEFINITIONS}`;
+    
+    const finalSystemPrompt = systemPrompt + toolDefs;
 
     const { content: finalMessageContent, model: finalModel } =
       await buildUserMessage(problem, mediaUrl, mediaType);
@@ -412,7 +422,7 @@ ${TOOL_DEFINITIONS}`;
 
     const response = await getAICompletion(
       [
-        { role: "system", content: systemPrompt },
+        { role: "system", content: finalSystemPrompt },
         ...truncatedHistory,
         { role: "user", content: finalMessageContent },
       ],
@@ -432,7 +442,7 @@ ${TOOL_DEFINITIONS}`;
           
           const followUpResponse = await getAICompletion(
             [
-              { role: "system", content: systemPrompt },
+              { role: "system", content: finalSystemPrompt },
               ...truncatedHistory,
               { role: "user", content: finalMessageContent },
               { role: "assistant", content: cleanText },

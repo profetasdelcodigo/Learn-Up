@@ -3,6 +3,7 @@
 import { HeartPulse } from "lucide-react";
 import AIChatComponent from "@/components/AIChatComponent";
 import { askCounselor } from "@/actions/ai-tutor";
+import JournalSidebar from "@/components/JournalSidebar";
 
 export default function CounselorChatPage() {
   return (
@@ -12,6 +13,8 @@ export default function CounselorChatPage() {
       icon={<HeartPulse className="w-5 h-5 text-brand-gold" />}
       aiType="consejero"
       onSubmitAction={askCounselor}
+      className="font-serif"
+      rightPanel={<JournalSidebar />}
     />
   );
 }

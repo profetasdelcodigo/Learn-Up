@@ -1133,6 +1133,8 @@ export default function ChatPage() {
                   <AnimatePresence>
                     {showVideo && (
                       <motion.div
+                        drag={isMinimizedCall}
+                        dragMomentum={false}
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={
                           isMinimizedCall
@@ -1140,9 +1142,9 @@ export default function ChatPage() {
                                 position: "absolute",
                                 right: 16,
                                 top: 80,
-                                width: 320,
-                                height: 480,
-                                zIndex: 50,
+                                width: 280, // slightly smaller for pip
+                                height: 420,
+                                zIndex: 100, // very high
                                 borderRadius: 16,
                                 opacity: 1,
                                 scale: 1,
@@ -1159,10 +1161,10 @@ export default function ChatPage() {
                         exit={{ opacity: 0, scale: 0.9 }}
                         className="bg-brand-black shadow-2xl overflow-hidden flex flex-col border border-brand-gold/30"
                       >
-                        <div className="absolute top-4 left-4 z-50 flex gap-2">
+                        <div className="absolute top-4 left-4 right-4 z-50 flex gap-2 justify-between items-center pointer-events-none">
                           <button
-                            onClick={() => setIsMinimizedCall(!isMinimizedCall)}
-                            className="p-2 bg-black/50 hover:bg-black/80 border border-white/10 rounded-full text-white backdrop-blur-md transition-all shadow-lg"
+                            onClick={(e) => { e.stopPropagation(); setIsMinimizedCall(!isMinimizedCall); }}
+                            className="p-2 bg-black/50 hover:bg-black/80 border border-white/10 rounded-full text-white backdrop-blur-md transition-all shadow-lg pointer-events-auto"
                             title={isMinimizedCall ? "Maximizar Llamada" : "Minimizar a PIP"}
                           >
                             {isMinimizedCall ? <Monitor className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}

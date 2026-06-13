@@ -1,4 +1,4 @@
-export type AiAgentId = "profesor" | "examenes" | "consejero" | "nutrirecetas";
+export type AiAgentId = "profesor" | "examenes" | "consejero" | "nutrirecetas" | "jarvis";
 
 export interface AiToolDefinition {
   name: string;
@@ -133,6 +133,18 @@ export const AI_AGENT_REGISTRY: Record<AiAgentId, AiAgentConfig> = {
       "SIEMPRE incluye un bloque de texto al final con el formato: MACROS_DETECTADOS: { \"prot\": <n>, \"grasas\": <n>, \"carbs\": <n> }",
     ],
     tools: [readOnlyTools[0], writeTools[3], writeTools[2]],
+  },
+  jarvis: {
+    id: "jarvis",
+    name: "Jarvis",
+    purpose: "Asistente orquestador de Learn Up. Entiende la necesidad del usuario y delega a las herramientas o roles correspondientes.",
+    safety: [
+      "1. Si la pregunta es academica o de estudio, delega o adopta el rol Profesor.",
+      "2. Si es de organizacion o bienestar, adopta el rol Consejero y usa herramientas.",
+      "3. Nunca asumas informacion privada que no este en el contexto inyectado.",
+      "4. Si necesitas usar una herramienta (tool), DEBES responder EXCLUSIVAMENTE con un bloque tool {...} tal como espera el sistema.",
+    ],
+    tools: [...readOnlyTools, ...writeTools],
   },
 };
 

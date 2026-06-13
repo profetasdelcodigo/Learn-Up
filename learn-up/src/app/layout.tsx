@@ -22,6 +22,7 @@ import HardwareBackHandler from "@/components/HardwareBackHandler";
 import OfflineDetector from "@/components/OfflineDetector";
 import DeepLinkHandler from "@/components/DeepLinkHandler";
 import ShareModal from "@/components/ShareModal";
+import JarvisGlobalWidget from "@/components/JarvisGlobalWidget";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://learn-up-qmgx.onrender.com"),
@@ -88,6 +89,7 @@ export default function RootLayout({
           <DeepLinkHandler />
           <MainLayout>{children}</MainLayout>
           <ShareModal />
+          <JarvisGlobalWidget />
         </SmoothScroll>
         <script
           type="application/ld+json"

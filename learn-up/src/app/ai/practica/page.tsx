@@ -441,6 +441,29 @@ export default function ExamenIAPage() {
                     📋 <strong>Instrucciones:</strong> {exam.instructions}
                   </div>
                 )}
+
+                {/* Progress Bar */}
+                {phase === "taking" && (() => {
+                  const totalQ = exam.sections.reduce((acc, s) => acc + s.questions.length, 0);
+                  const answeredQ = Object.keys(answers).length;
+                  const pct = totalQ > 0 ? (answeredQ / totalQ) * 100 : 0;
+                  return (
+                    <div className="mt-4 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-400 font-medium">Progreso</span>
+                        <span className="text-brand-blue-glow font-bold">{answeredQ}/{totalQ} respondidas</span>
+                      </div>
+                      <div className="w-full h-2.5 bg-black/40 rounded-full overflow-hidden border border-white/5">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${pct}%` }}
+                          transition={{ type: "spring", stiffness: 120, damping: 20 }}
+                          className={`h-full rounded-full transition-colors ${pct === 100 ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : 'bg-gradient-to-r from-brand-blue-glow to-cyan-400'}`}
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Sections and Questions */}
@@ -630,25 +653,44 @@ export default function ExamenIAPage() {
               className="space-y-6"
             >
               <div className="bg-surface-2/80 border border-brand-blue-glow rounded-3xl p-8 text-center">
-                <div className="inline-flex items-center justify-center w-20 h-20 mb-4 rounded-2xl bg-brand-blue-glow/20 border-2 border-brand-blue-glow">
-                  <Star className="w-10 h-10 text-brand-blue-glow" />
-                </div>
-                <h2 className="text-3xl font-black text-white mb-2">
-                  ¡Examen Completado!
-                </h2>
-                <div className="text-6xl font-black text-brand-blue-glow my-4">
-                  {gradingResult.score}
-                  <span className="text-3xl text-gray-500">
-                    /{gradingResult.maxScore}
-                  </span>
-                </div>
-                <p className="text-gray-400 text-lg">
-                  puntos en respuestas objetivas
-                </p>
-                <p className="text-sm text-gray-500 mt-2">
-                  Las preguntas abiertas se evalúan en la retroalimentación
-                  detallada
-                </p>
+                {/* Animated Score Ring */}
+                {(() => {
+                  const pct = gradingResult.maxScore > 0 ? (gradingResult.score / gradingResult.maxScore) * 100 : 0;
+                  const circumference = 2 * Math.PI * 54;
+                  const offset = circumference - (pct / 100) * circumference;
+                  const scoreColor = pct >= 80 ? "text-emerald-400" : pct >= 50 ? "text-amber-400" : "text-rose-400";
+                  const strokeColor = pct >= 80 ? "#34d399" : pct >= 50 ? "#fbbf24" : "#fb7185";
+                  const label = pct >= 80 ? "¡Excelente!" : pct >= 50 ? "¡Bien hecho!" : "Sigue practicando";
+                  return (
+                    <div className="flex flex-col items-center gap-4 mb-4">
+                      <div className="relative w-36 h-36">
+                        <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
+                          <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
+                          <motion.circle
+                            cx="60" cy="60" r="54"
+                            fill="none"
+                            stroke={strokeColor}
+                            strokeWidth="8"
+                            strokeLinecap="round"
+                            strokeDasharray={circumference}
+                            initial={{ strokeDashoffset: circumference }}
+                            animate={{ strokeDashoffset: offset }}
+                            transition={{ duration: 1.5, ease: "easeOut" }}
+                          />
+                        </svg>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                          <span className={`text-3xl font-black ${scoreColor}`}>{Math.round(pct)}%</span>
+                        </div>
+                      </div>
+                      <h2 className="text-2xl font-black text-white">{label}</h2>
+                      <div className={`text-4xl font-black ${scoreColor}`}>
+                        {gradingResult.score}
+                        <span className="text-2xl text-gray-500">/{gradingResult.maxScore}</span>
+                      </div>
+                      <p className="text-gray-500 text-sm">puntos en respuestas objetivas</p>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="bg-surface-2/80 border border-white/6 rounded-3xl p-6">
