@@ -66,7 +66,7 @@ const ToolSchemas: Record<string, z.ZodType> = {
   }),
   trigger_n8n_webhook: z.object({
     webhook_path: z.string().min(1),
-    payload: z.record(z.any()),
+    payload: z.record(z.string(), z.any()),
   }),
   ask_multiple_choice: z.object({
     question: z.string().min(1),
