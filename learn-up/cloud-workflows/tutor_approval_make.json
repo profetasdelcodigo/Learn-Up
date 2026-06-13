@@ -1,0 +1,88 @@
+{
+  "name": "Learn Up - Tutor Approval (Yoti)",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": 123456
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0
+        },
+        "parameters": [
+          {
+            "name": "hook",
+            "type": "hook:gateway:CustomWebHook",
+            "label": "Webhook"
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "module": "email:ActionSendEmail",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "to": "{{1.email}}",
+        "subject": "Verifica tu identidad con Yoti para ser Docente",
+        "content": "<h2>¡Hola! Gracias por querer ser docente en Learn Up.</h2><p>Para asegurar la calidad, necesitamos verificar tu identidad.</p><p><a href=\"https://yoti.com/verificar\">Haz clic aquí para verificar con Yoti</a></p>"
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0
+        }
+      }
+    },
+    {
+      "id": 3,
+      "module": "http:ActionMakeRequest",
+      "version": 3,
+      "parameters": {
+        "handleErrors": false
+      },
+      "mapper": {
+        "url": "https://TU_PROYECTO.supabase.co/rest/v1/profiles?id=eq.{{1.userId}}",
+        "method": "patch",
+        "headers": [
+          {
+            "name": "apikey",
+            "value": "TU_SUPABASE_SERVICE_KEY"
+          },
+          {
+            "name": "Authorization",
+            "value": "Bearer TU_SUPABASE_SERVICE_KEY"
+          },
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "name": "Prefer",
+            "value": "return=minimal"
+          }
+        ],
+        "bodyType": "raw",
+        "parseResponse": false,
+        "serializeUrl": false,
+        "shareCookies": false,
+        "data": "{\n  \"role\": \"profesor\"\n}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "version": 1
+  }
+}
