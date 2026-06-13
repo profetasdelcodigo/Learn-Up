@@ -583,6 +583,12 @@ export default function AIChatComponent({
       }
     }
 
+    if (!sessionId) {
+      setError("No se pudo obtener la sesión.");
+      setLoading(false);
+      return;
+    }
+
     try {
       await addAiMessage(sessionId, "user", option);
       const historyForGroq = messages.map((m) => ({ role: m.role, content: m.content }));
