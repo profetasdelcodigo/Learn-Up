@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
+
 import { askJarvis } from "@/actions/jarvis";
 
 export default function JarvisGlobalWidget() {
@@ -139,8 +139,8 @@ export default function JarvisGlobalWidget() {
                   }`}
                 >
                   {msg.role === "assistant" ? (
-                    <div className="prose prose-invert prose-sm max-w-none">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap">
+                      {msg.content}
                     </div>
                   ) : (
                     msg.content

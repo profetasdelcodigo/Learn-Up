@@ -694,7 +694,8 @@ Responde con claridad. El profesor puede adaptar esta plantilla a preguntas espe
       case "trigger_n8n_webhook": {
         const { webhook_path, payload } = args;
         try {
-          const url = \`http://localhost:5888/webhook/\${webhook_path.replace(/^\\//, '')}\`;
+          const cleanPath = webhook_path.replace(/^\//, '');
+          const url = `http://localhost:5888/webhook/${cleanPath}`;
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 5000);
           
@@ -707,9 +708,9 @@ Responde con claridad. El profesor puede adaptar esta plantilla a preguntas espe
           clearTimeout(timeoutId);
 
           if (res.ok) {
-            return { success: true, message: \`✅ Flujo de n8n ejecutado exitosamente en webhook: \${webhook_path}\` };
+            return { success: true, message: `✅ Flujo ejecutado exitosamente en webhook: ${webhook_path}` };
           } else {
-            return { success: false, message: \`El flujo de n8n devolvió error: \${res.status} \${res.statusText}\` };
+            return { success: false, message: `El flujo devolvió error: ${res.status} ${res.statusText}` };
           }
         } catch (error: any) {
           console.error("n8n execution error:", error);
