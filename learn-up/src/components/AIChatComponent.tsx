@@ -178,7 +178,10 @@ interface AIChatProps {
     history: { role: "user" | "assistant"; content: string }[],
     mediaUrl?: string,
     mediaType?: string,
-  ) => Promise<{ response: string; error?: string; actions?: ToolAction[] }>;
+  rightPanel?: ReactNode;
+  className?: string;
+  containerStyle?: React.CSSProperties;
+  onMessagesChange?: (messages: Message[]) => void;
 }
 
 export default function AIChatComponent({
@@ -187,11 +190,19 @@ export default function AIChatComponent({
   icon,
   aiType,
   onSubmitAction,
+  rightPanel,
+  className,
+  containerStyle,
+  onMessagesChange,
 }: AIChatProps) {
   const router = useRouter();
   const [sessions, setSessions] = useState<any[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+
+  useEffect(() => {
+    if (onMessagesChange) onMessagesChange(messages);
+  }, [messages, onMessagesChange]);
 
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -485,6 +496,14 @@ export default function AIChatComponent({
           ...prev,
           { role: "assistant", content: `Abriendo: ${action.args.title || safeUrl}` },
         ]);
+      } else if (action.tool === "trigger_jarvis") {
+        window.dispatchEvent(new CustomEvent("triggerJarvis", { 
+          detail: { message: `Fui invocado por ${title}. ${action.args.reason || '¿En qué puedo ayudarte?'}` } 
+        }));
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: `He llamado a Jarvis para que se encargue de esto.` },
+        ]);
       } else {
         actionResult = await confirmAndExecuteTool(action.tool, action.args);
         
@@ -536,6 +555,55 @@ export default function AIChatComponent({
     setPendingActions([]);
   };
 
+  const handleOptionSelect = async (option: string) => {
+    setPendingActions([]);
+    if (loading) return;
+
+    const clientSideUserMsg: Message = { role: "user", content: option };
+    setMessages((prev) => [...prev, clientSideUserMsg]);
+    setLoading(true);
+
+    let sessionId = currentSessionId;
+    let newSession = false;
+
+    if (!sessionId) {
+      try {
+        const { session, error: sErr } = await createAiSession(aiType, option.substring(0, 30) || "Nueva Sesión");
+        if (sErr) throw new Error(sErr);
+        if (session) {
+          sessionId = session.id;
+          setCurrentSessionId(session.id);
+          newSession = true;
+        }
+      } catch (err: any) {
+        setError("Error al iniciar sesión.");
+        setLoading(false);
+        return;
+      }
+    }
+
+    try {
+      await addAiMessage(sessionId, "user", option);
+      const historyForGroq = messages.map((m) => ({ role: m.role, content: m.content }));
+      const result = await onSubmitAction(option, historyForGroq, undefined, undefined);
+
+      if (result.error) {
+        setError(result.error);
+      } else if (result.response) {
+        await addAiMessage(sessionId, "assistant", result.response);
+        setMessages((prev) => [...prev, { role: "assistant", content: result.response }]);
+        if (result.actions && result.actions.length > 0) {
+          setPendingActions(result.actions);
+        }
+      }
+    } catch (err) {
+      setError("Error inesperado al procesar la opción.");
+    } finally {
+      if (newSession) loadSessions(false);
+      setLoading(false);
+    }
+  };
+
   const getToolIcon = (tool: string) => {
     switch (tool) {
       case "open_url": return <ExternalLink className="w-4 h-4" />;
@@ -557,9 +625,10 @@ export default function AIChatComponent({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, scale: 1.02 }}
         transition={{ duration: 0.2, ease: "easeOut" }}
-        className="flex flex-col w-full relative z-10"
-        style={{ height: "100dvh", overflow: "hidden" }}
+        className={`flex flex-row relative z-10 w-full ${className || ''}`}
+        style={{ height: "100dvh", overflow: "hidden", ...containerStyle }}
       >
+        <div className={`flex flex-col relative ${rightPanel ? 'w-[40%] md:w-[45%] lg:w-[35%] border-r border-white/10' : 'w-full'}`}>
         {/* ──────────────────── HEADER ──────────────────── */}
         <div
           className="shrink-0 relative flex items-center justify-between px-4 bg-surface-2/40 backdrop-blur-xl z-30"
@@ -812,7 +881,44 @@ export default function AIChatComponent({
                 className="flex justify-start"
               >
                 <div className="max-w-[85%] md:max-w-[70%] space-y-2">
-                  {pendingActions.map((action, i) => (
+                  {pendingActions.map((action, i) => {
+                    if (action.tool === "ask_multiple_choice") {
+                      return (
+                        <div key={i} className="bg-surface-2/80 backdrop-blur-md rounded-2xl p-4 md:p-5 rounded-tl-sm shadow-xl border border-white/10 flex flex-col gap-3 min-w-[280px]">
+                          <p className="text-sm md:text-base font-semibold text-white leading-tight">{action.args.question || "¿Qué opción eliges?"}</p>
+                          <div className="flex flex-col gap-2 mt-2">
+                            {action.args.options?.map((opt: string, idx: number) => (
+                              <button
+                                key={idx}
+                                onClick={() => handleOptionSelect(opt)}
+                                className="w-full text-left py-2.5 px-4 bg-white/5 hover:bg-brand-gold/10 text-gray-200 hover:text-brand-gold rounded-xl text-sm transition-all border border-white/5 hover:border-brand-gold/30 flex items-center gap-3 group"
+                              >
+                                <span className="w-5 h-5 rounded-full bg-black/40 flex items-center justify-center text-[10px] font-bold text-gray-400 group-hover:bg-brand-gold/20 group-hover:text-brand-gold transition-colors">{idx + 1}</span>
+                                {opt}
+                              </button>
+                            ))}
+                            {action.args.allow_skip !== false && (
+                              <div className="flex items-center gap-2 mt-2">
+                                <button
+                                  onClick={() => handleOptionSelect("Omitir")}
+                                  className="flex-1 text-center py-2 text-xs font-medium text-gray-500 hover:text-white bg-black/20 hover:bg-black/40 rounded-lg transition-colors border border-transparent hover:border-white/10"
+                                >
+                                  Omitir
+                                </button>
+                                <button
+                                  onClick={() => handleOptionSelect("Otra opción no listada")}
+                                  className="flex-1 text-center py-2 text-xs font-medium text-gray-500 hover:text-white bg-black/20 hover:bg-black/40 rounded-lg transition-colors border border-transparent hover:border-white/10"
+                                >
+                                  Otro
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
                     <div
                       key={i}
                       className="bg-surface-2 rounded-2xl p-4 rounded-tl-sm shadow-lg border border-white/5"
@@ -847,7 +953,8 @@ export default function AIChatComponent({
                         </button>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </motion.div>
             )}
@@ -929,6 +1036,12 @@ export default function AIChatComponent({
               </button>
             </form>
           </div>
+        </div>
+        {rightPanel && (
+          <div className="hidden md:flex flex-1 relative bg-brand-black">
+            {rightPanel}
+          </div>
+        )}
       </motion.div>
     </AnimatePresence>
   );

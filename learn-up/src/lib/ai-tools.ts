@@ -60,6 +60,22 @@ const ToolSchemas: Record<string, z.ZodType> = {
     repository: z.string().min(1),
     skill_name: z.string().min(1),
   }),
+  generate_flashcards: z.object({
+    topic: z.string().min(1),
+    content: z.string().min(1),
+  }),
+  trigger_n8n_webhook: z.object({
+    webhook_path: z.string().min(1),
+    payload: z.record(z.any()),
+  }),
+  ask_multiple_choice: z.object({
+    question: z.string().min(1),
+    options: z.array(z.string()).min(2),
+    allow_skip: z.boolean().optional().default(true),
+  }),
+  trigger_jarvis: z.object({
+    reason: z.string().min(1),
+  }),
 };
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
@@ -126,6 +142,17 @@ LISTA DE HERRAMIENTAS:
 13. load_claude_skill — Cargar un Cookbook o Skill desde los repositorios locales clonados de Claude.
     args: {"repository": "claude-code|claude-cookbooks|awesome-claude-skills|...", "skill_name": "ej. database, mcp, prompt-engineering"}
 
+14. generate_flashcards — Generar un set de tarjetas de estudio (Flashcards) descargables sobre un tema.
+    args: {"topic": "Tema general", "content": "Lista de Pregunta: Respuesta separadas por saltos de línea"}
+
+15. trigger_n8n_webhook — Ejecutar un flujo de trabajo (workflow) en n8n enviando datos a un Webhook local (localhost:5888).
+    args: {"webhook_path": "ruta-del-webhook (ej. chat-summary)", "payload": {"key": "value"}}
+
+16. ask_multiple_choice — Hacer una pregunta visual interactiva con opciones al usuario.
+    args: {"question": "Pregunta clara", "options": ["Opción A", "Opción B", "Opción C"], "allow_skip": true}
+
+17. trigger_jarvis — Invoca al Orquestador Jarvis global para que asista al usuario con algo que tú no puedes hacer, o si el usuario pide explícitamente abrir la "fuente de información" u otro sistema avanzado.
+    args: {"reason": "Razón para invocar a Jarvis, ej: 'El usuario quiere abrir la fuente de la información'"}
 
 REGLAS ESTRICTAS DE USO DE HERRAMIENTAS:
 - NO uses herramientas si el usuario solo dice "Hola". Responde rápido y natural.
@@ -175,6 +202,8 @@ export async function parseToolCall(response: string): Promise<{ cleanText: stri
         add_habit: `¿Añadir el hábito "${args.title}"?`,
         search_web: `Investigando en internet...`,
         save_learned_concept: `Guardando concepto en tu mapa mental...`,
+        ask_multiple_choice: args.question || "¿Responder pregunta?",
+        trigger_jarvis: `¿Abrir Orquestador Jarvis para: ${args.reason}?`,
       };
 
       action = {
@@ -650,6 +679,54 @@ Responde con claridad. El profesor puede adaptar esta plantilla a preguntas espe
           console.error("Error loading skill:", e);
           return { success: false, message: `Error al cargar el skill: ${e.message}` };
         }
+      }
+
+      case "generate_flashcards": {
+        const { topic, content } = args;
+        const formattedContent = `# Flashcards: ${topic}\n\nRevisa estas tarjetas para memorizar los conceptos clave.\n\n${content}`;
+        return {
+          success: true,
+          message: `¡Flashcards sobre "${topic}" generadas! Se descargará un archivo de texto para que puedas repasarlas.`,
+          data: { title: `Flashcards-${topic}`, format: "markdown", content: formattedContent },
+        };
+      }
+
+      case "trigger_n8n_webhook": {
+        const { webhook_path, payload } = args;
+        try {
+          const url = \`http://localhost:5888/webhook/\${webhook_path.replace(/^\\//, '')}\`;
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
+          
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+
+          if (res.ok) {
+            return { success: true, message: \`✅ Flujo de n8n ejecutado exitosamente en webhook: \${webhook_path}\` };
+          } else {
+            return { success: false, message: \`El flujo de n8n devolvió error: \${res.status} \${res.statusText}\` };
+          }
+        } catch (error: any) {
+          console.error("n8n execution error:", error);
+          return { 
+            success: false, 
+            message: "No se pudo conectar con n8n en localhost. Asegúrate de que el contenedor de n8n esté corriendo y el webhook exista." 
+          };
+        }
+      }
+
+      case "trigger_jarvis": {
+        // La apertura real la maneja el cliente con el CustomEvent
+        return {
+          success: true,
+          message: `He invocado a Jarvis para que te ayude con esto.`,
+          data: { reason: args.reason },
+        };
       }
 
       default:
