@@ -64,7 +64,7 @@ const ToolSchemas: Record<string, z.ZodType> = {
     topic: z.string().min(1),
     content: z.string().min(1),
   }),
-  trigger_n8n_webhook: z.object({
+  trigger_webhook: z.object({
     webhook_path: z.string().min(1),
     payload: z.record(z.string(), z.any()),
   }),
@@ -145,8 +145,8 @@ LISTA DE HERRAMIENTAS:
 14. generate_flashcards — Generar un set de tarjetas de estudio (Flashcards) descargables sobre un tema.
     args: {"topic": "Tema general", "content": "Lista de Pregunta: Respuesta separadas por saltos de línea"}
 
-15. trigger_n8n_webhook — Ejecutar un flujo de trabajo (workflow) en n8n enviando datos a un Webhook local (localhost:5888).
-    args: {"webhook_path": "ruta-del-webhook (ej. chat-summary)", "payload": {"key": "value"}}
+15. trigger_webhook — Ejecutar un flujo de trabajo (workflow) enviando datos a un Webhook de Make.com o n8n. Utiliza esto cuando el usuario quiera automatizaciones como "Aprobarme como docente". URL de Make para tutores: https://hook.us2.make.com/veiyoi9fn6grhto63l6mjxpi0ws6lag6
+    args: {"webhook_path": "URL completa del webhook (ej. https://hook.us2.make.com/...)", "payload": {"key": "value"}}
 
 16. ask_multiple_choice — Hacer una pregunta visual interactiva con opciones al usuario.
     args: {"question": "Pregunta clara", "options": ["Opción A", "Opción B", "Opción C"], "allow_skip": true}
@@ -691,32 +691,39 @@ Responde con claridad. El profesor puede adaptar esta plantilla a preguntas espe
         };
       }
 
-      case "trigger_n8n_webhook": {
+      case "trigger_webhook": {
         const { webhook_path, payload } = args;
         try {
+          const enrichedPayload = {
+            ...payload,
+            userId: user.id,
+            email: user.email,
+          };
+
           const cleanPath = webhook_path.replace(/^\//, '');
-          const url = `http://localhost:5888/webhook/${cleanPath}`;
+          const url = webhook_path.startsWith("http") ? webhook_path : `http://localhost:5888/webhook/${cleanPath}`;
+          
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000);
+          const timeoutId = setTimeout(() => controller.abort(), 10000);
           
           const res = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
+            body: JSON.stringify(enrichedPayload),
             signal: controller.signal
           });
           clearTimeout(timeoutId);
 
           if (res.ok) {
-            return { success: true, message: `✅ Flujo ejecutado exitosamente en webhook: ${webhook_path}` };
+            return { success: true, message: `✅ Automatización ejecutada correctamente. Revisa tu correo electrónico para continuar.` };
           } else {
-            return { success: false, message: `El flujo devolvió error: ${res.status} ${res.statusText}` };
+            return { success: false, message: `Error en la automatización: ${res.status} ${res.statusText}` };
           }
         } catch (error: any) {
-          console.error("n8n execution error:", error);
+          console.error("Webhook execution error:", error);
           return { 
             success: false, 
-            message: "No se pudo conectar con n8n en localhost. Asegúrate de que el contenedor de n8n esté corriendo y el webhook exista." 
+            message: "No se pudo conectar con el Webhook. Intenta de nuevo más tarde." 
           };
         }
       }
