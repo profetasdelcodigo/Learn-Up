@@ -38,9 +38,8 @@ export async function askJarvis(
       .eq("id", user.id)
       .single();
 
-    // Extraemos Knowledge Nodes (Simulado por ahora si no está implementada la búsqueda vectorial exacta)
-    // const nodes = await searchKnowledgeNodes(user.id, message, { topK: 3 });
-    const nodes: any[] = [];
+    const { findRelatedConcepts } = await import("@/lib/knowledge-graph");
+    const nodes = await findRelatedConcepts(user.id, message);
 
     // Fast-Path
     const isSimpleMessage = message.trim().length < 50 && !message.includes("?") && !message.includes("/") && !mediaUrl;

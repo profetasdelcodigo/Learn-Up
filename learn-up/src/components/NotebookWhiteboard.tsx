@@ -1,14 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Network, FileText, BrainCircuit, Maximize2, X, Calculator, ListTree, BookOpenCheck, Copy, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { getAiEnvironment, updateAiEnvironment } from "@/actions/ai-environment";
 
 type Tab = "graph" | "document" | "formulas" | "outline";
 
-export default function NotebookWhiteboard() {
+interface NotebookWhiteboardProps {
+  currentSessionId?: string | null;
+}
+
+export default function NotebookWhiteboard({ currentSessionId }: NotebookWhiteboardProps) {
   const [activeTab, setActiveTab] = useState<Tab>("graph");
   const [isFullscreen, setIsFullscreen] = useState(false);
+  
+  // Persisted state
   const [outlineItems, setOutlineItems] = useState<string[]>([
     "Concepto principal",
     "Definiciones clave",
@@ -21,8 +28,52 @@ export default function NotebookWhiteboard() {
     "F = ma",
     "a² + b² = c²",
   ]);
+
   const [newFormula, setNewFormula] = useState("");
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+
+  // Load environment state when sessionId changes
+  useEffect(() => {
+    if (!currentSessionId) {
+      // Reset to defaults if no session
+      setOutlineItems([
+        "Concepto principal",
+        "Definiciones clave",
+        "Fórmulas y teoremas",
+        "Ejemplos resueltos",
+        "Ejercicios propuestos",
+      ]);
+      setFormulas([
+        "E = mc²",
+        "F = ma",
+        "a² + b² = c²",
+      ]);
+      return;
+    }
+
+    let isMounted = true;
+    getAiEnvironment(currentSessionId).then((state) => {
+      if (isMounted && state) {
+        if (state.outlineItems) setOutlineItems(state.outlineItems);
+        if (state.formulas) setFormulas(state.formulas);
+      }
+    });
+    return () => { isMounted = false; };
+  }, [currentSessionId]);
+
+  // Save state when it changes (debounced)
+  useEffect(() => {
+    if (!currentSessionId) return;
+
+    const timer = setTimeout(() => {
+      updateAiEnvironment(currentSessionId, {
+        outlineItems,
+        formulas
+      });
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [outlineItems, formulas, currentSessionId]);
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "graph", label: "Grafo", icon: <Network className="w-3.5 h-3.5" /> },

@@ -30,11 +30,12 @@
   --space-page-x: 1rem;
   --space-page-x-md: 1.5rem;
   
-  /* WhatsApp Premium Chat Colors */
+  /* Premium Chat Colors - Learn Up Brand */
   --chat-bg: #0A0A0F;
-  --chat-sent: #005c4b;
-  --chat-received: #202c33;
-  --chat-seen: #53bdeb;
+  --chat-user: hsl(43, 85%, 55%);      /* Dorado Learn Up */
+  --chat-user-text: #0A0A0F;            /* Negro sobre dorado */
+  --chat-assistant: hsl(240, 10%, 14%); /* Gris oscuro elegante */
+  --chat-assistant-text: #E8E8ED;       /* Texto claro */
 }
 
 @theme {
@@ -335,19 +336,20 @@ body::after {
   }
   
   .chat-bubble-sent {
-    background-color: var(--chat-sent);
-    color: #e9edef;
-    border-radius: 12px;
-    border-top-right-radius: 2px;
-    box-shadow: 0 1px 0.5px rgba(11,20,26,.13);
+    background-color: var(--chat-user);
+    color: var(--chat-user-text);
+    border-radius: 16px;
+    border-top-right-radius: 4px;
+    box-shadow: 0 4px 12px rgba(240, 200, 80, 0.15);
   }
   
   .chat-bubble-received {
-    background-color: var(--chat-received);
-    color: #e9edef;
-    border-radius: 12px;
-    border-top-left-radius: 2px;
-    box-shadow: 0 1px 0.5px rgba(11,20,26,.13);
+    background-color: var(--chat-assistant);
+    color: var(--chat-assistant-text);
+    border-radius: 16px;
+    border-top-left-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
   }
   
   .chat-seen-icon {

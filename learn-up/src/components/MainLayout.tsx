@@ -11,6 +11,7 @@ const BottomNav = dynamic(() => import("./BottomNav"), { ssr: false });
 const WelcomeTutorial = dynamic(() => import("./WelcomeTutorial"), { ssr: false });
 const NotificationManager = dynamic(() => import("./NotificationManager"), { ssr: false });
 const SessionHeartbeat = dynamic(() => import("./SessionHeartbeat"), { ssr: false });
+import PageTransition from "./PageTransition";
 
 // Routes where the nav and layout chrome should NOT appear
 const PUBLIC_ROUTES = ["/", "/login", "/onboarding"];
@@ -77,6 +78,7 @@ export default function MainLayout({
         </div>
       )}
 
+
       <main
         className={`flex-1 relative w-full ${
           isFullscreen ? "overflow-hidden flex flex-col" : "min-w-0"
@@ -93,7 +95,9 @@ export default function MainLayout({
             .filter(Boolean)
             .join(" ")}
         >
-          {children}
+          <PageTransition>
+            {children}
+          </PageTransition>
         </div>
       </main>
 

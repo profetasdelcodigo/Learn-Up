@@ -1,0 +1,159 @@
+[33m35ebe1d[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfix/notifications[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/fix/notifications[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m fix: show full profiles in chat
+[33m2d1889d[m fix: isolate sign out modal overlay
+[33md13807c[m feat: create downloadable ai artifacts
+[33m3adde3c[m fix: parallelize chat notification dispatch
+[33ma3cdfb4[m fix: align ai agents and index uploaded documents
+[33m3f948ae[m feat: stabilize sessions chat notifications and ai agents
+[33m7fc4615[m fix: sync npm lockfile for CI
+[33m4cdc1fe[m ci: add Supabase grants verification pipeline
+[33medc7d59[m refactor: add strict zod schema validation, vitest unit tests, clean duplicate code, and audit chat security
+[33m08e9aa1[m actualización
+[33m02975c0[m fix: force groq provider and simplify ai fallback logic
+[33m83c6b20[m debug: add verbose AI provider logging to ai.ts
+[33m609eb3b[m debug: add verbose ingestion logs
+[33m1440c22[m fix: ai-tutor file ingestion structural fix
+[33mf2f8907[m fix: ai entity resolution returns clear list of suggestions
+[33m953981a[m fix: remove broken officeparser, use mammoth for docx
+[33m67d7b33[m fix: ai-tutor file ingestion scope issue
+[33m94d841b[m fix: move webpack critical dependency context settings to config.module
+[33mb6fa743[m chore: bind next start to PORT environment variable for Render
+[33m799a0a8[m chore: aggressively suppress webpack critical dependency warnings
+[33m33e058f[m fix: restore missing closing brace in ai-tutor.ts
+[33maab02d8[m fix: resolve pdf-parse import issue and expand file support
+[33m2173dbe[m feat: implement deep file parsing for PDF/DOCX and enhance exam correction layout
+[33m6ea14ae[m fix: design layout for exam corrections and improve visual aesthetic
+[33ma29befb[m fix: design layout for exam corrections and prepare for deployment
+[33m8458b5c[m fix: refine exam grading format and improve AI tool interaction
+[33mf4819f7[m fix: ai tool flow interaction and entity resolution
+[33md4876b3[m chore: add webpack ignoreWarnings for critical dependency errors
+[33m070ec47[m fix: cleanup logs, migrate to global toast store, and fix chat page imports
+[33mb81d2bb[m feat: enable role selection in onboarding UI
+[33m6f55b79[m feat: allow docente role in security migration
+[33md7bd052[m feat: security hardening, Render optimization and Supabase migration
+[33me7e1111[m fix: add missing createClient import in ai-recipes.ts
+[33mf49019d[m fix: critical security vulnerabilities in AI actions and Supabase RPC
+[33me065df0[m style: enhance visual markdown format for exam grading feedback
+[33m8c3aad9[m fix: enforce 100 points exact max score in generateRealExam
+[33mcb278b6[m fix: bypass officeparser TS type definitions missing parseOfficeAsync
+[33mb265b5b[m fix: Cast pdf-parse import as any to bypass TypeScript module definition error
+[33m04033ba[m fix: Type error on pdf-parse during Next.js build
+[33mae1dc13[m feat: mejoras en IA, calendarios, Nutrirecetas y comparticion social
+[33m1268fa7[m feat: implement AI-driven tool integration system for automated tasks and calendar management
+[33m5a60c62[m Fix: Unify homepage subtitle with universal SEO description
+[33m4074570[m Fix: Replace OG image with the dynamic design version as a static JPG
+[33m52be136[m Fix: Optimize OG image to JPG for WhatsApp large banner support
+[33m4069729[m Fix: Remove dynamic OG and Icon files to force static image rendering
+[33mce7db5b[m feat: initialize RootLayout with fonts, SEO metadata, and core application providers
+[33m56d3c40[m feat: implement root layout with SEO metadata, custom fonts, and global app providers
+[33md0e00aa[m feat: implement root layout with SEO metadata, custom fonts, and global app providers
+[33me9d9ce9[m feat: implement root layout with SEO metadata, global providers, and custom font configuration
+[33m517ceea[m feat: implement Supabase session middleware for route authentication and onboarding redirection
+[33m60ac3c8[m feat: add OpenGraph image generator and configure SEO metadata for root layout
+[33m25c32e8[m feat: implement dynamic favicon generation and configure root layout metadata with schema markup
+[33m3cff4a8[m feat: implement root layout with font configuration, SEO metadata, and core application providers
+[33m2591a51[m feat: implement user authentication page with Supabase email/password and Google OAuth support
+[33m97de184[m feat: implement root layout with SEO metadata and responsive MainLayout wrapper
+[33mac503c1[m feat: add dynamic OpenGraph image generator for social sharing metadata
+[33m66e8c82[m feat: implement root layout with font configuration, global providers, and custom OpenGraph image generation
+[33m633f43f[m feat: implement Supabase middleware for session management and route protection
+[33m633cde1[m feat: initialize root layout with global providers and SEO metadata
+[33m467eb0d[m feat: implement SEO configuration with sitemap, robots.txt, and metadata in root layout
+[33m1e80843[m chore: add Google site verification file for domain ownership validation
+[33m78cb1c7[m feat: implement RootLayout, robots.txt, and sitemap.xml for improved SEO and site structure
+[33me78bc6d[m feat: add real-time study room with LiveKit video integration, Tldraw whiteboard, and media sharing capabilities
+[33mf12f712[m feat: add service worker for push notifications and create AI practice page
+[33m5835184[m feat: implement service worker caching and create practice page component
+[33m9e84bf2[m feat: implement AIChatComponent and add support for new AI-powered application pages with push notification service worker
+[33me7e9af0[m feat: implement service worker for push notifications and initialize core application structure and components
+[33m43b671c[m feat: implement premium dark design system, global styles, and reusable animation components
+[33mb9b71e9[m feat: implement core AI chat interface with session management and file upload capabilities across new dashboard modules
+[33m9c0a829[m feat: implement core application structure with real-time notifications, dashboard, and modular UI components
+[33m83d227b[m feat: implement AI chat interface and backend infrastructure for session management and tool execution
+[33ma442e3d[m feat: implement AI chat interface with multi-modal support, session management, and secure server-side authentication
+[33mb1a6670[m feat: implement intelligent web search orchestration and add AI chat UI with tool execution support
+[33m75195a7[m feat: implement LLM tool orchestration system including parsing, validation, and Supabase-backed execution for calendar and messaging actions
+[33ma3fc095[m feat: implement AI tutor and counselor system with multi-modal support, web search, and tool orchestration capabilities
+[33mdede0f8[m feat: integrate web search capabilities with usage tracking and Supabase migration
+[33m064de0b[m feat: initialize AI service module with core configuration and utility functions
+[33mcc2eff3[m feat: implement AI tutor service with Gemini integration and add model testing utilities
+[33m7ec7b66[m feat: implement AI-powered tutor, counselor, and recipe generator services with multimodal media support
+[33med5f067[m fix: resolve CSP, scrollbar, build errors, and optimize page transitions
+[33m1a0b16f[m feat: implement PageLayout component, configure PWA and security headers, and scaffold core application pages
+[33m98c00cc[m feat: add GitHub Actions workflow to lint, type check, and deploy to Render
+[33mc6d5717[m chore: add Android project configuration and JDK 21 settings to misc.xml
+[33m84a0147[m feat: implement AI chat component with session management, message history, and file uploads
+[33m06ac9e0[m feat: Implement LiveKit video room component with collaborative whiteboard, YouTube sharing, and participant management.
+[33m679f281[m feat: introduce a full-featured chat page with real-time messaging, video rooms, and friendship management.
+[33mb709890[m feat: initialize Android project with Gradle build system and IDE configurations.
+[33m72efc2d[m feat: initialize Android project with essential build, manifest, and resource files.
+[33mf865f6c[m feat: Implement initial application structure, user authentication, and deep link handling.
+[33m0c6b88f[m feat: Add Next.js PWA configuration and `outputFileTracingRoot` for Render deployment.
+[33mbaedc4c[m feat: Implement a media album page with camera, upload, and gallery functionalities, and add new calendar and chat pages and components.
+[33mb78b658[m feat: Implement shared calendar detail view with event management, chat, and group habit tracking, supported by new chat, library, and shared calendar actions.
+[33m77f122f[m feat: Introduce a real-time chat application with friend management, group chats, media sharing, and AI-powered components.
+[33m46323cb[m feat: Introduce chat functionality with private and group rooms, message management, and a new library page.
+[33m4d8fba5[m feat: implement chat functionality including room management, messaging, and push notifications.
+[33m4031403[m chore: Regenerate the service worker file with a new hashed name and an updated precache manifest.
+[33m2784091[m feat: Implement a new library feature allowing users to upload, manage, and share educational materials, including a docente approval workflow.
+[33me199a00[m feat: Introduce core application structure, global error handling, loading states, and a CI/CD deployment workflow.
+[33mb7ab8cd[m feat: Introduce Next.js root layout and PWA service worker setup.
+[33mfd2f783[m feat: Implement initial application structure, navigation, global loading, and user profile management with avatar upload and social links.
+[33mef458ca[m feat: Implement core application pages including library, login, dynamic study rooms, AI practice, calendar, and user profile management.
+[33mef809e5[m feat: Create authentication callback route to process Supabase codes and manage redirects, including deep links.
+[33mccdfaae[m feat: Implement authentication flow and add PWA service worker for offline support.
+[33mc6ef831[m feat: implement a comprehensive library feature with file management, docente review, search, favorites, and sharing capabilities.
+[33m334b8c3[m feat: Implement real-time chat with video, whiteboard, and friend management, and establish initial application pages and components.
+[33mdd4cb6f[m feat: Implement service worker for PWA capabilities and add new pages for calendar, profile, library, and onboarding.
+[33m3b3ddb5[m feat: Initialize Next.js project with PWA support, global styles, core layouts, and initial pages for chat, dashboard, and login.
+[33m1f2df82[m feat: add SharedCalendarDetail component to manage shared calendar events, chat, and group habit tracking.
+[33m2b3f0ec[m feat: add shared calendar functionality including creation, event management, and messaging with dedicated actions and UI.
+[33m8900517[m feat: Implement PWA service worker for caching and add a new calendar page.
+[33m072b438[m build: Update Workbox service worker with new Next.js asset revisions and caching strategies.
+[33m09b6d90[m feat: rediseño del onboarding tutorial con 6 pasos, persistencia local y soporte para redireccion post-registro
+[33m37afdb7[m fix: copy de banner de onboarding adaptado a registro intencional
+[33m96851ee[m fix: capturar errores http 422 y 400 de supabase en registro silencioso
+[33m02f9e0f[m fix: mostrar 'contraseña incorrecta' en lugar de 'correo registrado' durante fallback silencioso
+[33mf84af87[m chore: Update service worker with new precache manifest and associated worker script.
+[33md03db83[m fix: registro automatico y redireccion onboarding en login fallido
+[33ma8daaf5[m fix: boton crear cuenta nueva registra directamente sin redirigir, luego va al onboarding
+[33meeb5484[m feat: Implement user onboarding page for profile creation and updates.
+[33m93a96a0[m feat: Implement login and signup page with email/password and Google OAuth using Supabase.
+[33m425665e[m fix(ui): remove redundant inline-flex class in AIChatComponent
+[33m1609389[m fix(styles): update tailwind v3 classes to v4 syntax locally after reset
+[33m6832cbc[m feat: Add service worker for PWA capabilities and offline caching with Workbox.
+[33m8588dfb[m chore: Add package-lock.json to lock dependency versions.
+[33m19d36c2[m feat: Implement a new login and signup page with email/password and Google OAuth authentication using Supabase.
+[33m88a1ba4[m fix(ui): polish login/signup layout to avoid black-split and fixed button cutting on mobile
+[33md00e0a0[m fix(ai): update Groq system-message blocker to support llama-4 and pixtral model formats
+[33m7de1bd3[m chore(diagnostic): add temporary api route to test available Groq models in prod
+[33m4108988[m fix(ai): correct Groq Vision model ID with meta-llama namespace to resolve 404
+[33m619209e[m fix(ai): update Groq Vision API model to llama-4-scout-17b-16e-instruct after old 3.2 model decommission
+[33me7b904a[m fix(ai): remove bug causing chat flicker on new sessions, use Supabase CDN public link instead of base64 for Groq Vision
+[33md4ea61c[m fix(ai): delete test file causing build errors and update to active vision model
+[33m7bc9827[m fix(ai): resolve flickering on send, fix vision model rejections, add review mode to exams history, add images to recipe bot
+[33mf12397d[m fix(console): replace maybeSingle and single with limit(1) to avoid 406 network errors when user profile does not exist yet
+[33m6fb5076[m feat: show welcome message to new users in onboarding
+[33m72e2973[m fix: onboarding page layout to full-screen
+[33m3d28816[m fix: login page layout and auth logic
+[33ma0fb8a8[m fix: remove scrollbar gutter dark strip on landing, rename button to Inicia sesion
+[33m620cf80[m fix: landing page full-screen, no scroll, no dark margins
+[33m8b19ce0[m fix: rename APK output to LearnUp, add deep links to AndroidManifest
+[33m2220918[m fix: auth loop, deep-links, fullbleed layout, library auto-approve, Tldraw conditional
+[33m75cf7d0[m Fix camera reactivation bug and definitive schema repair
+[33m2bc7854[m chore: critical production fixes for horizontal scroll, AI chat reliability, and database synchronization
+[33m7bf1dc4[m feat: Add basic Android project configuration to .idea/misc.xml.
+[33m5abbf02[m chore: add initial Android Studio project configuration file.
+[33m70068a5[m feat: Implement PWA support including service worker, push notifications, and updated app icons.
+[33m992309e[m feat: Establish initial application architecture with authentication, navigation, AI features, and real-time communication.
+[33me126155[m feat: implement comprehensive notifications page with Supabase integration, real-time updates, and UI for managing alerts.
+[33m21a9482[m feat: implement AI-powered exam generation, taking, and grading with session history and media upload capabilities.
+[33m5c97a4d[m feat: Introduce AI tutor, counselor, recipe, and exam generation functionalities with media input support.
+[33m0450036[m feat: Introduce AI integration, video conferencing, and core application features including calendar, dashboard, and Supabase migrations.
+[33mf1bbf91[m feat: add initial Android application manifest with core permissions and activity configuration.
+[33m0d0817a[m feat: Initialize Capacitor Android project and core application files.
+[33mff905e8[m feat: implement a new chat system with private and group messaging capabilities, including dedicated UI components and database migrations.
+[33m7207144[m feat: Implement real-time chat functionality with private and group messaging, friend management, media support, and video/whiteboard integration.
+[33m28b2ace[m feat: implement chat page with video room and service worker.
+[33m48f9850[m feat: Add real-time notifications page with friend request and call management, integrating LiveKit and service workers.
+[33m1f877f5[m feat: Implement PWA service workers for push notifications and precaching, add new chat and notifications pages, and apply database security and performance hardening.
+[33m703cc3a[m feat: Implement LiveKit video conferencing with participant management and a collaborative whiteboard.

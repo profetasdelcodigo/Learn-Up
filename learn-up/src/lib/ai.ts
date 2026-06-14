@@ -296,6 +296,51 @@ const getGeminiCompletion = async (
   }
 };
 
+// ── Nvidia NIM Implementation ──────────────────────────────────────────────────
+export const getNvidiaNIMCompletion = async (
+  messages: any[],
+  modelName: string = "meta/llama-3.1-405b-instruct",
+  jsonMode: boolean = false
+) => {
+  const apiKey = process.env.NVIDIA_API_KEY;
+  if (!apiKey) throw new Error("NVIDIA_API_KEY no configurada.");
+
+  try {
+    const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: modelName,
+        messages: toTextOnlyMessages(messages),
+        max_tokens: 8192,
+        temperature: 0.7,
+        response_format: jsonMode ? { type: "json_object" } : undefined,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Nvidia API Error: ${response.status} ${await response.text()}`);
+    }
+
+    const data = await response.json();
+    return {
+      choices: [
+        {
+          message: {
+            content: data.choices[0]?.message?.content || "",
+          },
+        },
+      ],
+    };
+  } catch (error) {
+    console.error("Nvidia NIM Error:", error);
+    throw error;
+  }
+};
+
 export const getAICompletion = async (
   messages: {
     role: "system" | "user" | "assistant";
@@ -304,48 +349,71 @@ export const getAICompletion = async (
   model: string = "gemini-3-flash-preview",
   jsonMode: boolean = false,
 ) => {
-  console.log(`[AI Debug] Provider actual: ${provider}`);
+  console.log(`[AI Debug] Provider preferido: ${provider}`);
   const hasRemoteMedia = messageHasRemoteMedia(messages);
-  
-  // 1. Si el proveedor es Groq, usamos Groq directamente
-  if (provider === "groq") {
-    if (hasRemoteMedia) {
-      if (genAI) {
-        console.warn("[AI Debug] Groq no soporta adjuntos; usando Gemini para media.");
-        return await getGeminiCompletion(messages, model, jsonMode);
-      }
-      throw new Error("Groq no soporta adjuntos y Gemini no esta configurado.");
-    }
 
-    console.log("[AI Debug] Usando Groq como proveedor principal...");
-    return await getGroqCompletion(
-      toTextOnlyMessages(messages),
-      "llama-3.3-70b-versatile",
-      jsonMode,
-    );
+  // Si hay multimedia y no hay Gemini, error.
+  if (hasRemoteMedia && !genAI) {
+    throw new Error("Se intentó adjuntar un archivo pero Gemini no está configurado.");
   }
 
-  // 2. Si el proveedor es Gemini, intentamos Gemini con fallback a Groq
-  try {
-    console.log("[AI Debug] Intentando usar Gemini...");
+  // Si hay multimedia, obligatoriamente usamos Gemini
+  if (hasRemoteMedia) {
+    console.log("[AI Debug] Solicitud con multimedia, forzando uso de Gemini...");
     return await getGeminiCompletion(messages, model, jsonMode);
-  } catch (error: any) {
-    console.warn("[AI Debug] Gemini falló, intentando fallback a Groq...", error?.message || error);
-    if (hasRemoteMedia) {
-      throw new Error(
-        "No se pudo procesar el archivo adjunto con Gemini. Groq no se usa como fallback para adjuntos porque perderia el contenido del archivo.",
-      );
-    }
+  }
 
+  // Lógica de Fallback Multi-Provider para texto
+  const tryNvidia = async () => {
+    console.log("[AI Debug] Intentando Nvidia NIM (llama-3.1-405b)...");
+    return await getNvidiaNIMCompletion(messages, "meta/llama-3.1-405b-instruct", jsonMode);
+  };
+
+  const tryGroq = async () => {
+    console.log("[AI Debug] Intentando Groq (llama-3.3-70b)...");
+    return await getGroqCompletion(toTextOnlyMessages(messages), "llama-3.3-70b-versatile", jsonMode);
+  };
+
+  const tryGemini = async () => {
+    console.log("[AI Debug] Intentando Gemini Flash...");
+    return await getGeminiCompletion(messages, model, jsonMode);
+  };
+
+  // 1. Si el usuario fuerza un proveedor via .env
+  if (provider === "groq") {
+    try { return await tryGroq(); } catch (e) { console.warn("Groq falló, fallback a Gemini..."); return await tryGemini(); }
+  }
+  if (provider === "gemini") {
+    try { return await tryGemini(); } catch (e) { console.warn("Gemini falló, fallback a Groq..."); return await tryGroq(); }
+  }
+
+  // 2. Comportamiento por defecto (Inteligente y robusto)
+  try {
+    // Si la key de Nvidia existe, es nuestra mejor IA gratuita para razonamiento
+    if (process.env.NVIDIA_API_KEY) {
+      return await tryNvidia();
+    }
+    // Si no, intentamos Groq
+    return await tryGroq();
+  } catch (error: any) {
+    console.warn("[AI Debug] Provider primario falló:", error?.message);
+    
+    // Fallback secundario
     try {
-      return await getGroqCompletion(
-        toTextOnlyMessages(messages),
-        "llama-3.3-70b-versatile",
-        jsonMode,
-      );
-    } catch (groqError) {
-      console.error("[AI Debug] Ambos proveedores fallaron.");
-      throw groqError;
+      if (process.env.NVIDIA_API_KEY && groq) {
+        return await tryGroq(); // Si falló Nvidia, intentamos Groq
+      }
+      return await tryGemini(); // Si falló Groq (o Nvidia+Groq), vamos a Gemini
+    } catch (fallbackError) {
+      console.error("[AI Debug] Fallback secundario falló.");
+      
+      // Último recurso: Gemini
+      try {
+        return await tryGemini();
+      } catch (lastError) {
+        console.error("[AI Debug] Todos los proveedores fallaron.");
+        throw lastError;
+      }
     }
   }
 };

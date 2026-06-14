@@ -179,10 +179,11 @@ interface AIChatProps {
     mediaUrl?: string,
     mediaType?: string,
   ) => Promise<{ response: string; error?: string; actions?: ToolAction[] }>;
-  rightPanel?: ReactNode;
   className?: string;
   containerStyle?: React.CSSProperties;
   onMessagesChange?: (messages: Message[]) => void;
+  currentSessionId: string | null;
+  onSessionChange: (sessionId: string | null) => void;
 }
 
 export default function AIChatComponent({
@@ -191,14 +192,13 @@ export default function AIChatComponent({
   icon,
   aiType,
   onSubmitAction,
-  rightPanel,
   className,
   containerStyle,
   onMessagesChange,
+  currentSessionId,
+  onSessionChange,
 }: AIChatProps) {
   const router = useRouter();
-  const [sessions, setSessions] = useState<any[]>([]);
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
 
   useEffect(() => {
@@ -209,7 +209,6 @@ export default function AIChatComponent({
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
   const [error, setError] = useState("");
-  const [showHistory, setShowHistory] = useState(false);
 
   const [file, setFile] = useState<File | null>(null);
   const [uploadingMedia, setUploadingMedia] = useState(false);
@@ -221,8 +220,12 @@ export default function AIChatComponent({
   const supabase = createClient();
 
   useEffect(() => {
-    loadSessions(false); // Do not load last session messages automatically
-  }, []);
+    if (currentSessionId) {
+      loadSessionMessages(currentSessionId);
+    } else {
+      setMessages([]);
+    }
+  }, [currentSessionId]);
 
   // Mini-mensajes dinámicos durante la carga (contextuales)
   const [hasFileAttached, setHasFileAttached] = useState(false);
@@ -269,35 +272,12 @@ export default function AIChatComponent({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  const loadSessions = async (shouldLoadMessages: boolean = true) => {
-    const data = await getAiSessions(aiType);
-    setSessions(data);
-    if (shouldLoadMessages && data.length > 0 && !currentSessionId) {
-      loadSessionMessages(data[0].id);
-    }
-  };
-
   const loadSessionMessages = async (sessionId: string) => {
-    setCurrentSessionId(sessionId);
     setMessages([]);
     setLoading(true);
     const msgs = await getAiMessages(sessionId);
     setMessages(msgs);
-    setShowHistory(false);
     setLoading(false);
-  };
-
-  const handleNewSession = () => {
-    setCurrentSessionId(null);
-    setMessages([]);
-    setShowHistory(false);
-  };
-
-  const handleDeleteSession = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    await deleteAiSession(id);
-    if (currentSessionId === id) handleNewSession();
-    loadSessions();
   };
 
   const getMediaType = (file: File) => {
@@ -383,7 +363,7 @@ export default function AIChatComponent({
         if (sErr) throw new Error(sErr);
         if (session) {
           sessionId = session.id;
-          setCurrentSessionId(session.id);
+          onSessionChange(session.id);
           newSession = true;
         }
       } catch (err: any) {
@@ -477,9 +457,6 @@ export default function AIChatComponent({
     } catch (err) {
       handleFailure("Ocurrió un error inesperado al procesar la IA.");
     } finally {
-      if (newSession) {
-        loadSessions(false);
-      }
       setLoading(false);
     }
   };
@@ -573,7 +550,7 @@ export default function AIChatComponent({
         if (sErr) throw new Error(sErr);
         if (session) {
           sessionId = session.id;
-          setCurrentSessionId(session.id);
+          onSessionChange(session.id);
           newSession = true;
         }
       } catch (err: any) {
@@ -606,7 +583,6 @@ export default function AIChatComponent({
     } catch (err) {
       setError("Error inesperado al procesar la opción.");
     } finally {
-      if (newSession) loadSessions(false);
       setLoading(false);
     }
   };
@@ -632,10 +608,9 @@ export default function AIChatComponent({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, scale: 1.02 }}
         transition={{ duration: 0.2, ease: "easeOut" }}
-        className={`flex flex-row relative z-10 w-full ${className || ''}`}
-        style={{ height: "100dvh", overflow: "hidden", ...containerStyle }}
+        className={`flex flex-col relative z-10 w-full h-full ${className || ''}`}
+        style={containerStyle}
       >
-        <div className={`flex flex-col relative ${rightPanel ? 'w-[40%] md:w-[45%] lg:w-[35%] border-r border-white/10' : 'w-full'}`}>
         {/* ──────────────────── HEADER ──────────────────── */}
         <div
           className="shrink-0 relative flex items-center justify-between px-4 bg-surface-2/40 backdrop-blur-xl z-30"
@@ -668,100 +643,9 @@ export default function AIChatComponent({
               </p>
             </div>
 
-            {/* RIGHT: History */}
-            <button
-              onClick={() => setShowHistory((v) => !v)}
-              className={`flex items-center justify-center w-10 h-10 rounded-full border transition-all shrink-0 ${
-                showHistory
-                  ? "bg-brand-gold text-brand-black border-brand-gold"
-                  : "bg-surface-2 border-white/6 text-gray-400 hover:border-brand-gold/40 hover:text-white"
-              }`}
-              aria-label="Historial"
-            >
-              <History className="w-5 h-5" />
-            </button>
+            {/* RIGHT: Empty or context actions */}
+            <div className="w-10 h-10 shrink-0"></div>
           </div>
-
-          {/* ──────────────────── HISTORY DRAWER ──────────────────── */}
-          <AnimatePresence>
-            {showHistory && (
-              <>
-                {/* Backdrop */}
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="fixed inset-0 bg-black/60 z-20"
-                  onClick={() => setShowHistory(false)}
-                />
-                {/* Drawer from right */}
-                <motion.div
-                  initial={{ x: "100%" }}
-                  animate={{ x: 0 }}
-                  exit={{ x: "100%" }}
-                  transition={{ type: "spring", damping: 28, stiffness: 300 }}
-                  className="fixed top-0 right-0 h-full w-72 bg-surface-1 border-l border-white/6 z-30 flex flex-col"
-                  style={{
-                    paddingTop: "calc(env(safe-area-inset-top) + 0rem)",
-                  }}
-                >
-                  <div className="flex items-center justify-between p-4 border-b border-white/6">
-                    <h3 className="font-bold text-white flex items-center gap-2 text-sm">
-                      <Bot className="w-4 h-4 text-brand-gold" /> Historial
-                    </h3>
-                    <button
-                      onClick={() => setShowHistory(false)}
-                      className="text-gray-400 hover:text-white"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                  <div className="p-3">
-                    <button
-                      onClick={handleNewSession}
-                      className="w-full py-2.5 bg-brand-gold/10 text-brand-gold border border-brand-gold/30 rounded-xl hover:bg-brand-gold hover:text-black transition-all flex items-center justify-center gap-2 mb-3 font-semibold text-sm"
-                    >
-                      <PlusCircle className="w-4 h-4" /> Nueva Sesión
-                    </button>
-                  </div>
-                  <div className="flex-1 overflow-y-auto px-3 space-y-1 pb-4">
-                    {sessions.length === 0 ? (
-                      <p className="text-gray-500 text-xs text-center py-4">
-                        No hay sesiones previas
-                      </p>
-                    ) : (
-                      sessions.map((s) => (
-                        <div
-                          key={s.id}
-                          onClick={() => loadSessionMessages(s.id)}
-                          className={`p-3 rounded-xl cursor-pointer flex justify-between items-center group transition-colors ${
-                            currentSessionId === s.id
-                              ? "bg-surface-2 border border-white/10"
-                              : "hover:bg-white/5/50"
-                          }`}
-                        >
-                          <div className="truncate pr-2">
-                            <p className="text-sm text-white truncate font-medium">
-                              {s.title}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {new Date(s.updated_at).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <button
-                            onClick={(e) => handleDeleteSession(e, s.id)}
-                            className="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
 
           {/* ──────────────────── MESSAGES ──────────────────── */}
           <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 chat-bg-pattern" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
@@ -1043,12 +927,6 @@ export default function AIChatComponent({
               </button>
             </form>
           </div>
-        </div>
-        {rightPanel && (
-          <div className="hidden md:flex flex-1 relative bg-brand-black">
-            {rightPanel}
-          </div>
-        )}
       </motion.div>
     </AnimatePresence>
   );

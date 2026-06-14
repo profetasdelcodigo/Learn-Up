@@ -1,22 +1,38 @@
 "use client";
 
-import { Utensils } from "lucide-react";
-import AIChatComponent from "@/components/AIChatComponent";
-import { generateRecipe } from "@/actions/ai-tutor";
-import RecipeSidebar from "@/components/RecipeSidebar";
 import { useState } from "react";
+import { Utensils } from "lucide-react";
+import NotebookLayout from "@/components/ai/NotebookLayout";
+import SourcesPanel from "@/components/ai/SourcesPanel";
+import AIChatComponent from "@/components/AIChatComponent";
+import RecipeSidebar from "@/components/RecipeSidebar";
+import { generateRecipe } from "@/actions/ai-tutor";
 
 export default function RecipesChatPage() {
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
 
   return (
-    <AIChatComponent
-      title="Chef Nutre"
-      subtitle="Recetas saludables con lo que tienes"
-      icon={<Utensils className="w-5 h-5 text-orange-400" />}
-      aiType="nutricion"
-      onSubmitAction={generateRecipe}
-      onMessagesChange={setMessages}
+    <NotebookLayout
+      leftPanel={
+        <SourcesPanel
+          aiType="nutricion"
+          currentSessionId={sessionId}
+          onSessionChange={setSessionId}
+        />
+      }
+      centerPanel={
+        <AIChatComponent
+          title="Chef Nutre"
+          subtitle="Recetas saludables con lo que tienes"
+          icon={<Utensils className="w-5 h-5 text-orange-400" />}
+          aiType="nutricion"
+          onSubmitAction={generateRecipe}
+          onMessagesChange={setMessages}
+          currentSessionId={sessionId}
+          onSessionChange={setSessionId}
+        />
+      }
       rightPanel={<RecipeSidebar messages={messages} />}
     />
   );

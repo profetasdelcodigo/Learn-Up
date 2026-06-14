@@ -18,6 +18,16 @@ import {
   StaggerContainer,
   FadeUpItem,
 } from "@/components/animations/StaggerReveal";
+import { MotionCard } from "@/components/animations/MotionCard";
+import { ScrollReveal } from "@/components/animations/ScrollReveal";
+import dynamic from "next/dynamic";
+
+const DashboardDonut = dynamic(() => import("@/components/3d/DashboardDonut"), { 
+  ssr: false,
+  loading: () => (
+    <div className="w-10 h-10 rounded-full bg-brand-purple/20 animate-pulse border border-brand-purple/30" />
+  )
+});
 
 const aiCards = [
   {
@@ -159,13 +169,17 @@ export default async function DashboardPage() {
         <StaggerContainer className="w-full max-w-none space-y-8">
           {/* Header Card */}
           <FadeUpItem>
-            <div className="glass border border-white/6 rounded-2xl p-8 relative overflow-hidden">
+            <ScrollReveal>
+            <MotionCard className="glass border border-white/6 rounded-2xl p-8 relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-br from-brand-gold/5 via-transparent to-brand-purple/3 pointer-events-none" />
               <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                  <p className="text-brand-gold/60 text-xs font-semibold uppercase tracking-[0.2em] mb-2 font-body">
-                    {greeting()},
-                  </p>
+                  <div className="flex items-center gap-2 mb-2">
+                    <p className="text-brand-gold/60 text-xs font-semibold uppercase tracking-[0.2em] font-body">
+                      {greeting()},
+                    </p>
+                    <DashboardDonut />
+                  </div>
                   <h1 className="text-4xl md:text-5xl font-black text-white mb-2 truncate max-w-full font-display">
                     {profile?.full_name || "Estudiante"}
                   </h1>
@@ -200,15 +214,17 @@ export default async function DashboardPage() {
                   </Link>
                 </div>
               </div>
-            </div>
+            </MotionCard>
+            </ScrollReveal>
           </FadeUpItem>
 
           {/* AI Section */}
           <FadeUpItem>
+            <ScrollReveal delay={0.2}>
             <section>
               <div className="section-heading">
                 <div className="section-heading-icon bg-brand-purple/10 border-brand-purple/20">
-                  🧠
+                  <Brain className="w-5 h-5 text-brand-purple" />
                 </div>
                 <span>Potencia tu Mente</span>
               </div>
@@ -218,7 +234,7 @@ export default async function DashboardPage() {
               >
                 {aiCards.map((card) => (
                   <Link key={card.href} href={card.href} className="block h-full">
-                    <div
+                    <MotionCard
                       className={`glass border ${card.border} ${card.hoverBorder} rounded-2xl p-6 h-full ${card.shadow} transition-all duration-500 cursor-pointer group`}
                     >
                       <div
@@ -232,19 +248,21 @@ export default async function DashboardPage() {
                       <p className="text-gray-500 text-sm font-body">
                         {card.desc}
                       </p>
-                    </div>
+                    </MotionCard>
                   </Link>
                 ))}
               </StaggerContainer>
             </section>
+            </ScrollReveal>
           </FadeUpItem>
 
           {/* Space Section */}
           <FadeUpItem>
+            <ScrollReveal delay={0.3}>
             <section>
               <div className="section-heading">
                 <div className="section-heading-icon bg-brand-gold/10 border-brand-gold/20">
-                  📚
+                  <BookOpen className="w-5 h-5 text-brand-gold" />
                 </div>
                 <span>Mi Espacio</span>
               </div>
@@ -254,7 +272,7 @@ export default async function DashboardPage() {
               >
                 {spaceCards.map((card) => (
                   <Link key={card.href} href={card.href} className="block h-full">
-                    <div
+                    <MotionCard
                       className={`glass border ${card.border} ${card.hoverBorder} rounded-2xl p-6 h-full ${card.shadow} transition-all duration-500 cursor-pointer group`}
                     >
                       <div
@@ -268,11 +286,12 @@ export default async function DashboardPage() {
                       <p className="text-gray-500 text-sm font-body">
                         {card.desc}
                       </p>
-                    </div>
+                    </MotionCard>
                   </Link>
                 ))}
               </StaggerContainer>
             </section>
+            </ScrollReveal>
           </FadeUpItem>
         </StaggerContainer>
       </div>

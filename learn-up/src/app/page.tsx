@@ -3,37 +3,22 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { Sparkles, BookOpen, Users, Brain, Calendar, LogIn } from "lucide-react";
+import dynamic from "next/dynamic";
+
+const GoldenOrb = dynamic(() => import("@/components/3d/GoldenOrb"), { 
+  ssr: false,
+  loading: () => (
+    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-brand-gold/20 blur-[150px] animate-pulse" />
+  )
+});
 
 export default function Home() {
   return (
     <div className="fixed inset-0 overflow-hidden">
       {/* Animated mesh background relying on global body glows */}
       <div className="absolute inset-0 overflow-hidden">
-        {/* Floating orbs */}
-        <motion.div
-          className="absolute top-1/4 -left-20 w-80 h-80 bg-white/5 rounded-full blur-[120px]"
-          animate={{
-            x: [0, 80, 0],
-            y: [0, 40, 0],
-            scale: [1, 1.2, 1],
-          }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="absolute bottom-1/4 -right-20 w-80 h-80 bg-brand-gold/15 rounded-full blur-[120px]"
-          animate={{
-            x: [0, -60, 0],
-            y: [0, -30, 0],
-            scale: [1, 1.3, 1],
-          }}
-          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full blur-[150px]"
-          style={{ background: "rgba(56,189,248,0.04)" }}
-          animate={{ opacity: [0.3, 0.6, 0.3], scale: [1, 1.1, 1] }}
-          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-        />
+        {/* 3D Background */}
+        <GoldenOrb />
 
         {/* Grid pattern overlay */}
         <div
