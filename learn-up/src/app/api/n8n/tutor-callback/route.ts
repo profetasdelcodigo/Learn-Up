@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { approveTutorRole } from "@/actions/role";
 
 export async function POST(req: Request) {
   try {
@@ -15,24 +15,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-    
-    if (!supabaseUrl || !supabaseKey) {
-       console.error("Faltan credenciales de Supabase en el entorno.");
-       return NextResponse.json({ error: "Configuración del servidor incompleta" }, { status: 500 });
-    }
+    const result = await approveTutorRole(user_id);
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const { error } = await supabase
-      .from("profiles")
-      .update({ role: "profesor" })
-      .eq("id", user_id);
-
-    if (error) {
-      console.error("Error actualizando rol a profesor:", error);
-      return NextResponse.json({ error: "Error interno de DB" }, { status: 500 });
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 500 });
     }
     
     return NextResponse.json({ success: true });

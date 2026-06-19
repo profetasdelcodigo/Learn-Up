@@ -154,10 +154,6 @@ export default function ShareModal() {
                   <Bot className="w-6 h-6 text-purple-400" />
                   <span className="text-[10px] text-purple-200">Alma</span>
                 </button>
-                <button onClick={() => shareToAI("nutrirecetas")} className="flex flex-col items-center gap-2 p-3 rounded-xl bg-green-900/20 hover:bg-green-900/40 border border-green-900/50 transition-colors">
-                  <Bot className="w-6 h-6 text-green-500" />
-                  <span className="text-[10px] text-green-200">Chef</span>
-                </button>
               </div>
             </div>
 

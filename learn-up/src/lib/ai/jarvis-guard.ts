@@ -1,51 +1,38 @@
 import { NextRequest } from "next/server";
-// TODO: import { Ratelimit } from "@upstash/ratelimit"; when Upstash Redis is configured
-// TODO: import { Redis } from "@upstash/redis";
 
 const JAILBREAK_PATTERNS = [
   /ignora( todas)? las instrucciones/i,
   /ignore( all)? previous instructions/i,
   /actúa como/i,
   /act as/i,
-  /dan /i, // Do Anything Now
+  /dan /i,
   /bypass/i,
   /desactiva(r)? los filtros/i,
   /eres un desarrollador( y| que)?/i,
+  /system prompt/i,
+  /revela tus instrucciones/i,
+  /reveal your instructions/i,
 ];
 
-// Opcional: Rate limiter usando Upstash (mockeado para este entorno si no hay Redis)
-// const redis = new Redis({ url: process.env.UPSTASH_REDIS_REST_URL!, token: process.env.UPSTASH_REDIS_REST_TOKEN! });
-// const ratelimit = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, "1 m") });
-
 export async function checkJarvisSecurity(req: NextRequest | Request, userId: string, message: string) {
-  // 1. Detección de Jailbreak
   for (const pattern of JAILBREAK_PATTERNS) {
     if (pattern.test(message)) {
       console.warn(`[JARVIS GUARD] Intento de jailbreak detectado del usuario ${userId}: ${message}`);
       return { 
         safe: false, 
         reason: "jailbreak_attempt",
-        message: "No puedo cumplir con esa solicitud. Por favor, reformula tu pregunta dentro de mis capacidades de tutor."
+        message: "No puedo cumplir con esa solicitud. Mi propósito es ayudarte en tu aprendizaje y organización dentro de los límites éticos establecidos."
       };
     }
   }
 
-  // 2. Limite de velocidad (Rate Limiting) - Requiere Upstash Redis u otra BD
-  // Si no tenemos Redis configurado, saltamos este paso.
-  if (process.env.UPSTASH_REDIS_REST_URL) {
-     try {
-         // const { success } = await ratelimit.limit(`jarvis_${userId}`);
-         // if (!success) {
-         //    return { safe: false, reason: "rate_limit", message: "Has enviado demasiados mensajes seguidos. Por favor, espera un minuto." };
-         // }
-     } catch (e) {
-         console.error("Error en Rate Limiting:", e);
-     }
+  if (message.length > 2000) {
+      return {
+          safe: false,
+          reason: "malicious_payload",
+          message: "El mensaje es demasiado largo. Por favor, sé más conciso."
+      };
   }
-
-  // 3. Logging de seguridad / telemetría
-  // Podríamos registrar todas las consultas a un bucket de log para auditoría
-  // console.log(`[JARVIS AUDIT] [${new Date().toISOString()}] User:${userId} Length:${message.length}`);
 
   return { safe: true };
 }

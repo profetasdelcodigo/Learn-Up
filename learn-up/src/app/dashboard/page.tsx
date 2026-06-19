@@ -5,7 +5,7 @@ import {
   BookOpen,
   Brain,
   Heart,
-  ChefHat,
+
   Calendar,
   MessageCircle,
   Camera,
@@ -98,19 +98,6 @@ const spaceCards = [
     border: "border-brand-purple/15",
     hoverBorder: "hover:border-brand-purple/40",
     iconBg: "bg-brand-purple/10",
-    iconBorder: "border-brand-purple/20",
-    shadow: "hover:shadow-glow-purple",
-  },
-  {
-    href: "/ai/recetas",
-    icon: ChefHat,
-    title: "Nutrirecetas",
-    desc: "Recetas saludables y deliciosas con IA",
-    color: "brand-orange",
-    border: "border-brand-orange/15",
-    hoverBorder: "hover:border-brand-orange/40",
-    iconBg: "bg-brand-orange/10",
-    iconBorder: "border-brand-orange/20",
     shadow: "hover:shadow-[0_0_20px_rgba(251,146,60,0.15)]",
   },
   {

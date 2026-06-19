@@ -16,7 +16,7 @@ export default function JarvisGlobalWidget() {
   const pathname = usePathname();
 
   // Ocultar Jarvis en páginas donde ya hay un chat dedicado o pantallas de sistema
-  const hiddenPaths = ["/chat", "/profesor", "/consejero", "/examenes", "/nutrirecetas", "/login"];
+  const hiddenPaths = ["/chat", "/profesor", "/consejero", "/examenes", "/login"];
   const isHidden = hiddenPaths.some((p) => pathname?.startsWith(p));
 
   useEffect(() => {

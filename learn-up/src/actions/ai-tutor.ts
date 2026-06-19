@@ -484,7 +484,6 @@ export async function generateRecipe(
 
     const systemPrompt = `${getTimeContext()}
 
-${buildAgentSystemPrompt("nutrirecetas")}
 
 Eres "Chef Nutre", el chef nutricionista de Learn Up. Haces magia con lo que hay.
 

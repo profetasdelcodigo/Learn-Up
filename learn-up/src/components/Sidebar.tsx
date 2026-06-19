@@ -6,7 +6,7 @@ import {
   Home,
   Brain,
   Calendar,
-  ChefHat,
+
   BookOpen,
   MessageCircle,
   Bell,
@@ -39,11 +39,6 @@ const navigation = [
     name: "Hora de Actuar",
     href: "/calendar",
     icon: Calendar,
-  },
-  {
-    name: "Nutrirecetas",
-    href: "/ai/recetas",
-    icon: ChefHat,
   },
   {
     name: "Biblioteca",

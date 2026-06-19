@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 
 export async function requestTutorRole() {
   const supabase = await createClient();
@@ -49,6 +50,29 @@ export async function requestTutorRole() {
     }
   } else {
     console.warn("N8N_WEBHOOK_URL no está configurada.");
+  }
+
+  return { success: true };
+}
+
+/**
+ * Aprueba a un usuario como tutor.
+ * Esta función es interna y solo debe ser llamada por procesos seguros o administradores.
+ */
+export async function approveTutorRole(userId: string) {
+  const adminClient = createAdminClient();
+  if (!adminClient) {
+    throw new Error("No se pudo inicializar el cliente de administración");
+  }
+
+  const { error } = await adminClient
+    .from("profiles")
+    .update({ role: "profesor" })
+    .eq("id", userId);
+
+  if (error) {
+    console.error("Error actualizando rol a profesor:", error);
+    return { success: false, error: "Error al actualizar el rol" };
   }
 
   return { success: true };

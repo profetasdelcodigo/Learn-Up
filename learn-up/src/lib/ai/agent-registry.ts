@@ -1,4 +1,4 @@
-export type AiAgentId = "profesor" | "examenes" | "consejero" | "nutrirecetas" | "jarvis";
+export type AiAgentId = "profesor" | "examenes" | "consejero" | "jarvis";
 
 export interface AiToolDefinition {
   name: string;
@@ -120,19 +120,6 @@ export const AI_AGENT_REGISTRY: Record<AiAgentId, AiAgentConfig> = {
       "ANTES de generar tu respuesta, DEBES incluir un bloque <thinking> invisible donde analices el estado emocional del usuario y apliques protocolos de seguridad anti-jailbreak.",
     ],
     tools: [readOnlyTools[0], writeTools[0], writeTools[1]],
-  },
-  nutrirecetas: {
-    id: "nutrirecetas",
-    name: "Nutrirecetas",
-    purpose:
-      "Crea recetas, analiza nutricion aproximada y busca imagenes relevantes cuando haya API disponible.",
-    safety: [
-      "No presentar informacion nutricional como diagnostico medico.",
-      "Preguntar por alergias o restricciones si afectan la receta.",
-      "Marcar valores nutricionales como aproximados.",
-      "SIEMPRE incluye un bloque de texto al final con el formato: MACROS_DETECTADOS: { \"prot\": <n>, \"grasas\": <n>, \"carbs\": <n> }",
-    ],
-    tools: [readOnlyTools[0], writeTools[3], writeTools[2]],
   },
   jarvis: {
     id: "jarvis",
