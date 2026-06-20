@@ -16,8 +16,7 @@ export default function LegalGate({ onAccept, onDecline, isDeclining }: LegalGat
   const [acceptedA, setAcceptedA] = useState(false);
   const [acceptedB, setAcceptedB] = useState(false);
   
-  // Custom chat hook pointing to a specific endpoint (or the global one, we'll use the global chat for simplicity, just asking it legal stuff)
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+  const chatOptions: any = {
     api: "/api/chat",
     initialMessages: [
       {
@@ -26,7 +25,8 @@ export default function LegalGate({ onAccept, onDecline, isDeclining }: LegalGat
         content: "Hola, soy Jarvis. He analizado el contrato que tienes a la izquierda. Si tienes alguna duda sobre la privacidad, tus datos o las reglas, pregúntame antes de firmar."
       }
     ]
-  }) as any;
+  };
+  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat(chatOptions) as any;
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const bottom = e.currentTarget.scrollHeight - e.currentTarget.scrollTop <= e.currentTarget.clientHeight + 100;

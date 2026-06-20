@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, ReactNode } from "react";
-import { useChat, Message } from "@ai-sdk/react";
+import { useChat, UIMessage } from "@ai-sdk/react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Send,
@@ -37,6 +37,13 @@ export default function AIChatAgentic({
   const [isAutonomous, setIsAutonomous] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const chatOptions: any = {
+    api: "/api/chat",
+    body: {
+      aiType,
+      isAutonomous,
+    },
+  };
   const {
     messages,
     input,
@@ -44,13 +51,7 @@ export default function AIChatAgentic({
     handleSubmit,
     isLoading,
     addToolResult,
-  } = useChat({
-    api: "/api/chat",
-    body: {
-      aiType,
-      isAutonomous,
-    },
-  }) as any;
+  } = useChat(chatOptions) as any;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
