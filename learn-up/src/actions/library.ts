@@ -162,7 +162,7 @@ export async function approveLibraryItem(
       .update({ is_approved: true })
       .eq("id", itemId)
       .eq("reviewer_id", user.id)
-      .select("title, user_id")
+      .select("title, user_id, file_type, file_url")
       .single();
 
     if (error || !item) return { success: false, error: "No se pudo aprobar" };
