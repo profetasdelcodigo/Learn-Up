@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Mail, Lock, LogIn, Loader2, Sparkles } from "lucide-react";
 import Link from "next/link";
@@ -12,10 +12,17 @@ import {
 } from "@/components/animations/StaggerReveal";
 import { Capacitor } from "@capacitor/core";
 
-function LoginForm() {
+export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const isSignup = searchParams.get("mode") === "signup";
+
+  const [isSignup, setIsSignup] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const searchParams = new URLSearchParams(window.location.search);
+      setIsSignup(searchParams.get("mode") === "signup");
+    }
+  }, []);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -402,13 +409,5 @@ function LoginForm() {
         </motion.div>
       </div>
     </div>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-brand-black" />}>
-      <LoginForm />
-    </Suspense>
   );
 }

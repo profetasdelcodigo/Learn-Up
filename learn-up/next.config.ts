@@ -136,12 +136,13 @@ const nextConfig: NextConfig = {
 export default withSentryConfig(
   withPWA(nextConfig),
   {
-    org: "learn-up",
+    org: "profetas-del-codigo",
     project: "javascript-nextjs",
     silent: !process.env.CI,
     widenClientFileUpload: true,
-    hideSourceMaps: true,
     disableLogger: true,
-    automaticVercelMonitors: true,
+    sourcemaps: {
+      deleteSourcemapsAfterUpload: true,
+    },
   }
 );
