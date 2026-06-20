@@ -17,10 +17,15 @@ import {
   StaggerContainer,
   FadeUpItem,
 } from "@/components/animations/StaggerReveal";
+import LegalGate from "@/components/LegalGate";
+import { deleteAccountAction } from "@/actions/user";
 
 export default function OnboardingPage() {
   const router = useRouter();
   const supabase = createClient();
+
+  const [step, setStep] = useState(1);
+  const [isDeclining, setIsDeclining] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -98,6 +103,19 @@ export default function OnboardingPage() {
     checkUser();
   }, [router, supabase]);
 
+  const handleDeclineTerms = async () => {
+    setIsDeclining(true);
+    try {
+      await deleteAccountAction();
+      await supabase.auth.signOut();
+      router.push("/login");
+    } catch (e) {
+      console.error(e);
+      alert("Error al eliminar la cuenta");
+      setIsDeclining(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -165,8 +183,25 @@ export default function OnboardingPage() {
   return (
     /* Fixed full-screen container — independent of MainLayout overflow */
     <div className="fixed inset-0 bg-brand-black flex flex-col lg:flex-row">
-      {/* Left Side - Branding (Visible on Desktop) */}
-      <div className="hidden lg:flex lg:w-1/2 relative flex-col items-center justify-center p-12 overflow-hidden border-r border-white/6">
+      
+      {step === 1 ? (
+        <div className="w-full h-full flex items-center justify-center relative overflow-hidden bg-brand-black">
+          {/* Subtle background glow */}
+          <div className="absolute top-1/4 -left-1/4 w-[500px] h-[500px] bg-brand-gold/10 rounded-full blur-[120px] pointer-events-none" />
+          <div className="absolute bottom-1/4 -right-1/4 w-[500px] h-[500px] bg-brand-purple/10 rounded-full blur-[120px] pointer-events-none" />
+          
+          <div className="w-full z-10 flex flex-col pt-8 lg:pt-16 pb-4">
+            <LegalGate 
+              onAccept={() => setStep(2)} 
+              onDecline={handleDeclineTerms}
+              isDeclining={isDeclining}
+            />
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Left Side - Branding (Visible on Desktop) */}
+          <div className="hidden lg:flex lg:w-1/2 relative flex-col items-center justify-center p-12 overflow-hidden border-r border-white/6">
         <div className="absolute inset-0 bg-mesh-1" />
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <motion.div
@@ -481,6 +516,7 @@ export default function OnboardingPage() {
           </div>
         </motion.div>
       </div>
+      </>}
     </div>
   );
 }

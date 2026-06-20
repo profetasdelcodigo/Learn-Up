@@ -145,6 +145,17 @@ export default function AIChatAgentic({
                   </div>
                 )}
 
+                {/* Legal Disclaimer & Feedback */}
+                <div className="mt-2 flex items-center gap-3 text-[10px] text-gray-500 font-medium">
+                  <span className="italic">*Generado por IA — puede contener errores*</span>
+                  <span>·</span>
+                  <div className="flex items-center gap-2">
+                    <span>¿Te sirvió esta respuesta?</span>
+                    <button className="hover:text-brand-gold transition-colors">👍</button>
+                    <button className="hover:text-red-400 transition-colors">👎</button>
+                  </div>
+                </div>
+
                 {/* Tool Invocations (Visible Reasoning) */}
                 {m.toolInvocations?.map((toolInvocation) => {
                   const toolCallId = toolInvocation.toolCallId;
@@ -252,7 +263,7 @@ export default function AIChatAgentic({
           </button>
         </form>
         <p className="text-center text-[10px] text-gray-500 mt-3 font-medium tracking-wide">
-          IA Autónoma desarrollada para Learn Up. Puede cometer errores.
+          Jarvis puede cometer errores. Verifica los datos importantes antes de usarlos en una evaluación.
         </p>
       </div>
     </div>
