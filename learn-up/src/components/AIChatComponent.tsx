@@ -26,6 +26,11 @@ import {
   XCircle,
   Share2,
   Copy,
+  User,
+  ToggleLeft,
+  ToggleRight,
+  BrainCircuit,
+  CheckCircle2,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import ShareButton from "./ShareButton";
@@ -78,6 +83,18 @@ function downloadTextArtifact(title: string, content: string) {
 }
 
 function AIMessageContent({ text }: { text: string }) {
+  // Manejo de bloques de pensamiento <thinking> ... </thinking>
+  const thinkingRegex = /<thinking>([\s\S]*?)<\/thinking>/;
+  const matchThinking = text.match(thinkingRegex);
+  
+  let mainText = text;
+  let thinkingContent = null;
+  
+  if (matchThinking) {
+    thinkingContent = matchThinking[1].trim();
+    mainText = text.replace(thinkingRegex, "").trim();
+  }
+
   const nodes: ReactNode[] = [];
   const tokenRegex =
     /!\[([^\]]*)\]\(([^)]*)\)|\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|\*([^*]+)\*|(https?:\/\/[^\s<]+)/g;
@@ -151,11 +168,27 @@ function AIMessageContent({ text }: { text: string }) {
     lastIndex = tokenRegex.lastIndex;
   }
 
-  if (lastIndex < text.length) {
-    nodes.push(text.slice(lastIndex));
+  if (lastIndex < mainText.length) {
+    nodes.push(mainText.slice(lastIndex));
   }
 
-  return <>{nodes}</>;
+  return (
+    <>
+      {thinkingContent && (
+        <details className="mb-4 bg-black/20 border border-white/5 rounded-xl overflow-hidden group/thinking">
+          <summary className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-gray-400 cursor-pointer hover:bg-white/5 transition flex items-center gap-2 select-none list-none [&::-webkit-details-marker]:hidden">
+            <BrainCircuit className="w-4 h-4 text-brand-gold group-open/thinking:animate-none animate-pulse" />
+            <span className="flex-1">Proceso de Pensamiento</span>
+            <ChevronLeft className="w-4 h-4 -rotate-90 group-open/thinking:rotate-90 transition-transform" />
+          </summary>
+          <div className="p-4 border-t border-white/5 text-xs font-mono text-gray-400 whitespace-pre-wrap leading-relaxed">
+            {thinkingContent}
+          </div>
+        </details>
+      )}
+      {nodes}
+    </>
+  );
 }
 
 // shareAIMessage removed in favor of ShareButton
@@ -214,6 +247,7 @@ export default function AIChatComponent({
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [pendingActions, setPendingActions] = useState<ToolAction[]>([]);
   const [executingAction, setExecutingAction] = useState(false);
+  const [isAutonomous, setIsAutonomous] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -451,7 +485,15 @@ export default function AIChatComponent({
         ]);
 
         if (result.actions && result.actions.length > 0) {
-          setPendingActions(result.actions);
+          if (isAutonomous) {
+            // Auto-execute if in Pilot mode
+            result.actions.forEach(action => {
+               // Fire and forget or handle properly
+               setTimeout(() => handleConfirmAction(action), 500);
+            });
+          } else {
+            setPendingActions(result.actions);
+          }
         }
       }
     } catch (err) {
@@ -631,7 +673,7 @@ export default function AIChatComponent({
             {/* CENTER: AI info */}
             <div className="flex flex-col items-center flex-1 px-3 min-w-0">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center shrink-0">
+                <div className="w-7 h-7 rounded-full bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center text-brand-gold shrink-0">
                   {icon}
                 </div>
                 <h1 className="font-bold text-white text-sm leading-tight truncate">
@@ -643,20 +685,35 @@ export default function AIChatComponent({
               </p>
             </div>
 
-            {/* RIGHT: Empty or context actions */}
-            <div className="w-10 h-10 shrink-0"></div>
+            {/* RIGHT: Autonomy Toggle */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/20 border border-white/5 shrink-0">
+              <span className="text-[10px] text-gray-400 font-medium hidden md:inline">
+                Piloto Automático
+              </span>
+              <button
+                onClick={() => setIsAutonomous(!isAutonomous)}
+                className="text-brand-gold transition-transform hover:scale-105"
+                title="Permitir que la IA ejecute herramientas sin preguntar"
+              >
+                {isAutonomous ? (
+                  <ToggleRight className="w-5 h-5" />
+                ) : (
+                  <ToggleLeft className="w-5 h-5 text-gray-500" />
+                )}
+              </button>
+            </div>
           </div>
 
           {/* ──────────────────── MESSAGES ──────────────────── */}
-          <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 chat-bg-pattern" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+          <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 bg-surface-1" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 pb-8">
-                <div className="w-20 h-20 rounded-full bg-surface-2 border border-white/6 flex items-center justify-center mb-4">
+                <div className="w-20 h-20 rounded-3xl bg-surface-2 shadow-2xl border border-white/6 flex items-center justify-center mb-6 text-brand-gold">
                   {icon}
                 </div>
-                <p className="max-w-xs text-sm">
-                  Comienza a chatear. También puedes subir imágenes, audios o
-                  documentos PDF.
+                <h2 className="text-xl font-medium text-white mb-2">¿En qué puedo ayudarte?</h2>
+                <p className="max-w-sm text-sm">
+                  Comienza a chatear. Puedes activar el Piloto Automático para que tome acciones por ti o subir documentos para análisis profundo.
                 </p>
               </div>
             )}
@@ -664,82 +721,67 @@ export default function AIChatComponent({
             {messages.map((message, index) => (
               <motion.div
                 key={message.id || index}
-                initial={{ opacity: 0, y: 18, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
                 transition={{
                   type: "spring",
                   damping: 22,
                   stiffness: 180,
                   duration: 0.45,
                 }}
-                className={`flex ${message.role === "user" ? "justify-end" : "justify-start group"}`}
+                className={`flex flex-col w-full max-w-4xl mx-auto group ${message.role === "user" ? "items-end" : "items-start"}`}
               >
-                <div
-                  className={`max-w-[85%] md:max-w-[70%] p-3 md:p-4 relative ${
-                    message.role === "user"
-                      ? "chat-bubble-sent"
-                      : "chat-bubble-received"
-                  }`}
-                >
-                  {message.media_url && message.media_type === "image" && (
-                    <img
-                      src={message.media_url}
-                      alt="Upload"
-                      className="w-full max-w-sm rounded-xl mb-3 border border-brand-gold/20"
-                    />
-                  )}
-                  {message.media_url && message.media_type !== "image" && (
-                    <div className="flex items-center gap-2 p-3 bg-black/20 rounded-xl mb-3 border border-black/10">
-                      {message.media_type === "audio" ? (
-                        <Music className="w-5 h-5" />
-                      ) : message.media_type === "video" ? (
-                        <Video className="w-5 h-5" />
-                      ) : (
-                        <FileText className="w-5 h-5" />
-                      )}
-                      <span className="text-sm font-semibold truncate">
-                        Archivo Adjunto
-                      </span>
+                {message.role === "user" ? (
+                  /* USER MESSAGE (Clean gray block) */
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-5 max-w-[85%] md:max-w-[70%]">
+                    <div className="flex items-center gap-2 mb-2 text-gray-400 text-xs font-medium">
+                      <User className="w-3 h-3" /> Tú
                     </div>
-                  )}
-                  {message.content && (
-                    <div>
-                      {message.role === "assistant" ? (
-                        <div
-                          className="prose-ai text-sm md:text-base leading-relaxed whitespace-pre-wrap break-words [&_a]:text-brand-gold [&_a]:hover:underline [&_img]:rounded-xl [&_img]:max-w-full [&_img]:my-2 [&_img]:border [&_img]:border-white/10 [&_strong]:text-white [&_strong]:font-semibold"
-                        >
-                          <AIMessageContent text={message.content} />
-                        </div>
-                      ) : (
-                        <div className="flex items-end justify-between gap-3">
-                          <p className="whitespace-pre-wrap text-sm md:text-base leading-relaxed">
-                            {message.content}
-                          </p>
-                          <div className="flex items-center gap-1 opacity-80 shrink-0 mb-1">
-                            <span className="text-[10px] text-gray-300">
-                              {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                            <div className="relative w-4 h-4 ml-0.5">
-                              <Check className="w-4 h-4 chat-seen-icon absolute left-0" />
-                              <Check className="w-4 h-4 chat-seen-icon absolute left-1.5" />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      {message.role === "assistant" && (
-                        <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <ShareButton
-                            payload={{
-                              title: "Respuesta de IA",
-                              text: message.content.slice(0, 300) + (message.content.length > 300 ? "..." : ""),
-                              type: "text"
-                            }}
-                          />
-                        </div>
-                      )}
+                    {message.media_url && message.media_type === "image" && (
+                      <img
+                        src={message.media_url}
+                        alt="Upload"
+                        className="w-full rounded-xl mb-3 border border-white/10"
+                      />
+                    )}
+                    {message.media_url && message.media_type !== "image" && (
+                      <div className="flex items-center gap-2 p-3 bg-black/20 rounded-xl mb-3 border border-black/10">
+                        {message.media_type === "audio" ? (
+                          <Music className="w-5 h-5" />
+                        ) : message.media_type === "video" ? (
+                          <Video className="w-5 h-5" />
+                        ) : (
+                          <FileText className="w-5 h-5" />
+                        )}
+                        <span className="text-sm font-semibold truncate">
+                          Archivo Adjunto
+                        </span>
+                      </div>
+                    )}
+                    <p className="whitespace-pre-wrap text-sm md:text-base leading-relaxed text-gray-200">
+                      {message.content}
+                    </p>
+                  </div>
+                ) : (
+                  /* AI MESSAGE (Notion/Claude style block) */
+                  <div className="w-full">
+                    <div className="flex items-center gap-2 mb-3 text-brand-gold text-xs font-semibold uppercase tracking-wider">
+                      <Bot className="w-3 h-3" /> {title}
                     </div>
-                  )}
-                </div>
+                    <div className="prose-ai text-gray-200 text-sm md:text-base leading-relaxed whitespace-pre-wrap break-words [&_a]:text-brand-gold [&_a]:hover:underline [&_img]:rounded-xl [&_img]:max-w-full [&_img]:my-2 [&_img]:border [&_img]:border-white/10 [&_strong]:text-white [&_strong]:font-semibold">
+                      <AIMessageContent text={message.content} />
+                    </div>
+                    <div className="flex gap-1 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <ShareButton
+                        payload={{
+                          title: "Respuesta de IA",
+                          text: message.content.slice(0, 300) + (message.content.length > 300 ? "..." : ""),
+                          type: "text"
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
               </motion.div>
             ))}
 

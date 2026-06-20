@@ -11,6 +11,9 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@ai-sdk/google": "^3.0.83",
+    "@ai-sdk/openai": "^3.0.73",
+    "@ai-sdk/react": "^3.0.210",
     "@capacitor/android": "^8.1.0",
     "@capacitor/app": "^8.0.1",
     "@capacitor/core": "^8.1.0",
@@ -20,9 +23,11 @@
     "@react-email/components": "^0.0.19",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
+    "@sentry/nextjs": "^10.59.0",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.106.1",
     "@types/three": "^0.184.1",
+    "ai": "^6.0.208",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.29.2",

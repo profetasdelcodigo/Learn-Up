@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 // @ts-expect-error: next-pwa lacks type declaration file
 import withPWAInit from "next-pwa";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const withPWA = withPWAInit({
   dest: "public",
@@ -61,8 +62,8 @@ const securityHeaders = [
       "img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in https://i.ytimg.com https://img.youtube.com https://images.unsplash.com https://plus.unsplash.com",
       // Medios (audio/video): self + Supabase Storage
       "media-src 'self' blob: https://*.supabase.co https://*.supabase.in",
-      // Conexiones API: self + Supabase + Google AI + LiveKit
-      "connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co https://generativelanguage.googleapis.com https://*.livekit.cloud wss://*.livekit.cloud",
+      // Conexiones API: self + Supabase + Google AI + LiveKit + Sentry + Umami
+      "connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co https://generativelanguage.googleapis.com https://*.livekit.cloud wss://*.livekit.cloud https://*.sentry.io https://cloud.umami.is https://api.umami.is",
       // Frames: YouTube para reproductores embebidos
       "frame-src 'self' https://www.youtube.com https://youtube.com",
       // Worker scripts (PWA service worker)
@@ -132,4 +133,15 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withPWA(nextConfig);
+export default withSentryConfig(
+  withPWA(nextConfig),
+  {
+    org: "learn-up",
+    project: "javascript-nextjs",
+    silent: !process.env.CI,
+    widenClientFileUpload: true,
+    hideSourceMaps: true,
+    disableLogger: true,
+    automaticVercelMonitors: true,
+  }
+);
