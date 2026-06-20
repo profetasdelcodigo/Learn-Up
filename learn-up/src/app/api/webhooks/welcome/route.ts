@@ -2,7 +2,8 @@ import { Resend } from "resend";
 import WelcomeEmail from "@/emails/welcome";
 import { createAdminClient } from "@/utils/supabase/admin";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resendApiKey = process.env.RESEND_API_KEY;
+const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
 export async function POST(req: Request) {
   // Verificamos el secreto de Supabase Webhooks
@@ -26,6 +27,11 @@ export async function POST(req: Request) {
     // Si da error por llave primaria duplicada, significa que ya se envió
     console.log("Correo ya enviado anteriormente a:", email);
     return new Response("ok (ya enviado)", { status: 200 }); 
+  }
+
+  if (!resend) {
+    console.log("Resend API key missing, skipping welcome email");
+    return new Response("ok (email skipped)", { status: 200 });
   }
 
   try {

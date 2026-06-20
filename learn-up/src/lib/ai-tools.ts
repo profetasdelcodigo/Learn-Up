@@ -144,8 +144,8 @@ LISTA DE HERRAMIENTAS:
 12. create_exam — Generar un examen autocalificable.
     args: {"topic": "Tema", "difficulty": "facil|media|dificil", "question_count": 10, "duration_minutes": 30}
 
-13. load_claude_skill — Cargar un Cookbook o Skill desde los repositorios locales clonados de Claude.
-    args: {"repository": "claude-code|claude-cookbooks|awesome-claude-skills|...", "skill_name": "ej. database, mcp, prompt-engineering"}
+13. load_claude_skill — Cargar un Cookbook o Skill desde los repositorios locales clonados de Claude o los repositorios internos de agentes.
+    args: {"repository": "claude-code|the-architect|neo|agency-agents|...", "skill_name": "ej. database, mcp, engineering"}
 
 14. generate_flashcards — Generar un set de tarjetas de estudio (Flashcards) descargables sobre un tema.
     args: {"topic": "Tema general", "content": "Lista de Pregunta: Respuesta separadas por saltos de línea"}
@@ -645,7 +645,11 @@ Responde con claridad. El profesor puede adaptar esta plantilla a preguntas espe
         try {
           const fs = await import("fs/promises");
           const path = await import("path");
-          const repoPath = path.join(process.cwd(), "src", "lib", "ai", "repositories", repository);
+          let repoPath = path.join(process.cwd(), "src", "lib", "ai", "repositories", repository);
+          
+          if (["the-architect", "neo", "agency-agents"].includes(repository)) {
+            repoPath = path.join(process.cwd(), ".agents", repository);
+          }
           
           try {
              await fs.access(repoPath);

@@ -2,6 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { createServerNotification } from "@/utils/server-notifications";
+import { indexAiDocumentFromUrl } from "./ai-tutor";
 
 export async function uploadLibraryFile(
   formData: FormData,
@@ -112,6 +113,17 @@ export async function uploadLibraryFile(
       return { success: false, error: "Error al guardar en la base de datos" };
     }
 
+    if (isTeacher && (fileType === "pdf" || fileType === "document")) {
+      // Auto-index if auto-approved
+      // We don't await this so it doesn't block the UI
+      indexAiDocumentFromUrl({
+        title,
+        url: publicUrl,
+        mimeType: file.type || "application/pdf",
+        sessionId: null,
+      }).catch(err => console.error("Auto-index error:", err));
+    }
+
     // Notify reviewer — only if student upload
     if (!isTeacher) {
       const submitterName =
@@ -154,6 +166,14 @@ export async function approveLibraryItem(
       .single();
 
     if (error || !item) return { success: false, error: "No se pudo aprobar" };
+
+    if (item.file_type === "pdf" || item.file_type === "document") {
+      indexAiDocumentFromUrl({
+        title: item.title,
+        url: item.file_url,
+        sessionId: null,
+      }).catch(err => console.error("Auto-index error on approve:", err));
+    }
 
     // Notify submitter
     await createServerNotification({
