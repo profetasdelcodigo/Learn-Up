@@ -159,7 +159,7 @@ export default function LegalGate({ onAccept, onDecline, isDeclining }: LegalGat
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-          {messages.map((m: any) => (
+          {messages?.map((m: any) => (
             <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[85%] p-3 rounded-2xl text-sm ${
                 m.role === 'user' 
@@ -189,7 +189,7 @@ export default function LegalGate({ onAccept, onDecline, isDeclining }: LegalGat
             />
             <button 
               type="submit" 
-              disabled={isLoading || !input.trim()}
+              disabled={isLoading || !input?.trim()}
               className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-brand-purple text-white rounded-lg hover:bg-brand-purple-light disabled:opacity-50 transition-colors"
             >
               <Send className="w-4 h-4" />

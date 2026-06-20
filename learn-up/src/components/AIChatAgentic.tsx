@@ -114,7 +114,7 @@ export default function AIChatAgentic({
           </div>
         )}
 
-        {messages.map((m: any) => (
+        {messages?.map((m: any) => (
           <motion.div
             key={m.id}
             initial={{ opacity: 0, y: 10 }}
@@ -252,7 +252,7 @@ export default function AIChatAgentic({
           />
           <button
             type="submit"
-            disabled={isLoading || !input.trim()}
+            disabled={isLoading || !input?.trim()}
             className="absolute right-3 p-2.5 bg-brand-gold hover:bg-yellow-400 text-black rounded-full disabled:opacity-50 disabled:hover:bg-brand-gold transition-colors shadow-lg"
           >
             {isLoading ? (
