@@ -1,6 +1,6 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { google } from "@ai-sdk/google";
-import { streamText, tool, type Message } from "ai";
+import { streamText, tool } from "ai";
 import { z } from "zod";
 import { createClient } from "@/utils/supabase/server";
 
