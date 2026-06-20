@@ -20,14 +20,7 @@ import {
 } from "@/components/animations/StaggerReveal";
 import { MotionCard } from "@/components/animations/MotionCard";
 import { ScrollReveal } from "@/components/animations/ScrollReveal";
-import dynamic from "next/dynamic";
-
-const DashboardDonut = dynamic(() => import("@/components/3d/DashboardDonut"), { 
-  ssr: false,
-  loading: () => (
-    <div className="w-10 h-10 rounded-full bg-brand-purple/20 animate-pulse border border-brand-purple/30" />
-  )
-});
+import DashboardDonutDynamic from "@/components/3d/DashboardDonutDynamic";
 
 const aiCards = [
   {
@@ -178,7 +171,7 @@ export default async function DashboardPage() {
                     <p className="text-brand-gold/60 text-xs font-semibold uppercase tracking-[0.2em] font-body">
                       {greeting()},
                     </p>
-                    <DashboardDonut />
+                    <DashboardDonutDynamic />
                   </div>
                   <h1 className="text-4xl md:text-5xl font-black text-white mb-2 truncate max-w-full font-display">
                     {profile?.full_name || "Estudiante"}

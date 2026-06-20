@@ -1,6 +1,6 @@
 "use client";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Torus, MeshStandardMaterial } from "@react-three/drei";
+import { Torus } from "@react-three/drei";
 import { useRef } from "react";
 import * as THREE from "three";
 

@@ -7,6 +7,7 @@ create table if not exists public.welcome_emails_sent (
 alter table public.welcome_emails_sent enable row level security;
 
 -- Only service role can insert (triggered by webhook/backend)
+drop policy if exists "Service role can manage welcome emails" on public.welcome_emails_sent;
 create policy "Service role can manage welcome emails" 
   on public.welcome_emails_sent
   for all 

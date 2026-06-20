@@ -7,10 +7,10 @@ import { getAiSessions, deleteAiSession, createAiSession } from "@/actions/ai-hi
 interface SourcesPanelProps {
   aiType: string;
   currentSessionId: string | null;
-  onSessionSelect: (sessionId: string | null) => void;
+  onSessionChange: (sessionId: string | null) => void;
 }
 
-export default function SourcesPanel({ aiType, currentSessionId, onSessionSelect }: SourcesPanelProps) {
+export default function SourcesPanel({ aiType, currentSessionId, onSessionChange }: SourcesPanelProps) {
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,10 +30,10 @@ export default function SourcesPanel({ aiType, currentSessionId, onSessionSelect
     const { session, error } = await createAiSession(aiType, "Nueva Sesión");
     if (session) {
       await loadSessions();
-      onSessionSelect(session.id);
+      onSessionChange(session.id);
     } else {
       // Falback to just clearing currentSessionId
-      onSessionSelect(null);
+      onSessionChange(null);
     }
   };
 
@@ -41,7 +41,7 @@ export default function SourcesPanel({ aiType, currentSessionId, onSessionSelect
     e.stopPropagation();
     await deleteAiSession(id);
     if (currentSessionId === id) {
-      onSessionSelect(null);
+      onSessionChange(null);
     }
     loadSessions();
   };
@@ -111,7 +111,7 @@ export default function SourcesPanel({ aiType, currentSessionId, onSessionSelect
               sessions.map((s) => (
                 <div
                   key={s.id}
-                  onClick={() => onSessionSelect(s.id)}
+                  onClick={() => onSessionChange(s.id)}
                   className={`p-3 rounded-xl cursor-pointer flex justify-between items-center group transition-colors ${
                     currentSessionId === s.id
                       ? "bg-surface-2 border border-brand-gold/30"
