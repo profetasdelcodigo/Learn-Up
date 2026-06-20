@@ -1,6 +1,6 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { google } from "@ai-sdk/google";
-import { streamText, tool, type CoreMessage } from "ai";
+import { streamText, tool, type Message } from "ai";
 import { z } from "zod";
 import { createClient } from "@/utils/supabase/server";
 
@@ -87,7 +87,7 @@ Puedes controlar el entorno y crear contenido visual.`;
     // 4. Execute streamText
     const result = streamText({
       model,
-      messages: messages as CoreMessage[],
+      messages: messages as any[],
       system: systemPrompt,
       tools,
       // Si el usuario marcó "Autonomía", permitimos hasta 5 pasos automáticos (la IA llama a la herramienta y se auto-responde)
