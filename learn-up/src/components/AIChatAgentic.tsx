@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, ReactNode } from "react";
-import { useChat } from "@ai-sdk/react";
+import { useChat } from "ai/react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Send,

@@ -516,7 +516,8 @@ export default function OnboardingPage() {
           </div>
         </motion.div>
       </div>
-      </>}
+      </>
+      )}
     </div>
   );
 }
