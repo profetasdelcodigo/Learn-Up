@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
+import { clearAuthStorage, clearLearnUpPwaState } from "@/lib/auth-logout";
 
 function getSessionIdFromJwt(token?: string | null) {
   const payload = token?.split(".")[1];
@@ -24,22 +25,26 @@ export default function SessionHeartbeat() {
   useEffect(() => {
     let cancelled = false;
     let currentSessionId: string | null = null;
+    let channel: ReturnType<ReturnType<typeof createClient>["channel"]> | null =
+      null;
     const supabase = createClient();
 
     const forceLocalSignOut = async () => {
       if (cancelled) return;
       cancelled = true;
+      clearAuthStorage();
       await Promise.race([
-        supabase.auth.signOut({ scope: "local" }),
-        new Promise((resolve) => window.setTimeout(resolve, 400)),
+        clearLearnUpPwaState(),
+        new Promise((resolve) => window.setTimeout(resolve, 800)),
       ]).catch(() => {});
       window.location.replace("/login?reason=session_closed");
     };
 
     const ping = async () => {
-      if (cancelled) return;
+      if (cancelled || !currentSessionId) return;
       const res = await fetch("/api/auth/session-heartbeat", {
         method: "POST",
+        credentials: "include",
       }).catch(() => null);
 
       if (res?.status === 401) {
@@ -47,57 +52,69 @@ export default function SessionHeartbeat() {
       }
     };
 
-    supabase.auth.getSession().then(({ data }) => {
+    const subscribeToRevocation = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (cancelled) return;
       currentSessionId = getSessionIdFromJwt(data.session?.access_token);
-    });
+      if (!currentSessionId) return;
 
-    // Listen for UPDATE (revoked_at set) on user_sessions
-    const channel = supabase
-      .channel("session-revocation")
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "user_sessions" },
-        async (payload) => {
-          const row = payload.new as {
-            session_id?: string;
-            revoked_at?: string | null;
-          };
+      // Listen for UPDATE (revoked_at set) on the current user_sessions row.
+      channel = supabase
+        .channel(`session-revocation:${currentSessionId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "user_sessions",
+            filter: `session_id=eq.${currentSessionId}`,
+          },
+          async (payload) => {
+            const row = payload.new as {
+              session_id?: string;
+              revoked_at?: string | null;
+            };
 
-          if (
-            currentSessionId &&
-            row.session_id === currentSessionId &&
-            row.revoked_at
-          ) {
-            await forceLocalSignOut();
-          }
-        },
-      )
-      // Also listen for DELETE (row removed entirely)
-      .on(
-        "postgres_changes",
-        { event: "DELETE", schema: "public", table: "user_sessions" },
-        async (payload) => {
-          const old = payload.old as { session_id?: string };
-          if (currentSessionId && old.session_id === currentSessionId) {
-            await forceLocalSignOut();
-          }
-        },
-      )
-      .subscribe();
+            if (row.session_id === currentSessionId && row.revoked_at) {
+              await forceLocalSignOut();
+            }
+          },
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "DELETE",
+            schema: "public",
+            table: "user_sessions",
+            filter: `session_id=eq.${currentSessionId}`,
+          },
+          async (payload) => {
+            const old = payload.old as { session_id?: string };
+            if (old.session_id === currentSessionId) {
+              await forceLocalSignOut();
+            }
+          },
+        )
+        .subscribe();
 
-    // Initial ping + periodic heartbeat (every 30s instead of 5s to reduce load)
-    ping();
-    const interval = window.setInterval(ping, 30_000);
+      await ping();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") void ping();
+    };
+
+    void subscribeToRevocation();
+    const interval = window.setInterval(ping, 10_000);
     window.addEventListener("focus", ping);
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") ping();
-    });
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       cancelled = true;
-      supabase.removeChannel(channel);
+      if (channel) void supabase.removeChannel(channel);
       window.clearInterval(interval);
       window.removeEventListener("focus", ping);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 

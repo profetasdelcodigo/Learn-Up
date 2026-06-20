@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
       "id, session_id, device_name, browser, os, created_at, last_seen_at, revoked_at",
     )
     .eq("user_id", user.id)
+    .is("revoked_at", null)
     .order("last_seen_at", { ascending: false });
 
   if (error) {

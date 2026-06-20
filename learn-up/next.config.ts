@@ -1,14 +1,24 @@
 import type { NextConfig } from "next";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 // @ts-expect-error: next-pwa lacks type declaration file
 import withPWAInit from "next-pwa";
 import { withSentryConfig } from "@sentry/nextjs";
+
+const appDir = dirname(fileURLToPath(import.meta.url));
+const buildCacheId =
+  process.env.RENDER_GIT_COMMIT ||
+  process.env.NEXT_PUBLIC_APP_VERSION ||
+  "local";
 
 const withPWA = withPWAInit({
   dest: "public",
   disable: process.env.NODE_ENV === "development",
   register: true,
   skipWaiting: true,
+  cleanupOutdatedCaches: true,
+  cacheId: `learn-up-${buildCacheId}`,
 });
 
 // ── Security Headers ─────────────────────────────────────────
@@ -81,6 +91,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: appDir,
   typescript: {
     // !! WARN !!
     // Dangerously allow production builds to successfully complete even if

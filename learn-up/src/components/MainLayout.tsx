@@ -48,7 +48,7 @@ export default function MainLayout({
     >
       <NotificationManager />
       <WelcomeTutorial />
-      {showNav && <SessionHeartbeat />}
+      <SessionHeartbeat />
 
       {/* Global Toast Container */}
       <div 

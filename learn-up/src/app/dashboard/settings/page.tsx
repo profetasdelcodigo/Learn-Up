@@ -8,17 +8,15 @@ import {
   Sun, 
   Monitor, 
   AlertTriangle, 
-  LogOut,
   Settings,
   Shield,
   Loader2
 } from "lucide-react";
 import { deleteAccountAction } from "@/actions/user";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
+import { appSignOut } from "@/lib/auth-logout";
 
 export default function SettingsPage() {
-  const router = useRouter();
   const supabase = createClient();
   const [theme, setTheme] = useState("dark");
   const [isDeleting, setIsDeleting] = useState(false);
@@ -54,9 +52,11 @@ export default function SettingsPage() {
     try {
       const result = await deleteAccountAction();
       if (result.success) {
-        // Sign out just in case, then redirect
-        await supabase.auth.signOut();
-        router.push("/login");
+        await appSignOut({
+          scope: "local",
+          redirectReason: "cuenta_eliminada",
+          clearPwaState: true,
+        });
       } else {
         alert("Hubo un error al eliminar tu cuenta: " + result.error);
         setIsDeleting(false);

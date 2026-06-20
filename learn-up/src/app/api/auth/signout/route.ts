@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { getSessionIdFromAccessToken } from "@/lib/session-devices";
 
-type SignOutScope = "local" | "others" | "global";
+type SignOutScope = "local" | "others" | "global" | "selected";
 
 function normalizeScope(value: unknown): SignOutScope {
-  return value === "others" || value === "global" ? value : "local";
+  if (value === "others" || value === "global" || value === "selected") {
+    return value;
+  }
+  return "local";
 }
 
 function clearSupabaseCookies(req: NextRequest, response: NextResponse) {
@@ -40,13 +43,22 @@ export async function POST(req: NextRequest) {
   const sessionId = getSessionIdFromAccessToken(session?.access_token);
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const response = NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    clearSupabaseCookies(req, response);
+    return response;
   }
 
   const now = new Date().toISOString();
 
-  if (requestedSessionIds.length > 0) {
+  if (scope === "selected" || requestedSessionIds.length > 0) {
     const uniqueSessionIds = Array.from(new Set(requestedSessionIds));
+    if (uniqueSessionIds.length === 0) {
+      return NextResponse.json(
+        { error: "session_ids is required for selected sign out" },
+        { status: 400 },
+      );
+    }
+
     const { error } = await supabase
       .from("user_sessions")
       .update({ revoked_at: now })

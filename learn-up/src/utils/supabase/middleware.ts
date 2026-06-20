@@ -110,9 +110,9 @@ export async function updateSession(request: NextRequest) {
         .maybeSingle();
 
       if (trackedSession?.revoked_at) {
-        const response = isPublicRoute
-          ? NextResponse.next({ request })
-          : NextResponse.redirect(new URL("/login?reason=session_closed", request.url));
+        const response = NextResponse.redirect(
+          new URL("/login?reason=session_closed", request.url),
+        );
         clearSupabaseCookies(request, response);
         return response;
       }

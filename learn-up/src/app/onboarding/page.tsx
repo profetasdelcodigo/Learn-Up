@@ -19,6 +19,7 @@ import {
 } from "@/components/animations/StaggerReveal";
 import LegalGate from "@/components/LegalGate";
 import { deleteAccountAction } from "@/actions/user";
+import { appSignOut } from "@/lib/auth-logout";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -107,8 +108,11 @@ export default function OnboardingPage() {
     setIsDeclining(true);
     try {
       await deleteAccountAction();
-      await supabase.auth.signOut();
-      router.push("/login");
+      await appSignOut({
+        scope: "local",
+        redirectReason: "cuenta_eliminada",
+        clearPwaState: true,
+      });
     } catch (e) {
       console.error(e);
       alert("Error al eliminar la cuenta");
