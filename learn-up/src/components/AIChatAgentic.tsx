@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, ReactNode } from "react";
-import { useChat } from "ai/react";
+import { useChat, Message } from "@ai-sdk/react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Send,
@@ -50,8 +50,7 @@ export default function AIChatAgentic({
       aiType,
       isAutonomous,
     },
-    // Customize error handling or onFinish here if needed
-  });
+  }) as any;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -114,7 +113,7 @@ export default function AIChatAgentic({
           </div>
         )}
 
-        {messages.map((m) => (
+        {messages.map((m: any) => (
           <motion.div
             key={m.id}
             initial={{ opacity: 0, y: 10 }}
@@ -157,7 +156,7 @@ export default function AIChatAgentic({
                 </div>
 
                 {/* Tool Invocations (Visible Reasoning) */}
-                {m.toolInvocations?.map((toolInvocation) => {
+                {m.toolInvocations?.map((toolInvocation: any) => {
                   const toolCallId = toolInvocation.toolCallId;
                   
                   return (

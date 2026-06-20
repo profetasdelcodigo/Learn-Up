@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { ScrollText, ShieldCheck, XCircle, Bot, Send, Loader2 } from "lucide-react";
-import { useChat } from "ai/react";
+import { useChat } from "@ai-sdk/react";
 
 interface LegalGateProps {
   onAccept: () => void;
@@ -26,7 +26,7 @@ export default function LegalGate({ onAccept, onDecline, isDeclining }: LegalGat
         content: "Hola, soy Jarvis. He analizado el contrato que tienes a la izquierda. Si tienes alguna duda sobre la privacidad, tus datos o las reglas, pregúntame antes de firmar."
       }
     ]
-  });
+  }) as any;
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const bottom = e.currentTarget.scrollHeight - e.currentTarget.scrollTop <= e.currentTarget.clientHeight + 100;
@@ -159,7 +159,7 @@ export default function LegalGate({ onAccept, onDecline, isDeclining }: LegalGat
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-          {messages.map((m) => (
+          {messages.map((m: any) => (
             <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[85%] p-3 rounded-2xl text-sm ${
                 m.role === 'user' 
