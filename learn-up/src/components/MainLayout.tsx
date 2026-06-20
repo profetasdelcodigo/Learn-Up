@@ -80,17 +80,16 @@ export default function MainLayout({
 
 
       <main
-        className={`flex-1 relative w-full ${
-          isFullscreen ? "overflow-hidden flex flex-col" : "min-w-0"
+        className={`flex flex-col flex-1 relative w-full min-w-0 ${
+          isFullscreen ? "overflow-hidden" : ""
         }`}
       >
         {/* Content wrapper */}
         <div
           className={[
-            "w-full",
+            "w-full flex-1 flex flex-col",
             // Padding bottom for bottom nav
             showNav && !isFullscreen ? "pb-nav" : "",
-            isFullscreen ? "flex flex-col h-full" : "min-h-full",
           ]
             .filter(Boolean)
             .join(" ")}
