@@ -10,12 +10,16 @@ const VISION_MODEL = "gemini-3-flash-preview";
 
 async function extractOfficeText(buffer: Buffer, fileType: string): Promise<string> {
   const officeParser = await import("officeparser");
-  const ast = await officeParser.OfficeParser.parseOffice(buffer, {
-    fileType,
-    ignoreNotes: false,
-  } as any);
-  const textResult = await ast.to("text");
-  return typeof textResult.value === "string" ? textResult.value : "";
+  try {
+    const textResult = await officeParser.parseOffice(buffer, {
+      fileType: fileType,
+      ignoreNotes: false,
+    });
+    return typeof textResult === "string" ? textResult : "";
+  } catch (error) {
+    console.error("[Ingestion] Error en officeparser:", error);
+    return "Error extrayendo texto del documento.";
+  }
 }
 
 import { getTimeContext } from "@/lib/ai/time-context";
@@ -52,21 +56,8 @@ export async function parseMediaInput(url: string, _type: string) {
       return data.text;
     }
 
-    // DOCX Extraction
-    if (parsedUrl.endsWith(".docx")) {
-      console.log("[Ingestion] Procesando DOCX...");
-      const mammoth = await import("mammoth");
-      try {
-        const result = await mammoth.extractRawText({ buffer });
-        console.log(`[Ingestion] DOCX extraído, longitud de texto: ${result.value.length}`);
-        return result.value;
-      } catch (mammothErr) {
-        console.error("[Ingestion] Error fatal en mammoth:", mammothErr);
-        return "El archivo DOCX parece estar dañado o tiene un formato no compatible.";
-      }
-    }
-
-    if (parsedUrl.match(/\.(pptx|xlsx|odt|odp|ods|rtf)$/)) {
+    // Office files Extraction (DOCX, PPTX, etc.)
+    if (parsedUrl.match(/\.(docx|pptx|xlsx|odt|odp|ods|rtf)$/)) {
       console.log("[Ingestion] Procesando documento Office...");
       const fileType = parsedUrl.split(".").pop() || "";
       const extractedText = await extractOfficeText(buffer, fileType);

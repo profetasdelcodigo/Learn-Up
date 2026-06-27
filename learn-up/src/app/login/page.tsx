@@ -362,6 +362,32 @@ export default function LoginPage() {
                     </div>
                   </div>
 
+                  {isSignup && (
+                    <div className="space-y-4 mb-6 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-gray-400 font-body">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">
+                          ¿Cuál es tu fecha de nacimiento?
+                        </label>
+                        <input
+                          type="date"
+                          required
+                          className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-brand-gold text-sm"
+                        />
+                        <p className="text-[10px] text-gray-500 mt-1">La usamos solo para saber qué protecciones aplicarte.</p>
+                      </div>
+
+                      <div className="flex items-start gap-3">
+                        <input type="checkbox" id="terms" required className="mt-1 shrink-0 accent-brand-gold w-4 h-4 rounded" />
+                        <label htmlFor="terms" className="leading-tight">Acepto los <Link href="/legal" target="_blank" className="text-brand-gold hover:underline">Términos de Servicio y Política de Privacidad</Link>.</label>
+                      </div>
+
+                      <div className="flex items-start gap-3">
+                        <input type="checkbox" id="ai-consent" required className="mt-1 shrink-0 accent-brand-gold w-4 h-4 rounded" />
+                        <label htmlFor="ai-consent" className="leading-tight">Entiendo que la IA (Tutor/Consejero) procesará mis datos para ayudarme a estudiar y que puede cometer errores.</label>
+                      </div>
+                    </div>
+                  )}
+
                   <button
                     type="submit"
                     disabled={loading}

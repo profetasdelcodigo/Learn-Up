@@ -24,6 +24,7 @@ import { deleteAccountAction } from "@/actions/user";
 import { createClient } from "@/utils/supabase/client";
 import { LEGAL_TEXT } from "@/lib/legal-text";
 import { appSignOut } from "@/lib/auth-logout";
+import Link from "next/link";
 
 const themeOptions = [
   {
@@ -98,7 +99,6 @@ export default function SettingsPage() {
   const [mounted, setMounted] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
-  const [showPolicies, setShowPolicies] = useState(false);
   const [userEmail, setUserEmail] = useState("");
 
   useEffect(() => {
@@ -283,13 +283,12 @@ export default function SettingsPage() {
                   Revisa los acuerdos legales de la plataforma.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowPolicies(true)}
+              <Link
+                href="/legal"
                 className="shrink-0 text-sm text-brand-gold hover:underline"
               >
                 Ver politicas
-              </button>
+              </Link>
             </div>
           </div>
         </motion.section>
@@ -367,36 +366,6 @@ export default function SettingsPage() {
           </div>
         </motion.section>
       </div>
-
-      {showPolicies && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="glass-strong relative max-h-[85dvh] w-full max-w-3xl overflow-hidden rounded-2xl border border-white/10 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
-              <div>
-                <h2 className="text-xl font-bold text-[var(--foreground)]">
-                  Politicas de Learn Up
-                </h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Resumen operativo para privacidad, seguridad y uso de IA.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowPolicies(false)}
-                className="rounded-full p-2 text-gray-400 hover:bg-white/10 hover:text-[var(--foreground)]"
-                aria-label="Cerrar politicas"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="max-h-[65dvh] overflow-y-auto px-6 py-5 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
-              <pre className="whitespace-pre-wrap font-sans">
-                {LEGAL_TEXT}
-              </pre>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
