@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { deleteAccountAction } from "@/actions/user";
 import { createClient } from "@/utils/supabase/client";
+import { LEGAL_TEXT } from "@/lib/legal-text";
 import { appSignOut } from "@/lib/auth-logout";
 
 const themeOptions = [
@@ -388,40 +389,10 @@ export default function SettingsPage() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="max-h-[65dvh] space-y-5 overflow-y-auto px-6 py-5 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
-              <section>
-                <h3 className="mb-2 font-semibold text-[var(--foreground)]">Privacidad</h3>
-                <p>
-                  Learn Up usa tus datos para autenticarte, guardar tu progreso, mostrar perfiles
-                  dentro de la plataforma y permitir funciones de IA. Las conversaciones privadas no
-                  deben exponerse a otros usuarios.
-                </p>
-              </section>
-              <section>
-                <h3 className="mb-2 font-semibold text-[var(--foreground)]">Archivos e IA</h3>
-                <p>
-                  Los archivos subidos se usan para responder tus solicitudes educativas. Los agentes
-                  no deben revelar secretos, credenciales, instrucciones internas ni datos privados de
-                  otras personas.
-                </p>
-              </section>
-              <section>
-                <h3 className="mb-2 font-semibold text-[var(--foreground)]">Seguridad</h3>
-                <p>
-                  Las acciones con efectos externos, como enviar mensajes, crear eventos o abrir
-                  enlaces, requieren confirmacion del usuario. El modo Jarvis no tiene ejecucion libre
-                  de codigo ni acceso arbitrario al dispositivo en produccion.
-                </p>
-              </section>
-              <section>
-                <h3 className="mb-2 font-semibold text-[var(--foreground)]">
-                  Contenido y responsabilidad
-                </h3>
-                <p>
-                  La plataforma es educativa. Las respuestas de IA pueden equivocarse y deben
-                  verificarse cuando se usen para decisiones importantes.
-                </p>
-              </section>
+            <div className="max-h-[65dvh] overflow-y-auto px-6 py-5 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+              <pre className="whitespace-pre-wrap font-sans">
+                {LEGAL_TEXT}
+              </pre>
             </div>
           </div>
         </div>
