@@ -3,6 +3,8 @@ import { ensurePrivateRoom, sendMessage } from "@/actions/chat";
 import { performWebSearch } from "@/lib/web-search";
 import { findRelatedConcepts, linkConcepts } from "@/lib/knowledge-graph";
 import { searchRecipeImage } from "@/lib/unsplash";
+import { browseWebPage } from "@/lib/browser-act";
+import { runAcademicCouncil } from "@/actions/ai-council";
 import { z } from "zod";
 
 // â”€â”€ Schemas Zod para validar argumentos del LLM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -40,6 +42,13 @@ const ToolSchemas: Record<string, z.ZodType> = {
   }),
   search_web: z.object({
     query: z.string().min(1),
+  }),
+  browse_web_page: z.object({
+    url: z.string().url(),
+  }),
+  trigger_academic_council: z.object({
+    topic: z.string().min(1),
+    text: z.string().min(1),
   }),
   save_learned_concept: z.object({
     title: z.string().min(1),
@@ -251,12 +260,12 @@ export async function executeToolAction(
 
   try {
     switch (tool) {
-      // â”€â”€ Abrir URL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // ── Abrir URL ──────────────────────────────────────────
       case "open_url": {
-        // La apertura real la hace el cliente. AquÃ­ solo validamos.
+        // La apertura real la hace el cliente. Aquí solo validamos.
         const url = args.url;
         if (!url || typeof url !== "string") {
-          return { success: false, message: "URL no vÃ¡lida." };
+          return { success: false, message: "URL no válida." };
         }
         return {
           success: true,
@@ -265,7 +274,36 @@ export async function executeToolAction(
         };
       }
 
-      // â”€â”€ Agregar evento al calendario â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // ── Navegador Web (BrowserAct) ──────────────────────────
+      case "browse_web_page": {
+        if (!args.url) return { success: false, message: "URL requerida." };
+        const result = await browseWebPage(args.url);
+        if (!result.success) {
+          return { success: false, message: `Error al leer web: ${result.content}` };
+        }
+        return {
+          success: true,
+          message: `Página leída: ${result.title}`,
+          data: result,
+        };
+      }
+
+      // ── Tribunal Académico ──────────────────────────────────
+      case "trigger_academic_council": {
+        if (!args.topic || !args.text) return { success: false, message: "Faltan datos del texto a evaluar." };
+        try {
+          const report = await runAcademicCouncil(args.topic, args.text);
+          return {
+            success: true,
+            message: "El Tribunal Académico ha emitido su veredicto.",
+            data: { report },
+          };
+        } catch (e: any) {
+          return { success: false, message: `Error en el Tribunal: ${e.message}` };
+        }
+      }
+
+      // ── Agregar evento al calendario ────────────────────────
       case "add_calendar_event": {
         const { title, date, start_time, end_time } = args;
         if (!title || !date) {

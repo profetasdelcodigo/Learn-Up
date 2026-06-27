@@ -75,7 +75,7 @@ export default function NotebookLayout({ leftPanel, centerPanel, rightPanel }: N
       {/* Center - Chat */}
       <div className="flex-1 flex flex-col min-w-0 relative bg-brand-black">
         {/* Toggle buttons for desktop & mobile */}
-        <div className="absolute top-3 left-3 z-20 flex gap-1">
+        <div className="absolute top-1/2 -translate-y-1/2 left-3 z-20 flex gap-1">
           <button 
             onClick={() => setLeftOpen(!leftOpen)} 
             className="w-8 h-8 flex items-center justify-center rounded-lg bg-surface-2/80 hover:bg-white/10 border border-white/10 text-gray-400 hover:text-white transition-colors backdrop-blur-md shadow-lg shadow-black/20"
@@ -85,7 +85,7 @@ export default function NotebookLayout({ leftPanel, centerPanel, rightPanel }: N
           </button>
         </div>
         
-        <div className="absolute top-3 right-3 z-20 flex gap-1">
+        <div className="absolute top-1/2 -translate-y-1/2 right-3 z-20 flex gap-1">
           <button 
             onClick={() => setRightOpen(!rightOpen)} 
             className="w-8 h-8 flex items-center justify-center rounded-lg bg-surface-2/80 hover:bg-white/10 border border-white/10 text-gray-400 hover:text-white transition-colors backdrop-blur-md shadow-lg shadow-black/20"

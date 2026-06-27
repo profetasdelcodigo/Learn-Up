@@ -252,10 +252,15 @@ export default function AIChatComponent({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isCreatingSession = useRef(false);
   const supabase = createClient();
 
   useEffect(() => {
     if (currentSessionId) {
+      if (isCreatingSession.current) {
+        isCreatingSession.current = false;
+        return;
+      }
       loadSessionMessages(currentSessionId);
     } else {
       setMessages([]);
@@ -598,13 +603,14 @@ export default function AIChatComponent({
     if (!sessionId) {
       try {
         const { session, error: sErr } = await createAiSession(aiType, option.substring(0, 30) || "Nueva Sesión");
-        if (sErr) throw new Error(sErr);
         if (session) {
           sessionId = session.id;
-          onSessionChange(session.id);
           newSession = true;
+          isCreatingSession.current = true;
+          onSessionChange?.(session.id);
         }
-      } catch (err: any) {
+      } catch (err) {
+        console.error("Error creating session:", err);
         setError("Error al iniciar sesión.");
         setLoading(false);
         return;

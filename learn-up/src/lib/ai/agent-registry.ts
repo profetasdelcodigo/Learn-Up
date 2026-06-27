@@ -48,6 +48,18 @@ const readOnlyTools: AiToolDefinition[] = [
     requiresConfirmation: false,
     externalEffect: false,
   },
+  {
+    name: "browse_web_page",
+    description: "Visita una URL especifica, extrae su contenido y lo convierte a texto puro (Markdown). Útil para leer links.",
+    requiresConfirmation: false,
+    externalEffect: false,
+  },
+  {
+    name: "trigger_academic_council",
+    description: "Invoca a un comité de múltiples agentes (Gramática, Lógica, Creatividad) para evaluar profundamente un texto o ensayo.",
+    requiresConfirmation: false,
+    externalEffect: false,
+  },
 ];
 
 const writeTools: AiToolDefinition[] = [

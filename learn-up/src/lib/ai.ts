@@ -131,21 +131,18 @@ export async function extractDocumentText(
     return pdfData.text;
   }
 
-  if (urlLower.endsWith(".docx") || urlLower.endsWith(".doc")) {
-    const mammoth = await import("mammoth");
-    const result = await mammoth.extractRawText({ buffer });
-    return result.value;
-  }
-
-  const officeMatch = urlLower.match(/\.(pptx|xlsx|odt|odp|ods|rtf)$/);
-  if (officeMatch) {
-    const { OfficeParser } = await import("officeparser");
-    const ast = await OfficeParser.parseOffice(buffer, {
-      fileType: officeMatch[1],
-      ignoreNotes: false,
-    } as any);
-    const textResult = await ast.to("text");
-    return typeof textResult.value === "string" ? textResult.value : "";
+  if (urlLower.match(/\.(docx|doc|pptx|xlsx|odt|odp|ods|rtf)$/)) {
+    const { parseOffice } = await import("officeparser");
+    try {
+      const textResult = await parseOffice(buffer, {
+        fileType: urlLower.split('.').pop() || "",
+        ignoreNotes: false,
+      });
+      return typeof textResult === "string" ? textResult : "";
+    } catch (error) {
+      console.error("[Ingestion] Error en officeparser:", error);
+      throw new Error("El archivo Office parece estar dañado o tiene un formato no compatible.");
+    }
   }
 
   if (
@@ -452,7 +449,7 @@ export const getGroqCompletion = async (
 export const getAIEmbedding = async (text: string): Promise<number[]> => {
   if (!genAI) throw new Error("Gemini AI not initialized for embeddings");
   try {
-    const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
+    const model = genAI.getGenerativeModel({ model: "embedding-001" });
     const result = await model.embedContent(text);
     return result.embedding.values;
   } catch (error) {
