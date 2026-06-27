@@ -5,7 +5,7 @@ import { BookOpen } from "lucide-react";
 import NotebookLayout from "@/components/ai/NotebookLayout";
 import SourcesPanel from "@/components/ai/SourcesPanel";
 import AIChatComponent from "@/components/AIChatComponent";
-import NotebookWhiteboard from "@/components/NotebookWhiteboard";
+import NotebookStudio from "@/components/ai/NotebookStudio";
 import { askProfessor } from "@/actions/ai-tutor";
 
 export default function ProfessorChatPage() {
@@ -31,7 +31,7 @@ export default function ProfessorChatPage() {
           onSessionChange={setSessionId}
         />
       }
-      rightPanel={<NotebookWhiteboard currentSessionId={sessionId} />}
+      rightPanel={<NotebookStudio currentSessionId={sessionId} />}
     />
   );
 }

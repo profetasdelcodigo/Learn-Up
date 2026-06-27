@@ -13,7 +13,7 @@ import {
   Music,
   FileText,
   Bot,
-  PlusCircle,
+  Plus,
   Trash2,
   History,
   ChevronLeft,
@@ -31,6 +31,20 @@ import {
   ToggleRight,
   BrainCircuit,
   CheckCircle2,
+  Camera,
+  FolderPlus,
+  Zap,
+  Link,
+  Puzzle,
+  Globe,
+  ChevronDown,
+  Mic,
+  Activity,
+  PenLine,
+  GraduationCap,
+  Code,
+  Coffee,
+  Sparkles,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import ShareButton from "./ShareButton";
@@ -191,8 +205,6 @@ function AIMessageContent({ text }: { text: string }) {
   );
 }
 
-// shareAIMessage removed in favor of ShareButton
-
 interface Message {
   id?: string;
   role: "user" | "assistant";
@@ -254,6 +266,11 @@ export default function AIChatComponent({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isCreatingSession = useRef(false);
   const supabase = createClient();
+  
+  // Claude-style state
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [showModelMenu, setShowModelMenu] = useState(false);
+  const [selectedModel, setSelectedModel] = useState("Sonnet 4.6");
 
   useEffect(() => {
     if (currentSessionId) {
@@ -933,71 +950,198 @@ export default function AIChatComponent({
             </div>
           )}
 
-          {/* ──────────────────── INPUT AREA ──────────────────── */}
+          {/* ──────────────────── INPUT AREA (CLAUDE STYLE) ──────────────────── */}
           <div
-            className="shrink-0 bg-brand-black/95 backdrop-blur-xl px-4 pt-3"
-            style={{
-              paddingBottom: "calc(env(safe-area-inset-bottom) + 0.75rem)",
-            }}
+            className="shrink-0 px-4 pt-3 pb-6 flex flex-col items-center bg-[#252525]"
+            style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 1.5rem)" }}
           >
-            {file && (
-              <div className="mb-3 flex items-center gap-2 p-2 bg-surface-2 rounded-xl">
-                {getMediaType(file) === "image" ? (
-                  <ImageIcon className="w-4 h-4 text-brand-gold" />
-                ) : (
-                  <FileText className="w-4 h-4 text-brand-gold" />
+            <div className="w-full max-w-3xl relative">
+              {/* Attachment Popover */}
+              <AnimatePresence>
+                {showAttachMenu && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className="absolute bottom-full left-0 mb-3 w-64 bg-[#2A2A2A] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 text-sm"
+                  >
+                    <div className="flex flex-col py-1">
+                      <button onClick={() => { fileInputRef.current?.click(); setShowAttachMenu(false); }} className="flex items-center gap-3 px-4 py-2.5 text-gray-300 hover:bg-white/5 w-full text-left">
+                        <Paperclip className="w-4 h-4" /> Añadir archivos o fotos
+                      </button>
+                      <button className="flex items-center gap-3 px-4 py-2.5 text-gray-300 hover:bg-white/5 w-full text-left">
+                        <Camera className="w-4 h-4" /> Hacer captura de pantalla
+                      </button>
+                      <button className="flex items-center justify-between px-4 py-2.5 text-gray-300 hover:bg-white/5 w-full text-left">
+                        <div className="flex items-center gap-3"><FolderPlus className="w-4 h-4" /> Añadir al proyecto</div>
+                        <ChevronDown className="w-3 h-3 -rotate-90" />
+                      </button>
+                      <button className="flex items-center justify-between px-4 py-2.5 text-gray-300 hover:bg-white/5 w-full text-left">
+                        <div className="flex items-center gap-3"><Zap className="w-4 h-4" /> Skills</div>
+                        <ChevronDown className="w-3 h-3 -rotate-90" />
+                      </button>
+                      <button className="flex items-center justify-between px-4 py-2.5 text-gray-300 hover:bg-white/5 w-full text-left">
+                        <div className="flex items-center gap-3"><Link className="w-4 h-4" /> Añadir conector</div>
+                        <ChevronDown className="w-3 h-3 -rotate-90" />
+                      </button>
+                      <button className="flex items-center gap-3 px-4 py-2.5 text-gray-300 hover:bg-white/5 w-full text-left">
+                        <Puzzle className="w-4 h-4" /> Añadir plugins...
+                      </button>
+                      <div className="h-px bg-white/10 my-1"></div>
+                      <button className="flex items-center justify-between px-4 py-2.5 text-gray-300 hover:bg-white/5 w-full text-left">
+                        <div className="flex items-center gap-3"><Globe className="w-4 h-4" /> Búsqueda web</div>
+                        <Check className="w-4 h-4 text-brand-gold" />
+                      </button>
+                    </div>
+                  </motion.div>
                 )}
-                <span className="text-sm text-white truncate max-w-[200px]">
-                  {file.name}
-                </span>
-                <button
-                  onClick={() => setFile(null)}
-                  className="text-gray-400 hover:text-red-400 ml-auto"
-                >
-                  <X className="w-4 h-4" />
+              </AnimatePresence>
+
+              {/* Model Menu Popover */}
+              <AnimatePresence>
+                {showModelMenu && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className="absolute bottom-16 right-4 mb-2 w-64 bg-[#2A2A2A] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 text-sm"
+                  >
+                    <div className="flex flex-col py-1">
+                      <button onClick={() => { setSelectedModel("Fable 5"); setShowModelMenu(false); }} className="flex flex-col px-4 py-2 hover:bg-white/5 w-full text-left opacity-50 cursor-not-allowed">
+                        <span className="text-gray-300">Fable 5 <span className="text-[10px] ml-1">Currently unavailable</span></span>
+                        <span className="text-[10px] text-gray-500">Para tus desafíos más difí...</span>
+                      </button>
+                      <button onClick={() => { setSelectedModel("Opus 4.8"); setShowModelMenu(false); }} className="flex flex-col px-4 py-2 hover:bg-white/5 w-full text-left">
+                        <span className="text-gray-300">Opus 4.8</span>
+                        <span className="text-[10px] text-gray-500">For complex tasks</span>
+                      </button>
+                      <button onClick={() => { setSelectedModel("Sonnet 4.6"); setShowModelMenu(false); }} className="flex flex-col px-4 py-2 hover:bg-white/5 w-full text-left relative">
+                        <span className="text-gray-300">Sonnet 4.6</span>
+                        <span className="text-[10px] text-gray-500">El más eficiente para tareas cotidianas</span>
+                        {selectedModel === "Sonnet 4.6" && <Check className="absolute right-4 top-4 w-4 h-4 text-[#C29367]" />}
+                      </button>
+                      <button onClick={() => { setSelectedModel("Haiku 4.5"); setShowModelMenu(false); }} className="flex flex-col px-4 py-2 hover:bg-white/5 w-full text-left relative">
+                        <span className="text-gray-300">Haiku 4.5</span>
+                        <span className="text-[10px] text-gray-500">El más veloz para respuestas rápidas</span>
+                        {selectedModel === "Haiku 4.5" && <Check className="absolute right-4 top-4 w-4 h-4 text-[#C29367]" />}
+                      </button>
+                      <div className="h-px bg-white/10 my-1"></div>
+                      <button className="flex items-center justify-between px-4 py-2 text-gray-300 hover:bg-white/5 w-full text-left">
+                        <span>Esfuerzo</span>
+                        <span className="flex items-center text-gray-500 text-xs">Máximo <ChevronDown className="w-3 h-3 -rotate-90 ml-1" /></span>
+                      </button>
+                      <button className="flex items-center justify-between px-4 py-2 text-gray-300 hover:bg-white/5 w-full text-left">
+                        <span>Más modelos</span>
+                        <ChevronDown className="w-3 h-3 -rotate-90" />
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {file && (
+                <div className="mb-2 flex items-center gap-2 p-2 bg-[#333] rounded-lg w-fit">
+                  {getMediaType(file) === "image" ? (
+                    <ImageIcon className="w-4 h-4 text-gray-300" />
+                  ) : (
+                    <FileText className="w-4 h-4 text-gray-300" />
+                  )}
+                  <span className="text-xs text-white truncate max-w-[200px]">
+                    {file.name}
+                  </span>
+                  <button onClick={() => setFile(null)} className="text-gray-400 hover:text-white ml-2">
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="flex flex-col bg-[#333] border border-[#444] rounded-2xl p-2 shadow-sm transition-all focus-within:border-[#666]">
+                <input
+                  id="ai-chat-file-input"
+                  name="ai-chat-file"
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.mp3,.wav,.ogg,.m4a,.mp4,.doc,.docx,.pptx,.xlsx,.txt"
+                />
+                
+                {/* Text Area Placeholder */}
+                <div className="flex-1 min-h-[50px] relative px-2 pt-1">
+                  <textarea
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder="Escribe / para habilidades"
+                    disabled={loading || uploadingMedia}
+                    className="w-full bg-transparent text-gray-100 placeholder-[#777] resize-none focus:outline-none text-base pb-8"
+                    rows={input ? Math.min(5, input.split("\n").length) : 1}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSubmit(e as any);
+                      }
+                    }}
+                  />
+                </div>
+
+                {/* Bottom Bar of Input */}
+                <div className="flex items-center justify-between px-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowAttachMenu(!showAttachMenu)}
+                    className="p-1.5 rounded-md text-gray-400 hover:text-gray-200 hover:bg-white/5 transition-colors"
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+                  
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowModelMenu(!showModelMenu)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/30 hover:bg-black/50 text-gray-300 text-xs transition-colors"
+                    >
+                      {selectedModel} Máximo <ChevronDown className="w-3 h-3" />
+                    </button>
+                    <button type="button" className="p-1.5 text-gray-400 hover:text-gray-200">
+                      <Mic className="w-4 h-4" />
+                    </button>
+                    <button type="button" className="p-1.5 text-gray-400 hover:text-gray-200">
+                      <Activity className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={loading || uploadingMedia || (!input.trim() && !file)}
+                      className="p-1.5 ml-1 bg-white text-black rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50 disabled:bg-gray-600 disabled:text-gray-400"
+                    >
+                      {loading || uploadingMedia ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <Send className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </form>
+
+              {/* Bottom Quick Action Pills */}
+              <div className="flex flex-wrap items-center justify-center gap-2 mt-4 text-[13px]">
+                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#444] bg-[#2A2A2A] text-gray-300 hover:bg-[#333] transition-colors">
+                  <PenLine className="w-3.5 h-3.5" /> Escribir
+                </button>
+                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#444] bg-[#2A2A2A] text-gray-300 hover:bg-[#333] transition-colors">
+                  <GraduationCap className="w-3.5 h-3.5" /> Aprender
+                </button>
+                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#444] bg-[#2A2A2A] text-gray-300 hover:bg-[#333] transition-colors">
+                  <Code className="w-3.5 h-3.5" /> Código
+                </button>
+                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#444] bg-[#2A2A2A] text-gray-300 hover:bg-[#333] transition-colors">
+                  <Coffee className="w-3.5 h-3.5" /> Asuntos personales
+                </button>
+                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#444] bg-[#2A2A2A] text-gray-300 hover:bg-[#333] transition-colors">
+                  <Sparkles className="w-3.5 h-3.5" /> Selección de Claude
                 </button>
               </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="flex gap-2">
-              <input
-                id="ai-chat-file-input"
-                name="ai-chat-file"
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileSelect}
-                className="hidden"
-                accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.mp3,.wav,.ogg,.m4a,.mp4,.doc,.docx,.pptx,.xlsx,.txt"
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="p-3 rounded-full bg-surface-2 text-gray-400 hover:text-brand-gold hover:bg-white/5 transition-colors shrink-0 flex items-center justify-center"
-              >
-                <Paperclip className="w-5 h-5" />
-              </button>
-              <input
-                id="ai-chat-message-input"
-                name="ai-chat-message"
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Escribe tu mensaje..."
-                disabled={loading || uploadingMedia}
-                className="flex-1 min-w-0 px-4 py-3.5 bg-surface-2 rounded-full text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-brand-gold transition-colors disabled:opacity-50 text-sm shadow-inner"
-              />
-              <button
-                type="submit"
-                disabled={loading || uploadingMedia || (!input.trim() && !file)}
-                className="px-4 py-3 bg-brand-gold text-brand-black rounded-full hover:bg-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shrink-0 font-bold"
-              >
-                {loading || uploadingMedia ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Send className="w-5 h-5" />
-                )}
-              </button>
-            </form>
+            </div>
           </div>
       </motion.div>
     </AnimatePresence>
