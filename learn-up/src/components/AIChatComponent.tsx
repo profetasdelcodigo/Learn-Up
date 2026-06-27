@@ -199,6 +199,7 @@ interface Message {
   content: string;
   media_url?: string;
   media_type?: string;
+  tool_calls?: ToolAction[];
 }
 
 interface AIChatProps {
@@ -211,7 +212,7 @@ interface AIChatProps {
     history: { role: "user" | "assistant"; content: string }[],
     mediaUrl?: string,
     mediaType?: string,
-  ) => Promise<{ response: string; error?: string; actions?: ToolAction[] }>;
+  ) => Promise<{ response: string; error?: string; actions?: ToolAction[]; executedActions?: ToolAction[] }>;
   className?: string;
   containerStyle?: React.CSSProperties;
   onMessagesChange?: (messages: Message[]) => void;
@@ -478,10 +479,10 @@ export default function AIChatComponent({
       if (result.error) {
         handleFailure(result.error);
       } else if (result.response) {
-        await addAiMessage(sessionId, "assistant", result.response);
+        await addAiMessage(sessionId, "assistant", result.response, undefined, undefined, result.executedActions);
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: result.response },
+          { role: "assistant", content: result.response, tool_calls: result.executedActions },
         ]);
 
         if (result.actions && result.actions.length > 0) {
@@ -512,23 +513,28 @@ export default function AIChatComponent({
         const safeUrl = getSafeExternalUrl(action.args.url);
         if (!safeUrl) throw new Error("URL no permitida");
         window.open(safeUrl, "_blank", "noopener,noreferrer");
+        const msg = `Abriendo: ${action.args.title || safeUrl}`;
+        if (currentSessionId) await addAiMessage(currentSessionId, "assistant", msg, undefined, undefined, [action]);
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: `Abriendo: ${action.args.title || safeUrl}` },
+          { role: "assistant", content: msg, tool_calls: [action] },
         ]);
       } else if (action.tool === "trigger_jarvis") {
         window.dispatchEvent(new CustomEvent("triggerJarvis", { 
           detail: { message: `Fui invocado por ${title}. ${action.args.reason || '¿En qué puedo ayudarte?'}` } 
         }));
+        const msg = `He llamado a Jarvis para que se encargue de esto.`;
+        if (currentSessionId) await addAiMessage(currentSessionId, "assistant", msg, undefined, undefined, [action]);
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: `He llamado a Jarvis para que se encargue de esto.` },
+          { role: "assistant", content: msg, tool_calls: [action] },
         ]);
       } else {
         actionResult = await confirmAndExecuteTool(action.tool, action.args);
         
         // Manejar sugerencias si hay múltiples coincidencias
         if (!actionResult.success && actionResult.data?.suggestions) {
+            if (currentSessionId) await addAiMessage(currentSessionId, "assistant", actionResult.message);
             setMessages((prev) => [
                 ...prev,
                 { role: "assistant", content: actionResult.message },
@@ -552,9 +558,10 @@ export default function AIChatComponent({
                 actionResult.data.content,
               );
             }
+            if (currentSessionId) await addAiMessage(currentSessionId, "assistant", actionResult.message, undefined, undefined, [action]);
             setMessages((prev) => [
               ...prev,
-              { role: "assistant", content: actionResult.message },
+              { role: "assistant", content: actionResult.message, tool_calls: [action] },
             ]);
         }
       }
@@ -567,10 +574,12 @@ export default function AIChatComponent({
     }
   };
 
-  const handleRejectAction = () => {
+  const handleRejectAction = async () => {
+    const msg = "Entendido, no realicé la acción. ¿Necesitas algo más?";
+    if (currentSessionId) await addAiMessage(currentSessionId, "assistant", msg);
     setMessages((prev) => [
       ...prev,
-      { role: "assistant", content: "Entendido, no realicé la acción. ¿Necesitas algo más?" },
+      { role: "assistant", content: msg },
     ]);
     setPendingActions([]);
   };
@@ -771,6 +780,21 @@ export default function AIChatComponent({
                     <div className="prose-ai text-gray-200 text-sm md:text-base leading-relaxed whitespace-pre-wrap break-words [&_a]:text-brand-gold [&_a]:hover:underline [&_img]:rounded-xl [&_img]:max-w-full [&_img]:my-2 [&_img]:border [&_img]:border-white/10 [&_strong]:text-white [&_strong]:font-semibold">
                       <AIMessageContent text={message.content} />
                     </div>
+                    {message.tool_calls && message.tool_calls.length > 0 && (
+                      <div className="mt-3 flex flex-col gap-2">
+                        {message.tool_calls.map((tc, idx) => (
+                           <div key={idx} className="flex items-center gap-3 p-3 bg-black/20 border border-brand-gold/20 rounded-xl text-xs text-gray-300">
+                             <div className="bg-brand-gold/10 p-1.5 rounded-lg border border-brand-gold/20">
+                               <BrainCircuit className="w-4 h-4 text-brand-gold" />
+                             </div>
+                             <div>
+                               <div className="font-semibold text-brand-gold uppercase tracking-wider text-[10px] mb-0.5">Herramienta Ejecutada</div>
+                               <div className="font-medium">{tc.description || tc.tool}</div>
+                             </div>
+                           </div>
+                        ))}
+                      </div>
+                    )}
                     <div className="flex gap-1 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
                       <ShareButton
                         payload={{

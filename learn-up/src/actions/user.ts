@@ -5,15 +5,23 @@ import { createClient as createServerClient } from "@/utils/supabase/server";
 import { Resend } from "resend";
 import { DeleteAccountEmail } from "@/emails/deleteAccount";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Use the Service Role Key to bypass RLS and delete users from auth.users
 const getSupabaseAdmin = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error(
+      "Falta configurar SUPABASE_SERVICE_ROLE_KEY en el servidor para eliminar cuentas.",
+    );
+  }
+
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-    process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+    supabaseUrl,
+    serviceRoleKey,
     {
       auth: {
         autoRefreshToken: false,
@@ -50,7 +58,11 @@ export async function deleteAccountAction() {
 
     // 2. Clear cookies
     const cookieStore = await cookies();
-    cookieStore.delete("sb-qmgx-auth-token"); // Ajusta el nombre de la cookie si es diferente
+    cookieStore.getAll().forEach((cookie) => {
+      if (cookie.name.startsWith("sb-") || cookie.name.includes("supabase")) {
+        cookieStore.delete(cookie.name);
+      }
+    });
 
     // 3. Send farewell email via Resend
     if (userEmail && process.env.RESEND_API_KEY) {

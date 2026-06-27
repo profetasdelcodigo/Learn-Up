@@ -85,7 +85,7 @@ export async function fetchRemoteMediaBuffer(rawUrl: string): Promise<{
     return {
       buffer: Buffer.concat(chunks),
       mimeType: res.headers.get("content-type") || "application/octet-stream",
-      urlLower: rawUrl.toLowerCase(),
+      urlLower: rawUrl.split('?')[0].toLowerCase(),
     };
   } finally {
     clearTimeout(timeout);

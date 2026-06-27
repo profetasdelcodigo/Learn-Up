@@ -24,6 +24,7 @@ import OfflineDetector from "@/components/OfflineDetector";
 import DeepLinkHandler from "@/components/DeepLinkHandler";
 import ShareModal from "@/components/ShareModal";
 import JarvisGlobalWidget from "@/components/JarvisGlobalWidget";
+import ThemeProvider from "@/components/ThemeProvider";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://learn-up-qmgx.onrender.com"),
@@ -79,19 +80,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
+    <html lang="es" suppressHydrationWarning>
       <body
-        className={`${spaceGrotesk.variable} ${inter.variable} antialiased bg-brand-black text-white`}
+        className={`${spaceGrotesk.variable} ${inter.variable} antialiased bg-[var(--background)] text-[var(--foreground)]`}
       >
-        <SmoothScroll>
-          <OfflineDetector />
-          <PushNotificationManager />
-          <HardwareBackHandler />
-          <DeepLinkHandler />
-          <MainLayout>{children}</MainLayout>
-          <ShareModal />
-          <JarvisGlobalWidget />
-        </SmoothScroll>
+        <ThemeProvider>
+          <SmoothScroll>
+            <OfflineDetector />
+            <PushNotificationManager />
+            <HardwareBackHandler />
+            <DeepLinkHandler />
+            <MainLayout>{children}</MainLayout>
+            <ShareModal />
+            <JarvisGlobalWidget />
+          </SmoothScroll>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -115,6 +117,7 @@ export default function RootLayout({
             strategy="afterInteractive"
           />
         )}
+        </ThemeProvider>
       </body>
     </html>
   );

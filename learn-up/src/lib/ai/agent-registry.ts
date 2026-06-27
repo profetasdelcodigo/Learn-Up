@@ -41,6 +41,13 @@ const readOnlyTools: AiToolDefinition[] = [
     requiresConfirmation: false,
     externalEffect: false,
   },
+  {
+    name: "query_repositories",
+    description:
+      "Consulta el Cerebro Unico con conocimiento de The Architect, Neo Cyber, Claude Code, Claude Cookbooks y repositorios de agentes.",
+    requiresConfirmation: false,
+    externalEffect: false,
+  },
 ];
 
 const writeTools: AiToolDefinition[] = [

@@ -40,8 +40,10 @@ export async function parseMediaInput(url: string, _type: string) {
     const { buffer } = await fetchRemoteMediaBuffer(url);
     console.log(`[Ingestion] Archivo descargado, tamaño: ${buffer.length} bytes`);
 
+    const parsedUrl = url.split('?')[0].toLowerCase();
+
     // PDF Extraction
-    if (url.toLowerCase().endsWith(".pdf")) {
+    if (parsedUrl.endsWith(".pdf")) {
       console.log("[Ingestion] Procesando PDF...");
       const pdfParseModule = (await import("pdf-parse")) as any;
       const pdfParse = pdfParseModule.default || pdfParseModule;
@@ -51,7 +53,7 @@ export async function parseMediaInput(url: string, _type: string) {
     }
 
     // DOCX Extraction
-    if (url.toLowerCase().endsWith(".docx")) {
+    if (parsedUrl.endsWith(".docx")) {
       console.log("[Ingestion] Procesando DOCX...");
       const mammoth = await import("mammoth");
       try {
@@ -64,17 +66,17 @@ export async function parseMediaInput(url: string, _type: string) {
       }
     }
 
-    if (url.toLowerCase().match(/\.(pptx|xlsx|odt|odp|ods|rtf)$/)) {
+    if (parsedUrl.match(/\.(pptx|xlsx|odt|odp|ods|rtf)$/)) {
       console.log("[Ingestion] Procesando documento Office...");
-      const fileType = url.toLowerCase().split(".").pop() || "";
+      const fileType = parsedUrl.split(".").pop() || "";
       const extractedText = await extractOfficeText(buffer, fileType);
-      console.log(`[Ingestion] Office extraÃ­do, longitud de texto: ${extractedText.length}`);
+      console.log(`[Ingestion] Office extraído, longitud de texto: ${extractedText.length}`);
       return extractedText;
     }
 
     // Code & Text Files
     const textExts = [".js", ".ts", ".py", ".java", ".c", ".cpp", ".html", ".css", ".md", ".txt", ".json", ".xml", ".csv"];
-    if (textExts.some(ext => url.toLowerCase().endsWith(ext))) {
+    if (textExts.some(ext => parsedUrl.endsWith(ext))) {
       console.log("[Ingestion] Procesando archivo de texto/código...");
       return buffer.toString("utf-8");
     }
@@ -312,11 +314,11 @@ ${toolDefs}`;
             finalModel
           );
           
-          return { response: followUpResponse.choices[0]?.message?.content || cleanText + "\n" + result.message };
+          return { response: followUpResponse.choices[0]?.message?.content || cleanText + "\n" + result.message, executedActions: [action] };
         }
         
         const finalResponse = cleanText + "\n\n" + result.message;
-        return { response: finalResponse };
+        return { response: finalResponse, executedActions: [action] };
       } else {
         // Requiere confirmación del usuario, devolvemos el texto y la acción por separado
         return { response: cleanText, actions: [action] };
@@ -437,10 +439,10 @@ HERRAMIENTAS:
             finalModel
           );
           
-          return { response: followUpResponse.choices[0]?.message?.content || cleanText + "\n" + result.message };
+          return { response: followUpResponse.choices[0]?.message?.content || cleanText + "\n" + result.message, executedActions: [action] };
         }
 
-        return { response: cleanText + "\n\n" + result.message };
+        return { response: cleanText + "\n\n" + result.message, executedActions: [action] };
       } else {
         return { response: cleanText, actions: [action] };
       }

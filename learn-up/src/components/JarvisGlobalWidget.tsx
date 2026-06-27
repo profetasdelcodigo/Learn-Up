@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
+import { motion, useDragControls } from "framer-motion";
 import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2, ExternalLink, CalendarPlus, Search, FileText, Mic, Volume2, VolumeX } from "lucide-react";
 
 import { askJarvis } from "@/actions/jarvis";
@@ -31,6 +32,7 @@ export default function JarvisGlobalWidget() {
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
+  const dragControls = useDragControls();
   const pathname = usePathname();
 
   // Ocultar Jarvis en páginas donde ya hay un chat dedicado o pantallas de sistema
@@ -253,7 +255,16 @@ export default function JarvisGlobalWidget() {
   );
 
   return (
-    <div className="fixed bottom-6 right-6 z-[9990] flex flex-col items-end">
+    <motion.div 
+      className="fixed bottom-6 right-6 z-[9990] flex flex-col items-end"
+      drag
+      dragControls={dragControls}
+      dragListener={false}
+      dragMomentum={false}
+      dragElastic={0.1}
+      dragConstraints={{ left: -1200, right: 1200, top: -800, bottom: 800 }}
+      whileDrag={{ scale: 1.02 }}
+    >
       {isOpen && (
         <div 
           className={`mb-4 flex flex-col overflow-hidden rounded-2xl border border-brand-gold/30 bg-black/80 shadow-2xl shadow-brand-gold/10 backdrop-blur-xl transition-all duration-300 ease-in-out ${
@@ -261,7 +272,10 @@ export default function JarvisGlobalWidget() {
           }`}
         >
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-brand-gold/20 bg-gradient-to-r from-brand-gold/10 to-transparent px-4 py-3">
+          <div
+            className="flex cursor-grab items-center justify-between border-b border-brand-gold/20 bg-gradient-to-r from-brand-gold/10 to-transparent px-4 py-3 active:cursor-grabbing"
+            onPointerDown={(event) => dragControls.start(event)}
+          >
             <div className="flex items-center gap-2">
               <div className="relative">
                 <JarvisLogo />
@@ -372,6 +386,7 @@ export default function JarvisGlobalWidget() {
       {/* Orb Button */}
       <button
         onClick={toggleWidget}
+        onPointerDown={(event) => dragControls.start(event)}
         className={`group relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-brand-gold to-yellow-600 text-black shadow-lg shadow-brand-gold/20 transition-transform hover:scale-110 active:scale-95 ${
           isOpen ? "scale-0 opacity-0" : "scale-100 opacity-100 delay-200"
         }`}
@@ -382,6 +397,6 @@ export default function JarvisGlobalWidget() {
           <JarvisOrb3D />
         </div>
       </button>
-    </div>
+    </motion.div>
   );
 }
