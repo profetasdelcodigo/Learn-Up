@@ -3,13 +3,13 @@ import { getAICompletion } from "@/lib/ai";
 export async function runAcademicCouncil(topic: string, text: string): Promise<string> {
   const evaluate = async (role: string, prompt: string) => {
     try {
-      return await getAICompletion(
+      const res = await getAICompletion(
         [
           { role: "system", content: prompt },
           { role: "user", content: `Tema: ${topic}\n\nTexto a evaluar:\n${text}` }
-        ],
-        { maxTokens: 800, temperature: 0.5 }
+        ]
       );
+      return res?.choices?.[0]?.message?.content || "";
     } catch (e: any) {
       return `Error del agente ${role}: ${e.message}`;
     }
@@ -39,11 +39,16 @@ Genera un único reporte consolidado usando ### para títulos. No copies y pegue
 `;
 
   try {
-    const verdict = await getAICompletion(
-      [{ role: "user", content: judgePrompt }],
-      { maxTokens: 1500, temperature: 0.7 }
+    const result = await getAICompletion(
+      [{ role: "user", content: judgePrompt }]
     );
-    return verdict || "El jurado no pudo emitir un veredicto.";
+    const responseText = result?.choices?.[0]?.message?.content || "El consejo no pudo procesar esta solicitud.";
+
+    // Extraer solo la respuesta del presidente
+    const presidentMatch = responseText.match(/PRESIDENTE:([\s\S]*)/i);
+    const finalResponse = presidentMatch ? presidentMatch[1].trim() : responseText;
+
+    return finalResponse;
   } catch (e: any) {
     throw new Error(`Fallo en el Juez Supremo: ${e.message}`);
   }

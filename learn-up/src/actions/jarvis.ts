@@ -12,7 +12,8 @@ export async function askJarvis(
   history: { role: "user" | "assistant"; content: string | any[] }[] = [],
   mediaUrl?: string,
   mediaType?: string,
-): Promise<{ response: string; error?: string; actions?: ToolAction[] }> {
+  modelId?: string,
+): Promise<{ response: string; error?: string; actions?: ToolAction[]; executedActions?: ToolAction[] }> {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -71,7 +72,7 @@ ${toolDefs}`;
         ...truncatedHistory,
         { role: "user", content: finalMessageContent },
       ],
-      finalModel,
+      modelId || finalModel,
     );
 
     const rawContent = response.choices[0]?.message?.content || "";

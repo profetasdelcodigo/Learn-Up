@@ -55,8 +55,9 @@ Responde SOLO con la palabra "SEGURO" o "PELIGRO".
 Mensaje:
 "${message}"`;
 
-        const result = await getAICompletion([{ role: "user", content: auditPrompt }], { maxTokens: 10, temperature: 0.1 });
-        if (result && result.trim().toUpperCase().includes("PELIGRO")) {
+        const result = await getAICompletion([{ role: "user", content: auditPrompt }]);
+        const textResult = result?.choices?.[0]?.message?.content || "";
+        if (textResult.trim().toUpperCase().includes("PELIGRO")) {
           console.warn(`[NEO CYBER] 🚨 Alerta de Seguridad Crítica en usuario ${userId}. Contenido marcado como PELIGROSO: ${message.substring(0, 50)}...`);
           // Aquí podríamos insertar en una tabla de Supabase (ej. 'security_alerts')
         }

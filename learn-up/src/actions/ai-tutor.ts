@@ -5,8 +5,8 @@ import { createClient } from "@/utils/supabase/server";
 import { TOOL_DEFINITIONS, parseToolCall, executeToolAction, type ToolAction } from "@/lib/ai-tools";
 import { buildAgentSystemPrompt } from "@/lib/ai/agent-registry";
 
-const MODEL = "gemini-3-flash-preview";
-const VISION_MODEL = "gemini-3-flash-preview";
+const MODEL = "gemini-1.5-flash";
+const VISION_MODEL = "gemini-1.5-flash";
 
 async function extractOfficeText(buffer: Buffer, fileType: string): Promise<string> {
   const officeParser = await import("officeparser");
@@ -221,7 +221,8 @@ export async function askProfessor(
   history: { role: "user" | "assistant"; content: string | any[] }[] = [],
   mediaUrl?: string,
   mediaType?: string,
-): Promise<{ response: string; error?: string; actions?: ToolAction[] }> {
+  modelId?: string,
+): Promise<{ response: string; error?: string; actions?: ToolAction[]; executedActions?: ToolAction[] }> {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -280,7 +281,7 @@ ${toolDefs}`;
         ...truncatedHistory,
         { role: "user", content: finalMessageContent },
       ],
-      finalModel,
+      modelId || finalModel,
     );
 
     const rawContent = response.choices[0]?.message?.content || "";
@@ -337,7 +338,8 @@ export async function askCounselor(
   history: { role: "user" | "assistant"; content: string | any[] }[] = [],
   mediaUrl?: string,
   mediaType?: string,
-): Promise<{ response: string; error?: string; actions?: ToolAction[] }> {
+  modelId?: string,
+): Promise<{ response: string; error?: string; actions?: ToolAction[]; executedActions?: ToolAction[] }> {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -405,7 +407,7 @@ HERRAMIENTAS:
         ...truncatedHistory,
         { role: "user", content: finalMessageContent },
       ],
-      finalModel,
+      modelId || finalModel,
     );
 
     const rawContent = response.choices[0]?.message?.content || "";
@@ -427,7 +429,7 @@ HERRAMIENTAS:
               { role: "assistant", content: cleanText },
               { role: "user", content: followUpPrompt },
             ],
-            finalModel
+            modelId || finalModel
           );
           
           return { response: followUpResponse.choices[0]?.message?.content || cleanText + "\n" + result.message, executedActions: [action] };

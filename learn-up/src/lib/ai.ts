@@ -135,7 +135,6 @@ export async function extractDocumentText(
     const { parseOffice } = await import("officeparser");
     try {
       const textResult = await parseOffice(buffer, {
-        fileType: urlLower.split('.').pop() || "",
         ignoreNotes: false,
       });
       return typeof textResult === "string" ? textResult : "";
@@ -207,7 +206,7 @@ const getGeminiCompletion = async (
     // Mapping for 2026 available models
     let actualModel = modelName;
     if (modelName.includes("llama") || modelName.includes("flash")) {
-      actualModel = "gemini-3-flash-preview";
+      actualModel = "gemini-1.5-flash";
     }
 
     const model = genAI.getGenerativeModel({
@@ -343,7 +342,7 @@ export const getAICompletion = async (
     role: "system" | "user" | "assistant";
     content: string | any[];
   }[],
-  model: string = "gemini-3-flash-preview",
+  model: string = "gemini-1.5-flash",
   jsonMode: boolean = false,
 ) => {
   console.log(`[AI Debug] Provider preferido: ${provider}`);
@@ -376,7 +375,26 @@ export const getAICompletion = async (
     return await getGeminiCompletion(messages, model, jsonMode);
   };
 
-  // 1. Si el usuario fuerza un proveedor via .env
+  // 1. Enrutamiento Explícito (Seleccionado por el usuario en la UI)
+  if (model.startsWith("nvidia/")) {
+    const specificModel = model.replace("nvidia/", "");
+    console.log(`[AI Debug] Enrutamiento explícito a Nvidia NIM: ${specificModel}`);
+    return await getNvidiaNIMCompletion(messages, specificModel, jsonMode);
+  }
+  
+  if (model.startsWith("groq/")) {
+    const specificModel = model.replace("groq/", "");
+    console.log(`[AI Debug] Enrutamiento explícito a Groq: ${specificModel}`);
+    return await getGroqCompletion(toTextOnlyMessages(messages), specificModel, jsonMode);
+  }
+
+  if (model.startsWith("gemini/")) {
+    const specificModel = model.replace("gemini/", "");
+    console.log(`[AI Debug] Enrutamiento explícito a Gemini: ${specificModel}`);
+    return await getGeminiCompletion(messages, specificModel, jsonMode);
+  }
+
+  // 2. Si el usuario fuerza un proveedor via .env (Fallback Legacy)
   if (provider === "groq") {
     try { return await tryGroq(); } catch (e) { console.warn("Groq falló, fallback a Gemini..."); return await tryGemini(); }
   }
@@ -384,7 +402,7 @@ export const getAICompletion = async (
     try { return await tryGemini(); } catch (e) { console.warn("Gemini falló, fallback a Groq..."); return await tryGroq(); }
   }
 
-  // 2. Comportamiento por defecto (Inteligente y robusto)
+  // 3. Comportamiento por defecto (Inteligente y robusto)
   try {
     // Si la key de Nvidia existe, es nuestra mejor IA gratuita para razonamiento
     if (process.env.NVIDIA_API_KEY) {
