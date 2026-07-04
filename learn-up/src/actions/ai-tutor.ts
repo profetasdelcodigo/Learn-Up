@@ -1,7 +1,9 @@
 "use server";
 
 import { getAICompletion, fetchRemoteMediaBuffer, getAIEmbedding } from "@/lib/ai";
+import { getTimeContext } from "@/lib/ai/time-context";
 import { createClient } from "@/utils/supabase/server";
+import { generateFalImage } from "@/lib/fal";
 import { TOOL_DEFINITIONS, parseToolCall, executeToolAction, type ToolAction } from "@/lib/ai-tools";
 import { buildAgentSystemPrompt } from "@/lib/ai/agent-registry";
 
@@ -281,7 +283,7 @@ ${toolDefs}`;
         ...truncatedHistory,
         { role: "user", content: finalMessageContent },
       ],
-      modelId || finalModel,
+      modelId || "nvidia/deepseek-ai/deepseek-v4",
     );
 
     const rawContent = response.choices[0]?.message?.content || "";
@@ -407,7 +409,7 @@ HERRAMIENTAS:
         ...truncatedHistory,
         { role: "user", content: finalMessageContent },
       ],
-      modelId || finalModel,
+      modelId || "nvidia/moonshotai/kimi-k2.6",
     );
 
     const rawContent = response.choices[0]?.message?.content || "";
@@ -429,7 +431,7 @@ HERRAMIENTAS:
               { role: "assistant", content: cleanText },
               { role: "user", content: followUpPrompt },
             ],
-            modelId || finalModel
+            modelId || "nvidia/moonshotai/kimi-k2.6"
           );
           
           return { response: followUpResponse.choices[0]?.message?.content || cleanText + "\n" + result.message, executedActions: [action] };
@@ -516,7 +518,7 @@ FORMATO ESTRICTO DE RESPUESTA:
         ...truncatedHistory,
         { role: "user", content: finalMessageContent },
       ],
-      finalModel,
+      "nvidia/deepseek-ai/deepseek-v4-flash",
     );
 
     let finalResponse = response.choices[0]?.message?.content || "";
@@ -527,7 +529,7 @@ FORMATO ESTRICTO DE RESPUESTA:
       const dishMatch = firstLine.match(/🍽️\s*(.*)/);
       if (dishMatch && dishMatch[1]) {
         const dishName = dishMatch[1].replace(/\*/g, "").trim();
-        const imageUrl = await searchRecipeImage(dishName);
+        const imageUrl = await generateFalImage(dishName);
         if (imageUrl) {
           finalResponse += `\n\n![${dishName}](${imageUrl})`;
         }
@@ -664,7 +666,7 @@ IMPORTANTE PARA DOCUMENTOS:
         { role: "system", content: systemPrompt },
         { role: "user", content: finalMessageContent },
       ],
-      finalModel,
+      "nvidia/deepseek-ai/deepseek-v4",
       true // FORCE JSON MODE
     );
 

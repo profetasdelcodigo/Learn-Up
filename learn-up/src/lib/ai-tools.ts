@@ -1,10 +1,12 @@
 import { createClient } from "@/utils/supabase/server";
+import { readCalendarEvents, updateCalendarEvent, deleteCalendarEvent, readHabitTracker, completeHabitInTracker, undoHabitInTracker, deleteHabitFromTracker, addHabitToTracker } from "@/actions/calendar";
 import { ensurePrivateRoom, sendMessage } from "@/actions/chat";
 import { performWebSearch } from "@/lib/web-search";
 import { findRelatedConcepts, linkConcepts } from "@/lib/knowledge-graph";
 import { searchRecipeImage } from "@/lib/unsplash";
 import { browseWebPage } from "@/lib/browser-act";
 import { runAcademicCouncil } from "@/actions/ai-council";
+import { generateFalImage, generateFalVideo } from "@/lib/fal";
 import { z } from "zod";
 
 // â”€â”€ Schemas Zod para validar argumentos del LLM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -18,6 +20,20 @@ const ToolSchemas: Record<string, z.ZodType> = {
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     start_time: z.string().optional(),
     end_time: z.string().optional(),
+  }),
+  read_calendar_events: z.object({
+    start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  }),
+  update_calendar_event: z.object({
+    event_id: z.string().min(1),
+    title: z.string().optional(),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    start_time: z.string().optional(),
+    end_time: z.string().optional(),
+  }),
+  delete_calendar_event: z.object({
+    event_id: z.string().min(1),
   }),
   send_message: z.object({
     recipient_name: z.string().min(1),
@@ -40,6 +56,20 @@ const ToolSchemas: Record<string, z.ZodType> = {
   add_habit: z.object({
     title: z.string().min(1),
   }),
+  complete_habit_entry: z.object({
+    habit_id: z.string().min(1),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  }),
+  undo_habit_entry: z.object({
+    habit_id: z.string().min(1),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  }),
+  delete_habit: z.object({
+    habit_id: z.string().min(1),
+  }),
+  read_habit_tracker: z.object({
+    week_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  }),
   search_web: z.object({
     query: z.string().min(1),
   }),
@@ -60,6 +90,10 @@ const ToolSchemas: Record<string, z.ZodType> = {
     format: z.enum(["markdown", "study_guide", "summary"]).default("markdown"),
   }),
   generate_image: z.object({
+    prompt: z.string().min(1),
+    purpose: z.string().optional(),
+  }),
+  generate_video: z.object({
     prompt: z.string().min(1),
     purpose: z.string().optional(),
   }),
@@ -124,10 +158,20 @@ LISTA DE HERRAMIENTAS:
 1. open_url â€” Sugerir al usuario abrir una pÃ¡gina web en su navegador.
    args: {"url": "https://...", "title": "DescripciÃ³n del enlace"}
 
-2. add_calendar_event â€” Crear un evento en el calendario personal del usuario.
+2. add_calendar_event — Crear un evento en el calendario personal del usuario.
    args: {"title": "Nombre del evento", "date": "YYYY-MM-DD", "start_time": "HH:MM", "end_time": "HH:MM"}
+   IMPORTANTE: Siempre llama a read_calendar_events ANTES de agregar eventos para evitar conflictos de horario.
 
-3. send_message â€” Enviar un mensaje directo a un amigo, grupo o calendario compartido.
+2b. read_calendar_events — Lee la agenda del usuario entre dos fechas.
+    args: {"start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD"}
+
+2c. update_calendar_event — Modifica un evento existente por su ID.
+    args: {"event_id": "uuid", "title": "nuevo titulo"}
+
+2d. delete_calendar_event — Elimina un evento existente por su ID.
+    args: {"event_id": "uuid"}
+
+3. send_message — Enviar un mensaje directo a un amigo, grupo o calendario compartido.
    args: {"recipient_name": "nombre exacto o aproximado", "content": "texto del mensaje"}
 
 4. search_library â€” Buscar materiales pÃºblicos en la Biblioteca.
@@ -136,23 +180,38 @@ LISTA DE HERRAMIENTAS:
 5. update_profile â€” Actualizar el perfil del usuario.
    args: {"field": "bio|school|grade", "value": "nuevo valor"}
 
-6. add_habit â€” Crear un nuevo hÃ¡bito en el Habit Tracker.
-   args: {"title": "Nombre del hÃ¡bito"}
+6. add_habit — Crear un nuevo hábito en el Habit Tracker.
+   args: {"title": "Nombre del hábito"}
 
-7. search_web â€” Buscar informaciÃ³n en tiempo real en internet (Google/DuckDuckGo).
+6b. complete_habit_entry — Marca un hábito como completado en una fecha.
+    args: {"habit_id": "uuid o nombre", "date": "YYYY-MM-DD"}
+
+6c. undo_habit_entry — Desmarca un hábito en una fecha.
+    args: {"habit_id": "uuid o nombre", "date": "YYYY-MM-DD"}
+
+6d. delete_habit — Elimina un hábito completamente.
+    args: {"habit_id": "uuid o nombre"}
+
+6e. read_habit_tracker — Consulta estadísticas y rachas de hábitos.
+    args: {"week_start": "YYYY-MM-DD"}
+
+7. search_web — Buscar información en tiempo real en internet (Google/DuckDuckGo).
    args: {"query": "tÃ©rmino de bÃºsqueda especÃ­fico"}
 
 8. save_learned_concept â€” Guardar un concepto importante en el "Learn Graph" (memoria a largo plazo RAG).
    args: {"title": "Nombre", "description": "Resumen"}
 
-9. search_documents â€” RAG local: buscar en los documentos subidos por el usuario (NotebookLM).
+9. search_documents — RAG local: buscar en los documentos subidos por el usuario (NotebookLM).
    args: {"query": "texto a buscar"}
 
 10. generate_document â€” Generar un archivo Markdown/Study Guide descargable para el usuario.
     args: {"title": "TÃ­tulo", "outline": "Contenido Markdown", "format": "markdown|study_guide|summary"}
 
-11. generate_image â€” Preparar o buscar una imagen para ilustrar el contexto (ej. comida, diagrama).
-    args: {"prompt": "descripciÃ³n de la imagen", "purpose": "contexto de uso"}
+11. generate_image â€” Generar una imagen fotorrealista para ilustrar un concepto educativo o visualizar una idea (usa fal.ai Flux).
+    args: {"prompt": "descripciÃ³n detallada de la imagen en inglÃ©s o espaÃ±ol", "purpose": "contexto de uso"}
+
+11b. generate_video â€” Generar un clip de video corto para explicar algo dinÃ¡mico (usa fal.ai Minimax/Kling).
+     args: {"prompt": "descripciÃ³n de las acciones o dinÃ¡mica del video", "purpose": "contexto de uso"}
 
 12. create_exam â€” Generar un examen autocalificable.
     args: {"topic": "Tema", "difficulty": "facil|media|dificil", "question_count": 10, "duration_minutes": 30}
@@ -184,7 +243,7 @@ REGLAS ESTRICTAS DE USO DE HERRAMIENTAS:
 `;
 
 // â”€â”€ Herramientas que NO necesitan confirmaciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const AUTO_EXECUTE_TOOLS = ["search_library", "search_documents", "query_repositories", "search_web", "save_learned_concept"];
+const AUTO_EXECUTE_TOOLS = ["search_library", "search_documents", "query_repositories", "search_web", "save_learned_concept", "read_calendar_events", "read_habit_tracker"];
 
 // â”€â”€ Parsear respuesta del LLM buscando tool calls â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function parseToolCall(response: string): Promise<{ cleanText: string; action: ToolAction | null }> {
@@ -215,12 +274,17 @@ export async function parseToolCall(response: string): Promise<{ cleanText: stri
       const needsConfirm = !AUTO_EXECUTE_TOOLS.includes(toolName);
 
       const descriptions: Record<string, string> = {
-        open_url: `Â¿Quieres abrir ${args.title}?`,
-        add_calendar_event: `Â¿Agendar "${args.title}" para el ${args.date}?`,
-        send_message: `Â¿Enviar mensaje a ${args.recipient_name}?`,
+        open_url: `¿Quieres abrir ${args.title}?`,
+        add_calendar_event: `¿Agendar "${args.title}" para el ${args.date}?`,
+        update_calendar_event: `¿Actualizar evento?`,
+        delete_calendar_event: `¿Eliminar evento?`,
+        send_message: `¿Enviar mensaje a ${args.recipient_name}?`,
         search_library: `Buscando en la biblioteca...`,
         update_profile: `Â¿Actualizar tu ${args.field} a "${args.value}"?`,
-        add_habit: `Â¿AÃ±adir el hÃ¡bito "${args.title}"?`,
+        add_habit: `¿Añadir el hábito "${args.title}"?`,
+        complete_habit_entry: `¿Marcar hábito como completado el ${args.date}?`,
+        undo_habit_entry: `¿Desmarcar hábito el ${args.date}?`,
+        delete_habit: `¿Eliminar hábito por completo?`,
         search_web: `Investigando en internet...`,
         query_repositories: `Consultando el Cerebro Unico de repositorios...`,
         save_learned_concept: `Guardando concepto en tu mapa mental...`,
@@ -300,6 +364,36 @@ export async function executeToolAction(
           };
         } catch (e: any) {
           return { success: false, message: `Error en el Tribunal: ${e.message}` };
+        }
+      }
+
+      // ── Calendario (CRUD) ───────────────────────────────────
+      case "read_calendar_events": {
+        try {
+          const events = await readCalendarEvents(args.start_date + "T00:00:00", args.end_date + "T23:59:59");
+          return { success: true, message: `Eventos encontrados: ${JSON.stringify(events)}`, data: events };
+        } catch(e:any) {
+          return { success: false, message: e.message };
+        }
+      }
+      case "update_calendar_event": {
+        try {
+          let updates: any = {};
+          if (args.title) updates.title = args.title;
+          if (args.date && args.start_time) updates.start_time = `${args.date}T${args.start_time}:00`;
+          if (args.date && args.end_time) updates.end_time = `${args.date}T${args.end_time}:00`;
+          await updateCalendarEvent(args.event_id, updates);
+          return { success: true, message: `✅ Evento actualizado exitosamente.` };
+        } catch(e:any) {
+          return { success: false, message: e.message };
+        }
+      }
+      case "delete_calendar_event": {
+        try {
+          await deleteCalendarEvent(args.event_id);
+          return { success: true, message: `✅ Evento eliminado.` };
+        } catch(e:any) {
+          return { success: false, message: e.message };
         }
       }
 
@@ -510,29 +604,46 @@ export async function executeToolAction(
       }
 
       // â”€â”€ Agregar HÃ¡bito â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-      case "add_habit": {
-        const { title } = args;
-        if (!title) return { success: false, message: "Falta el nombre del hÃ¡bito." };
-
-        const { error } = await supabase
-          .from("habits")
-          .insert({
-            user_id: user.id,
-            title,
-            streak: 0,
-            completed_dates: [],
-            created_at: new Date().toISOString(),
-          });
-
-        if (error) {
-          console.error("Error creating habit:", error);
-          return { success: false, message: "Error al crear el hÃ¡bito." };
+      case "read_habit_tracker": {
+        try {
+          const habits = await readHabitTracker(args.week_start);
+          return { success: true, message: `Estado actual del Habit Tracker: ${JSON.stringify(habits)}`, data: habits };
+        } catch (e: any) {
+          return { success: false, message: e.message };
         }
-
-        return {
-          success: true,
-          message: `âœ… HÃ¡bito "${title}" aÃ±adido exitosamente a tu Habit Tracker.`,
-        };
+      }
+      case "complete_habit_entry": {
+        try {
+          await completeHabitInTracker(args.habit_id, args.date);
+          return { success: true, message: `✅ Hábito completado para el ${args.date}.` };
+        } catch (e: any) {
+          return { success: false, message: e.message };
+        }
+      }
+      case "undo_habit_entry": {
+        try {
+          await undoHabitInTracker(args.habit_id, args.date);
+          return { success: true, message: `✅ Hábito desmarcado para el ${args.date}.` };
+        } catch (e: any) {
+          return { success: false, message: e.message };
+        }
+      }
+      case "delete_habit": {
+        try {
+          await deleteHabitFromTracker(args.habit_id);
+          return { success: true, message: `✅ Hábito eliminado del tracker.` };
+        } catch (e: any) {
+          return { success: false, message: e.message };
+        }
+      }
+      case "add_habit": {
+        try {
+          if (!args.title) return { success: false, message: "Falta el nombre del hábito." };
+          await addHabitToTracker(args.title);
+          return { success: true, message: `✅ Hábito "${args.title}" añadido exitosamente a tu Habit Tracker.` };
+        } catch (e: any) {
+          return { success: false, message: e.message };
+        }
       }
 
       // â”€â”€ Buscar en la web â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -692,6 +803,20 @@ export async function executeToolAction(
       }
 
       case "generate_image": {
+        try {
+          const giUrl = await generateFalImage(args.prompt);
+          if (giUrl) {
+            return {
+              success: true,
+              message: `Imagen generada para **${args.prompt}**:\n\n![${args.prompt}](${giUrl})`,
+              data: { prompt: args.prompt, purpose: args.purpose || null, imageUrl: giUrl },
+            };
+          }
+        } catch (error) {
+          console.error("Error generating image:", error);
+        }
+        
+        // Fallback a Unsplash si falla Fal
         const giUrl = await searchRecipeImage(args.prompt);
         if (giUrl) {
           return {
@@ -701,9 +826,29 @@ export async function executeToolAction(
           };
         }
         return {
-          success: true,
-          message: "Solicitud de imagen preparada. No hay proveedor configurado.",
+          success: false,
+          message: "No se pudo generar ni encontrar una imagen para tu solicitud.",
           data: { prompt: args.prompt, purpose: args.purpose || null },
+        };
+      }
+
+      case "generate_video": {
+        try {
+          const gvUrl = await generateFalVideo(args.prompt);
+          if (gvUrl) {
+            return {
+              success: true,
+              message: `Video generado para **${args.prompt}**:\n\n![${args.prompt}](${gvUrl})`,
+              data: { prompt: args.prompt, purpose: args.purpose || null, videoUrl: gvUrl },
+            };
+          }
+        } catch (error) {
+          console.error("Error generating video:", error);
+        }
+        return {
+          success: false,
+          message: "Hubo un error al generar el video. Intenta de nuevo más tarde.",
+          data: { prompt: args.prompt },
         };
       }
 

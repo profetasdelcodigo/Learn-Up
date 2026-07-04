@@ -72,7 +72,7 @@ ${toolDefs}`;
         ...truncatedHistory,
         { role: "user", content: finalMessageContent },
       ],
-      modelId || finalModel,
+      modelId || "nvidia/nemotron-3-ultra-550b",
     );
 
     const rawContent = response.choices[0]?.message?.content || "";
@@ -94,7 +94,7 @@ ${toolDefs}`;
               { role: "assistant", content: cleanText },
               { role: "user", content: followUpPrompt },
             ],
-            finalModel
+            modelId || "nvidia/nemotron-3-ultra-550b"
           );
           
           return { response: followUpResponse.choices[0]?.message?.content || cleanText + "\n" + result.message };

@@ -3,12 +3,13 @@ import Groq from "groq-sdk";
 
 const geminiApiKey = process.env.GEMINI_API_KEY || process.env.AI_API_KEY;
 const groqApiKey = process.env.GROQ_API_KEY;
-const provider = process.env.AI_PROVIDER || "gemini";
+const openRouterApiKey = process.env.OPENROUTER_API_KEY;
+const provider = process.env.AI_PROVIDER || "openrouter";
 const MAX_REMOTE_MEDIA_BYTES = 25 * 1024 * 1024;
 const REMOTE_MEDIA_TIMEOUT_MS = 15_000;
 
-if (!geminiApiKey && provider === "gemini") {
-  console.error("AI Configuration Error: Missing AI_API_KEY or GEMINI_API_KEY");
+if (!openRouterApiKey && provider === "openrouter") {
+  console.warn("AI Configuration Warning: Missing OPENROUTER_API_KEY, falling back to gemini.");
 }
 
 // ── Gemini Client ─────────────────────────────────────────────────────────────
@@ -337,6 +338,51 @@ export const getNvidiaNIMCompletion = async (
   }
 };
 
+// ── OpenRouter Implementation ────────────────────────────────────────────────
+const getOpenRouterCompletion = async (
+  messages: any[],
+  modelName: string,
+  jsonMode: boolean = false
+) => {
+  const apiKey = openRouterApiKey;
+  if (!apiKey) throw new Error("OPENROUTER_API_KEY no configurada.");
+
+  try {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+        "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "https://learnup.edu",
+        "X-Title": "Learn Up",
+      },
+      body: JSON.stringify({
+        model: modelName,
+        messages: toTextOnlyMessages(messages),
+        response_format: jsonMode ? { type: "json_object" } : undefined,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenRouter API Error: ${response.status} ${await response.text()}`);
+    }
+
+    const data = await response.json();
+    return {
+      choices: [
+        {
+          message: {
+            content: data.choices[0]?.message?.content || "",
+          },
+        },
+      ],
+    };
+  } catch (error) {
+    console.error("OpenRouter API Error:", error);
+    throw error;
+  }
+};
+
 export const getAICompletion = async (
   messages: {
     role: "system" | "user" | "assistant";
@@ -360,13 +406,20 @@ export const getAICompletion = async (
   }
 
   // Lógica de Fallback Multi-Provider para texto
+  const tryOpenRouter = async () => {
+    console.log("[AI Debug] Intentando OpenRouter (Auto-Router)...");
+    // Por defecto OpenRouter usará Llama 3.3 70B como router rápido si no se especifica
+    const orModel = model === "gemini-1.5-flash" ? "meta-llama/llama-3.3-70b-instruct" : model;
+    return await getOpenRouterCompletion(messages, orModel, jsonMode);
+  };
+
   const tryNvidia = async () => {
-    console.log("[AI Debug] Intentando Nvidia NIM (llama-3.1-405b)...");
+    console.log("[AI Debug] Intentando Nvidia NIM...");
     return await getNvidiaNIMCompletion(messages, "meta/llama-3.1-405b-instruct", jsonMode);
   };
 
   const tryGroq = async () => {
-    console.log("[AI Debug] Intentando Groq (llama-3.3-70b)...");
+    console.log("[AI Debug] Intentando Groq...");
     return await getGroqCompletion(toTextOnlyMessages(messages), "llama-3.3-70b-versatile", jsonMode);
   };
 
@@ -376,6 +429,12 @@ export const getAICompletion = async (
   };
 
   // 1. Enrutamiento Explícito (Seleccionado por el usuario en la UI)
+  if (model.startsWith("openrouter/")) {
+    const specificModel = model.replace("openrouter/", "");
+    console.log(`[AI Debug] Enrutamiento explícito a OpenRouter: ${specificModel}`);
+    return await getOpenRouterCompletion(messages, specificModel, jsonMode);
+  }
+
   if (model.startsWith("nvidia/")) {
     const specificModel = model.replace("nvidia/", "");
     console.log(`[AI Debug] Enrutamiento explícito a Nvidia NIM: ${specificModel}`);
@@ -395,6 +454,9 @@ export const getAICompletion = async (
   }
 
   // 2. Si el usuario fuerza un proveedor via .env (Fallback Legacy)
+  if (provider === "openrouter") {
+    try { return await tryOpenRouter(); } catch (e) { console.warn("OpenRouter falló, fallback a Nvidia..."); return await tryNvidia(); }
+  }
   if (provider === "groq") {
     try { return await tryGroq(); } catch (e) { console.warn("Groq falló, fallback a Gemini..."); return await tryGemini(); }
   }
@@ -404,25 +466,24 @@ export const getAICompletion = async (
 
   // 3. Comportamiento por defecto (Inteligente y robusto)
   try {
-    // Si la key de Nvidia existe, es nuestra mejor IA gratuita para razonamiento
+    if (openRouterApiKey) {
+      return await tryOpenRouter();
+    }
     if (process.env.NVIDIA_API_KEY) {
       return await tryNvidia();
     }
-    // Si no, intentamos Groq
     return await tryGroq();
   } catch (error: any) {
     console.warn("[AI Debug] Provider primario falló:", error?.message);
     
-    // Fallback secundario
+    // Fallback secundario y finales
     try {
-      if (process.env.NVIDIA_API_KEY && groq) {
-        return await tryGroq(); // Si falló Nvidia, intentamos Groq
+      if (process.env.NVIDIA_API_KEY) {
+        return await tryNvidia();
       }
-      return await tryGemini(); // Si falló Groq (o Nvidia+Groq), vamos a Gemini
+      return await tryGemini(); 
     } catch (fallbackError) {
       console.error("[AI Debug] Fallback secundario falló.");
-      
-      // Último recurso: Gemini
       try {
         return await tryGemini();
       } catch (lastError) {
