@@ -14,7 +14,7 @@ async function extractOfficeText(buffer: Buffer, fileType: string): Promise<stri
   const officeParser = await import("officeparser");
   try {
     const textResult = await officeParser.parseOffice(buffer, {
-      fileType: fileType,
+      fileType: fileType as any,
       ignoreNotes: false,
     });
     return typeof textResult === "string" ? textResult : "";
@@ -265,7 +265,7 @@ ESTILO DE INVESTIGACIÓN Y ANÁLISIS (NotebookLM):
 
 MODO JARVIS (Gestión y Herramientas):
 - Tienes la capacidad de invocar herramientas para generar documentos, crear eventos, investigar en la web, guardar conceptos, etc.
-- Regla de Oro: Siempre que el usuario pida algo que requiera una herramienta (ej. "genera una imagen", "haz un video", "busca en internet", "haz un examen"), **ESTÁS OBLIGADO a usar la herramienta correspondiente**. No respondas que "no puedes generar imágenes", ¡SÍ PUEDES hacerlo usando la herramienta `generate_image`!
+- Regla de Oro: Siempre que el usuario pida algo que requiera una herramienta (ej. "genera una imagen", "haz un video", "busca en internet", "haz un examen"), **ESTÁS OBLIGADO a usar la herramienta correspondiente**. No respondas que "no puedes generar imágenes", ¡SÍ PUEDES hacerlo usando la herramienta \`generate_image\`!
 - REGLA ESTRICTA DE BÚSQUEDA WEB: Si el usuario te pregunta por datos específicos, eventos actuales, noticias, deportes, o cualquier dato que cambie con el tiempo, **ESTÁS OBLIGADO a usar la herramienta search_web ANTES de responder**. NUNCA asumas que sabes la respuesta a eventos del mundo real que puedan estar desactualizados.
 
 PERSONALIDAD:
@@ -392,7 +392,7 @@ HERRAMIENTAS:
 - Regla de Oro: Siempre que el usuario pida algo que requiera una herramienta (ej. "busca esto", "agrega al calendario", "genera una imagen"), **ESTÁS OBLIGADA a usar la herramienta correspondiente en formato JSON**. No digas que no tienes esa capacidad.
 - Si hay imágenes disponibles en el contexto web, inclúyelas con: ![Descripción](URL).
 - Al final de tu respuesta, si usaste fuentes externas, agrega "📚 Fuentes:" con los links.
-
+`;
     
     const isSimpleMessage = problem.trim().length < 50 && !problem.includes("?") && !problem.includes("/") && !mediaUrl;
     const isGreeting = /^(hola|buenas|hey|buenos|que tal|como estas|gracias|adios|ok|vale|perfecto)/i.test(problem.trim());
