@@ -31,6 +31,7 @@ export default function RecipesChatPage() {
           onMessagesChange={setMessages}
           currentSessionId={sessionId}
           onSessionChange={setSessionId}
+          defaultModel="nvidia/deepseek-ai/deepseek-v4-flash"
         />
       }
       rightPanel={<RecipeSidebar messages={messages} />}

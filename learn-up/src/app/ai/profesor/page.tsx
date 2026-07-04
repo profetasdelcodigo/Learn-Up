@@ -29,6 +29,7 @@ export default function ProfessorChatPage() {
           onSubmitAction={askProfessor}
           currentSessionId={sessionId}
           onSessionChange={setSessionId}
+          defaultModel="nvidia/deepseek-ai/deepseek-v4"
         />
       }
       rightPanel={<NotebookStudio currentSessionId={sessionId} />}

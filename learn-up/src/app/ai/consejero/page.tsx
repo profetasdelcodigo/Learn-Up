@@ -30,6 +30,7 @@ export default function CounselorChatPage() {
           className="font-serif"
           currentSessionId={sessionId}
           onSessionChange={setSessionId}
+          defaultModel="nvidia/moonshotai/kimi-k2.6"
         />
       }
       rightPanel={<JournalSidebar />}

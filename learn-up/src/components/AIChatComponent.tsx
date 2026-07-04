@@ -232,6 +232,8 @@ interface AIChatProps {
   onMessagesChange?: (messages: Message[]) => void;
   currentSessionId: string | null;
   onSessionChange: (sessionId: string | null) => void;
+  defaultModel?: string;
+  disableModelSelector?: boolean;
 }
 
 export default function AIChatComponent({
@@ -245,6 +247,8 @@ export default function AIChatComponent({
   onMessagesChange,
   currentSessionId,
   onSessionChange,
+  defaultModel,
+  disableModelSelector,
 }: AIChatProps) {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -271,7 +275,7 @@ export default function AIChatComponent({
   
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [showModelMenu, setShowModelMenu] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("gemini/gemini-1.5-flash");
+  const [selectedModel, setSelectedModel] = useState(defaultModel || "nvidia/deepseek-ai/deepseek-v4");
   const [activeSkill, setActiveSkill] = useState("");
 
   useEffect(() => {
@@ -285,6 +289,25 @@ export default function AIChatComponent({
       setMessages([]);
     }
   }, [currentSessionId]);
+
+  useEffect(() => {
+    const handleTriggerJarvis = (e: CustomEvent) => {
+      const msg = e.detail?.message;
+      if (msg) {
+        // Formulate a synthetic event to trigger submit
+        setInput(msg);
+        // We need to use a timeout to allow state to update before submitting,
+        // but it's cleaner to just call a function. Since handleSubmit takes a form event,
+        // we'll extract the core submit logic to a separate function or just wait for state update.
+        setTimeout(() => {
+          const form = document.getElementById('chat-form');
+          if (form) form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+        }, 100);
+      }
+    };
+    window.addEventListener("triggerJarvis" as any, handleTriggerJarvis);
+    return () => window.removeEventListener("triggerJarvis" as any, handleTriggerJarvis);
+  }, []);
 
   // Mini-mensajes dinámicos durante la carga (contextuales)
   const [hasFileAttached, setHasFileAttached] = useState(false);
@@ -965,24 +988,50 @@ export default function AIChatComponent({
           >
             <div className="w-full max-w-3xl relative">
               {/* MODEL MENU POPOVER */}
-              {showModelMenu && (
-                <div className="absolute bottom-full left-0 mb-2 w-64 bg-surface-2 border border-border-subtle rounded-xl shadow-2xl p-2 z-50">
+              {showModelMenu && !disableModelSelector && (
+                <div className="absolute bottom-full left-0 mb-2 w-72 bg-surface-2 border border-border-subtle rounded-xl shadow-2xl p-2 z-50 max-h-80 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
                   <div className="text-xs font-semibold text-gray-400 mb-2 px-2 uppercase tracking-wider">Motor de Inteligencia</div>
+                  <div className="text-[10px] text-gray-500 mb-2 px-2">NVIDIA NIM — Free Endpoint</div>
                   {[
-                    { id: "gemini/gemini-1.5-flash", name: "Gemini 1.5 Flash (Rápido)", icon: <Zap className="w-4 h-4 text-brand-gold" /> },
-                    { id: "nvidia/meta/llama-3.1-405b-instruct", name: "Llama 3.1 405B (Profundo)", icon: <Brain className="w-4 h-4 text-purple-400" /> },
-                    { id: "groq/llama-3.3-70b-versatile", name: "Llama 3 70B (Versátil)", icon: <Activity className="w-4 h-4 text-green-400" /> }
+                    { id: "nvidia/deepseek-ai/deepseek-v4", name: "DeepSeek V4 Pro (1M ctx)", icon: <Brain className="w-4 h-4 text-emerald-400" />, tag: "⭐ Recomendado" },
+                    { id: "nvidia/deepseek-ai/deepseek-v4-flash", name: "DeepSeek V4 Flash (Rápido)", icon: <Zap className="w-4 h-4 text-yellow-400" /> },
+                    { id: "nvidia/nemotron-3-ultra-550b", name: "Nemotron 3 Ultra (550B)", icon: <Brain className="w-4 h-4 text-purple-500" />, tag: "Agente" },
+                    { id: "nvidia/moonshotai/kimi-k2.6", name: "Kimi K2.6 (1T MoE)", icon: <Sparkles className="w-4 h-4 text-cyan-400" />, tag: "Multimodal" },
+                    { id: "nvidia/minimax/m3-preview", name: "MiniMax M3 Preview", icon: <Activity className="w-4 h-4 text-pink-400" />, tag: "Multimodal" },
+                    { id: "nvidia/glm-5.2", name: "GLM-5.2 (Agentic)", icon: <Brain className="w-4 h-4 text-blue-400" /> },
+                    { id: "nvidia/mistralai/mistral-medium-3.5", name: "Mistral Medium 3.5 (128B)", icon: <Activity className="w-4 h-4 text-orange-400" /> },
+                    { id: "nvidia/nemotron-3-nano-omni", name: "Nemotron Nano Omni", icon: <Sparkles className="w-4 h-4 text-indigo-400" />, tag: "Omni" },
                   ].map(m => (
                     <button
                       key={m.id}
                       type="button"
                       onClick={() => { setSelectedModel(m.id); setShowModelMenu(false); }}
-                      className={`w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-white/5 flex items-center gap-3 transition-colors ${selectedModel === m.id ? "bg-white/10 text-white font-medium" : "text-gray-300"}`}
+                      className={`w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-white/5 flex items-center gap-2 transition-colors ${selectedModel === m.id ? "bg-white/10 text-white font-medium" : "text-gray-300"}`}
                     >
                       {m.icon}
-                      {m.name}
+                      <span className="flex-1 truncate">{m.name}</span>
+                      {(m as any).tag && <span className="text-[9px] bg-white/5 text-gray-400 px-1.5 py-0.5 rounded-full shrink-0">{(m as any).tag}</span>}
                     </button>
                   ))}
+                  <div className="border-t border-white/5 mt-2 pt-2">
+                    <div className="text-[10px] text-gray-500 mb-1 px-2">Otros proveedores</div>
+                    {[
+                      { id: "gemini/gemini-1.5-flash", name: "Gemini 1.5 Flash", icon: <Zap className="w-4 h-4 text-brand-gold" /> },
+                      { id: "gemini/gemini-1.5-pro", name: "Gemini 1.5 Pro", icon: <Zap className="w-4 h-4 text-brand-gold" /> },
+                      { id: "groq/llama-3.3-70b-versatile", name: "Groq Llama 3 70B", icon: <Zap className="w-4 h-4 text-green-400" /> },
+                      { id: "openrouter/meta-llama/llama-3.3-70b-instruct", name: "OR Llama 3.3 70B", icon: <Activity className="w-4 h-4 text-blue-400" /> },
+                    ].map(m => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => { setSelectedModel(m.id); setShowModelMenu(false); }}
+                        className={`w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-white/5 flex items-center gap-2 transition-colors ${selectedModel === m.id ? "bg-white/10 text-white font-medium" : "text-gray-300"}`}
+                      >
+                        {m.icon}
+                        <span className="truncate">{m.name}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -1025,7 +1074,7 @@ export default function AIChatComponent({
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="flex flex-col bg-surface-2 border border-border-subtle rounded-2xl p-2 shadow-sm transition-all focus-within:border-brand-gold/30">
+              <form id="chat-form" onSubmit={handleSubmit} className="flex flex-col bg-surface-2 border border-border-subtle rounded-2xl p-2 shadow-sm transition-all focus-within:border-brand-gold/30">
                 <input
                   id="ai-chat-file-input"
                   name="ai-chat-file"
@@ -1064,15 +1113,31 @@ export default function AIChatComponent({
                     >
                       <Plus className="w-5 h-5" />
                     </button>
+                    {!disableModelSelector && (
                     <button
                       type="button"
                       onClick={() => setShowModelMenu(!showModelMenu)}
                       className="p-1.5 rounded-md text-gray-400 hover:text-brand-gold hover:bg-white/5 transition-colors flex items-center gap-1 text-xs font-medium bg-surface-3 px-2 ml-2"
                     >
                       <Sparkles className="w-4 h-4" />
-                      {selectedModel.includes("gemini") ? "Gemini" : selectedModel.includes("405b") ? "Llama 405B" : "Groq"}
+                      {(() => {
+                        if (selectedModel.includes("deepseek-v4-flash")) return "DS Flash";
+                        if (selectedModel.includes("deepseek-v4")) return "DS V4 Pro";
+                        if (selectedModel.includes("nemotron-3-ultra")) return "Nemotron Ultra";
+                        if (selectedModel.includes("kimi-k2")) return "Kimi K2.6";
+                        if (selectedModel.includes("minimax")) return "MiniMax M3";
+                        if (selectedModel.includes("glm")) return "GLM-5.2";
+                        if (selectedModel.includes("mistral")) return "Mistral 3.5";
+                        if (selectedModel.includes("nano-omni")) return "Nano Omni";
+                        if (selectedModel.includes("gemini-1.5-flash")) return "Gemini Flash";
+                        if (selectedModel.includes("gemini-1.5-pro")) return "Gemini Pro";
+                        if (selectedModel.includes("groq")) return "Groq";
+                        if (selectedModel.includes("openrouter")) return "OR Llama";
+                        return "IA";
+                      })()}
                       <ChevronDown className="w-3 h-3 ml-1" />
                     </button>
+                    )}
                   </div>
                   
                   <div className="flex items-center gap-2">

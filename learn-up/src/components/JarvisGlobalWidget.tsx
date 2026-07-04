@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { motion, useDragControls } from "framer-motion";
-import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2, ExternalLink, CalendarPlus, Search, FileText, Mic, Volume2, VolumeX } from "lucide-react";
+import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2, ExternalLink, CalendarPlus, Search, FileText, Mic, Volume2, VolumeX, ChevronDown, Brain, Zap, Activity } from "lucide-react";
 
 import { askJarvis } from "@/actions/jarvis";
 import dynamic from "next/dynamic";
@@ -29,6 +29,8 @@ export default function JarvisGlobalWidget() {
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [autoTTS, setAutoTTS] = useState(true);
+  const [selectedModel, setSelectedModel] = useState("nvidia/nemotron-3-ultra-550b");
+  const [showModelMenu, setShowModelMenu] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -127,7 +129,10 @@ export default function JarvisGlobalWidget() {
       
       const res = await askJarvis(
         contextPrefix + userMessage,
-        messages
+        messages,
+        undefined,
+        undefined,
+        selectedModel
       );
 
       if (res.error) {
@@ -285,7 +290,16 @@ export default function JarvisGlobalWidget() {
               </div>
               <div>
                 <h3 className="font-bold text-white text-sm">Jarvis</h3>
-                <p className="text-[10px] text-brand-gold/80">Asistente Global</p>
+                <button 
+                  onClick={() => setShowModelMenu(!showModelMenu)}
+                  className="flex items-center gap-1 text-[10px] text-brand-gold/80 hover:text-brand-gold transition-colors"
+                >
+                  {selectedModel.includes("nemotron-3-ultra") ? "Nemotron Ultra" :
+                   selectedModel.includes("deepseek-v4-flash") ? "DS Flash" :
+                   selectedModel.includes("deepseek-v4") ? "DS V4 Pro" :
+                   selectedModel.includes("kimi") ? "Kimi K2.6" : "IA"}
+                  <ChevronDown className="w-2.5 h-2.5" />
+                </button>
               </div>
             </div>
             <div className="flex items-center gap-2 text-gray-400">
@@ -350,6 +364,28 @@ export default function JarvisGlobalWidget() {
             )}
             <div ref={messagesEndRef} />
           </div>
+
+          {/* Model Selector Mini-Popover */}
+          {showModelMenu && (
+            <div className="absolute top-14 left-3 right-3 bg-black/95 border border-brand-gold/20 rounded-xl p-2 z-50 shadow-2xl">
+              {[
+                { id: "nvidia/nemotron-3-ultra-550b", name: "Nemotron Ultra (550B)", icon: <Brain className="w-3.5 h-3.5 text-purple-400" /> },
+                { id: "nvidia/deepseek-ai/deepseek-v4", name: "DeepSeek V4 Pro", icon: <Brain className="w-3.5 h-3.5 text-emerald-400" /> },
+                { id: "nvidia/moonshotai/kimi-k2.6", name: "Kimi K2.6", icon: <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> },
+                { id: "nvidia/deepseek-ai/deepseek-v4-flash", name: "DS V4 Flash", icon: <Zap className="w-3.5 h-3.5 text-yellow-400" /> },
+                { id: "groq/llama-3.3-70b-versatile", name: "Groq Llama 3", icon: <Zap className="w-3.5 h-3.5 text-green-400" /> },
+              ].map(m => (
+                <button
+                  key={m.id}
+                  onClick={() => { setSelectedModel(m.id); setShowModelMenu(false); }}
+                  className={`w-full text-left px-2.5 py-1.5 text-xs rounded-lg hover:bg-white/5 flex items-center gap-2 transition-colors ${selectedModel === m.id ? "bg-white/10 text-white font-medium" : "text-gray-400"}`}
+                >
+                  {m.icon}
+                  {m.name}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Input */}
           <div className="border-t border-white/10 p-3 bg-black/40">

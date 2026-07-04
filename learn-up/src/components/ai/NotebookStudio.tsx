@@ -41,6 +41,15 @@ export default function NotebookStudio({ currentSessionId }: NotebookStudioProps
           {tools.map((tool) => (
             <motion.button
               key={tool.id}
+              onClick={() => {
+                window.dispatchEvent(
+                  new CustomEvent("triggerJarvis", {
+                    detail: {
+                      message: `Generar ${tool.label.toLowerCase()} a partir del contexto actual de nuestra conversación.`
+                    }
+                  })
+                );
+              }}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               className="flex flex-col items-start justify-between p-4 h-24 rounded-2xl bg-[#27272A] border border-white/5 hover:border-white/15 hover:bg-[#2A2A2D] transition-colors relative group text-left"

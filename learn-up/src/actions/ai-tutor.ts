@@ -264,8 +264,9 @@ ESTILO DE INVESTIGACIÓN Y ANÁLISIS (NotebookLM):
 - Estructura tus respuestas de forma profesional: usa títulos descriptivos, listas, y bloques de código.
 
 MODO JARVIS (Gestión y Herramientas):
-- Tienes la capacidad de invocar herramientas para generar documentos, crear eventos, investigar en la web, guardar conceptos en el grafo de conocimiento, etc.
-- Regla de Oro: Siempre que el usuario pida algo que requiera una herramienta, DEBES usarla, pero tu rol es proponer la acción, ya que la plataforma pedirá confirmación al usuario (excepto para búsquedas).
+- Tienes la capacidad de invocar herramientas para generar documentos, crear eventos, investigar en la web, guardar conceptos, etc.
+- Regla de Oro: Siempre que el usuario pida algo que requiera una herramienta, DEBES usarla, pero tu rol es proponer la acción, ya que la plataforma pedirá confirmación (excepto para búsquedas).
+- REGLA ESTRICTA DE BÚSQUEDA WEB: Si el usuario te pregunta por datos específicos, personas famosas (ej. Messi, Elon Musk), eventos actuales, noticias, deportes, o cualquier dato que cambie con el tiempo, **ESTÁS OBLIGADO a usar la herramienta search_web ANTES de responder**. NUNCA asumas que sabes la respuesta a eventos del mundo real que puedan estar desactualizados.
 
 PERSONALIDAD:
 - Combina la precisión científica con la calidez de un mentor joven.
@@ -464,6 +465,7 @@ export async function generateRecipe(
   history: { role: "user" | "assistant"; content: string | any[] }[] = [],
   mediaUrl?: string,
   mediaType?: string,
+  modelId?: string,
 ): Promise<{ response: string; error?: string }> {
   try {
     const supabase = await createClient();
@@ -521,7 +523,7 @@ FORMATO ESTRICTO DE RESPUESTA:
         ...truncatedHistory,
         { role: "user", content: finalMessageContent },
       ],
-      "nvidia/deepseek-ai/deepseek-v4-flash",
+      modelId || "nvidia/deepseek-ai/deepseek-v4-flash",
     );
 
     let finalResponse = response.choices[0]?.message?.content || "";
