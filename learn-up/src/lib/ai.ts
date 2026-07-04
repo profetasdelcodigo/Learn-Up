@@ -300,7 +300,7 @@ export const getNvidiaNIMCompletion = async (
   jsonMode: boolean = false
 ) => {
   const apiKey = process.env.NVIDIA_API_KEY;
-  if (!apiKey) throw new Error("NVIDIA_API_KEY no configurada.");
+  if (!apiKey) throw new Error("⚠️ Falta NVIDIA_API_KEY en las variables de entorno para usar los modelos de NVIDIA NIM.");
 
   try {
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
@@ -345,7 +345,7 @@ const getOpenRouterCompletion = async (
   jsonMode: boolean = false
 ) => {
   const apiKey = openRouterApiKey;
-  if (!apiKey) throw new Error("OPENROUTER_API_KEY no configurada.");
+  if (!apiKey) throw new Error("⚠️ Falta OPENROUTER_API_KEY en las variables de entorno.");
 
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {

@@ -328,8 +328,9 @@ ${toolDefs}`;
     );
     return {
       response: "",
-      error:
-        "Disculpa, tuve un problema al procesar tu solicitud. ¡Inténtalo de nuevo!",
+      error: error.message?.startsWith("⚠️") 
+        ? error.message 
+        : "Disculpa, tuve un problema al procesar tu solicitud. ¡Inténtalo de nuevo!",
     };
   }
 }
@@ -448,7 +449,9 @@ HERRAMIENTAS:
     console.error("Error en askCounselor:", error);
     return {
       response: "",
-      error: "Disculpa, hubo un problema. Por favor intenta de nuevo.",
+      error: error.message?.startsWith("⚠️") 
+        ? error.message 
+        : "Disculpa, hubo un problema. Por favor intenta de nuevo.",
     };
   }
 }
@@ -730,8 +733,9 @@ IMPORTANTE PARA DOCUMENTOS:
   } catch (error: any) {
     console.error("Error en generateRealExam:", error);
     return {
-      error:
-        "Hubo un problema al generar el examen. Por favor asegúrate de subir documentos legibles.",
+      error: error.message?.startsWith("⚠️") 
+        ? error.message 
+        : "Hubo un problema al generar el examen. Por favor asegúrate de subir documentos legibles.",
     };
   }
 }
