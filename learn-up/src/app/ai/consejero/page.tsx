@@ -5,7 +5,7 @@ import { HeartPulse } from "lucide-react";
 import NotebookLayout from "@/components/ai/NotebookLayout";
 import SourcesPanel from "@/components/ai/SourcesPanel";
 import AIChatComponent from "@/components/AIChatComponent";
-import JournalSidebar from "@/components/JournalSidebar";
+import NotebookStudio from "@/components/ai/NotebookStudio";
 import { askCounselor } from "@/actions/ai-tutor";
 
 export default function CounselorChatPage() {
@@ -30,10 +30,10 @@ export default function CounselorChatPage() {
           className="font-serif"
           currentSessionId={sessionId}
           onSessionChange={setSessionId}
-          defaultModel="nvidia/moonshotai/kimi-k2.6"
+          defaultModel="openrouter/moonshotai/moonshot-v1-32k"
         />
       }
-      rightPanel={<JournalSidebar />}
+      rightPanel={<NotebookStudio currentSessionId={sessionId} />}
     />
   );
 }

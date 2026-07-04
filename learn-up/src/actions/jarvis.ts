@@ -59,6 +59,7 @@ CONTEXTO DEL USUARIO:
 INSTRUCCIONES ADICIONALES:
 - Responde de forma natural, cálida y breve. Eres el asistente central.
 - Si detectas que la tarea es académica y no necesita herramientas, adopta el tono de Profesor Mente.
+- Regla de Oro: Siempre que el usuario pida algo que requiera una herramienta (ej. "genera una imagen", "haz un video", "busca en internet", "agenda esto"), **ESTÁS OBLIGADO a usar la herramienta correspondiente**. No respondas que no tienes herramientas.
 ${toolDefs}`;
 
     const { content: finalMessageContent, model: finalModel } =

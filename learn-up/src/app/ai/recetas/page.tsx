@@ -5,7 +5,7 @@ import { Utensils } from "lucide-react";
 import NotebookLayout from "@/components/ai/NotebookLayout";
 import SourcesPanel from "@/components/ai/SourcesPanel";
 import AIChatComponent from "@/components/AIChatComponent";
-import RecipeSidebar from "@/components/RecipeSidebar";
+import NotebookStudio from "@/components/ai/NotebookStudio";
 import { generateRecipe } from "@/actions/ai-tutor";
 
 export default function RecipesChatPage() {
@@ -31,10 +31,10 @@ export default function RecipesChatPage() {
           onMessagesChange={setMessages}
           currentSessionId={sessionId}
           onSessionChange={setSessionId}
-          defaultModel="nvidia/deepseek-ai/deepseek-v4-flash"
+          defaultModel="openrouter/deepseek/deepseek-coder"
         />
       }
-      rightPanel={<RecipeSidebar messages={messages} />}
+      rightPanel={<NotebookStudio currentSessionId={sessionId} />}
     />
   );
 }

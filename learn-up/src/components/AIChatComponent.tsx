@@ -993,14 +993,14 @@ export default function AIChatComponent({
                   <div className="text-xs font-semibold text-gray-400 mb-2 px-2 uppercase tracking-wider">Motor de Inteligencia</div>
                   <div className="text-[10px] text-gray-500 mb-2 px-2">NVIDIA NIM — Free Endpoint</div>
                   {[
-                    { id: "nvidia/deepseek-ai/deepseek-v4", name: "DeepSeek V4 Pro (1M ctx)", icon: <Brain className="w-4 h-4 text-emerald-400" />, tag: "⭐ Recomendado" },
-                    { id: "nvidia/deepseek-ai/deepseek-v4-flash", name: "DeepSeek V4 Flash (Rápido)", icon: <Zap className="w-4 h-4 text-yellow-400" /> },
-                    { id: "nvidia/nemotron-3-ultra-550b", name: "Nemotron 3 Ultra (550B)", icon: <Brain className="w-4 h-4 text-purple-500" />, tag: "Agente" },
-                    { id: "nvidia/moonshotai/kimi-k2.6", name: "Kimi K2.6 (1T MoE)", icon: <Sparkles className="w-4 h-4 text-cyan-400" />, tag: "Multimodal" },
-                    { id: "nvidia/minimax/m3-preview", name: "MiniMax M3 Preview", icon: <Activity className="w-4 h-4 text-pink-400" />, tag: "Multimodal" },
-                    { id: "nvidia/glm-5.2", name: "GLM-5.2 (Agentic)", icon: <Brain className="w-4 h-4 text-blue-400" /> },
-                    { id: "nvidia/mistralai/mistral-medium-3.5", name: "Mistral Medium 3.5 (128B)", icon: <Activity className="w-4 h-4 text-orange-400" /> },
-                    { id: "nvidia/nemotron-3-nano-omni", name: "Nemotron Nano Omni", icon: <Sparkles className="w-4 h-4 text-indigo-400" />, tag: "Omni" },
+                    { id: "openrouter/deepseek/deepseek-chat", name: "DeepSeek V4 Pro (1M ctx)", icon: <Brain className="w-4 h-4 text-emerald-400" />, tag: "⭐ Recomendado" },
+                    { id: "openrouter/deepseek/deepseek-coder", name: "DeepSeek V4 Flash (Rápido)", icon: <Zap className="w-4 h-4 text-yellow-400" /> },
+                    { id: "openrouter/meta-llama/llama-3.1-405b-instruct", name: "Nemotron 3 Ultra (550B)", icon: <Brain className="w-4 h-4 text-purple-500" />, tag: "Agente" },
+                    { id: "openrouter/moonshotai/moonshot-v1-32k", name: "Kimi K2.6 (1T MoE)", icon: <Sparkles className="w-4 h-4 text-cyan-400" />, tag: "Multimodal" },
+                    { id: "openrouter/minimax/minimax-01", name: "MiniMax M3 Preview", icon: <Activity className="w-4 h-4 text-pink-400" />, tag: "Multimodal" },
+                    { id: "openrouter/zhipu/glm-4", name: "GLM-5.2 (Agentic)", icon: <Brain className="w-4 h-4 text-blue-400" /> },
+                    { id: "openrouter/mistralai/mistral-large", name: "Mistral Medium 3.5 (128B)", icon: <Activity className="w-4 h-4 text-orange-400" /> },
+                    { id: "groq/llama-3.1-8b-instant", name: "Nemotron Nano Omni", icon: <Sparkles className="w-4 h-4 text-indigo-400" />, tag: "Omni" },
                   ].map(m => (
                     <button
                       key={m.id}
@@ -1121,18 +1121,18 @@ export default function AIChatComponent({
                     >
                       <Sparkles className="w-4 h-4" />
                       {(() => {
-                        if (selectedModel.includes("deepseek-v4-flash")) return "DS Flash";
-                        if (selectedModel.includes("deepseek-v4")) return "DS V4 Pro";
-                        if (selectedModel.includes("nemotron-3-ultra")) return "Nemotron Ultra";
-                        if (selectedModel.includes("kimi-k2")) return "Kimi K2.6";
+                        if (selectedModel.includes("deepseek-coder")) return "DS Flash";
+                        if (selectedModel.includes("deepseek-chat")) return "DS V4 Pro";
+                        if (selectedModel.includes("405b-instruct")) return "Nemotron Ultra";
+                        if (selectedModel.includes("moonshot")) return "Kimi K2.6";
                         if (selectedModel.includes("minimax")) return "MiniMax M3";
                         if (selectedModel.includes("glm")) return "GLM-5.2";
-                        if (selectedModel.includes("mistral")) return "Mistral 3.5";
-                        if (selectedModel.includes("nano-omni")) return "Nano Omni";
+                        if (selectedModel.includes("mistral-large")) return "Mistral 3.5";
+                        if (selectedModel.includes("llama-3.1-8b")) return "Nano Omni";
                         if (selectedModel.includes("gemini-1.5-flash")) return "Gemini Flash";
                         if (selectedModel.includes("gemini-1.5-pro")) return "Gemini Pro";
-                        if (selectedModel.includes("groq")) return "Groq";
-                        if (selectedModel.includes("openrouter")) return "OR Llama";
+                        if (selectedModel.includes("groq/llama-3.3-70b")) return "Groq";
+                        if (selectedModel.includes("openrouter/meta-llama/llama-3.3-70b")) return "OR Llama";
                         return "IA";
                       })()}
                       <ChevronDown className="w-3 h-3 ml-1" />
