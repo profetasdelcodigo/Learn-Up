@@ -312,7 +312,7 @@ export const getNvidiaNIMCompletion = async (
       body: JSON.stringify({
         model: modelName,
         messages: toTextOnlyMessages(messages),
-        max_tokens: 8192,
+        max_tokens: 4096,
         temperature: 0.7,
         response_format: jsonMode ? { type: "json_object" } : undefined,
       }),
@@ -359,6 +359,7 @@ const getOpenRouterCompletion = async (
       body: JSON.stringify({
         model: modelName,
         messages: toTextOnlyMessages(messages),
+        max_tokens: 2048,
         response_format: jsonMode ? { type: "json_object" } : undefined,
       }),
     });
@@ -507,7 +508,7 @@ export const getGroqCompletion = async (
       model: modelName,
       response_format: jsonMode ? { type: "json_object" } : undefined,
       temperature: 0.8,
-      max_tokens: 8192,
+      max_tokens: 1024,
     });
     return {
       choices: [

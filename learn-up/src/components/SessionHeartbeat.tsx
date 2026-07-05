@@ -105,15 +105,13 @@ export default function SessionHeartbeat() {
     };
 
     void subscribeToRevocation();
-    const interval = window.setInterval(ping, 10_000);
-    window.addEventListener("focus", ping);
+    const interval = window.setInterval(ping, 30_000);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       cancelled = true;
       if (channel) void supabase.removeChannel(channel);
       window.clearInterval(interval);
-      window.removeEventListener("focus", ping);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);

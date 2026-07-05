@@ -29,7 +29,7 @@ export default function JarvisGlobalWidget() {
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [autoTTS, setAutoTTS] = useState(true);
-  const [selectedModel, setSelectedModel] = useState("nvidia/nemotron-3-ultra-550b");
+  const [selectedModel, setSelectedModel] = useState("nvidia/moonshotai/kimi-k2.6");
   const [showModelMenu, setShowModelMenu] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -369,11 +369,9 @@ export default function JarvisGlobalWidget() {
           {showModelMenu && (
             <div className="absolute top-14 left-3 right-3 bg-black/95 border border-brand-gold/20 rounded-xl p-2 z-50 shadow-2xl">
               {[
-                { id: "nvidia/nemotron-3-ultra-550b", name: "Nemotron Ultra (550B)", icon: <Brain className="w-3.5 h-3.5 text-purple-400" /> },
-                { id: "nvidia/deepseek-ai/deepseek-v4", name: "DeepSeek V4 Pro", icon: <Brain className="w-3.5 h-3.5 text-emerald-400" /> },
                 { id: "nvidia/moonshotai/kimi-k2.6", name: "Kimi K2.6", icon: <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> },
-                { id: "nvidia/deepseek-ai/deepseek-v4-flash", name: "DS V4 Flash", icon: <Zap className="w-3.5 h-3.5 text-yellow-400" /> },
-                { id: "groq/llama-3.3-70b-versatile", name: "Groq Llama 3", icon: <Zap className="w-3.5 h-3.5 text-green-400" /> },
+                { id: "groq/llama-3.3-70b-versatile", name: "Groq Llama 3 70B", icon: <Zap className="w-3.5 h-3.5 text-green-400" /> },
+                { id: "openrouter/meta-llama/llama-3.3-70b-instruct", name: "OR Llama 3.3 70B", icon: <Activity className="w-3.5 h-3.5 text-blue-400" /> },
               ].map(m => (
                 <button
                   key={m.id}

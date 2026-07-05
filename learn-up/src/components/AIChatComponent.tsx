@@ -999,7 +999,7 @@ export default function AIChatComponent({
                     { id: "openrouter/moonshotai/moonshot-v1-32k", name: "Kimi K2.6 (1T MoE)", icon: <Sparkles className="w-4 h-4 text-cyan-400" />, tag: "Multimodal" },
                     { id: "openrouter/minimax/minimax-01", name: "MiniMax M3 Preview", icon: <Activity className="w-4 h-4 text-pink-400" />, tag: "Multimodal" },
                     { id: "openrouter/zhipu/glm-4", name: "GLM-5.2 (Agentic)", icon: <Brain className="w-4 h-4 text-blue-400" /> },
-                    { id: "openrouter/mistralai/mistral-large", name: "Mistral Medium 3.5 (128B)", icon: <Activity className="w-4 h-4 text-orange-400" /> },
+                    { id: "nvidia/mistralai/mistral-large-2407", name: "Mistral Medium 3.5 (128B)", icon: <Activity className="w-4 h-4 text-orange-400" /> },
                     { id: "groq/llama-3.1-8b-instant", name: "Nemotron Nano Omni", icon: <Sparkles className="w-4 h-4 text-indigo-400" />, tag: "Omni" },
                   ].map(m => (
                     <button

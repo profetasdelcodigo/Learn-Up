@@ -73,7 +73,7 @@ ${toolDefs}`;
         ...truncatedHistory,
         { role: "user", content: finalMessageContent },
       ],
-      modelId || "nvidia/nemotron-3-ultra-550b",
+      modelId || "nvidia/moonshotai/kimi-k2.6",
     );
 
     const rawContent = response.choices[0]?.message?.content || "";
@@ -95,7 +95,7 @@ ${toolDefs}`;
               { role: "assistant", content: cleanText },
               { role: "user", content: followUpPrompt },
             ],
-            modelId || "nvidia/nemotron-3-ultra-550b"
+            modelId || "nvidia/moonshotai/kimi-k2.6"
           );
           
           return { response: followUpResponse.choices[0]?.message?.content || cleanText + "\n" + result.message };
