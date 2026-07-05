@@ -994,11 +994,11 @@ export default function AIChatComponent({
                   <div className="text-[10px] text-gray-500 mb-2 px-2">NVIDIA NIM — Free Endpoint</div>
                   {[
                     { id: "openrouter/deepseek/deepseek-chat", name: "DeepSeek V4 Pro (1M ctx)", icon: <Brain className="w-4 h-4 text-emerald-400" />, tag: "⭐ Recomendado" },
-                    { id: "openrouter/deepseek/deepseek-coder", name: "DeepSeek V4 Flash (Rápido)", icon: <Zap className="w-4 h-4 text-yellow-400" /> },
-                    { id: "openrouter/meta-llama/llama-3.1-405b-instruct", name: "Nemotron 3 Ultra (550B)", icon: <Brain className="w-4 h-4 text-purple-500" />, tag: "Agente" },
-                    { id: "openrouter/moonshotai/moonshot-v1-32k", name: "Kimi K2.6 (1T MoE)", icon: <Sparkles className="w-4 h-4 text-cyan-400" />, tag: "Multimodal" },
+                    { id: "nvidia/meta/llama-3.1-8b-instruct", name: "Llama 3.1 8B (Rápido)", icon: <Zap className="w-4 h-4 text-yellow-400" /> },
+                    { id: "nvidia/meta/llama-3.1-405b-instruct", name: "Nemotron 3 Ultra (550B)", icon: <Brain className="w-4 h-4 text-purple-500" />, tag: "Agente" },
+                    { id: "nvidia/moonshotai/kimi-k2.6", name: "Kimi K2.6 (1T MoE)", icon: <Sparkles className="w-4 h-4 text-cyan-400" />, tag: "Multimodal" },
                     { id: "openrouter/minimax/minimax-01", name: "MiniMax M3 Preview", icon: <Activity className="w-4 h-4 text-pink-400" />, tag: "Multimodal" },
-                    { id: "openrouter/zhipu/glm-4", name: "GLM-5.2 (Agentic)", icon: <Brain className="w-4 h-4 text-blue-400" /> },
+                    { id: "openrouter/qwen/qwen-2.5-72b-instruct", name: "Qwen 2.5 72B (Agentic)", icon: <Brain className="w-4 h-4 text-blue-400" /> },
                     { id: "nvidia/mistralai/mistral-large-2407", name: "Mistral Medium 3.5 (128B)", icon: <Activity className="w-4 h-4 text-orange-400" /> },
                     { id: "groq/llama-3.1-8b-instant", name: "Nemotron Nano Omni", icon: <Sparkles className="w-4 h-4 text-indigo-400" />, tag: "Omni" },
                   ].map(m => (
@@ -1017,7 +1017,7 @@ export default function AIChatComponent({
                     <div className="text-[10px] text-gray-500 mb-1 px-2">Otros proveedores</div>
                     {[
                       { id: "gemini/gemini-1.5-flash", name: "Gemini 1.5 Flash", icon: <Zap className="w-4 h-4 text-brand-gold" /> },
-                      { id: "gemini/gemini-1.5-pro", name: "Gemini 1.5 Pro", icon: <Zap className="w-4 h-4 text-brand-gold" /> },
+                      { id: "gemini/gemini-1.5-pro-latest", name: "Gemini 1.5 Pro", icon: <Zap className="w-4 h-4 text-brand-gold" /> },
                       { id: "groq/llama-3.3-70b-versatile", name: "Groq Llama 3 70B", icon: <Zap className="w-4 h-4 text-green-400" /> },
                       { id: "openrouter/meta-llama/llama-3.3-70b-instruct", name: "OR Llama 3.3 70B", icon: <Activity className="w-4 h-4 text-blue-400" /> },
                     ].map(m => (
@@ -1130,7 +1130,7 @@ export default function AIChatComponent({
                         if (selectedModel.includes("mistral-large")) return "Mistral 3.5";
                         if (selectedModel.includes("llama-3.1-8b")) return "Nano Omni";
                         if (selectedModel.includes("gemini-1.5-flash")) return "Gemini Flash";
-                        if (selectedModel.includes("gemini-1.5-pro")) return "Gemini Pro";
+                        if (selectedModel.includes("gemini-1.5-pro-latest")) return "Gemini Pro";
                         if (selectedModel.includes("groq/llama-3.3-70b")) return "Groq";
                         if (selectedModel.includes("openrouter/meta-llama/llama-3.3-70b")) return "OR Llama";
                         return "IA";
