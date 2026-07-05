@@ -369,7 +369,15 @@ export default function JarvisGlobalWidget() {
           {showModelMenu && (
             <div className="absolute top-14 left-3 right-3 bg-black/95 border border-brand-gold/20 rounded-xl p-2 z-50 shadow-2xl">
               {[
+                { id: "openrouter/deepseek/deepseek-chat", name: "DeepSeek V4 Pro", icon: <Brain className="w-3.5 h-3.5 text-emerald-400" /> },
+                { id: "nvidia/meta/llama-3.1-8b-instruct", name: "Llama 3.1 8B", icon: <Zap className="w-3.5 h-3.5 text-yellow-400" /> },
+                { id: "nvidia/meta/llama-3.1-405b-instruct", name: "Nemotron 3 Ultra", icon: <Brain className="w-3.5 h-3.5 text-purple-400" /> },
                 { id: "nvidia/moonshotai/kimi-k2.6", name: "Kimi K2.6", icon: <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> },
+                { id: "openrouter/minimax/minimax-01", name: "MiniMax M3", icon: <Activity className="w-3.5 h-3.5 text-pink-400" /> },
+                { id: "openrouter/qwen/qwen-2.5-72b-instruct", name: "Qwen 2.5 72B", icon: <Brain className="w-3.5 h-3.5 text-blue-400" /> },
+                { id: "nvidia/mistralai/mistral-large-2407", name: "Mistral 3.5", icon: <Activity className="w-3.5 h-3.5 text-orange-400" /> },
+                { id: "groq/llama-3.1-8b-instant", name: "Nano Omni", icon: <Sparkles className="w-3.5 h-3.5 text-indigo-400" /> },
+                { id: "gemini/gemini-1.5-pro-latest", name: "Gemini 1.5 Pro", icon: <Zap className="w-3.5 h-3.5 text-brand-gold" /> },
                 { id: "groq/llama-3.3-70b-versatile", name: "Groq Llama 3 70B", icon: <Zap className="w-3.5 h-3.5 text-green-400" /> },
                 { id: "openrouter/meta-llama/llama-3.3-70b-instruct", name: "OR Llama 3.3 70B", icon: <Activity className="w-3.5 h-3.5 text-blue-400" /> },
               ].map(m => (
