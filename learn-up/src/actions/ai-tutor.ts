@@ -7,8 +7,8 @@ import { generateFalImage } from "@/lib/fal";
 import { TOOL_DEFINITIONS, parseToolCall, executeToolAction, type ToolAction } from "@/lib/ai-tools";
 import { buildAgentSystemPrompt } from "@/lib/ai/agent-registry";
 
-const MODEL = "gemini-1.5-flash";
-const VISION_MODEL = "gemini-1.5-flash";
+const MODEL = "gemini-2.0-flash";
+const VISION_MODEL = "gemini-2.0-flash";
 
 async function extractOfficeText(buffer: Buffer, fileType: string): Promise<string> {
   const officeParser = await import("officeparser");

@@ -207,7 +207,7 @@ const getGeminiCompletion = async (
     // Mapping for 2026 available models
     let actualModel = modelName;
     if (modelName.includes("llama") || modelName.includes("flash")) {
-      actualModel = "gemini-1.5-flash";
+      actualModel = "gemini-2.0-flash";
     }
 
     const model = genAI.getGenerativeModel({
@@ -389,7 +389,7 @@ export const getAICompletion = async (
     role: "system" | "user" | "assistant";
     content: string | any[];
   }[],
-  model: string = "gemini-1.5-flash",
+  model: string = "gemini-2.0-flash",
   jsonMode: boolean = false,
 ) => {
   console.log(`[AI Debug] Provider preferido: ${provider}`);
@@ -410,7 +410,7 @@ export const getAICompletion = async (
   const tryOpenRouter = async () => {
     console.log("[AI Debug] Intentando OpenRouter (Auto-Router)...");
     // Por defecto OpenRouter usará Llama 3.3 70B como router rápido si no se especifica
-    const orModel = model === "gemini-1.5-flash" ? "meta-llama/llama-3.3-70b-instruct" : model;
+    const orModel = model === "gemini-2.0-flash" ? "meta-llama/llama-3.3-70b-instruct" : model;
     return await getOpenRouterCompletion(messages, orModel, jsonMode);
   };
 

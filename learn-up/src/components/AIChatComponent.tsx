@@ -1016,7 +1016,7 @@ export default function AIChatComponent({
                   <div className="border-t border-white/5 mt-2 pt-2">
                     <div className="text-[10px] text-gray-500 mb-1 px-2">Otros proveedores</div>
                     {[
-                      { id: "gemini/gemini-1.5-flash", name: "Gemini 1.5 Flash", icon: <Zap className="w-4 h-4 text-brand-gold" /> },
+                      { id: "gemini/gemini-2.0-flash", name: "Gemini 2.0 Flash", icon: <Zap className="w-4 h-4 text-brand-gold" /> },
                       { id: "gemini/gemini-1.5-pro-latest", name: "Gemini 1.5 Pro", icon: <Zap className="w-4 h-4 text-brand-gold" /> },
                       { id: "groq/llama-3.3-70b-versatile", name: "Groq Llama 3 70B", icon: <Zap className="w-4 h-4 text-green-400" /> },
                       { id: "openrouter/meta-llama/llama-3.3-70b-instruct", name: "OR Llama 3.3 70B", icon: <Activity className="w-4 h-4 text-blue-400" /> },
@@ -1129,7 +1129,7 @@ export default function AIChatComponent({
                         if (selectedModel.includes("glm")) return "GLM-5.2";
                         if (selectedModel.includes("mistral-large")) return "Mistral 3.5";
                         if (selectedModel.includes("llama-3.1-8b")) return "Nano Omni";
-                        if (selectedModel.includes("gemini-1.5-flash")) return "Gemini Flash";
+                        if (selectedModel.includes("gemini-2.0-flash")) return "Gemini Flash";
                         if (selectedModel.includes("gemini-1.5-pro-latest")) return "Gemini Pro";
                         if (selectedModel.includes("groq/llama-3.3-70b")) return "Groq";
                         if (selectedModel.includes("openrouter/meta-llama/llama-3.3-70b")) return "OR Llama";
