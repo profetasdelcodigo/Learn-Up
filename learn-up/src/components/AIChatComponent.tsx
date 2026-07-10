@@ -994,13 +994,13 @@ export default function AIChatComponent({
                   <div className="text-[10px] text-gray-500 mb-2 px-2">NVIDIA NIM — Free Endpoint</div>
                   {[
                     { id: "openrouter/deepseek/deepseek-chat", name: "DeepSeek V4 Pro (1M ctx)", icon: <Brain className="w-4 h-4 text-emerald-400" />, tag: "⭐ Recomendado" },
-                    { id: "nvidia/meta/llama-3.1-8b-instruct", name: "Llama 3.1 8B (Rápido)", icon: <Zap className="w-4 h-4 text-yellow-400" /> },
-                    { id: "nvidia/meta/llama-3.1-405b-instruct", name: "Nemotron 3 Ultra (550B)", icon: <Brain className="w-4 h-4 text-purple-500" />, tag: "Agente" },
-                    { id: "nvidia/moonshotai/kimi-k2.6", name: "Kimi K2.6 (1T MoE)", icon: <Sparkles className="w-4 h-4 text-cyan-400" />, tag: "Multimodal" },
+                    { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Rápido)", icon: <Zap className="w-4 h-4 text-yellow-400" /> },
+                    { id: "openrouter/meta-llama/llama-3.1-405b-instruct", name: "Llama 3.1 405B Ultra", icon: <Brain className="w-4 h-4 text-purple-500" />, tag: "Agente" },
+                    { id: "openrouter/anthropic/claude-3.5-sonnet", name: "Claude 3.5 Sonnet", icon: <Sparkles className="w-4 h-4 text-cyan-400" />, tag: "Multimodal" },
                     { id: "openrouter/minimax/minimax-01", name: "MiniMax M3 Preview", icon: <Activity className="w-4 h-4 text-pink-400" />, tag: "Multimodal" },
-                    { id: "openrouter/qwen/qwen-2.5-72b-instruct", name: "Qwen 2.5 72B (Agentic)", icon: <Brain className="w-4 h-4 text-blue-400" /> },
-                    { id: "nvidia/mistralai/mistral-large-2407", name: "Mistral Medium 3.5 (128B)", icon: <Activity className="w-4 h-4 text-orange-400" /> },
-                    { id: "groq/llama-3.1-8b-instant", name: "Nemotron Nano Omni", icon: <Sparkles className="w-4 h-4 text-indigo-400" />, tag: "Omni" },
+                    { id: "openrouter/qwen/qwen-2.5-coder-32b-instruct", name: "Qwen 2.5 Coder 32B", icon: <Brain className="w-4 h-4 text-blue-400" /> },
+                    { id: "openrouter/mistralai/mistral-large-2411", name: "Mistral Large 2411", icon: <Activity className="w-4 h-4 text-orange-400" /> },
+                    { id: "groq/llama-3.1-8b-instant", name: "Llama 3.1 8B Omni", icon: <Sparkles className="w-4 h-4 text-indigo-400" />, tag: "Omni" },
                   ].map(m => (
                     <button
                       key={m.id}
@@ -1017,8 +1017,7 @@ export default function AIChatComponent({
                     <div className="text-[10px] text-gray-500 mb-1 px-2">Otros proveedores</div>
                     {[
                       { id: "gemini/gemini-2.0-flash", name: "Gemini 2.0 Flash", icon: <Zap className="w-4 h-4 text-brand-gold" /> },
-                      { id: "gemini/gemini-1.5-pro-latest", name: "Gemini 1.5 Pro", icon: <Zap className="w-4 h-4 text-brand-gold" /> },
-                      { id: "groq/llama-3.3-70b-versatile", name: "Groq Llama 3 70B", icon: <Zap className="w-4 h-4 text-green-400" /> },
+                      { id: "gemini/gemini-1.5-pro", name: "Gemini 1.5 Pro", icon: <Zap className="w-4 h-4 text-brand-gold" /> },
                       { id: "openrouter/meta-llama/llama-3.3-70b-instruct", name: "OR Llama 3.3 70B", icon: <Activity className="w-4 h-4 text-blue-400" /> },
                     ].map(m => (
                       <button
@@ -1123,15 +1122,15 @@ export default function AIChatComponent({
                       {(() => {
                         if (selectedModel.includes("deepseek-coder")) return "DS Flash";
                         if (selectedModel.includes("deepseek-chat")) return "DS V4 Pro";
-                        if (selectedModel.includes("405b-instruct")) return "Nemotron Ultra";
-                        if (selectedModel.includes("moonshot")) return "Kimi K2.6";
+                        if (selectedModel.includes("405b-instruct")) return "Llama 405B";
+                        if (selectedModel.includes("claude")) return "Claude 3.5";
                         if (selectedModel.includes("minimax")) return "MiniMax M3";
-                        if (selectedModel.includes("glm")) return "GLM-5.2";
-                        if (selectedModel.includes("mistral-large")) return "Mistral 3.5";
-                        if (selectedModel.includes("llama-3.1-8b")) return "Nano Omni";
+                        if (selectedModel.includes("qwen")) return "Qwen Coder";
+                        if (selectedModel.includes("mistral-large")) return "Mistral Large";
+                        if (selectedModel.includes("llama-3.1-8b")) return "Llama Omni";
                         if (selectedModel.includes("gemini-2.0-flash")) return "Gemini Flash";
-                        if (selectedModel.includes("gemini-1.5-pro-latest")) return "Gemini Pro";
-                        if (selectedModel.includes("groq/llama-3.3-70b")) return "Groq";
+                        if (selectedModel.includes("gemini-1.5-pro")) return "Gemini Pro";
+                        if (selectedModel.includes("groq/llama-3.3-70b")) return "Llama 3.3";
                         if (selectedModel.includes("openrouter/meta-llama/llama-3.3-70b")) return "OR Llama";
                         return "IA";
                       })()}
