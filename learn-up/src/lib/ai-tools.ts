@@ -180,7 +180,7 @@ LISTA DE HERRAMIENTAS:
 4. search_library â€” Buscar materiales pÃºblicos en la Biblioteca.
    args: {"query": "tÃ©rmino de bÃºsqueda"}
 
-5. update_profile â€” Actualizar el perfil del usuario.
+5. update_profile — Actualizar el perfil del usuario.
    args: {"field": "bio|school|grade", "value": "nuevo valor"}
 
 6. add_habit — Crear un nuevo hábito en el Habit Tracker.
@@ -198,23 +198,23 @@ LISTA DE HERRAMIENTAS:
 6e. read_habit_tracker — Consulta estadísticas y rachas de hábitos.
     args: {"week_start": "YYYY-MM-DD"}
 
-7. search_web — Buscar información en tiempo real en internet (Google/DuckDuckGo).
-   args: {"query": "tÃ©rmino de bÃºsqueda especÃ­fico"}
+7. search_web — Investigar en internet (Google/DuckDuckGo). Úsalo para buscar datos actualizados, noticias, o información general del mundo real.
+   args: {"query": "término de búsqueda específico en inglés o español"}
 
-8. save_learned_concept â€” Guardar un concepto importante en el "Learn Graph" (memoria a largo plazo RAG).
+8. save_learned_concept — Guardar un concepto importante en el "Learn Graph" (memoria a largo plazo RAG).
    args: {"title": "Nombre", "description": "Resumen"}
 
 9. search_documents — RAG local: buscar en los documentos subidos por el usuario (NotebookLM).
    args: {"query": "texto a buscar"}
 
-10. generate_document â€” Generar un archivo Markdown/Study Guide descargable para el usuario.
-    args: {"title": "TÃ­tulo", "outline": "Contenido Markdown", "format": "markdown|study_guide|summary"}
+10. generate_document — Generar un archivo Markdown/Study Guide descargable para el usuario.
+    args: {"title": "Título", "outline": "Contenido Markdown", "format": "markdown|study_guide|summary"}
 
-11. generate_image — Generar una imagen fotorrealista usando IA (usa fal.ai Flux). Úsalo cuando el usuario pida CREAR o IMAGINAR una imagen.
-    args: {"prompt": "descripción detallada de la imagen en inglés o español", "purpose": "contexto de uso"}
+11. generate_image — Generar una imagen fotorrealista desde cero usando IA. Úsalo cuando el usuario pida CREAR, IMAGINAR, DIBUJAR o GENERAR una imagen original.
+    args: {"prompt": "descripción detallada de la imagen, de preferencia en inglés", "purpose": "contexto de uso"}
 
-11a. search_image — Buscar una foto de stock real (usa Unsplash). Úsalo cuando el usuario pida BUSCAR una foto real de algo que ya existe (ej. comida, ciudades, naturaleza).
-     args: {"query": "término de búsqueda en inglés corto, ej. 'pizza', 'new york'"}
+11a. search_image — Buscar una foto de stock de la vida real (usa Unsplash). Úsalo cuando el usuario pida BUSCAR o VER una foto real de algo que ya existe (ej. ciudades, animales, comida, cosas reales).
+     args: {"query": "término de búsqueda EN INGLÉS CORTO, ej. 'pizza', 'new york', 'happy dog'"}
 
 11b. generate_video â€” Generar un clip de video corto para explicar algo dinÃ¡mico (usa fal.ai Minimax/Kling).
      args: {"prompt": "descripciÃ³n de las acciones o dinÃ¡mica del video", "purpose": "contexto de uso"}

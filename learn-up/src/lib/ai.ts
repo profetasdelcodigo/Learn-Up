@@ -430,39 +430,43 @@ export const getAICompletion = async (
   };
 
   // 1. Enrutamiento Explícito (Seleccionado por el usuario en la UI)
-  try {
-    if (model.startsWith("openrouter/")) {
-      const specificModel = model.replace("openrouter/", "");
-      console.log(`[AI Debug] Enrutamiento explícito a OpenRouter: ${specificModel}`);
-      return await getOpenRouterCompletion(messages, specificModel, jsonMode);
-    }
-
-    if (model.startsWith("nvidia/")) {
-      const specificModel = model.replace("nvidia/", "");
-      console.log(`[AI Debug] Enrutamiento explícito a Nvidia NIM: ${specificModel}`);
-      return await getNvidiaNIMCompletion(messages, specificModel, jsonMode);
-    }
-    
-    if (model.startsWith("groq/")) {
-      const specificModel = model.replace("groq/", "");
-      console.log(`[AI Debug] Enrutamiento explícito a Groq: ${specificModel}`);
-      return await getGroqCompletion(toTextOnlyMessages(messages), specificModel, jsonMode);
-    }
-
-    if (model.startsWith("gemini/")) {
-      const specificModel = model.replace("gemini/", "");
-      console.log(`[AI Debug] Enrutamiento explícito a Gemini: ${specificModel}`);
-      return await getGeminiCompletion(messages, specificModel, jsonMode);
-    }
-  } catch (explicitError: any) {
-    console.warn(`[AI Debug] El proveedor explícito falló: ${explicitError?.message || explicitError}. Iniciando Fallback de emergencia...`);
-    // Fallback de emergencia a Groq o OpenRouter si el explícito falló (ej. quota exceeded, 404, etc)
+  if (model.startsWith("openrouter/")) {
+    const specificModel = model.replace("openrouter/", "");
+    console.log(`[AI Debug] Enrutamiento explícito a OpenRouter: ${specificModel}`);
     try {
-      if (groq) return await tryGroq();
-      if (openRouterApiKey) return await tryOpenRouter();
-    } catch (fallbackErr) {
-      console.error("[AI Debug] Fallback de emergencia también falló.");
-      throw fallbackErr; // Si el fallback falla, lanzamos el error
+      return await getOpenRouterCompletion(messages, specificModel, jsonMode);
+    } catch (e: any) {
+      throw new Error(`OpenRouter (${specificModel}) falló: ${e.message}`);
+    }
+  }
+
+  if (model.startsWith("nvidia/")) {
+    const specificModel = model.replace("nvidia/", "");
+    console.log(`[AI Debug] Enrutamiento explícito a Nvidia NIM: ${specificModel}`);
+    try {
+      return await getNvidiaNIMCompletion(messages, specificModel, jsonMode);
+    } catch (e: any) {
+      throw new Error(`Nvidia NIM (${specificModel}) falló: ${e.message}`);
+    }
+  }
+  
+  if (model.startsWith("groq/")) {
+    const specificModel = model.replace("groq/", "");
+    console.log(`[AI Debug] Enrutamiento explícito a Groq: ${specificModel}`);
+    try {
+      return await getGroqCompletion(toTextOnlyMessages(messages), specificModel, jsonMode);
+    } catch (e: any) {
+      throw new Error(`Groq (${specificModel}) falló: ${e.message}`);
+    }
+  }
+
+  if (model.startsWith("gemini/")) {
+    const specificModel = model.replace("gemini/", "");
+    console.log(`[AI Debug] Enrutamiento explícito a Gemini: ${specificModel}`);
+    try {
+      return await getGeminiCompletion(messages, specificModel, jsonMode);
+    } catch (e: any) {
+      throw new Error(`Gemini (${specificModel}) falló: ${e.message}`);
     }
   }
 

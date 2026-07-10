@@ -993,14 +993,11 @@ export default function AIChatComponent({
                   <div className="text-xs font-semibold text-gray-400 mb-2 px-2 uppercase tracking-wider">Motor de Inteligencia</div>
                   <div className="text-[10px] text-gray-500 mb-2 px-2">NVIDIA NIM — Free Endpoint</div>
                   {[
-                    { id: "openrouter/deepseek/deepseek-chat", name: "DeepSeek V4 Pro (1M ctx)", icon: <Brain className="w-4 h-4 text-emerald-400" />, tag: "⭐ Recomendado" },
-                    { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Rápido)", icon: <Zap className="w-4 h-4 text-yellow-400" /> },
-                    { id: "openrouter/meta-llama/llama-3.1-405b-instruct", name: "Llama 3.1 405B Ultra", icon: <Brain className="w-4 h-4 text-purple-500" />, tag: "Agente" },
-                    { id: "openrouter/anthropic/claude-3.5-sonnet", name: "Claude 3.5 Sonnet", icon: <Sparkles className="w-4 h-4 text-cyan-400" />, tag: "Multimodal" },
-                    { id: "openrouter/minimax/minimax-01", name: "MiniMax M3 Preview", icon: <Activity className="w-4 h-4 text-pink-400" />, tag: "Multimodal" },
-                    { id: "openrouter/qwen/qwen-2.5-coder-32b-instruct", name: "Qwen 2.5 Coder 32B", icon: <Brain className="w-4 h-4 text-blue-400" /> },
-                    { id: "openrouter/mistralai/mistral-large-2411", name: "Mistral Large 2411", icon: <Activity className="w-4 h-4 text-orange-400" /> },
-                    { id: "groq/llama-3.1-8b-instant", name: "Llama 3.1 8B Omni", icon: <Sparkles className="w-4 h-4 text-indigo-400" />, tag: "Omni" },
+                    { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Ultra Rápido)", icon: <Zap className="w-4 h-4 text-yellow-400" />, tag: "⭐ Recomendado" },
+                    { id: "gemini/gemini-2.0-flash", name: "Gemini 2.0 Flash", icon: <Brain className="w-4 h-4 text-emerald-400" /> },
+                    { id: "groq/llama-3.1-8b-instant", name: "Llama 3.1 8B Omni", icon: <Sparkles className="w-4 h-4 text-indigo-400" />, tag: "Rápido" },
+                    { id: "openrouter/qwen/qwen-2.5-coder-32b-instruct:free", name: "Qwen 2.5 Coder", icon: <Brain className="w-4 h-4 text-blue-400" />, tag: "Agente" },
+                    { id: "openrouter/meta-llama/llama-3.3-70b-instruct:free", name: "OR Llama 3.3 70B", icon: <Activity className="w-4 h-4 text-orange-400" /> },
                   ].map(m => (
                     <button
                       key={m.id}
@@ -1013,23 +1010,6 @@ export default function AIChatComponent({
                       {(m as any).tag && <span className="text-[9px] bg-white/5 text-gray-400 px-1.5 py-0.5 rounded-full shrink-0">{(m as any).tag}</span>}
                     </button>
                   ))}
-                  <div className="border-t border-white/5 mt-2 pt-2">
-                    <div className="text-[10px] text-gray-500 mb-1 px-2">Otros proveedores</div>
-                    {[
-                      { id: "gemini/gemini-2.0-flash", name: "Gemini 2.0 Flash", icon: <Zap className="w-4 h-4 text-brand-gold" /> },
-                      { id: "gemini/gemini-1.5-pro", name: "Gemini 1.5 Pro", icon: <Zap className="w-4 h-4 text-brand-gold" /> },
-                      { id: "openrouter/meta-llama/llama-3.3-70b-instruct", name: "OR Llama 3.3 70B", icon: <Activity className="w-4 h-4 text-blue-400" /> },
-                    ].map(m => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => { setSelectedModel(m.id); setShowModelMenu(false); }}
-                        className={`w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-white/5 flex items-center gap-2 transition-colors ${selectedModel === m.id ? "bg-white/10 text-white font-medium" : "text-gray-300"}`}
-                      >
-                        {m.icon}
-                        <span className="truncate">{m.name}</span>
-                      </button>
-                    ))}
                   </div>
                 </div>
               )}
