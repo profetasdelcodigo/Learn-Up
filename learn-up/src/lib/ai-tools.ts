@@ -859,6 +859,7 @@ export async function executeToolAction(
 
       case "generate_image": {
         try {
+          // Intentar primero con Fal.ai
           const giUrl = await generateFalImage(args.prompt);
           if (giUrl) {
             return {
@@ -868,14 +869,26 @@ export async function executeToolAction(
             };
           }
         } catch (error) {
-          console.error("Error generating image:", error);
+          console.error("Error generating image with Fal, falling back to Pollinations:", error);
         }
         
-        return {
-          success: false,
-          message: "No se pudo generar la imagen mediante IA.",
-          data: { prompt: args.prompt, purpose: args.purpose || null },
-        };
+        // Fallback a Pollinations.ai
+        try {
+          const encodedPrompt = encodeURIComponent(args.prompt);
+          const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=800&height=600&nologo=true`;
+          
+          return {
+            success: true,
+            message: `Imagen generada para **${args.prompt}**:\n\n![${args.prompt}](${pollinationsUrl})`,
+            data: { prompt: args.prompt, purpose: args.purpose || null, imageUrl: pollinationsUrl },
+          };
+        } catch (error) {
+          return {
+            success: false,
+            message: "No se pudo generar la imagen mediante IA.",
+            data: { prompt: args.prompt, purpose: args.purpose || null },
+          };
+        }
       }
 
       case "search_image": {
