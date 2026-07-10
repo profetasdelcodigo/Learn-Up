@@ -17,6 +17,7 @@ const ToolSchemas: Record<string, z.ZodType> = {
   }),
   add_calendar_event: z.object({
     title: z.string().min(1),
+    description: z.string().optional(),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     start_time: z.string().optional(),
     end_time: z.string().optional(),
@@ -28,12 +29,16 @@ const ToolSchemas: Record<string, z.ZodType> = {
   update_calendar_event: z.object({
     event_id: z.string().min(1),
     title: z.string().optional(),
+    description: z.string().optional(),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     start_time: z.string().optional(),
     end_time: z.string().optional(),
   }),
   delete_calendar_event: z.object({
     event_id: z.string().min(1),
+  }),
+  search_calendar_events: z.object({
+    query: z.string().min(1),
   }),
   send_message: z.object({
     recipient_name: z.string().min(1),
@@ -55,6 +60,14 @@ const ToolSchemas: Record<string, z.ZodType> = {
   }),
   add_habit: z.object({
     title: z.string().min(1),
+    frequency: z.string().optional(), // 'daily', 'weekly:mon,wed', etc
+    target_time: z.string().optional(), // '09:00'
+  }),
+  update_habit: z.object({
+    habit_id: z.string().min(1),
+    title: z.string().optional(),
+    frequency: z.string().optional(),
+    target_time: z.string().optional(),
   }),
   complete_habit_entry: z.object({
     habit_id: z.string().min(1),
@@ -67,8 +80,14 @@ const ToolSchemas: Record<string, z.ZodType> = {
   delete_habit: z.object({
     habit_id: z.string().min(1),
   }),
+  archive_habit: z.object({
+    habit_id: z.string().min(1),
+  }),
   read_habit_tracker: z.object({
     week_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  }),
+  view_habit_stats: z.object({
+    habit_id: z.string().optional(),
   }),
   search_web: z.object({
     query: z.string().min(1),
@@ -251,7 +270,7 @@ REGLAS ESTRICTAS DE USO DE HERRAMIENTAS:
 `;
 
 // ── Herramientas que NO necesitan confirmación ─────────────────────────────────────────────────
-const AUTO_EXECUTE_TOOLS = ["search_library", "search_documents", "query_repositories", "search_web", "save_learned_concept", "read_calendar_events", "read_habit_tracker", "search_image"];
+const AUTO_EXECUTE_TOOLS = ["search_library", "search_documents", "query_repositories", "search_web", "save_learned_concept", "read_calendar_events", "search_calendar_events", "read_habit_tracker", "view_habit_stats", "search_image"];
 
 // Helper: try to build a ToolAction from a parsed JSON object
 function buildAction(toolJson: any): ToolAction | null {
@@ -278,13 +297,17 @@ function buildAction(toolJson: any): ToolAction | null {
     add_calendar_event: `¿Agendar "${args.title}" para el ${args.date}?`,
     update_calendar_event: `¿Actualizar evento?`,
     delete_calendar_event: `¿Eliminar evento?`,
+    search_calendar_events: `Buscando eventos de calendario...`,
     send_message: `¿Enviar mensaje a ${args.recipient_name}?`,
     search_library: `Buscando en la biblioteca...`,
     update_profile: `¿Actualizar tu ${args.field} a "${args.value}"?`,
     add_habit: `¿Añadir el hábito "${args.title}"?`,
+    update_habit: `¿Actualizar el hábito?`,
     complete_habit_entry: `¿Marcar hábito como completado el ${args.date}?`,
     undo_habit_entry: `¿Desmarcar hábito el ${args.date}?`,
     delete_habit: `¿Eliminar hábito por completo?`,
+    archive_habit: `¿Archivar el hábito?`,
+    view_habit_stats: `Consultando estadísticas de hábitos...`,
     search_web: `Investigando en internet...`,
     query_repositories: `Consultando el Cerebro Unico de repositorios...`,
     save_learned_concept: `Guardando concepto en tu mapa mental...`,
@@ -431,10 +454,20 @@ export async function executeToolAction(
           return { success: false, message: e.message };
         }
       }
+      case "search_calendar_events": {
+        try {
+          const { searchCalendarEvents } = await import("@/actions/calendar");
+          const events = await searchCalendarEvents(args.query);
+          return { success: true, message: `Eventos encontrados: ${JSON.stringify(events)}`, data: events };
+        } catch(e:any) {
+          return { success: false, message: e.message };
+        }
+      }
       case "update_calendar_event": {
         try {
           let updates: any = {};
           if (args.title) updates.title = args.title;
+          if (args.description !== undefined) updates.description = args.description;
           if (args.date && args.start_time) updates.start_time = `${args.date}T${args.start_time}:00`;
           if (args.date && args.end_time) updates.end_time = `${args.date}T${args.end_time}:00`;
           await updateCalendarEvent(args.event_id, updates);
@@ -454,9 +487,9 @@ export async function executeToolAction(
 
       // ── Agregar evento al calendario ────────────────────────
       case "add_calendar_event": {
-        const { title, date, start_time, end_time } = args;
+        const { title, description, date, start_time, end_time } = args;
         if (!title || !date) {
-          return { success: false, message: "Faltan datos del evento (tÃ­tulo y fecha son obligatorios)." };
+          return { success: false, message: "Faltan datos del evento (título y fecha son obligatorios)." };
         }
 
         const startDateTime = `${date}T${start_time || "09:00"}:00`;
@@ -467,6 +500,7 @@ export async function executeToolAction(
           .insert({
             user_id: user.id,
             title,
+            description: description || null,
             start_time: startDateTime,
             end_time: endDateTime,
           });
@@ -658,11 +692,23 @@ export async function executeToolAction(
         };
       }
 
-      // â”€â”€ Agregar HÃ¡bito â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // ── Agregar Hábito ──────────────────────────────────────────────────────────
       case "read_habit_tracker": {
         try {
           const habits = await readHabitTracker(args.week_start);
           return { success: true, message: `Estado actual del Habit Tracker: ${JSON.stringify(habits)}`, data: habits };
+        } catch (e: any) {
+          return { success: false, message: e.message };
+        }
+      }
+      case "view_habit_stats": {
+        try {
+          const habits = await readHabitTracker();
+          let filtered = habits;
+          if (args.habit_id) {
+            filtered = habits.filter(h => h.id === args.habit_id || h.name.toLowerCase().includes(args.habit_id.toLowerCase()));
+          }
+          return { success: true, message: `Estadísticas de hábitos: ${JSON.stringify(filtered.map(h => ({ name: h.name, stats: (h as any).stats })))}`, data: filtered };
         } catch (e: any) {
           return { success: false, message: e.message };
         }
@@ -685,8 +731,29 @@ export async function executeToolAction(
       }
       case "delete_habit": {
         try {
-          await deleteHabitFromTracker(args.habit_id);
+          await deleteHabitFromTracker(args.habit_id, false);
           return { success: true, message: `✅ Hábito eliminado del tracker.` };
+        } catch (e: any) {
+          return { success: false, message: e.message };
+        }
+      }
+      case "archive_habit": {
+        try {
+          await deleteHabitFromTracker(args.habit_id, true);
+          return { success: true, message: `✅ Hábito archivado exitosamente.` };
+        } catch (e: any) {
+          return { success: false, message: e.message };
+        }
+      }
+      case "update_habit": {
+        try {
+          const { updateHabit } = await import("@/actions/calendar");
+          const updates: any = {};
+          if (args.title) updates.name = args.title;
+          if (args.frequency) updates.frequency = args.frequency;
+          if (args.target_time) updates.target_time = args.target_time;
+          await updateHabit(args.habit_id, updates);
+          return { success: true, message: `✅ Hábito actualizado.` };
         } catch (e: any) {
           return { success: false, message: e.message };
         }
@@ -694,7 +761,7 @@ export async function executeToolAction(
       case "add_habit": {
         try {
           if (!args.title) return { success: false, message: "Falta el nombre del hábito." };
-          await addHabitToTracker(args.title);
+          await addHabitToTracker(args.title, args.frequency || 'daily', args.target_time);
           return { success: true, message: `✅ Hábito "${args.title}" añadido exitosamente a tu Habit Tracker.` };
         } catch (e: any) {
           return { success: false, message: e.message };

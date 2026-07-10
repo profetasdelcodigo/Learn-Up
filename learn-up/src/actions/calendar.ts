@@ -72,56 +72,102 @@ export async function deleteCalendarEvent(eventId: string) {
   return true;
 }
 
-// -- HABITS CRUD --
+// -- HABITS CRUD (Nuevas Tablas) --
 
 export async function readHabitTracker(weekStart?: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("No autenticado");
 
-  const targetWeek = weekStart || getWeekStartString();
-
-  const { data: personalData, error } = await supabase
-    .from("personal_habit_tracker")
-    .select("habits")
+  // Fetch all active habits
+  const { data: habits, error: hError } = await supabase
+    .from("habits")
+    .select("*")
     .eq("user_id", user.id)
-    .eq("week_start", targetWeek)
-    .maybeSingle();
-    
-  if (error) throw error;
+    .eq("archived", false)
+    .order("created_at");
 
-  return (personalData?.habits as HabitActivity[]) || [];
+  if (hError) throw hError;
+
+  const targetWeek = weekStart ? new Date(weekStart) : new Date();
+  // Get completions for the last 30 days to calculate stats
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  
+  const { data: completions, error: cError } = await supabase
+    .from("habit_completions")
+    .select("habit_id, completed_date")
+    .eq("user_id", user.id)
+    .gte("completed_date", thirtyDaysAgo.toISOString().split("T")[0]);
+
+  if (cError) throw cError;
+
+  // Transform to the expected UI format (for retrocompatibility with the current UI)
+  // The UI expects an array of HabitActivity: { id, name, days: { "Lun": true, ... } }
+  const d = new Date(targetWeek);
+  d.setDate(d.getDate() - d.getDay()); // Go to Sunday of target week
+  
+  const formattedHabits: HabitActivity[] = habits.map((h: any) => {
+    const days: Record<string, boolean> = {};
+    // Calculate completions for the specific week
+    for (let i = 0; i < 7; i++) {
+      const currentDay = new Date(d);
+      currentDay.setDate(d.getDate() + i);
+      const dateStr = currentDay.toISOString().split("T")[0];
+      
+      const isCompleted = completions.some((c: any) => c.habit_id === h.id && c.completed_date === dateStr);
+      days[DAY_KEYS[i]] = isCompleted;
+    }
+    
+    // Add simple stats
+    const totalCompletions = completions.filter((c: any) => c.habit_id === h.id).length;
+    
+    return {
+      id: h.id,
+      name: h.name,
+      frequency: h.frequency,
+      target_time: h.target_time,
+      stats: { totalCompletions30d: totalCompletions },
+      days
+    };
+  });
+
+  return formattedHabits;
 }
 
-export async function addHabitToTracker(title: string, weekStart?: string) {
+export async function addHabitToTracker(title: string, frequency: string = 'daily', targetTime?: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("No autenticado");
 
-  const targetWeek = weekStart || getWeekStartString();
-  const currentHabits = await readHabitTracker(targetWeek);
-
-  const newHabit: HabitActivity = {
-    id: `habit_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-    name: title,
-    days: {},
-  };
-
-  const updatedHabits = [...currentHabits, newHabit];
-
-  const { error } = await supabase
-    .from("personal_habit_tracker")
-    .upsert(
-      {
-        user_id: user.id,
-        week_start: targetWeek,
-        habits: updatedHabits,
-      },
-      { onConflict: "user_id, week_start" }
-    );
+  const { data, error } = await supabase
+    .from("habits")
+    .insert({
+      user_id: user.id,
+      name: title,
+      frequency: frequency,
+      target_time: targetTime || null
+    })
+    .select()
+    .single();
 
   if (error) throw error;
-  return newHabit;
+  return data;
+}
+
+export async function updateHabit(habitId: string, updates: any) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("No autenticado");
+
+  const { error } = await supabase
+    .from("habits")
+    .update(updates)
+    .eq("id", habitId)
+    .eq("user_id", user.id);
+
+  if (error) throw error;
+  return true;
 }
 
 export async function completeHabitInTracker(habitId: string, dateIsoString: string) {
@@ -129,29 +175,15 @@ export async function completeHabitInTracker(habitId: string, dateIsoString: str
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("No autenticado");
 
-  const d = new Date(dateIsoString);
-  const dayKey = DAY_KEYS[d.getDay()]; // "Dom", "Lun", ...
-  const targetWeek = getWeekStartString(d);
-
-  const currentHabits = await readHabitTracker(targetWeek);
-  const habitIndex = currentHabits.findIndex(h => h.id === habitId || h.name.toLowerCase() === habitId.toLowerCase());
-  
-  if (habitIndex === -1) {
-    throw new Error(`Hábito no encontrado en la semana de ${targetWeek}`);
-  }
-
-  currentHabits[habitIndex].days[dayKey] = true;
+  const dateOnly = dateIsoString.split("T")[0];
 
   const { error } = await supabase
-    .from("personal_habit_tracker")
-    .upsert(
-      {
-        user_id: user.id,
-        week_start: targetWeek,
-        habits: currentHabits,
-      },
-      { onConflict: "user_id, week_start" }
-    );
+    .from("habit_completions")
+    .upsert({
+      habit_id: habitId,
+      user_id: user.id,
+      completed_date: dateOnly
+    }, { onConflict: "habit_id, completed_date" });
 
   if (error) throw error;
   return true;
@@ -162,53 +194,54 @@ export async function undoHabitInTracker(habitId: string, dateIsoString: string)
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("No autenticado");
 
-  const d = new Date(dateIsoString);
-  const dayKey = DAY_KEYS[d.getDay()]; 
-  const targetWeek = getWeekStartString(d);
-
-  const currentHabits = await readHabitTracker(targetWeek);
-  const habitIndex = currentHabits.findIndex(h => h.id === habitId || h.name.toLowerCase() === habitId.toLowerCase());
-  
-  if (habitIndex === -1) return false;
-
-  currentHabits[habitIndex].days[dayKey] = false;
+  const dateOnly = dateIsoString.split("T")[0];
 
   const { error } = await supabase
-    .from("personal_habit_tracker")
-    .upsert(
-      {
-        user_id: user.id,
-        week_start: targetWeek,
-        habits: currentHabits,
-      },
-      { onConflict: "user_id, week_start" }
-    );
+    .from("habit_completions")
+    .delete()
+    .eq("habit_id", habitId)
+    .eq("user_id", user.id)
+    .eq("completed_date", dateOnly);
 
   if (error) throw error;
   return true;
 }
 
-export async function deleteHabitFromTracker(habitId: string, weekStart?: string) {
+export async function deleteHabitFromTracker(habitId: string, archive: boolean = false) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("No autenticado");
 
-  const targetWeek = weekStart || getWeekStartString();
-  const currentHabits = await readHabitTracker(targetWeek);
-  
-  const updatedHabits = currentHabits.filter(h => h.id !== habitId && h.name.toLowerCase() !== habitId.toLowerCase());
+  if (archive) {
+    const { error } = await supabase
+      .from("habits")
+      .update({ archived: true })
+      .eq("id", habitId)
+      .eq("user_id", user.id);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase
+      .from("habits")
+      .delete()
+      .eq("id", habitId)
+      .eq("user_id", user.id);
+    if (error) throw error;
+  }
+  return true;
+}
 
-  const { error } = await supabase
-    .from("personal_habit_tracker")
-    .upsert(
-      {
-        user_id: user.id,
-        week_start: targetWeek,
-        habits: updatedHabits,
-      },
-      { onConflict: "user_id, week_start" }
-    );
+export async function searchCalendarEvents(query: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("No autenticado");
+
+  const { data, error } = await supabase
+    .from("calendar_events")
+    .select("id, title, description, start_time, end_time")
+    .eq("user_id", user.id)
+    .or(`title.ilike.%${query}%,description.ilike.%${query}%`)
+    .order("start_time");
 
   if (error) throw error;
-  return true;
+  return data || [];
 }
