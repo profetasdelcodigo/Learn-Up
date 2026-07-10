@@ -89,6 +89,48 @@ const ToolSchemas: Record<string, z.ZodType> = {
   view_habit_stats: z.object({
     habit_id: z.string().optional(),
   }),
+  create_shared_calendar: z.object({
+    name: z.string().min(1),
+    members: z.array(z.string()).min(1),
+  }),
+  add_shared_calendar_member: z.object({
+    calendar_id: z.string().min(1),
+    member_id: z.string().min(1),
+  }),
+  add_shared_event: z.object({
+    calendar_id: z.string().min(1),
+    title: z.string().min(1),
+    description: z.string().optional(),
+    start_time: z.string().min(1),
+    end_time: z.string().min(1),
+  }),
+  read_shared_events: z.object({
+    calendar_id: z.string().min(1),
+  }),
+  delete_shared_event: z.object({
+    event_id: z.string().min(1),
+  }),
+  send_shared_message: z.object({
+    calendar_id: z.string().min(1),
+    content: z.string().min(1),
+    type: z.enum(["text", "audio", "system"]).default("text"),
+  }),
+  read_shared_chat: z.object({
+    calendar_id: z.string().min(1),
+    limit: z.number().int().optional(),
+  }),
+  delete_shared_message: z.object({
+    message_id: z.string().min(1),
+  }),
+  leave_shared_calendar: z.object({
+    calendar_id: z.string().min(1),
+  }),
+  view_shared_members: z.object({
+    calendar_id: z.string().min(1),
+  }),
+  notify_habit_progress: z.object({
+    calendar_id: z.string().min(1),
+  }),
   search_web: z.object({
     query: z.string().min(1),
   }),
@@ -166,7 +208,7 @@ export interface ToolResult {
   data?: any;
 }
 
-// â”€â”€ Definiciones de herramientas (para el system prompt del LLM) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€â”€ Definiciones de herramientas (para el system prompt del LLM) â”€â”€â”€
 export const TOOL_DEFINITIONS = `
 HERRAMIENTAS DISPONIBLES (MODO JARVIS AVANZADO):
 Puedes usar estas herramientas para ayudar al usuario de forma autÃ³noma. Para usarlas, incluye un bloque JSON especial en tu respuesta con este formato EXACTO:
@@ -177,33 +219,38 @@ Puedes usar estas herramientas para ayudar al usuario de forma autÃ³noma. Para
 
 LISTA DE HERRAMIENTAS:
 
-1. open_url â€” Sugerir al usuario abrir una pÃ¡gina web en su navegador.
+1. open_url — Sugerir al usuario abrir una pÃ¡gina web en su navegador.
    args: {"url": "https://...", "title": "DescripciÃ³n del enlace"}
 
 2. add_calendar_event — Crear un evento en el calendario personal del usuario.
-   args: {"title": "Nombre del evento", "date": "YYYY-MM-DD", "start_time": "HH:MM", "end_time": "HH:MM"}
-   IMPORTANTE: Siempre llama a read_calendar_events ANTES de agregar eventos para evitar conflictos de horario.
+   args: {"title": "Nombre del evento", "description": "Detalles", "date": "YYYY-MM-DD", "start_time": "HH:MM", "end_time": "HH:MM"}
 
-2b. read_calendar_events — Lee la agenda del usuario entre dos fechas.
+2b. read_calendar_events — Lee la agenda personal del usuario.
     args: {"start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD"}
 
 2c. update_calendar_event — Modifica un evento existente por su ID.
-    args: {"event_id": "uuid", "title": "nuevo titulo"}
+    args: {"event_id": "uuid", "title": "nuevo titulo", "description": "nueva desc"}
 
 2d. delete_calendar_event — Elimina un evento existente por su ID.
     args: {"event_id": "uuid"}
 
-3. send_message — Enviar un mensaje directo a un amigo, grupo o calendario compartido.
+2e. search_calendar_events — Busca eventos por palabras clave (Fulltext search).
+    args: {"query": "termino"}
+
+3. send_message — Enviar un mensaje directo a un amigo.
    args: {"recipient_name": "nombre exacto o aproximado", "content": "texto del mensaje"}
 
-4. search_library â€” Buscar materiales pÃºblicos en la Biblioteca.
-   args: {"query": "tÃ©rmino de bÃºsqueda"}
+4. search_library — Buscar materiales públicos en la Biblioteca.
+   args: {"query": "término de búsqueda"}
 
 5. update_profile — Actualizar el perfil del usuario.
    args: {"field": "bio|school|grade", "value": "nuevo valor"}
 
 6. add_habit — Crear un nuevo hábito en el Habit Tracker.
-   args: {"title": "Nombre del hábito"}
+   args: {"title": "Nombre del hábito", "frequency": "daily|weekly:mon,wed", "target_time": "09:00"}
+
+6a. update_habit — Modificar un hábito existente.
+    args: {"habit_id": "uuid", "title": "...", "frequency": "...", "target_time": "..."}
 
 6b. complete_habit_entry — Marca un hábito como completado en una fecha.
     args: {"habit_id": "uuid o nombre", "date": "YYYY-MM-DD"}
@@ -214,8 +261,47 @@ LISTA DE HERRAMIENTAS:
 6d. delete_habit — Elimina un hábito completamente.
     args: {"habit_id": "uuid o nombre"}
 
-6e. read_habit_tracker — Consulta estadísticas y rachas de hábitos.
+6e. archive_habit — Archiva un hábito sin perder su historial.
+    args: {"habit_id": "uuid"}
+
+6f. read_habit_tracker — Consulta estado actual del Habit Tracker.
     args: {"week_start": "YYYY-MM-DD"}
+
+6g. view_habit_stats — Consulta rachas y estadísticas globales de hábitos.
+    args: {"habit_id": "uuid opcional"}
+
+7a. create_shared_calendar — Crear un calendario compartido con amigos.
+    args: {"name": "Nombre", "members": ["user_id_1", "user_id_2"]}
+
+7b. add_shared_calendar_member — Agregar amigo a calendario compartido.
+    args: {"calendar_id": "uuid", "member_id": "uuid"}
+
+7c. add_shared_event — Crear evento en calendario compartido.
+    args: {"calendar_id": "uuid", "title": "...", "description": "...", "start_time": "YYYY-MM-DDTHH:MM:00", "end_time": "YYYY-MM-DDTHH:MM:00"}
+
+7d. read_shared_events — Leer eventos de calendario compartido.
+    args: {"calendar_id": "uuid"}
+
+7e. delete_shared_event — Eliminar evento de calendario compartido.
+    args: {"event_id": "uuid"}
+
+7f. send_shared_message — Enviar mensaje al chat del calendario.
+    args: {"calendar_id": "uuid", "content": "...", "type": "text"}
+
+7g. read_shared_chat — Leer el chat del calendario compartido.
+    args: {"calendar_id": "uuid", "limit": 50}
+
+7h. delete_shared_message — Borrar tu mensaje del chat.
+    args: {"message_id": "uuid"}
+
+7i. leave_shared_calendar — Salir de un calendario compartido.
+    args: {"calendar_id": "uuid"}
+
+7j. view_shared_members — Listar miembros del calendario compartido.
+    args: {"calendar_id": "uuid"}
+
+7k. notify_habit_progress — Enviar resumen de tus hábitos al chat del grupo.
+    args: {"calendar_id": "uuid"}
 
 7. search_web — Investigar en internet (Google/DuckDuckGo). Úsalo para buscar datos actualizados, noticias, o información general del mundo real.
    args: {"query": "término de búsqueda específico en inglés o español"}
@@ -270,7 +356,7 @@ REGLAS ESTRICTAS DE USO DE HERRAMIENTAS:
 `;
 
 // ── Herramientas que NO necesitan confirmación ─────────────────────────────────────────────────
-const AUTO_EXECUTE_TOOLS = ["search_library", "search_documents", "query_repositories", "search_web", "save_learned_concept", "read_calendar_events", "search_calendar_events", "read_habit_tracker", "view_habit_stats", "search_image"];
+const AUTO_EXECUTE_TOOLS = ["search_library", "search_documents", "query_repositories", "search_web", "save_learned_concept", "read_calendar_events", "search_calendar_events", "read_habit_tracker", "view_habit_stats", "read_shared_events", "read_shared_chat", "view_shared_members", "search_image"];
 
 // Helper: try to build a ToolAction from a parsed JSON object
 function buildAction(toolJson: any): ToolAction | null {
@@ -308,6 +394,17 @@ function buildAction(toolJson: any): ToolAction | null {
     delete_habit: `¿Eliminar hábito por completo?`,
     archive_habit: `¿Archivar el hábito?`,
     view_habit_stats: `Consultando estadísticas de hábitos...`,
+    create_shared_calendar: `¿Crear calendario compartido "${args.name}"?`,
+    add_shared_calendar_member: `¿Agregar miembro al calendario?`,
+    add_shared_event: `¿Agregar evento al calendario compartido?`,
+    read_shared_events: `Leyendo eventos del calendario compartido...`,
+    delete_shared_event: `¿Eliminar evento del calendario compartido?`,
+    send_shared_message: `¿Enviar mensaje al chat del calendario?`,
+    read_shared_chat: `Leyendo mensajes del chat grupal...`,
+    delete_shared_message: `¿Eliminar tu mensaje del chat?`,
+    leave_shared_calendar: `¿Salir del calendario compartido?`,
+    view_shared_members: `Consultando miembros del calendario...`,
+    notify_habit_progress: `¿Notificar avance de hábitos al grupo?`,
     search_web: `Investigando en internet...`,
     query_repositories: `Consultando el Cerebro Unico de repositorios...`,
     save_learned_concept: `Guardando concepto en tu mapa mental...`,
@@ -1121,6 +1218,85 @@ export async function executeToolAction(
           message: `Recordatorio "${nuTitle}" enviado.`,
           data: { title: nuTitle, body: nuBody, url: nuUrl },
         };
+      }
+
+      // ── Calendarios Compartidos ──────────────────────────────────────────────────
+      case "create_shared_calendar": {
+        try {
+          const { createSharedCalendar } = await import("@/actions/shared-calendars");
+          const result = await createSharedCalendar(args.name, args.members);
+          return { success: result.success, message: result.success ? `✅ Calendario "${args.name}" creado.` : `Error: ${result.error}`, data: result.data };
+        } catch(e:any) { return { success: false, message: e.message }; }
+      }
+      case "add_shared_calendar_member": {
+        try {
+          const { addCalendarMember } = await import("@/actions/shared-calendars");
+          const result = await addCalendarMember(args.calendar_id, args.member_id);
+          return { success: result.success, message: result.success ? `✅ Miembro agregado.` : `Error: ${result.error}`, data: result.data };
+        } catch(e:any) { return { success: false, message: e.message }; }
+      }
+      case "add_shared_event": {
+        try {
+          const { addSharedEvent } = await import("@/actions/shared-calendars");
+          const result = await addSharedEvent(args.calendar_id, args.title, args.description || "", args.start_time, args.end_time);
+          return { success: result.success, message: result.success ? `✅ Evento agregado.` : `Error: ${result.error}`, data: result.data };
+        } catch(e:any) { return { success: false, message: e.message }; }
+      }
+      case "read_shared_events": {
+        try {
+          const { readSharedEvents } = await import("@/actions/shared-calendars");
+          const result = await readSharedEvents(args.calendar_id);
+          return { success: result.success, message: `Eventos encontrados.`, data: result.data };
+        } catch(e:any) { return { success: false, message: e.message }; }
+      }
+      case "delete_shared_event": {
+        try {
+          const { deleteSharedEvent } = await import("@/actions/shared-calendars");
+          const result = await deleteSharedEvent(args.event_id);
+          return { success: result.success, message: result.success ? `✅ Evento eliminado.` : `Error: ${result.error}` };
+        } catch(e:any) { return { success: false, message: e.message }; }
+      }
+      case "send_shared_message": {
+        try {
+          const { sendSharedMessage } = await import("@/actions/shared-calendars");
+          const result = await sendSharedMessage(args.calendar_id, args.content, args.type);
+          return { success: result.success, message: result.success ? `✅ Mensaje enviado.` : `Error: ${result.error}`, data: result.data };
+        } catch(e:any) { return { success: false, message: e.message }; }
+      }
+      case "read_shared_chat": {
+        try {
+          const { readSharedChat } = await import("@/actions/shared-calendars");
+          const result = await readSharedChat(args.calendar_id, args.limit);
+          return { success: result.success, message: `Chat recuperado.`, data: result.data };
+        } catch(e:any) { return { success: false, message: e.message }; }
+      }
+      case "delete_shared_message": {
+        try {
+          const { deleteSharedMessage } = await import("@/actions/shared-calendars");
+          const result = await deleteSharedMessage(args.message_id);
+          return { success: result.success, message: result.success ? `✅ Mensaje eliminado.` : `Error: ${result.error}` };
+        } catch(e:any) { return { success: false, message: e.message }; }
+      }
+      case "leave_shared_calendar": {
+        try {
+          const { leaveSharedCalendar } = await import("@/actions/shared-calendars");
+          const result = await leaveSharedCalendar(args.calendar_id);
+          return { success: result.success, message: result.success ? `✅ Has salido del calendario.` : `Error: ${result.error}` };
+        } catch(e:any) { return { success: false, message: e.message }; }
+      }
+      case "view_shared_members": {
+        try {
+          const { getSharedCalendarMembers } = await import("@/actions/shared-calendars");
+          const result = await getSharedCalendarMembers(args.calendar_id);
+          return { success: result.success, message: `Miembros consultados.`, data: result.data };
+        } catch(e:any) { return { success: false, message: e.message }; }
+      }
+      case "notify_habit_progress": {
+        try {
+          const { notifySharedHabitProgress } = await import("@/actions/shared-calendars");
+          const result = await notifySharedHabitProgress(args.calendar_id);
+          return { success: result.success, message: result.success ? `✅ Grupo notificado.` : `Error: ${result.error}` };
+        } catch(e:any) { return { success: false, message: e.message }; }
       }
 
       default:

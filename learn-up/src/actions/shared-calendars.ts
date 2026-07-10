@@ -348,3 +348,98 @@ export async function leaveSharedCalendar(calendarId: string) {
     return { success: false, error: err.message };
   }
 }
+
+export async function deleteSharedMessage(messageId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "No autenticado" };
+
+  try {
+    const { error } = await supabase
+      .from("shared_calendar_messages")
+      .delete()
+      .eq("id", messageId)
+      .eq("user_id", user.id); 
+
+    if (error) throw error;
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function readSharedEvents(calendarId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "No autenticado" };
+
+  try {
+    const { data, error } = await supabase
+      .from("shared_calendar_events")
+      .select("*")
+      .eq("calendar_id", calendarId)
+      .order("start_time");
+
+    if (error) throw error;
+    return { success: true, data };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function readSharedChat(calendarId: string, limit: number = 50) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "No autenticado" };
+
+  try {
+    const { data, error } = await supabase
+      .from("shared_calendar_messages")
+      .select("id, content, created_at, type, user_id, profiles!user_id(username, avatar_url)")
+      .eq("calendar_id", calendarId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    return { success: true, data: data.reverse() };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function getSharedCalendarMembers(calendarId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "No autenticado" };
+
+  try {
+    const { data: calendar, error } = await supabase
+      .from("shared_calendars")
+      .select("members, created_by")
+      .eq("id", calendarId)
+      .single();
+
+    if (error) throw error;
+    
+    if (calendar && calendar.members && calendar.members.length > 0) {
+      const { data: profiles, error: pError } = await supabase
+        .from("profiles")
+        .select("id, username, avatar_url, first_name, last_name")
+        .in("id", calendar.members);
+        
+      if (pError) throw pError;
+      
+      return { 
+        success: true, 
+        data: {
+          members: profiles,
+          created_by: calendar.created_by
+        }
+      };
+    }
+    
+    return { success: true, data: { members: [], created_by: calendar.created_by } };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
