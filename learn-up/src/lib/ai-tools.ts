@@ -131,6 +131,8 @@ const ToolSchemas: Record<string, z.ZodType> = {
   notify_habit_progress: z.object({
     calendar_id: z.string().min(1),
   }),
+  suggest_weekly_plan: z.object({}),
+  export_calendar_ics: z.object({}),
   search_web: z.object({
     query: z.string().min(1),
   }),
@@ -356,7 +358,7 @@ REGLAS ESTRICTAS DE USO DE HERRAMIENTAS:
 `;
 
 // ── Herramientas que NO necesitan confirmación ─────────────────────────────────────────────────
-const AUTO_EXECUTE_TOOLS = ["search_library", "search_documents", "query_repositories", "search_web", "save_learned_concept", "read_calendar_events", "search_calendar_events", "read_habit_tracker", "view_habit_stats", "read_shared_events", "read_shared_chat", "view_shared_members", "search_image"];
+const AUTO_EXECUTE_TOOLS = ["search_library", "search_documents", "query_repositories", "search_web", "save_learned_concept", "read_calendar_events", "search_calendar_events", "read_habit_tracker", "view_habit_stats", "read_shared_events", "read_shared_chat", "view_shared_members", "search_image", "suggest_weekly_plan", "export_calendar_ics"];
 
 // Helper: try to build a ToolAction from a parsed JSON object
 function buildAction(toolJson: any): ToolAction | null {
@@ -405,6 +407,8 @@ function buildAction(toolJson: any): ToolAction | null {
     leave_shared_calendar: `¿Salir del calendario compartido?`,
     view_shared_members: `Consultando miembros del calendario...`,
     notify_habit_progress: `¿Notificar avance de hábitos al grupo?`,
+    suggest_weekly_plan: `Analizando datos para sugerir plan semanal...`,
+    export_calendar_ics: `Generando archivo ICS de tu calendario...`,
     search_web: `Investigando en internet...`,
     query_repositories: `Consultando el Cerebro Unico de repositorios...`,
     save_learned_concept: `Guardando concepto en tu mapa mental...`,
@@ -1297,6 +1301,51 @@ export async function executeToolAction(
           const result = await notifySharedHabitProgress(args.calendar_id);
           return { success: result.success, message: result.success ? `✅ Grupo notificado.` : `Error: ${result.error}` };
         } catch(e:any) { return { success: false, message: e.message }; }
+      }
+
+      // ── Fase 3: IA Avanzada ──────────────────────────────────────────────────────
+      case "suggest_weekly_plan": {
+        try {
+          const { readCalendarEvents, readHabitTracker } = await import("@/actions/calendar");
+          
+          // Leer la semana actual
+          const startOfWeek = new Date();
+          const day = startOfWeek.getDay();
+          const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+          startOfWeek.setDate(diff);
+          startOfWeek.setHours(0, 0, 0, 0);
+
+          const endOfWeek = new Date(startOfWeek);
+          endOfWeek.setDate(startOfWeek.getDate() + 6);
+          endOfWeek.setHours(23, 59, 59, 999);
+
+          const startStr = startOfWeek.toISOString().split('T')[0];
+          const endStr = endOfWeek.toISOString().split('T')[0];
+
+          const eventsResult = await readCalendarEvents(startStr, endStr);
+          const habitsResult = await readHabitTracker(startStr);
+
+          const summary = {
+            events: eventsResult.success ? eventsResult.data : [],
+            habits: habitsResult.success ? habitsResult.data : []
+          };
+
+          return { 
+            success: true, 
+            message: "He analizado tus eventos y hábitos. Generaré una propuesta para organizar tu semana.", 
+            data: summary 
+          };
+        } catch(e:any) { 
+          return { success: false, message: `Error al sugerir plan: ${e.message}` }; 
+        }
+      }
+
+      case "export_calendar_ics": {
+        return { 
+          success: true, 
+          message: "Tu calendario en formato ICS está listo para descargar.", 
+          data: { download_url: "/api/calendar/export" } 
+        };
       }
 
       default:
