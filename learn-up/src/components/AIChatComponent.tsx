@@ -991,7 +991,7 @@ export default function AIChatComponent({
               {showModelMenu && !disableModelSelector && (
                 <div className="absolute bottom-full left-0 mb-2 w-72 bg-surface-2 border border-border-subtle rounded-xl shadow-2xl p-2 z-50 max-h-80 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
                   <div className="text-xs font-semibold text-gray-400 mb-2 px-2 uppercase tracking-wider">Motor de Inteligencia</div>
-                  <div className="text-[10px] text-gray-500 mb-2 px-2">NVIDIA NIM — Free Endpoint</div>
+                  <div className="text-[10px] text-gray-500 mb-2 px-2">Endpoints Gratuitos y Seguros</div>
                   {[
                     { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Ultra Rápido)", icon: <Zap className="w-4 h-4 text-yellow-400" />, tag: "⭐ Recomendado" },
                     { id: "gemini/gemini-2.0-flash", name: "Gemini 2.0 Flash", icon: <Brain className="w-4 h-4 text-emerald-400" /> },
@@ -1010,7 +1010,6 @@ export default function AIChatComponent({
                       {(m as any).tag && <span className="text-[9px] bg-white/5 text-gray-400 px-1.5 py-0.5 rounded-full shrink-0">{(m as any).tag}</span>}
                     </button>
                   ))}
-                  </div>
                 </div>
               )}
 
