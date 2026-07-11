@@ -68,8 +68,8 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       // Fuentes: self + Google Fonts
       "font-src 'self' https://fonts.gstatic.com",
-      // Imágenes: self + Supabase Storage + data URIs
-      "img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in https://i.ytimg.com https://img.youtube.com https://images.unsplash.com https://plus.unsplash.com",
+      // Imágenes: self + Supabase Storage + data URIs + AI image generators
+      "img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in https://i.ytimg.com https://img.youtube.com https://images.unsplash.com https://plus.unsplash.com https://image.pollinations.ai https://*.fal.media",
       // Medios (audio/video): self + Supabase Storage
       "media-src 'self' blob: https://*.supabase.co https://*.supabase.in",
       // Conexiones API: self + Supabase + Google AI + LiveKit + Sentry + Umami
@@ -145,6 +145,14 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "i.ytimg.com",
+      },
+      {
+        protocol: "https",
+        hostname: "image.pollinations.ai",
+      },
+      {
+        protocol: "https",
+        hostname: "*.fal.media",
       },
     ],
   },
