@@ -18,19 +18,19 @@ const ToolSchemas: Record<string, z.ZodType> = {
   add_calendar_event: z.object({
     title: z.string().min(1),
     description: z.string().optional(),
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    date: z.string().min(1), // Removed strict regex to allow AI flexibility
     start_time: z.string().optional(),
     end_time: z.string().optional(),
   }),
   read_calendar_events: z.object({
-    start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    start_date: z.string().min(1),
+    end_date: z.string().min(1),
   }),
   update_calendar_event: z.object({
     event_id: z.string().min(1),
     title: z.string().optional(),
     description: z.string().optional(),
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    date: z.string().optional(),
     start_time: z.string().optional(),
     end_time: z.string().optional(),
   }),
@@ -71,11 +71,11 @@ const ToolSchemas: Record<string, z.ZodType> = {
   }),
   complete_habit_entry: z.object({
     habit_id: z.string().min(1),
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    date: z.string().min(1),
   }),
   undo_habit_entry: z.object({
     habit_id: z.string().min(1),
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    date: z.string().min(1),
   }),
   delete_habit: z.object({
     habit_id: z.string().min(1),
@@ -84,7 +84,7 @@ const ToolSchemas: Record<string, z.ZodType> = {
     habit_id: z.string().min(1),
   }),
   read_habit_tracker: z.object({
-    week_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    week_start: z.string().optional(),
   }),
   view_habit_stats: z.object({
     habit_id: z.string().optional(),
@@ -586,11 +586,26 @@ export async function executeToolAction(
         }
       }
 
-      // ── Agregar evento al calendario ────────────────────────
       case "add_calendar_event": {
-        const { title, description, date, start_time, end_time } = args;
+        let { title, description, date, start_time, end_time } = args;
         if (!title || !date) {
           return { success: false, message: "Faltan datos del evento (título y fecha son obligatorios)." };
+        }
+
+        // Normalize date to YYYY-MM-DD
+        const dateMatch = date.match(/(\d{4}-\d{2}-\d{2})/);
+        if (dateMatch) {
+          date = dateMatch[1];
+        }
+
+        // Normalize start_time and end_time to HH:MM
+        if (start_time) {
+          const stMatch = start_time.match(/(\d{2}:\d{2})/);
+          if (stMatch) start_time = stMatch[1];
+        }
+        if (end_time) {
+          const etMatch = end_time.match(/(\d{2}:\d{2})/);
+          if (etMatch) end_time = etMatch[1];
         }
 
         const startDateTime = `${date}T${start_time || "09:00"}:00`;
