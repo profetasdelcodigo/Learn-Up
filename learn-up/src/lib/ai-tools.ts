@@ -1236,7 +1236,7 @@ export async function executeToolAction(
         try {
           const { addCalendarMember } = await import("@/actions/shared-calendars");
           const result = await addCalendarMember(args.calendar_id, args.member_id);
-          return { success: result.success, message: result.success ? `✅ Miembro agregado.` : `Error: ${result.error}`, data: result.data };
+          return { success: result.success, message: result.success ? `✅ Miembro agregado.` : `Error: ${result.error}` };
         } catch(e:any) { return { success: false, message: e.message }; }
       }
       case "add_shared_event": {
@@ -1326,8 +1326,8 @@ export async function executeToolAction(
           const habitsResult = await readHabitTracker(startStr);
 
           const summary = {
-            events: eventsResult.success ? eventsResult.data : [],
-            habits: habitsResult.success ? habitsResult.data : []
+            events: eventsResult || [],
+            habits: habitsResult || []
           };
 
           return { 

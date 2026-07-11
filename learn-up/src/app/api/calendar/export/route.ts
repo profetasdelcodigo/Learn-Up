@@ -1,7 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 
-export async function GET(request: Request) {
+export async function GET() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -9,7 +9,6 @@ export async function GET(request: Request) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  // Obtenemos los eventos personales
   const { data: events, error } = await supabase
     .from("calendar_events")
     .select("*")
@@ -19,35 +18,38 @@ export async function GET(request: Request) {
     return new NextResponse("Error fetching events", { status: 500 });
   }
 
-  // Generar contenido ICS (Formato iCalendar)
-  let icsContent = "BEGIN:VCALENDAR\\nVERSION:2.0\\nPRODID:-//Learn Up//Calendar//EN\\n";
-  
+  // Generar contenido ICS (iCalendar)
+  const lines: string[] = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Learn Up//Calendar//EN",
+  ];
+
   if (events && events.length > 0) {
     for (const ev of events) {
-      icsContent += "BEGIN:VEVENT\\n";
-      icsContent += \`UID:\${ev.id}\\n\`;
-      icsContent += \`SUMMARY:\${ev.title}\\n\`;
-      
-      // Parse dates properly. Assuming ISO format YYYY-MM-DDTHH:mm:ssZ
-      const formatIcsDate = (dateString: string) => {
-        const d = new Date(dateString);
-        return d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+      lines.push("BEGIN:VEVENT");
+      lines.push("UID:" + ev.id);
+      lines.push("SUMMARY:" + (ev.title || "Sin título"));
+
+      const fmtDate = (d: string) => {
+        return new Date(d).toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
       };
 
-      if (ev.start_time) icsContent += \`DTSTART:\${formatIcsDate(ev.start_time)}\\n\`;
-      if (ev.end_time) icsContent += \`DTEND:\${formatIcsDate(ev.end_time)}\\n\`;
-      if (ev.description) icsContent += \`DESCRIPTION:\${ev.description}\\n\`;
-      
-      icsContent += "END:VEVENT\\n";
+      if (ev.start_time) lines.push("DTSTART:" + fmtDate(ev.start_time));
+      if (ev.end_time) lines.push("DTEND:" + fmtDate(ev.end_time));
+      if (ev.description) lines.push("DESCRIPTION:" + ev.description.replace(/\n/g, "\\n"));
+
+      lines.push("END:VEVENT");
     }
   }
 
-  icsContent += "END:VCALENDAR";
+  lines.push("END:VCALENDAR");
+  const icsContent = lines.join("\r\n");
 
   return new NextResponse(icsContent, {
     headers: {
-      "Content-Type": "text/calendar",
-      "Content-Disposition": \`attachment; filename="learnup-calendar.ics"\`,
+      "Content-Type": "text/calendar; charset=utf-8",
+      "Content-Disposition": 'attachment; filename="learnup-calendar.ics"',
     },
   });
 }

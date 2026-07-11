@@ -46,6 +46,26 @@ import {
   Coffee,
   Sparkles,
   Brain,
+  CalendarPlus,
+  CalendarSearch,
+  CalendarCheck,
+  CalendarX,
+  Bell,
+  Clock,
+  Target,
+  TrendingUp,
+  Archive,
+  BarChart3,
+  Users,
+  UserPlus,
+  LogOut,
+  Megaphone,
+  Lightbulb,
+  Download,
+  Package,
+  ScrollText,
+  ChevronRight,
+  Bookmark,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import ShareButton from "./ShareButton";
@@ -693,14 +713,105 @@ export default function AIChatComponent({
   };
 
   const getToolIcon = (tool: string) => {
-    switch (tool) {
-      case "open_url": return <ExternalLink className="w-4 h-4" />;
-      case "add_calendar_event": return <Calendar className="w-4 h-4" />;
-      case "send_message": return <MessageSquare className="w-4 h-4" />;
-      case "search_library": return <Search className="w-4 h-4" />;
-      case "update_profile": return <UserCog className="w-4 h-4" />;
-      default: return <Bot className="w-4 h-4" />;
-    }
+    const icons: Record<string, ReactNode> = {
+      open_url: <ExternalLink className="w-4 h-4" />,
+      // Calendario Personal
+      add_calendar_event: <CalendarPlus className="w-4 h-4" />,
+      read_calendar_events: <CalendarSearch className="w-4 h-4" />,
+      update_calendar_event: <CalendarCheck className="w-4 h-4" />,
+      delete_calendar_event: <CalendarX className="w-4 h-4" />,
+      search_calendar_events: <Search className="w-4 h-4" />,
+      // Hábitos
+      add_habit: <Target className="w-4 h-4" />,
+      update_habit: <PenLine className="w-4 h-4" />,
+      complete_habit_entry: <CheckCircle2 className="w-4 h-4" />,
+      undo_habit_entry: <XCircle className="w-4 h-4" />,
+      delete_habit: <Trash2 className="w-4 h-4" />,
+      archive_habit: <Archive className="w-4 h-4" />,
+      read_habit_tracker: <TrendingUp className="w-4 h-4" />,
+      view_habit_stats: <BarChart3 className="w-4 h-4" />,
+      // Calendario Compartido
+      create_shared_calendar: <Users className="w-4 h-4" />,
+      add_shared_calendar_member: <UserPlus className="w-4 h-4" />,
+      add_shared_event: <CalendarPlus className="w-4 h-4" />,
+      read_shared_events: <CalendarSearch className="w-4 h-4" />,
+      delete_shared_event: <CalendarX className="w-4 h-4" />,
+      send_shared_message: <MessageSquare className="w-4 h-4" />,
+      read_shared_chat: <MessageSquare className="w-4 h-4" />,
+      delete_shared_message: <Trash2 className="w-4 h-4" />,
+      leave_shared_calendar: <LogOut className="w-4 h-4" />,
+      view_shared_members: <Users className="w-4 h-4" />,
+      notify_habit_progress: <Megaphone className="w-4 h-4" />,
+      // Avanzado
+      suggest_weekly_plan: <Lightbulb className="w-4 h-4" />,
+      export_calendar_ics: <Download className="w-4 h-4" />,
+      // General
+      send_message: <MessageSquare className="w-4 h-4" />,
+      search_library: <Search className="w-4 h-4" />,
+      update_profile: <UserCog className="w-4 h-4" />,
+      search_web: <Globe className="w-4 h-4" />,
+      generate_image: <ImageIcon className="w-4 h-4" />,
+      search_image: <ImageIcon className="w-4 h-4" />,
+      generate_video: <Video className="w-4 h-4" />,
+      generate_document: <FileText className="w-4 h-4" />,
+      create_exam: <GraduationCap className="w-4 h-4" />,
+      generate_flashcards: <ScrollText className="w-4 h-4" />,
+      save_learned_concept: <Brain className="w-4 h-4" />,
+      notify_user: <Bell className="w-4 h-4" />,
+      trigger_jarvis: <Zap className="w-4 h-4" />,
+    };
+    return icons[tool] || <Bot className="w-4 h-4" />;
+  };
+
+  const getToolLabel = (tool: string): string => {
+    const labels: Record<string, string> = {
+      add_calendar_event: "Agregar Evento",
+      read_calendar_events: "Leer Calendario",
+      update_calendar_event: "Editar Evento",
+      delete_calendar_event: "Eliminar Evento",
+      search_calendar_events: "Buscar Eventos",
+      add_habit: "Nuevo Hábito",
+      update_habit: "Editar Hábito",
+      complete_habit_entry: "Completar Hábito",
+      undo_habit_entry: "Desmarcar Hábito",
+      delete_habit: "Eliminar Hábito",
+      archive_habit: "Archivar Hábito",
+      read_habit_tracker: "Tracker de Hábitos",
+      view_habit_stats: "Estadísticas de Hábitos",
+      create_shared_calendar: "Crear Calendario Grupal",
+      add_shared_calendar_member: "Agregar Miembro",
+      add_shared_event: "Evento Compartido",
+      read_shared_events: "Ver Eventos Grupales",
+      delete_shared_event: "Eliminar Evento Grupal",
+      send_shared_message: "Mensaje al Grupo",
+      read_shared_chat: "Leer Chat Grupal",
+      delete_shared_message: "Borrar Mensaje",
+      leave_shared_calendar: "Salir del Grupo",
+      view_shared_members: "Ver Miembros",
+      notify_habit_progress: "Notificar Progreso",
+      suggest_weekly_plan: "Plan Semanal IA",
+      export_calendar_ics: "Exportar .ICS",
+      send_message: "Enviar Mensaje",
+      search_web: "Búsqueda Web",
+      generate_image: "Generar Imagen",
+      search_image: "Buscar Imagen",
+      generate_video: "Generar Video",
+      generate_document: "Generar Documento",
+      create_exam: "Crear Examen",
+      generate_flashcards: "Flashcards",
+      notify_user: "Notificación",
+      open_url: "Abrir Enlace",
+    };
+    return labels[tool] || tool;
+  };
+
+  const getToolColor = (tool: string): string => {
+    if (tool.includes("calendar") || tool.includes("event")) return "text-blue-400 bg-blue-400/10 border-blue-400/20";
+    if (tool.includes("habit")) return "text-emerald-400 bg-emerald-400/10 border-emerald-400/20";
+    if (tool.includes("shared") || tool.includes("member")) return "text-purple-400 bg-purple-400/10 border-purple-400/20";
+    if (tool.includes("image") || tool.includes("video")) return "text-pink-400 bg-pink-400/10 border-pink-400/20";
+    if (tool.includes("search") || tool.includes("web")) return "text-cyan-400 bg-cyan-400/10 border-cyan-400/20";
+    return "text-brand-gold bg-brand-gold/10 border-brand-gold/20";
   };
 
   // Removed abrupt return to allow AnimatePresence to handle it
@@ -934,13 +1045,16 @@ export default function AIChatComponent({
                       key={i}
                       className="bg-surface-2 rounded-2xl p-4 rounded-tl-sm shadow-lg border border-white/5"
                     >
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-8 h-8 rounded-full bg-brand-gold/10 flex items-center justify-center text-brand-gold">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${getToolColor(action.tool)}`}>
                           {getToolIcon(action.tool)}
                         </div>
                         <div>
-                          <p className="text-sm font-semibold text-white">¿Realizar esta acción?</p>
-                          <p className="text-xs text-gray-400">{action.description}</p>
+                          <p className="text-sm font-bold text-white flex items-center gap-1.5">
+                            {getToolLabel(action.tool)}
+                            <span className="text-[10px] bg-brand-gold/20 text-brand-gold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Acción</span>
+                          </p>
+                          <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{action.description}</p>
                         </div>
                       </div>
                       <div className="flex gap-2">
@@ -1015,24 +1129,69 @@ export default function AIChatComponent({
 
               {/* SKILLS MENU POPOVER */}
               {showAttachMenu && (
-                <div className="absolute bottom-full left-12 mb-2 w-64 bg-surface-2 border border-border-subtle rounded-xl shadow-2xl p-2 z-50">
-                  <div className="text-xs font-semibold text-gray-400 mb-2 px-2 uppercase tracking-wider">Habilidades (Skills)</div>
-                  {[
-                    { id: "Analista de Código", name: "Analista de Código", icon: <Code className="w-4 h-4 text-blue-400" /> },
-                    { id: "Generador de Imágenes", name: "Generador de Imágenes", icon: <ImageIcon className="w-4 h-4 text-pink-400" /> },
-                    { id: "Investigador Web", name: "Búsqueda en Internet", icon: <Globe className="w-4 h-4 text-green-400" /> },
-                    { id: "Constructor de Artefactos", name: "Creador de Documentos", icon: <FileText className="w-4 h-4 text-yellow-400" /> }
-                  ].map(s => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => { setActiveSkill(s.id === activeSkill ? "" : s.id); setShowAttachMenu(false); }}
-                      className={`w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-white/5 flex items-center gap-3 transition-colors ${activeSkill === s.id ? "bg-white/10 text-brand-gold font-medium" : "text-gray-300"}`}
-                    >
-                      {s.icon}
-                      {s.name}
-                    </button>
-                  ))}
+                <div className="absolute bottom-full left-0 md:left-12 mb-2 w-80 max-h-96 overflow-y-auto bg-surface-2/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-3 z-50" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+                  <div className="space-y-4">
+                    {/* Sección 1: Subir Archivos */}
+                    <div>
+                      <div className="text-[10px] font-bold text-gray-500 mb-2 px-1 uppercase tracking-wider flex items-center gap-1"><Paperclip className="w-3 h-3"/> Adjuntar</div>
+                      <div className="grid grid-cols-2 gap-2">
+                         <button type="button" onClick={() => { fileInputRef.current?.click(); setShowAttachMenu(false); }} className="flex flex-col items-center justify-center p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 transition-all group">
+                           <FileText className="w-5 h-5 text-gray-400 group-hover:text-white mb-1" />
+                           <span className="text-xs font-medium text-gray-300">Documento</span>
+                         </button>
+                         <button type="button" onClick={() => { fileInputRef.current?.click(); setShowAttachMenu(false); }} className="flex flex-col items-center justify-center p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 transition-all group">
+                           <ImageIcon className="w-5 h-5 text-gray-400 group-hover:text-white mb-1" />
+                           <span className="text-xs font-medium text-gray-300">Imagen / Media</span>
+                         </button>
+                      </div>
+                    </div>
+
+                    {/* Sección 2: Paquetes de Skills */}
+                    <div>
+                      <div className="text-[10px] font-bold text-gray-500 mb-2 px-1 uppercase tracking-wider flex items-center gap-1"><BrainCircuit className="w-3 h-3"/> Paquetes de Skills (IA)</div>
+                      <div className="space-y-1.5">
+                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "calendar_pack" ? "" : "calendar_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "calendar_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
+                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "calendar_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
+                            <Calendar className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1">
+                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "calendar_pack" ? "text-brand-gold" : "text-white"}`}>
+                              Calendario y Hábitos
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "calendar_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>27 Skills</span>
+                            </div>
+                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">
+                              Gestión de eventos, trackers, grupos y estadísticas.
+                            </div>
+                          </div>
+                          {activeSkill === "calendar_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
+                        </button>
+
+                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "web_search" ? "" : "web_search"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "web_search" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
+                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "web_search" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
+                            <Globe className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1">
+                            <div className={`text-sm font-semibold ${activeSkill === "web_search" ? "text-brand-gold" : "text-white"}`}>Investigador Web</div>
+                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Búsqueda en tiempo real en internet.</div>
+                          </div>
+                          {activeSkill === "web_search" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
+                        </button>
+                        
+                        <button type="button" disabled className="w-full opacity-60 text-left p-3 rounded-xl bg-white/5 border border-white/5 flex items-start gap-3">
+                          <div className="bg-black/20 p-2 rounded-lg text-gray-400">
+                            <Puzzle className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-semibold text-gray-300 flex items-center justify-between">
+                              Conectores
+                              <span className="bg-white/10 text-gray-400 text-[9px] px-1.5 py-0.5 rounded-full">Próximamente</span>
+                            </div>
+                            <div className="text-[10px] text-gray-500 mt-0.5 leading-tight">Notion, Google Drive, GitHub, etc.</div>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
