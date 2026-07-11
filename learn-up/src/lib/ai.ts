@@ -524,7 +524,7 @@ export const getGroqCompletion = async (
       model: modelName,
       response_format: jsonMode ? { type: "json_object" } : undefined,
       temperature: 0.8,
-      max_tokens: 8192,
+      max_tokens: modelName.includes("8b") ? 1024 : 4000,
     });
     return {
       choices: [
