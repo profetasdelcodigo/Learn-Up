@@ -1108,10 +1108,7 @@ export default function AIChatComponent({
                   <div className="text-[10px] text-gray-500 mb-2 px-2">Endpoints Gratuitos y Seguros</div>
                   {[
                     { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Ultra Rápido)", icon: <Zap className="w-4 h-4 text-yellow-400" />, tag: "⭐ Recomendado" },
-                    { id: "gemini/gemini-2.0-flash", name: "Gemini 2.0 Flash", icon: <Brain className="w-4 h-4 text-emerald-400" /> },
                     { id: "groq/llama-3.1-8b-instant", name: "Llama 3.1 8B Omni", icon: <Sparkles className="w-4 h-4 text-indigo-400" />, tag: "Rápido" },
-                    { id: "openrouter/google/gemini-2.0-pro-exp-02-05:free", name: "Gemini 2.0 Pro Exp", icon: <Brain className="w-4 h-4 text-blue-400" />, tag: "Agente" },
-                    { id: "openrouter/meta-llama/llama-3.3-70b-instruct:free", name: "OR Llama 3.3 70B", icon: <Activity className="w-4 h-4 text-orange-400" /> },
                   ].map(m => (
                     <button
                       key={m.id}
