@@ -20,7 +20,6 @@ import BackButton from "@/components/BackButton";
 import DocumentUploader from "@/components/library/DocumentUploader";
 import DocumentViewer from "@/components/library/DocumentViewer";
 import { useRouter } from "next/navigation";
-import BackButton from "@/components/BackButton";
 import { SkeletonGrid } from "@/components/Skeleton";
 import {
   BookOpen,
