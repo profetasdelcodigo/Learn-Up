@@ -295,7 +295,7 @@ export default function AIChatComponent({
   
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [showModelMenu, setShowModelMenu] = useState(false);
-  const [selectedModel, setSelectedModel] = useState(defaultModel || "nvidia/deepseek-ai/deepseek-v4");
+  const [selectedModel, setSelectedModel] = useState(defaultModel || "groq/llama-3.3-70b-versatile");
   const [activeSkill, setActiveSkill] = useState("");
 
   useEffect(() => {
@@ -1181,6 +1181,48 @@ export default function AIChatComponent({
                             <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Búsqueda en tiempo real en internet.</div>
                           </div>
                           {activeSkill === "web_search" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
+                        </button>
+                        
+                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "library_pack" ? "" : "library_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "library_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
+                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "library_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
+                            <BookOpen className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1">
+                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "library_pack" ? "text-brand-gold" : "text-white"}`}>
+                              Biblioteca & Documentos
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "library_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>25 Skills</span>
+                            </div>
+                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Análisis, resúmenes y extracción de conocimientos.</div>
+                          </div>
+                          {activeSkill === "library_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
+                        </button>
+
+                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "education_pack" ? "" : "education_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "education_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
+                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "education_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
+                            <BrainCircuit className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1">
+                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "education_pack" ? "text-brand-gold" : "text-white"}`}>
+                              Educación Especializada
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "education_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>40 Skills</span>
+                            </div>
+                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Flashcards, mapas mentales, exámenes y tutorías.</div>
+                          </div>
+                          {activeSkill === "education_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
+                        </button>
+
+                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "media_pack" ? "" : "media_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "media_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
+                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "media_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
+                            <ImageIcon className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1">
+                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "media_pack" ? "text-brand-gold" : "text-white"}`}>
+                              Generador Multimedia
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "media_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>15 Skills</span>
+                            </div>
+                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Crear imágenes, esquemas Mermaid y scripts.</div>
+                          </div>
+                          {activeSkill === "media_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
                         </button>
                         
                         <button type="button" disabled className="w-full opacity-60 text-left p-3 rounded-xl bg-white/5 border border-white/5 flex items-start gap-3">

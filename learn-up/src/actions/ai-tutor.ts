@@ -322,7 +322,7 @@ ${toolDefs}`;
         ...truncatedHistory,
         { role: "user", content: finalMessageContent },
       ],
-      modelId || "nvidia/deepseek-ai/deepseek-v4",
+      modelId || "groq/llama-3.3-70b-versatile",
     );
 
     const rawContent = response.choices[0]?.message?.content || "";
@@ -561,7 +561,7 @@ FORMATO ESTRICTO DE RESPUESTA:
         ...truncatedHistory,
         { role: "user", content: finalMessageContent },
       ],
-      modelId || "nvidia/deepseek-ai/deepseek-v4-flash",
+      modelId || "groq/llama-3.3-70b-versatile",
     );
 
     let finalResponse = response.choices[0]?.message?.content || "";
@@ -709,7 +709,7 @@ IMPORTANTE PARA DOCUMENTOS:
         { role: "system", content: systemPrompt },
         { role: "user", content: finalMessageContent },
       ],
-      "nvidia/deepseek-ai/deepseek-v4",
+      "groq/llama-3.3-70b-versatile",
       true // FORCE JSON MODE
     );
 
