@@ -66,6 +66,7 @@ import {
   ScrollText,
   ChevronRight,
   Bookmark,
+  BookOpen,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import ShareButton from "./ShareButton";
