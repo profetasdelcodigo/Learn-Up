@@ -1163,95 +1163,54 @@ export default function AIChatComponent({
                           </div>
                           <div className="flex-1">
                             <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "calendar_pack" ? "text-brand-gold" : "text-white"}`}>
-                              Calendario y Hábitos
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "calendar_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>27 Skills</span>
+                              Calendario y Habit Tracker
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "calendar_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>CAT 1</span>
                             </div>
-                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">
-                              Gestión de eventos, trackers, grupos y estadísticas.
-                            </div>
+                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Gestión de eventos, trackers y estadísticas.</div>
                           </div>
                           {activeSkill === "calendar_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
                         </button>
 
-                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "web_search" ? "" : "web_search"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "web_search" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
-                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "web_search" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
-                            <Globe className="w-5 h-5" />
+                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "chat_pack" ? "" : "chat_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "chat_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
+                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "chat_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
+                            <MessageSquare className="w-5 h-5" />
                           </div>
                           <div className="flex-1">
-                            <div className={`text-sm font-semibold ${activeSkill === "web_search" ? "text-brand-gold" : "text-white"}`}>Investigador Web</div>
-                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Búsqueda en tiempo real en internet.</div>
+                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "chat_pack" ? "text-brand-gold" : "text-white"}`}>
+                              Chat Social y Grupos
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "chat_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>CAT 2</span>
+                            </div>
+                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Colaboración, mensajes y grupos de estudio.</div>
                           </div>
-                          {activeSkill === "web_search" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
+                          {activeSkill === "chat_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
                         </button>
-                        
+
                         <button type="button" onClick={() => { setActiveSkill(activeSkill === "library_pack" ? "" : "library_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "library_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
                           <div className={`p-2 rounded-lg transition-transform ${activeSkill === "library_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
                             <BookOpen className="w-5 h-5" />
                           </div>
                           <div className="flex-1">
                             <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "library_pack" ? "text-brand-gold" : "text-white"}`}>
-                              Biblioteca & Documentos
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "library_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>25 Skills</span>
+                              Biblioteca y Documentos
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "library_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>CAT 3</span>
                             </div>
-                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Análisis, resúmenes y extracción de conocimientos.</div>
+                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Análisis y extracción de conocimientos.</div>
                           </div>
                           {activeSkill === "library_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
                         </button>
 
-                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "education_pack" ? "" : "education_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "education_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
-                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "education_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
+                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "knowledge_pack" ? "" : "knowledge_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "knowledge_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
+                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "knowledge_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
                             <BrainCircuit className="w-5 h-5" />
                           </div>
                           <div className="flex-1">
-                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "education_pack" ? "text-brand-gold" : "text-white"}`}>
-                              Educación Especializada
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "education_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>40 Skills</span>
+                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "knowledge_pack" ? "text-brand-gold" : "text-white"}`}>
+                              Aprendizaje y Knowledge Graph
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "knowledge_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>CAT 4</span>
                             </div>
-                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Flashcards, mapas mentales, exámenes y tutorías.</div>
+                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Mapas mentales y rutas de aprendizaje.</div>
                           </div>
-                          {activeSkill === "education_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
-                        </button>
-
-                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "media_pack" ? "" : "media_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "media_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
-                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "media_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
-                            <ImageIcon className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1">
-                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "media_pack" ? "text-brand-gold" : "text-white"}`}>
-                              Generador Multimedia
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "media_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>15 Skills</span>
-                            </div>
-                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Crear imágenes, esquemas Mermaid y scripts.</div>
-                          </div>
-                          {activeSkill === "media_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
-                        </button>
-                        
-                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "social_pack" ? "" : "social_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "social_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
-                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "social_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
-                            <Users className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1">
-                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "social_pack" ? "text-brand-gold" : "text-white"}`}>
-                              Perfil y Social
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "social_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>15 Skills</span>
-                            </div>
-                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Grupos, amigos y colaboración en tiempo real.</div>
-                          </div>
-                          {activeSkill === "social_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
-                        </button>
-
-                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "stats_pack" ? "" : "stats_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "stats_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
-                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "stats_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
-                            <BarChart3 className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1">
-                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "stats_pack" ? "text-brand-gold" : "text-white"}`}>
-                              Análisis y Estadísticas
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "stats_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>10 Skills</span>
-                            </div>
-                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Métricas de estudio, procrastinación y reportes.</div>
-                          </div>
-                          {activeSkill === "stats_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
+                          {activeSkill === "knowledge_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
                         </button>
 
                         <button type="button" onClick={() => { setActiveSkill(activeSkill === "content_pack" ? "" : "content_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "content_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
@@ -1261,39 +1220,81 @@ export default function AIChatComponent({
                           <div className="flex-1">
                             <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "content_pack" ? "text-brand-gold" : "text-white"}`}>
                               Generación de Contenido
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "content_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>20 Skills</span>
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "content_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>CAT 5</span>
                             </div>
                             <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Ensayos, reportes, cartas y código.</div>
                           </div>
                           {activeSkill === "content_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
                         </button>
 
-                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "wellness_pack" ? "" : "wellness_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "wellness_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
-                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "wellness_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
-                            <Coffee className="w-5 h-5" />
+                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "media_pack" ? "" : "media_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "media_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
+                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "media_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
+                            <ImageIcon className="w-5 h-5" />
                           </div>
                           <div className="flex-1">
-                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "wellness_pack" ? "text-brand-gold" : "text-white"}`}>
-                              Bienestar y Salud Mental
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "wellness_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>10 Skills</span>
+                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "media_pack" ? "text-brand-gold" : "text-white"}`}>
+                              Multimedia
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "media_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>CAT 6</span>
                             </div>
-                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Prevención de burnout, mindfulness y pomodoro.</div>
+                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Imágenes, podcasts y diagramas.</div>
                           </div>
-                          {activeSkill === "wellness_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
+                          {activeSkill === "media_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
                         </button>
 
-                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "gamification_pack" ? "" : "gamification_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "gamification_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
-                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "gamification_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
-                            <Target className="w-5 h-5" />
+                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "research_pack" ? "" : "research_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "research_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
+                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "research_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
+                            <Globe className="w-5 h-5" />
                           </div>
                           <div className="flex-1">
-                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "gamification_pack" ? "text-brand-gold" : "text-white"}`}>
-                              Gamificación
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "gamification_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>5 Skills</span>
+                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "research_pack" ? "text-brand-gold" : "text-white"}`}>
+                              Investigación y Búsqueda
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "research_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>CAT 7</span>
                             </div>
-                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Logros, rachas y medallas académicas.</div>
+                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Búsqueda web en tiempo real.</div>
                           </div>
-                          {activeSkill === "gamification_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
+                          {activeSkill === "research_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
+                        </button>
+
+                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "data_pack" ? "" : "data_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "data_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
+                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "data_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
+                            <BarChart3 className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1">
+                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "data_pack" ? "text-brand-gold" : "text-white"}`}>
+                              Análisis y Datos
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "data_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>CAT 8</span>
+                            </div>
+                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Reportes y métricas de desempeño.</div>
+                          </div>
+                          {activeSkill === "data_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
+                        </button>
+
+                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "profile_pack" ? "" : "profile_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "profile_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
+                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "profile_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
+                            <User className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1">
+                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "profile_pack" ? "text-brand-gold" : "text-white"}`}>
+                              Perfil y Social
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "profile_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>CAT 9</span>
+                            </div>
+                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Amigos y personalización.</div>
+                          </div>
+                          {activeSkill === "profile_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
+                        </button>
+
+                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "education_pack" ? "" : "education_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "education_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
+                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "education_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
+                            <GraduationCap className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1">
+                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "education_pack" ? "text-brand-gold" : "text-white"}`}>
+                              Educación Especializada
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "education_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>CAT 10</span>
+                            </div>
+                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Tutoría, traducción y debate socrático.</div>
+                          </div>
+                          {activeSkill === "education_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
                         </button>
                         <button type="button" disabled className="w-full opacity-60 text-left p-3 rounded-xl bg-white/5 border border-white/5 flex items-start gap-3">
                           <div className="bg-black/20 p-2 rounded-lg text-gray-400">
