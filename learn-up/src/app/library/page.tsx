@@ -546,7 +546,8 @@ export default function LibraryPage() {
                         : "Recientes"}
                   </button>
                 ))}
-              </div>
+                </div>
+              )}
             </div>
           </FadeUpItem>
 
