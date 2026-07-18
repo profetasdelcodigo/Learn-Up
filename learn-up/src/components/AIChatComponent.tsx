@@ -1226,6 +1226,75 @@ export default function AIChatComponent({
                           {activeSkill === "media_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
                         </button>
                         
+                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "social_pack" ? "" : "social_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "social_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
+                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "social_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
+                            <Users className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1">
+                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "social_pack" ? "text-brand-gold" : "text-white"}`}>
+                              Perfil y Social
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "social_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>15 Skills</span>
+                            </div>
+                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Grupos, amigos y colaboración en tiempo real.</div>
+                          </div>
+                          {activeSkill === "social_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
+                        </button>
+
+                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "stats_pack" ? "" : "stats_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "stats_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
+                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "stats_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
+                            <BarChart3 className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1">
+                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "stats_pack" ? "text-brand-gold" : "text-white"}`}>
+                              Análisis y Estadísticas
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "stats_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>10 Skills</span>
+                            </div>
+                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Métricas de estudio, procrastinación y reportes.</div>
+                          </div>
+                          {activeSkill === "stats_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
+                        </button>
+
+                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "content_pack" ? "" : "content_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "content_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
+                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "content_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
+                            <PenLine className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1">
+                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "content_pack" ? "text-brand-gold" : "text-white"}`}>
+                              Generación de Contenido
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "content_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>20 Skills</span>
+                            </div>
+                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Ensayos, reportes, cartas y código.</div>
+                          </div>
+                          {activeSkill === "content_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
+                        </button>
+
+                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "wellness_pack" ? "" : "wellness_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "wellness_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
+                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "wellness_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
+                            <Coffee className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1">
+                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "wellness_pack" ? "text-brand-gold" : "text-white"}`}>
+                              Bienestar y Salud Mental
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "wellness_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>10 Skills</span>
+                            </div>
+                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Prevención de burnout, mindfulness y pomodoro.</div>
+                          </div>
+                          {activeSkill === "wellness_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
+                        </button>
+
+                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "gamification_pack" ? "" : "gamification_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "gamification_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
+                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "gamification_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
+                            <Target className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1">
+                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "gamification_pack" ? "text-brand-gold" : "text-white"}`}>
+                              Gamificación
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "gamification_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>5 Skills</span>
+                            </div>
+                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Logros, rachas y medallas académicas.</div>
+                          </div>
+                          {activeSkill === "gamification_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
+                        </button>
                         <button type="button" disabled className="w-full opacity-60 text-left p-3 rounded-xl bg-white/5 border border-white/5 flex items-start gap-3">
                           <div className="bg-black/20 p-2 rounded-lg text-gray-400">
                             <Puzzle className="w-5 h-5" />
