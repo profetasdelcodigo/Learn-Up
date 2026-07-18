@@ -859,3 +859,121 @@ export async function addGroupMember(roomId: string, newUserId: string) {
     is_read: false,
   });
 }
+// --- SOCIAL CHAT UPGRADE (NUEVAS FUNCIONES) -----------------------------------
+
+export async function searchUsers(query: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, avatar_url, school, grade, username')
+    .ilike('full_name', '%' + query + '%')
+    .limit(10);
+  if (error) throw error;
+  return data;
+}
+
+export async function getUnreadMessagesCount(roomId?: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return 0;
+  
+  let q = supabase
+    .from('chat_messages')
+    .select('id', { count: 'exact' })
+    .neq('user_id', user.id)
+    .is('read_at', null);
+    
+  if (roomId) {
+    q = q.eq('room_id', roomId);
+  }
+  const { count, error } = await q;
+  if (error) return 0;
+  return count || 0;
+}
+
+export async function pinMessage(messageId: string, isPinned: boolean) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('chat_messages')
+    .update({ is_pinned: isPinned })
+    .eq('id', messageId);
+  if (error) throw error;
+}
+
+export async function addMessageReaction(messageId: string, emoji: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Unauthorized');
+
+  const { error } = await supabase
+    .from('message_reactions')
+    .insert({ message_id: messageId, user_id: user.id, emoji });
+  
+  if (error) throw error;
+}
+
+export async function removeMessageReaction(messageId: string, emoji: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Unauthorized');
+
+  const { error } = await supabase
+    .from('message_reactions')
+    .delete()
+    .eq('message_id', messageId)
+    .eq('user_id', user.id)
+    .eq('emoji', emoji);
+    
+  if (error) throw error;
+}
+
+export async function getRoomMembers(roomId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('room_members')
+    .select('id, user_id, role, muted_until, profiles:user_id(*)')
+    .eq('room_id', roomId);
+  if (error) throw error;
+  return data;
+}
+
+export async function muteRoomNotifications(roomId: string, hours: number | null) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Unauthorized');
+
+  let mutedUntil = null;
+  if (hours !== null) {
+    const d = new Date();
+    d.setHours(d.getHours() + hours);
+    mutedUntil = d.toISOString();
+  }
+
+  const { error } = await supabase
+    .from('room_members')
+    .update({ muted_until: mutedUntil })
+    .eq('room_id', roomId)
+    .eq('user_id', user.id);
+    
+  if (error) throw error;
+}
+
+export async function exportConversation(roomId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('chat_messages')
+    .select('content, created_at, profiles:user_id(full_name)')
+    .eq('room_id', roomId)
+    .order('created_at', { ascending: true });
+    
+  if (error) throw error;
+  
+  let txt = 'Historial de Conversaci�n\n\n';
+  data.forEach((m: any) => {
+    const name = m.profiles?.full_name || 'Desconocido';
+    const date = new Date(m.created_at).toLocaleString();
+    txt += '[' + date + '] ' + name + ': ' + m.content + '\n';
+  });
+  
+  return txt;
+}

@@ -308,3 +308,146 @@ export async function adminDeleteLibraryItem(
     return { success: false, error: "Error inesperado" };
   }
 }
+
+export async function searchLibrary(query: string, filters?: { subject?: string; level?: string }) {
+  try {
+    const supabase = await createClient();
+    let queryBuilder = supabase
+      .from("library_items")
+      .select("*, profiles:user_id(full_name, username, avatar_url)")
+      .eq("is_approved", true)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (query && query.trim() !== "") {
+      queryBuilder = queryBuilder.or(`title.ilike.%${query}%,description.ilike.%${query}%`);
+    }
+
+    if (filters?.subject && filters.subject.trim() !== "") {
+      queryBuilder = queryBuilder.eq("subject", filters.subject);
+    }
+    
+    // Level filtering could be implemented via a column if added to library_items,
+    // currently we only filter by subject and query.
+
+    const { data, error } = await queryBuilder;
+    
+    if (error) {
+      console.error("[searchLibrary] Error:", error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error("[searchLibrary] Unexpected error:", error);
+    return [];
+  }
+}
+
+export async function getUserIndexedDocuments() {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await supabase
+      .from("ai_documents")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("[getUserIndexedDocuments] Error:", error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error("[getUserIndexedDocuments] Unexpected error:", error);
+    return [];
+  }
+}
+
+export async function deleteAiDocument(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: "No autenticado" };
+
+    // Delete the document (cascade should delete chunks)
+    const { error } = await supabase
+      .from("ai_documents")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id);
+
+    if (error) {
+      console.error("[deleteAiDocument] Error:", error);
+      return { success: false, error: "Error al eliminar el documento" };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("[deleteAiDocument] Unexpected error:", error);
+    return { success: false, error: "Error inesperado" };
+  }
+}
+
+export async function uploadAndIndexAiDocument(
+  formData: FormData,
+  sessionId?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return { success: false, error: "No autenticado" };
+    }
+
+    const file = formData.get("file") as File;
+    const title = formData.get("title") as string;
+
+    if (!file || !title) {
+      return { success: false, error: "Archivo y título son requeridos" };
+    }
+
+    // Upload file to Supabase Storage in "documents" bucket
+    const fileExt = file.name.split(".").pop()?.toLowerCase() || "pdf";
+    const fileName = `${user.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("documents")
+      .upload(fileName, file);
+
+    if (uploadError) {
+      console.error("Upload error:", uploadError);
+      return { success: false, error: "Error al subir el archivo" };
+    }
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("documents").getPublicUrl(fileName);
+
+    // Call the indexer
+    const indexResult = await indexAiDocumentFromUrl({
+      title,
+      url: publicUrl,
+      mimeType: file.type || undefined,
+      sessionId: sessionId || null,
+    });
+
+    if (!indexResult.success) {
+      // Cleanup file if indexing fails
+      await supabase.storage.from("documents").remove([fileName]);
+      return { success: false, error: indexResult.error || "Error al indexar el documento" };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("[uploadAndIndexAiDocument] Unexpected error:", error);
+    return { success: false, error: error.message || "Error inesperado" };
+  }
+}

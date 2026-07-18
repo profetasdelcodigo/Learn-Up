@@ -7,6 +7,8 @@ import {
   approveLibraryItem,
   rejectLibraryItem,
   deleteOwnLibraryItem,
+  getUserIndexedDocuments,
+  deleteAiDocument
 } from "@/actions/library";
 import { getUserRooms, sendMessage as sendMessageAction } from "@/actions/chat";
 import { motion, AnimatePresence } from "framer-motion";
@@ -14,6 +16,10 @@ import {
   StaggerContainer,
   FadeUpItem,
 } from "@/components/animations/StaggerReveal";
+import BackButton from "@/components/BackButton";
+import DocumentUploader from "@/components/library/DocumentUploader";
+import DocumentViewer from "@/components/library/DocumentViewer";
+import { useRouter } from "next/navigation";
 import BackButton from "@/components/BackButton";
 import { SkeletonGrid } from "@/components/Skeleton";
 import {
@@ -39,6 +45,7 @@ import {
   Star,
   Trash2,
   Loader2,
+  Brain,
 } from "lucide-react";
 import PageLoader from "@/components/PageLoader";
 
@@ -76,6 +83,7 @@ export default function LibraryPage() {
   const [sharingToRooms, setSharingToRooms] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<"public" | "ai_docs">("public");
   const [activeSection, setActiveSection] = useState<
     "all" | "favorites" | "recents"
   >("all");
@@ -97,6 +105,12 @@ export default function LibraryPage() {
     reviewer_username: "",
     file: null as File | null,
   });
+
+  // AI Docs State
+  const [aiDocs, setAiDocs] = useState<any[]>([]);
+  const [showAiUploader, setShowAiUploader] = useState(false);
+  const [viewingAiDoc, setViewingAiDoc] = useState<any | null>(null);
+  const router = useRouter();
 
   const supabase = createClient();
 
@@ -123,6 +137,7 @@ export default function LibraryPage() {
     }
     await loadItems();
     await loadDocentes();
+    await loadAiDocs();
 
     // Check URL for review param
     if (typeof window !== "undefined") {
@@ -165,6 +180,11 @@ export default function LibraryPage() {
       .eq("is_approved", false)
       .order("created_at", { ascending: false });
     if (data) setPendingItems(data as any);
+  };
+
+  const loadAiDocs = async () => {
+    const docs = await getUserIndexedDocuments();
+    setAiDocs(docs);
   };
 
   const loadDocentes = async () => {
@@ -358,6 +378,33 @@ export default function LibraryPage() {
       return 0;
     });
 
+  const filteredAiDocs = aiDocs.filter((doc) => {
+    const q = searchQuery.toLowerCase();
+    return !q || doc.title?.toLowerCase().includes(q);
+  });
+
+  const handleDeleteAiDoc = async (id: string) => {
+    if (confirm("¿Estás seguro de que quieres eliminar este documento? También se borrará de la memoria de la IA.")) {
+      const res = await deleteAiDocument(id);
+      if (res.success) {
+        setViewingAiDoc(null);
+        await loadAiDocs();
+      } else {
+        alert(res.error || "Error al eliminar");
+      }
+    }
+  };
+
+  const handleAskAi = (docId: string, prompt?: string) => {
+    // Open chat with this document context
+    // Store in localStorage so the chat page can pick it up
+    localStorage.setItem("jarvis_initial_doc", docId);
+    if (prompt) {
+      localStorage.setItem("jarvis_initial_prompt", prompt);
+    }
+    router.push("/chat");
+  };
+
   // Removed blocking loading check to allow immediate layout rendering with animations
 
   return (
@@ -374,24 +421,39 @@ export default function LibraryPage() {
                   <BookOpen className="w-7 h-7 text-brand-gold" />
                 </div>
                 <div>
-                  <h1 className="page-head-title">Biblioteca</h1>
+                  <h1 className="page-head-title">Biblioteca y Rincón IA</h1>
                   <p className="page-head-subtitle">
-                    Comparte y descubre recursos educativos aprobados por docentes
+                    Comparte recursos públicos e indexa documentos privados para la IA
                   </p>
                 </div>
               </div>
-              <button
-                onClick={() => setShowModal(true)}
-                className="btn-primary"
-              >
-                <Upload className="w-5 h-5" />
-                Subir Aporte
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setActiveTab("public")}
+                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                    activeTab === "public"
+                      ? "bg-brand-gold text-black"
+                      : "bg-surface-2 text-gray-400 border border-white/10 hover:border-brand-gold/50"
+                  }`}
+                >
+                  Biblioteca Pública
+                </button>
+                <button
+                  onClick={() => setActiveTab("ai_docs")}
+                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+                    activeTab === "ai_docs"
+                      ? "bg-brand-blue-glow text-black"
+                      : "bg-surface-2 text-gray-400 border border-white/10 hover:border-brand-blue-glow/50"
+                  }`}
+                >
+                  <Brain className="w-4 h-4" /> Mi Rincón IA
+                </button>
+              </div>
             </div>
           </FadeUpItem>
 
           {/* Docente Pending Review Panel */}
-          {isDocente && pendingItems.length > 0 && (
+          {activeTab === "public" && isDocente && pendingItems.length > 0 && (
             <FadeUpItem>
               <div className="mb-8 bg-brand-gold/5 border border-brand-gold/30 rounded-3xl p-6">
                 <h2 className="text-lg font-bold text-brand-gold mb-4 flex items-center gap-2">
@@ -436,18 +498,37 @@ export default function LibraryPage() {
           {/* Search + Sections */}
           <FadeUpItem>
             <div className="mb-6 space-y-4">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Buscar por título, materia o @autor..."
-                  className="w-full pl-12 pr-4 py-3.5 bg-surface-2 border border-white/10 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
-                />
+              <div className="relative flex gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Buscar por título, materia o @autor..."
+                    className="w-full pl-12 pr-4 py-3.5 bg-surface-2 border border-white/10 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-gold transition-colors"
+                  />
+                </div>
+                {activeTab === "public" ? (
+                  <button
+                    onClick={() => setShowModal(true)}
+                    className="px-6 py-3.5 bg-brand-gold text-black font-bold rounded-2xl hover:bg-white transition-all flex items-center gap-2 shrink-0"
+                  >
+                    <Upload className="w-5 h-5" /> Aporte Público
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setShowAiUploader(true)}
+                    className="px-6 py-3.5 bg-brand-blue-glow text-black font-bold rounded-2xl hover:bg-white transition-all flex items-center gap-2 shrink-0"
+                  >
+                    <Upload className="w-5 h-5" /> Indexar para IA
+                  </button>
+                )}
               </div>
-              <div className="flex gap-2">
-                {(["all", "favorites", "recents"] as const).map((section) => (
+              
+              {activeTab === "public" && (
+                <div className="flex gap-2">
+                  {(["all", "favorites", "recents"] as const).map((section) => (
                   <button
                     key={section}
                     onClick={() => setActiveSection(section)}
@@ -618,6 +699,61 @@ export default function LibraryPage() {
                 </FadeUpItem>
               ))}
             </div>
+          )}
+
+          {/* AI Docs Grid */}
+          {activeTab === "ai_docs" && (
+            filteredAiDocs.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">
+                  <Brain className="w-10 h-10 text-brand-blue-glow" />
+                </div>
+                <p className="empty-state-title">
+                  Sin documentos indexados
+                </p>
+                <p className="empty-state-desc">
+                  Sube tus PDFs o apuntes aquí. La Inteligencia Artificial los leerá y recordará todo su contenido para ayudarte a estudiar.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredAiDocs.map((doc, i) => (
+                  <FadeUpItem key={doc.id}>
+                    <div className="card-flat p-5 border border-brand-blue-glow/20 hover:border-brand-blue-glow/50 transition-all group flex flex-col h-full bg-surface-2/50">
+                      <div className="flex items-start gap-4 mb-4">
+                        <div className="w-16 h-16 rounded-xl bg-brand-blue-glow/10 flex items-center justify-center shrink-0">
+                          <FileText className="w-8 h-8 text-brand-blue-glow" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-white leading-tight mb-1 line-clamp-2">
+                            {doc.title}
+                          </h3>
+                          <span className="text-[10px] text-brand-blue-glow bg-brand-blue-glow/10 px-2 py-0.5 rounded-full border border-brand-blue-glow/20">
+                            Privado (IA)
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-xs text-gray-500 mb-4 mt-auto">
+                        <Brain className="w-3 h-3 shrink-0" />
+                        <span>Indexado</span>
+                        <span>·</span>
+                        <span className="shrink-0">
+                          {new Date(doc.created_at).toLocaleDateString("es-ES")}
+                        </span>
+                      </div>
+                      
+                      <button
+                        onClick={() => setViewingAiDoc(doc)}
+                        className="w-full py-2 bg-brand-blue-glow/10 text-brand-blue-glow border border-brand-blue-glow/30 rounded-xl text-xs font-semibold hover:bg-brand-blue-glow hover:text-brand-black transition-all flex items-center justify-center gap-2"
+                      >
+                        <ChevronRight className="w-4 h-4" /> Abrir e Interactuar
+                      </button>
+                    </div>
+                  </FadeUpItem>
+                ))}
+              </div>
+            )
           )}
         </StaggerContainer>
       </div>
@@ -967,6 +1103,25 @@ export default function LibraryPage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {showAiUploader && (
+          <DocumentUploader
+            onClose={() => setShowAiUploader(false)}
+            onSuccess={() => {
+              setShowAiUploader(false);
+              loadAiDocs();
+            }}
+          />
+        )}
+
+        {viewingAiDoc && (
+          <DocumentViewer
+            document={viewingAiDoc}
+            onClose={() => setViewingAiDoc(null)}
+            onDelete={handleDeleteAiDoc}
+            onAskAi={handleAskAi}
+          />
+        )}
       </div>
   );
 }

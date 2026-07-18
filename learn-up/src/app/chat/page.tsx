@@ -34,6 +34,9 @@ import {
   Music,
   StopCircle,
   Monitor,
+  Pin,
+  Smile,
+  BarChart2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
@@ -56,6 +59,10 @@ import {
   uploadChatMedia,
   ensurePrivateRoom,
   leaveGroup,
+  getRoomMembers,
+  pinMessage,
+  addMessageReaction,
+  removeMessageReaction,
 } from "@/actions/chat";
 import dynamic from "next/dynamic";
 import CreateGroupModal from "@/components/chat/CreateGroupModal";
@@ -89,6 +96,11 @@ interface Message {
   is_edited?: boolean;
   is_deleted_for_everyone?: boolean;
   deleted_for?: string[];
+  is_pinned?: boolean;
+  media_type?: string;
+  media_url?: string;
+  metadata?: any;
+  reactions?: any[];
   profiles?: {
     full_name: string;
     username?: string;
@@ -153,6 +165,13 @@ export default function ChatPage() {
   const [currentProfile, setCurrentProfile] = useState<UserProfile | null>(
     null,
   );
+
+  // Room Members State (for read receipts and roles)
+  const [roomMembers, setRoomMembers] = useState<any[]>([]);
+
+  // Reactions State
+  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
+  const [showEmojiPickerFor, setShowEmojiPickerFor] = useState<string | null>(null);
 
   // Data State
   const [friends, setFriends] = useState<UserProfile[]>([]);
@@ -463,7 +482,7 @@ export default function ChatPage() {
         const { data, error } = await supabase
           .from("chat_messages")
           .select(
-            `*, profiles:user_id (*)`,
+            `*, profiles:user_id (*), reactions:message_reactions (*)`,
           )
           .eq("room_id", roomId)
           .order("created_at", { ascending: false })
@@ -476,9 +495,21 @@ export default function ChatPage() {
       }
     };
 
+    const loadMembers = async (roomId: string) => {
+      try {
+        const members = await getRoomMembers(roomId);
+        if (members) setRoomMembers(members);
+      } catch (err) {
+        console.error("Error loading members:", err);
+      }
+    };
+
     const init = async () => {
       setInitialLoading(true);
-      await loadMessagesForRoom(activeChat);
+      await Promise.all([
+        loadMessagesForRoom(activeChat),
+        loadMembers(activeChat)
+      ]);
       markMessagesAsRead(activeChat);
       setInitialLoading(false);
     };
@@ -1340,8 +1371,29 @@ export default function ChatPage() {
                     </div>
                     {/* Messages Area */}
                     <div 
-                      className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-[#0b141a] chat-bg-pattern"
+                      className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-[#0b141a] chat-bg-pattern relative"
                     >
+                      {/* Pinned Messages Banner */}
+                      {messages.some(m => m.is_pinned) && (
+                        <div className="sticky top-0 z-10 w-full mb-4 px-2">
+                          <div className="bg-[#202c33]/95 backdrop-blur-md border-l-4 border-brand-gold rounded-xl p-2 shadow-lg flex items-center gap-3 w-full cursor-pointer hover:bg-[#202c33] transition-colors"
+                               onClick={() => {
+                                 const firstPinned = messages.find(m => m.is_pinned);
+                                 if (firstPinned) {
+                                   document.getElementById(`msg-${firstPinned.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                 }
+                               }}>
+                            <Pin className="w-4 h-4 text-brand-gold shrink-0" />
+                            <div className="flex flex-col overflow-hidden w-full">
+                              <span className="text-brand-gold font-bold text-[11px] uppercase tracking-wider">Mensaje Fijado</span>
+                              <span className="text-white/90 text-xs truncate">
+                                {messages.find(m => m.is_pinned)?.content || "Archivo adjunto"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {messages.map((msg, idx) => {
                         const isMe = msg.user_id === currentUserId;
                         const senderAvatar = msg.profiles?.avatar_url;
@@ -1352,6 +1404,7 @@ export default function ChatPage() {
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             transition={{ duration: 0.2, ease: "easeOut" }}
                             key={msg.id}
+                            id={`msg-${msg.id}`}
                             className={`flex items-end gap-2 ${isMe ? "justify-end" : "justify-start"} group`}
                           >
                             {/* Avatar for incoming messages */}
@@ -1385,7 +1438,34 @@ export default function ChatPage() {
                                     )}
 
                                   {/* Media Rendering Helper */}
-                                  {msg.content.startsWith("[image]") ? (
+                                  {msg.media_type === "poll" ? (
+                                    <div className="flex flex-col gap-2 min-w-[200px] sm:min-w-[240px]">
+                                      <div className="flex items-center gap-2 font-bold mb-2">
+                                        <BarChart2 className="w-5 h-5 text-brand-gold" />
+                                        <span>Encuesta: {msg.content}</span>
+                                      </div>
+                                      {msg.metadata?.options?.map((opt: string, i: number) => {
+                                        const votes = msg.metadata?.votes?.[opt] || [];
+                                        const hasVoted = votes.includes(currentUserId);
+                                        const totalVotes = Object.values(msg.metadata?.votes || {}).flat().length;
+                                        const percent = totalVotes > 0 ? Math.round((votes.length / totalVotes) * 100) : 0;
+                                        return (
+                                          <div key={i} 
+                                               className={`relative overflow-hidden rounded-lg p-2 border cursor-pointer transition-all ${hasVoted ? 'border-brand-gold bg-brand-gold/10' : 'border-white/10 hover:bg-white/5 bg-black/20'}`}
+                                               onClick={() => {
+                                                 // In a real app, this would trigger an update to msg.metadata.votes
+                                                 setAddToast({ message: "Votación (Simulación)", type: "info" });
+                                               }}>
+                                            <div className="absolute top-0 left-0 h-full bg-brand-gold/20" style={{ width: `${percent}%` }} />
+                                            <div className="relative flex justify-between items-center text-sm z-10">
+                                              <span>{opt}</span>
+                                              <span className="opacity-70 text-xs">{percent}% ({votes.length})</span>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : msg.content.startsWith("[image]") ? (
                                     <img
                                       src={msg.content.replace("[image]", "")}
                                       className="rounded-lg max-w-full cursor-pointer max-h-60 object-cover"
@@ -1580,10 +1660,44 @@ export default function ChatPage() {
                                     </p>
                                   )}
 
+                                  {/* Reactions row */}
+                                  {msg.reactions && msg.reactions.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1 -mb-2 z-10">
+                                      {Object.entries(
+                                        msg.reactions.reduce((acc: any, r: any) => {
+                                          acc[r.emoji] = (acc[r.emoji] || 0) + 1;
+                                          return acc;
+                                        }, {})
+                                      ).map(([emoji, count]: [string, any]) => {
+                                        const haveIReacted = msg.reactions?.some((r: any) => r.emoji === emoji && r.user_id === currentUserId);
+                                        return (
+                                          <div
+                                            key={emoji}
+                                            className={`px-1.5 py-0.5 rounded-full text-xs flex items-center gap-1 cursor-pointer transition-colors ${
+                                              haveIReacted ? 'bg-brand-gold/20 border border-brand-gold/50' : 'bg-black/30 border border-white/5'
+                                            }`}
+                                            onClick={async () => {
+                                              if (haveIReacted) {
+                                                await removeMessageReaction(msg.id, emoji);
+                                                // Optimistic update omitted for brevity, will rely on realtime
+                                              } else {
+                                                await addMessageReaction(msg.id, emoji);
+                                              }
+                                            }}
+                                          >
+                                            <span>{emoji}</span>
+                                            <span className="opacity-80 text-[10px]">{count}</span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+
                                   <div
-                                    className={`text-[10px] mt-auto self-end flex items-center justify-end gap-1 ${isMe ? "text-white/70" : "text-gray-400"}`}
+                                    className={`text-[10px] mt-auto pt-1 self-end flex items-center justify-end gap-1 ${isMe ? "text-white/70" : "text-gray-400"}`}
                                   >
                                     {msg.is_edited && <span className="italic mr-1">Editado</span>}
+                                    {msg.is_pinned && <Pin className="w-3 h-3 text-brand-gold" />}
                                     <span>
                                       {new Date(
                                         msg.created_at,
@@ -1592,7 +1706,16 @@ export default function ChatPage() {
                                         minute: "2-digit",
                                       })}
                                     </span>
-                                    {isMe && <CheckCheck className="w-4 h-4 text-[#53bdeb] ml-0.5" />}
+                                    {isMe && (() => {
+                                      const isReadByAnyone = roomMembers.some(rm => 
+                                        rm.user_id !== currentUserId && 
+                                        rm.last_read_at && 
+                                        new Date(rm.last_read_at) >= new Date(msg.created_at)
+                                      );
+                                      return (
+                                        <CheckCheck className={`w-4 h-4 ml-0.5 ${isReadByAnyone ? "text-[#53bdeb]" : "text-white/50"}`} />
+                                      );
+                                    })()}
                                   </div>
                                 </>
                               )}
@@ -1606,10 +1729,51 @@ export default function ChatPage() {
                                   currentUserId &&
                                   activeRoom.admins.includes(currentUserId);
                                 if (msg.is_deleted_for_everyone) return null;
-                                if (!isMe && !isAdmin) return null;
 
                                 return (
                                   <div className="absolute -top-3 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-surface-2 rounded-lg p-1 border border-white/10 shadow-xl z-10">
+                                    <div className="relative">
+                                      <button
+                                        className="p-1 hover:text-brand-gold text-gray-400"
+                                        onClick={() => setShowEmojiPickerFor(msg.id === showEmojiPickerFor ? null : msg.id)}
+                                      >
+                                        <Smile className="w-3 h-3" />
+                                      </button>
+                                      {/* Emoji Picker Popup */}
+                                      <AnimatePresence>
+                                        {showEmojiPickerFor === msg.id && (
+                                          <motion.div
+                                            initial={{ opacity: 0, y: 5 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: 5 }}
+                                            className="absolute bottom-full mb-2 right-0 bg-[#0b141a] border border-white/10 rounded-xl p-2 shadow-2xl flex gap-2 z-50"
+                                          >
+                                            {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
+                                              <button
+                                                key={emoji}
+                                                className="text-xl hover:scale-125 transition-transform"
+                                                onClick={async () => {
+                                                  setShowEmojiPickerFor(null);
+                                                  await addMessageReaction(msg.id, emoji);
+                                                }}
+                                              >
+                                                {emoji}
+                                              </button>
+                                            ))}
+                                          </motion.div>
+                                        )}
+                                      </AnimatePresence>
+                                    </div>
+
+                                    {(isAdmin || isMe) && (
+                                      <button
+                                        className={`p-1 ${msg.is_pinned ? 'text-brand-gold' : 'text-gray-400 hover:text-white'}`}
+                                        onClick={() => pinMessage(msg.id, !msg.is_pinned)}
+                                      >
+                                        <Pin className="w-3 h-3" />
+                                      </button>
+                                    )}
+
                                     {isMe && (
                                       <button
                                         className="p-1 hover:text-brand-gold text-gray-400"
@@ -1621,14 +1785,16 @@ export default function ChatPage() {
                                         <Edit2 className="w-3 h-3" />
                                       </button>
                                     )}
-                                    <button
-                                      className="p-1 hover:text-red-500 text-gray-400"
-                                      onClick={() =>
-                                        handleDeleteMessage(msg.id)
-                                      }
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                    </button>
+                                    {(isMe || isAdmin) && (
+                                      <button
+                                        className="p-1 hover:text-red-500 text-gray-400"
+                                        onClick={() =>
+                                          handleDeleteMessage(msg.id)
+                                        }
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </button>
+                                    )}
                                   </div>
                                 );
                               })()}

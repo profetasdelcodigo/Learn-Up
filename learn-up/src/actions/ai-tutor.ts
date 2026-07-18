@@ -217,6 +217,44 @@ export async function indexAiDocumentFromUrl({
   }
 }
 
+export async function search_documents(query: string, limit: number = 5): Promise<string> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return "Error: No autorizado.";
+
+    const embedding = await getAIEmbedding(query);
+    const embeddingStr = `[${embedding.join(",")}]`;
+
+    const { data, error } = await supabase.rpc("match_document_chunks", {
+      query_embedding: embeddingStr,
+      match_threshold: 0.5,
+      match_count: limit,
+      p_user_id: user.id
+    });
+
+    if (error) {
+      console.error("[search_documents] Error RPC:", error);
+      return "Error al buscar en los documentos.";
+    }
+
+    if (!data || data.length === 0) {
+      return "No se encontró información relevante en tus documentos indexados.";
+    }
+
+    // Format the results
+    const results = data.map((chunk: any, i: number) => {
+      const docTitle = chunk.metadata?.title || `Documento ${chunk.document_id}`;
+      return `[Fuente ${i + 1}: ${docTitle}]\n${chunk.content}`;
+    });
+
+    return results.join("\n\n---\n\n");
+  } catch (error) {
+    console.error("[search_documents] Unexpected error:", error);
+    return "Ocurrió un error inesperado al buscar en los documentos.";
+  }
+}
+
 // ── Profesor IA ───────────────────────────────────────────────────────────────
 export async function askProfessor(
   message: string,

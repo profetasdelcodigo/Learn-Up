@@ -631,6 +631,15 @@ export default function AIChatComponent({
                 actionResult.data.content,
               );
             }
+
+            if (actionResult.success) {
+               if (action.tool.includes("calendar")) {
+                 window.dispatchEvent(new CustomEvent("calendarUpdated"));
+               } else if (action.tool.includes("habit")) {
+                 window.dispatchEvent(new CustomEvent("habitsUpdated"));
+               }
+            }
+
             if (currentSessionId) await addAiMessage(currentSessionId, "assistant", actionResult.message, undefined, undefined, [action]);
             setMessages((prev) => [
               ...prev,
