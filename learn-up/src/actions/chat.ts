@@ -160,7 +160,7 @@ export async function getChatMessages(roomId: string, limit = 50) {
   // If it still fails, we could use the service role key, but this is a server action so it runs with the user's auth context.
   const { data, error } = await supabase
     .from("chat_messages")
-    .select(`*, profiles:user_id (*), reactions:message_reactions (*)`)
+    .select(`*, profiles:user_id (*)`)
     .eq("room_id", roomId)
     .order("created_at", { ascending: false })
     .limit(limit);

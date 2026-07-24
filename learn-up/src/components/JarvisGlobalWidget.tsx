@@ -158,8 +158,8 @@ export default function JarvisGlobalWidget() {
         // Ejecución de cliente para acciones auto-confirmadas o directas
         if (res.actions && res.actions.length > 0) {
           const action = res.actions[0];
-          if (action.tool === "open_url" && action.args.url && action.requiresConfirm === false) {
-             // Si requiresConfirm fuera falso, se abre de una vez, pero Jarvis las marca con true.
+          if (action.tool === "open_url" && action.args.url && (action.requiresConfirm === false || autopilot)) {
+             window.open(action.args.url, "_blank");
           }
         }
       }

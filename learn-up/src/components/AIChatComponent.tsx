@@ -418,6 +418,14 @@ export default function AIChatComponent({
     setLoading(false);
   };
 
+  useEffect(() => {
+    if (currentSessionId) {
+      loadSessionMessages(currentSessionId);
+    } else {
+      setMessages([]);
+    }
+  }, [currentSessionId]);
+
   const getMediaType = (file: File) => {
     if (file.type.startsWith("image/")) return "image";
     if (file.type.startsWith("video/")) return "video";
