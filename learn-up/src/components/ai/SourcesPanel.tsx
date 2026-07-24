@@ -18,6 +18,12 @@ export default function SourcesPanel({ aiType, currentSessionId, onSessionChange
     setLoading(true);
     const data = await getAiSessions(aiType);
     setSessions(data);
+    
+    // Auto-select the most recent session if none is selected
+    if (!currentSessionId && data && data.length > 0) {
+      onSessionChange(data[0].id);
+    }
+    
     setLoading(false);
   };
 

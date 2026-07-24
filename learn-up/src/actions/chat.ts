@@ -436,6 +436,7 @@ export async function sendMessage(
     .from("chat_rooms")
     .update({
       updated_at: now,
+      last_message: content,
     })
     .eq("id", roomId);
 
