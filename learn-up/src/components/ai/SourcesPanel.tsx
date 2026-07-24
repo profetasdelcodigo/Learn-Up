@@ -59,40 +59,12 @@ export default function SourcesPanel({ aiType, currentSessionId, onSessionChange
         className="flex items-center gap-2 px-4 pb-3 border-b border-white/10 shrink-0"
         style={{ paddingTop: "calc(env(safe-area-inset-top) + 1rem)" }}
       >
-        <Bot className="w-5 h-5 text-brand-gold" />
-        <h2 className="font-bold text-white text-sm">Entorno y Memoria</h2>
+        <History className="w-5 h-5 text-brand-gold" />
+        <h2 className="font-bold text-white text-sm">Historial de Chats</h2>
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col p-3 gap-6">
         
-        {/* Fuentes / Documentos Section */}
-        <section>
-          <div className="flex items-center justify-between mb-3 px-1">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5" /> Fuentes
-            </h3>
-          </div>
-          
-          <div className="space-y-2">
-            {/* Placeholder for uploaded documents */}
-            {currentSessionId ? (
-              <div className="border border-dashed border-white/10 rounded-xl p-4 flex flex-col items-center justify-center text-center gap-2 hover:bg-white/5 transition-colors cursor-pointer group">
-                <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-brand-gold/20 group-hover:text-brand-gold transition-colors">
-                  <UploadCloud className="w-4 h-4 text-gray-500 group-hover:text-brand-gold" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-300 font-medium">Subir Material</p>
-                  <p className="text-[10px] text-gray-500">PDF, TXT, Imágenes</p>
-                </div>
-              </div>
-            ) : (
-              <div className="p-3 bg-white/5 rounded-xl text-xs text-gray-500 text-center border border-white/5">
-                Crea un chat para subir fuentes
-              </div>
-            )}
-          </div>
-        </section>
-
         {/* Historial de Sesiones Section */}
         <section className="flex-1 flex flex-col min-h-0">
           <div className="flex items-center justify-between mb-3 px-1">

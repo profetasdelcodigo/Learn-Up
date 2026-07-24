@@ -6,12 +6,20 @@ import NotebookLayout from "@/components/ai/NotebookLayout";
 import AIChatComponent from "@/components/AIChatComponent";
 import NotebookWhiteboard from "@/components/NotebookWhiteboard";
 import { askProfessor } from "@/actions/ai-tutor";
+import SourcesPanel from "@/components/ai/SourcesPanel";
 
 export default function ProfessorChatPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
 
   return (
     <NotebookLayout
+      leftPanel={
+        <SourcesPanel 
+          aiType="profesor" 
+          currentSessionId={sessionId} 
+          onSessionChange={setSessionId} 
+        />
+      }
       centerPanel={
         <AIChatComponent
           title="Profesor Mente"
