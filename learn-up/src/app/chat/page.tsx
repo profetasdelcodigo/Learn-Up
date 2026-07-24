@@ -471,8 +471,11 @@ export default function ChatPage() {
   // ... (loadMessages useEffect and others remain same)
 
   // Load Messages when activeChat changes
+  // Load Messages when activeChat changes
   useEffect(() => {
     if (!activeChat) return;
+
+    let ignore = false;
 
     // Direct client query â€” no server round-trip
     const loadMessagesForRoom = async (roomId: string) => {
@@ -485,7 +488,7 @@ export default function ChatPage() {
           .eq("room_id", roomId)
           .order("created_at", { ascending: false })
           .limit(50);
-        if (!error && data) {
+        if (!error && data && !ignore) {
           setMessages((data as any).reverse());
         }
       } catch (err) {
@@ -496,20 +499,23 @@ export default function ChatPage() {
     const loadMembers = async (roomId: string) => {
       try {
         const members = await getRoomMembers(roomId);
-        if (members) setRoomMembers(members);
+        if (members && !ignore) setRoomMembers(members);
       } catch (err) {
         console.error("Error loading members:", err);
       }
     };
 
     const init = async () => {
+      setMessages([]); // Immediately clear old messages
       setInitialLoading(true);
       await Promise.all([
         loadMessagesForRoom(activeChat),
         loadMembers(activeChat)
       ]);
-      markMessagesAsRead(activeChat);
-      setInitialLoading(false);
+      if (!ignore) {
+        markMessagesAsRead(activeChat);
+        setInitialLoading(false);
+      }
     };
 
     init();
@@ -575,6 +581,7 @@ export default function ChatPage() {
     window.addEventListener("focus", handleFocus);
 
     return () => {
+      ignore = true;
       supabase.removeChannel(channel);
       clearInterval(pollInterval);
       document.removeEventListener("visibilitychange", handleVisibility);
