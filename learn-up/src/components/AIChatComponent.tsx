@@ -67,6 +67,8 @@ import {
   ChevronRight,
   Bookmark,
   BookOpen,
+  Command,
+  Link as LinkIcon,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import ShareButton from "./ShareButton";
@@ -80,6 +82,7 @@ import {
   deleteAiSession,
 } from "@/actions/ai-history";
 import { confirmAndExecuteTool, indexAiDocumentFromUrl } from "@/actions/ai-tutor";
+import SkillsDirectoryModal from "./ai/SkillsDirectoryModal";
 
 interface ToolAction {
   tool: string;
@@ -297,7 +300,9 @@ export default function AIChatComponent({
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [showModelMenu, setShowModelMenu] = useState(false);
   const [selectedModel, setSelectedModel] = useState(defaultModel || "groq/llama-3.3-70b-versatile");
-  const [activeSkill, setActiveSkill] = useState("");
+  const [activeSkills, setActiveSkills] = useState<string[]>([]);
+  const [isSkillsModalOpen, setIsSkillsModalOpen] = useState(false);
+  const [hasFileAttached, setHasFileAttached] = useState(false);
 
   useEffect(() => {
     if (currentSessionId) {
@@ -315,11 +320,7 @@ export default function AIChatComponent({
     const handleTriggerJarvis = (e: CustomEvent) => {
       const msg = e.detail?.message;
       if (msg) {
-        // Formulate a synthetic event to trigger submit
         setInput(msg);
-        // We need to use a timeout to allow state to update before submitting,
-        // but it's cleaner to just call a function. Since handleSubmit takes a form event,
-        // we'll extract the core submit logic to a separate function or just wait for state update.
         setTimeout(() => {
           const form = document.getElementById('chat-form');
           if (form) form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
@@ -329,9 +330,6 @@ export default function AIChatComponent({
     window.addEventListener("triggerJarvis" as any, handleTriggerJarvis);
     return () => window.removeEventListener("triggerJarvis" as any, handleTriggerJarvis);
   }, []);
-
-  // Mini-mensajes dinámicos durante la carga (contextuales)
-  const [hasFileAttached, setHasFileAttached] = useState(false);
 
   useEffect(() => {
     if (!loading) {
@@ -400,11 +398,9 @@ export default function AIChatComponent({
     e.preventDefault();
     if ((!input.trim() && !file) || loading) return;
 
-    // Respaldar estados locales por si falla el envío
     const backupInput = input;
     const backupFile = file;
 
-    // Auto-generar mensaje si solo hay archivo sin texto
     let userMessage = input.trim();
     if (!userMessage && file) {
       const mType = getMediaType(file);
@@ -537,8 +533,8 @@ export default function AIChatComponent({
         content: m.content,
       }));
 
-      const finalUserMessage = activeSkill 
-        ? `[Skill Activa: ${activeSkill}]\n\n${userMessage}` 
+      const finalUserMessage = activeSkills.length > 0 
+        ? `[Skills Activas: ${activeSkills.join(",")}]\n\n${userMessage}` 
         : userMessage;
 
       const result = await onSubmitAction(
@@ -547,7 +543,6 @@ export default function AIChatComponent({
         mediaUrl,
         mediaType,
         selectedModel
-
       );
 
       if (result.error) {
@@ -561,9 +556,7 @@ export default function AIChatComponent({
 
         if (result.actions && result.actions.length > 0) {
           if (isAutonomous) {
-            // Auto-execute if in Pilot mode
             result.actions.forEach(action => {
-               // Fire and forget or handle properly
                setTimeout(() => handleConfirmAction(action), 500);
             });
           } else {
@@ -578,7 +571,6 @@ export default function AIChatComponent({
     }
   };
 
-  // ── Manejar confirmación/rechazo de acciones de IA ────────────────────────
   const handleConfirmAction = async (action: ToolAction) => {
     setExecutingAction(true);
     let actionResult: any = null;
@@ -606,14 +598,12 @@ export default function AIChatComponent({
       } else {
         actionResult = await confirmAndExecuteTool(action.tool, action.args);
         
-        // Manejar sugerencias si hay múltiples coincidencias
         if (!actionResult.success && actionResult.data?.suggestions) {
             if (currentSessionId) await addAiMessage(currentSessionId, "assistant", actionResult.message);
             setMessages((prev) => [
                 ...prev,
                 { role: "assistant", content: actionResult.message },
             ]);
-            // Convertimos las sugerencias en botones de acción temporales
             const suggestionActions = actionResult.data.suggestions.map((s: any) => ({
                 tool: action.tool,
                 args: { ...action.args, recipient_id: s.id, recipient_type: s.type, recipient_name: s.name },
@@ -652,7 +642,6 @@ export default function AIChatComponent({
       setError("Error al ejecutar la acción.");
     } finally {
       setExecutingAction(false);
-      // No limpiamos pendingActions si hay sugerencias, ya que las usamos para renderizar botones
       if (!actionResult?.data?.suggestions) setPendingActions([]);
     }
   };
@@ -725,13 +714,11 @@ export default function AIChatComponent({
   const getToolIcon = (tool: string) => {
     const icons: Record<string, ReactNode> = {
       open_url: <ExternalLink className="w-4 h-4" />,
-      // Calendario Personal
       add_calendar_event: <CalendarPlus className="w-4 h-4" />,
       read_calendar_events: <CalendarSearch className="w-4 h-4" />,
       update_calendar_event: <CalendarCheck className="w-4 h-4" />,
       delete_calendar_event: <CalendarX className="w-4 h-4" />,
       search_calendar_events: <Search className="w-4 h-4" />,
-      // Hábitos
       add_habit: <Target className="w-4 h-4" />,
       update_habit: <PenLine className="w-4 h-4" />,
       complete_habit_entry: <CheckCircle2 className="w-4 h-4" />,
@@ -740,7 +727,6 @@ export default function AIChatComponent({
       archive_habit: <Archive className="w-4 h-4" />,
       read_habit_tracker: <TrendingUp className="w-4 h-4" />,
       view_habit_stats: <BarChart3 className="w-4 h-4" />,
-      // Calendario Compartido
       create_shared_calendar: <Users className="w-4 h-4" />,
       add_shared_calendar_member: <UserPlus className="w-4 h-4" />,
       add_shared_event: <CalendarPlus className="w-4 h-4" />,
@@ -752,10 +738,8 @@ export default function AIChatComponent({
       leave_shared_calendar: <LogOut className="w-4 h-4" />,
       view_shared_members: <Users className="w-4 h-4" />,
       notify_habit_progress: <Megaphone className="w-4 h-4" />,
-      // Avanzado
       suggest_weekly_plan: <Lightbulb className="w-4 h-4" />,
       export_calendar_ics: <Download className="w-4 h-4" />,
-      // General
       send_message: <MessageSquare className="w-4 h-4" />,
       search_library: <Search className="w-4 h-4" />,
       update_profile: <UserCog className="w-4 h-4" />,
@@ -824,8 +808,6 @@ export default function AIChatComponent({
     return "text-brand-gold bg-brand-gold/10 border-brand-gold/20";
   };
 
-  // Removed abrupt return to allow AnimatePresence to handle it
-
   return (
     <AnimatePresence mode="wait">
       <motion.div
@@ -837,7 +819,6 @@ export default function AIChatComponent({
         className={`flex flex-col relative z-10 w-full h-full ${className || ''}`}
         style={containerStyle}
       >
-        {/* ──────────────────── HEADER ──────────────────── */}
         <div
           className="shrink-0 relative flex items-center justify-between px-4 bg-surface-2/40 backdrop-blur-xl z-30"
           style={{
@@ -845,7 +826,6 @@ export default function AIChatComponent({
             paddingBottom: "0.75rem",
           }}
         >
-            {/* LEFT: Back button */}
             <button
               onClick={() => router.back()}
               className="flex items-center justify-center w-10 h-10 rounded-full bg-surface-2 border border-white/6 text-gray-400 hover:text-white hover:border-brand-gold/40 transition-all shrink-0"
@@ -854,7 +834,6 @@ export default function AIChatComponent({
               <ChevronLeft className="w-5 h-5" />
             </button>
 
-            {/* CENTER: AI info */}
             <div className="flex flex-col items-center flex-1 px-3 min-w-0">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-full bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center text-brand-gold shrink-0">
@@ -869,7 +848,6 @@ export default function AIChatComponent({
               </p>
             </div>
 
-            {/* RIGHT: Autonomy Toggle */}
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/20 border border-white/5 shrink-0">
               <span className="text-[10px] text-gray-400 font-medium hidden md:inline">
                 Piloto Automático
@@ -888,7 +866,6 @@ export default function AIChatComponent({
             </div>
           </div>
 
-          {/* ──────────────────── MESSAGES ──────────────────── */}
           <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 bg-surface-1" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 pb-8">
@@ -916,7 +893,6 @@ export default function AIChatComponent({
                 className={`flex flex-col w-full max-w-4xl mx-auto group ${message.role === "user" ? "items-end" : "items-start"}`}
               >
                 {message.role === "user" ? (
-                  /* USER MESSAGE (Clean gray block) */
                   <div className="bg-white/5 border border-white/10 rounded-2xl p-5 max-w-[85%] md:max-w-[70%]">
                     <div className="flex items-center gap-2 mb-2 text-gray-400 text-xs font-medium">
                       <User className="w-3 h-3" /> Tú
@@ -947,7 +923,6 @@ export default function AIChatComponent({
                     </p>
                   </div>
                 ) : (
-                  /* AI MESSAGE (Notion/Claude style block) */
                   <div className="w-full">
                     <div className="flex items-center gap-2 mb-3 text-brand-gold text-xs font-semibold uppercase tracking-wider">
                       <Bot className="w-3 h-3" /> {title}
@@ -1005,52 +980,14 @@ export default function AIChatComponent({
               </div>
             )}
 
-            {/* ──── Tarjetas de confirmación de acciones y SUGERENCIAS ──── */}
-            {(pendingActions.length > 0 || (messages[messages.length - 1]?.role === 'assistant' && (messages[messages.length - 1]?.content.includes('He encontrado varios') || messages[messages.length - 1]?.content.includes('similares')))) && !loading && (
+            {(pendingActions.length > 0) && !loading && (
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="flex justify-start"
               >
                 <div className="max-w-[85%] md:max-w-[70%] space-y-2">
-                  {pendingActions.map((action, i) => {
-                    if (action.tool === "ask_multiple_choice") {
-                      return (
-                        <div key={i} className="bg-surface-2/80 backdrop-blur-md rounded-2xl p-4 md:p-5 rounded-tl-sm shadow-xl border border-white/10 flex flex-col gap-3 min-w-[280px]">
-                          <p className="text-sm md:text-base font-semibold text-white leading-tight">{action.args.question || "¿Qué opción eliges?"}</p>
-                          <div className="flex flex-col gap-2 mt-2">
-                            {action.args.options?.map((opt: string, idx: number) => (
-                              <button
-                                key={idx}
-                                onClick={() => handleOptionSelect(opt)}
-                                className="w-full text-left py-2.5 px-4 bg-white/5 hover:bg-brand-gold/10 text-gray-200 hover:text-brand-gold rounded-xl text-sm transition-all border border-white/5 hover:border-brand-gold/30 flex items-center gap-3 group"
-                              >
-                                <span className="w-5 h-5 rounded-full bg-black/40 flex items-center justify-center text-[10px] font-bold text-gray-400 group-hover:bg-brand-gold/20 group-hover:text-brand-gold transition-colors">{idx + 1}</span>
-                                {opt}
-                              </button>
-                            ))}
-                            {action.args.allow_skip !== false && (
-                              <div className="flex items-center gap-2 mt-2">
-                                <button
-                                  onClick={() => handleOptionSelect("Omitir")}
-                                  className="flex-1 text-center py-2 text-xs font-medium text-gray-500 hover:text-white bg-black/20 hover:bg-black/40 rounded-lg transition-colors border border-transparent hover:border-white/10"
-                                >
-                                  Omitir
-                                </button>
-                                <button
-                                  onClick={() => handleOptionSelect("Otra opción no listada")}
-                                  className="flex-1 text-center py-2 text-xs font-medium text-gray-500 hover:text-white bg-black/20 hover:bg-black/40 rounded-lg transition-colors border border-transparent hover:border-white/10"
-                                >
-                                  Otro
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    return (
+                  {pendingActions.map((action, i) => (
                     <div
                       key={i}
                       className="bg-surface-2 rounded-2xl p-4 rounded-tl-sm shadow-lg border border-white/5"
@@ -1088,15 +1025,13 @@ export default function AIChatComponent({
                         </button>
                       </div>
                     </div>
-                    );
-                  })}
+                  ))}
                 </div>
               </motion.div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
-          {/* ──────────────────── ERROR ──────────────────── */}
           {error && (
             <div className="shrink-0 px-4">
               <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-xl text-red-400 text-sm mb-2">
@@ -1105,20 +1040,28 @@ export default function AIChatComponent({
             </div>
           )}
 
-          {/* ──────────────────── INPUT AREA (CLAUDE STYLE) ──────────────────── */}
           <div
             className="shrink-0 px-4 pt-3 pb-6 flex flex-col items-center bg-surface-1"
             style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 1.5rem)" }}
           >
             <div className="w-full max-w-3xl relative">
-              {/* MODEL MENU POPOVER */}
+              <SkillsDirectoryModal 
+                isOpen={isSkillsModalOpen} 
+                onClose={() => setIsSkillsModalOpen(false)} 
+                activeSkills={activeSkills}
+                onToggleSkill={(id) => {
+                  setActiveSkills(prev => 
+                    prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
+                  );
+                }}
+              />
+
               {showModelMenu && !disableModelSelector && (
                 <div className="absolute bottom-full left-0 mb-2 w-72 bg-surface-2 border border-border-subtle rounded-xl shadow-2xl p-2 z-50 max-h-80 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
                   <div className="text-xs font-semibold text-gray-400 mb-2 px-2 uppercase tracking-wider">Motor de Inteligencia</div>
-                  <div className="text-[10px] text-gray-500 mb-2 px-2">Endpoints Gratuitos y Seguros</div>
                   {[
-                    { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Ultra Rápido)", icon: <Zap className="w-4 h-4 text-yellow-400" />, tag: "⭐ Recomendado" },
-                    { id: "groq/llama-3.1-8b-instant", name: "Llama 3.1 8B Omni", icon: <Sparkles className="w-4 h-4 text-indigo-400" />, tag: "Rápido" },
+                    { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Ultra Rápido)", icon: <Zap className="w-4 h-4 text-yellow-400" />, tag: "⭐" },
+                    { id: "groq/llama-3.1-8b-instant", name: "Llama 3.1 8B Omni", icon: <Sparkles className="w-4 h-4 text-indigo-400" />, tag: "" },
                   ].map(m => (
                     <button
                       key={m.id}
@@ -1128,188 +1071,47 @@ export default function AIChatComponent({
                     >
                       {m.icon}
                       <span className="flex-1 truncate">{m.name}</span>
-                      {(m as any).tag && <span className="text-[9px] bg-white/5 text-gray-400 px-1.5 py-0.5 rounded-full shrink-0">{(m as any).tag}</span>}
+                      {m.tag && <span className="text-[9px] bg-white/5 text-gray-400 px-1.5 py-0.5 rounded-full shrink-0">{m.tag}</span>}
                     </button>
                   ))}
                 </div>
               )}
 
-              {/* SKILLS MENU POPOVER */}
               {showAttachMenu && (
-                <div className="absolute bottom-full left-0 md:left-12 mb-2 w-80 max-h-96 overflow-y-auto bg-surface-2/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-3 z-50" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
-                  <div className="space-y-4">
-                    {/* Sección 1: Subir Archivos */}
-                    <div>
-                      <div className="text-[10px] font-bold text-gray-500 mb-2 px-1 uppercase tracking-wider flex items-center gap-1"><Paperclip className="w-3 h-3"/> Adjuntar</div>
-                      <div className="grid grid-cols-2 gap-2">
-                         <button type="button" onClick={() => { fileInputRef.current?.click(); setShowAttachMenu(false); }} className="flex flex-col items-center justify-center p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 transition-all group">
-                           <FileText className="w-5 h-5 text-gray-400 group-hover:text-white mb-1" />
-                           <span className="text-xs font-medium text-gray-300">Documento</span>
-                         </button>
-                         <button type="button" onClick={() => { fileInputRef.current?.click(); setShowAttachMenu(false); }} className="flex flex-col items-center justify-center p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 transition-all group">
-                           <ImageIcon className="w-5 h-5 text-gray-400 group-hover:text-white mb-1" />
-                           <span className="text-xs font-medium text-gray-300">Imagen / Media</span>
-                         </button>
-                      </div>
-                    </div>
-
-                    {/* Sección 2: Paquetes de Skills */}
-                    <div>
-                      <div className="text-[10px] font-bold text-gray-500 mb-2 px-1 uppercase tracking-wider flex items-center gap-1"><BrainCircuit className="w-3 h-3"/> Paquetes de Skills (IA)</div>
-                      <div className="space-y-1.5">
-                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "calendar_pack" ? "" : "calendar_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "calendar_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
-                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "calendar_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
-                            <Calendar className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1">
-                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "calendar_pack" ? "text-brand-gold" : "text-white"}`}>
-                              Calendario y Habit Tracker
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "calendar_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>CAT 1</span>
-                            </div>
-                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Gestión de eventos, trackers y estadísticas.</div>
-                          </div>
-                          {activeSkill === "calendar_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
-                        </button>
-
-                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "chat_pack" ? "" : "chat_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "chat_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
-                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "chat_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
-                            <MessageSquare className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1">
-                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "chat_pack" ? "text-brand-gold" : "text-white"}`}>
-                              Chat Social y Grupos
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "chat_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>CAT 2</span>
-                            </div>
-                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Colaboración, mensajes y grupos de estudio.</div>
-                          </div>
-                          {activeSkill === "chat_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
-                        </button>
-
-                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "library_pack" ? "" : "library_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "library_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
-                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "library_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
-                            <BookOpen className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1">
-                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "library_pack" ? "text-brand-gold" : "text-white"}`}>
-                              Biblioteca y Documentos
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "library_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>CAT 3</span>
-                            </div>
-                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Análisis y extracción de conocimientos.</div>
-                          </div>
-                          {activeSkill === "library_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
-                        </button>
-
-                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "knowledge_pack" ? "" : "knowledge_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "knowledge_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
-                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "knowledge_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
-                            <BrainCircuit className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1">
-                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "knowledge_pack" ? "text-brand-gold" : "text-white"}`}>
-                              Aprendizaje y Knowledge Graph
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "knowledge_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>CAT 4</span>
-                            </div>
-                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Mapas mentales y rutas de aprendizaje.</div>
-                          </div>
-                          {activeSkill === "knowledge_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
-                        </button>
-
-                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "content_pack" ? "" : "content_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "content_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
-                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "content_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
-                            <PenLine className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1">
-                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "content_pack" ? "text-brand-gold" : "text-white"}`}>
-                              Generación de Contenido
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "content_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>CAT 5</span>
-                            </div>
-                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Ensayos, reportes, cartas y código.</div>
-                          </div>
-                          {activeSkill === "content_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
-                        </button>
-
-                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "media_pack" ? "" : "media_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "media_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
-                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "media_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
-                            <ImageIcon className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1">
-                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "media_pack" ? "text-brand-gold" : "text-white"}`}>
-                              Multimedia
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "media_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>CAT 6</span>
-                            </div>
-                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Imágenes, podcasts y diagramas.</div>
-                          </div>
-                          {activeSkill === "media_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
-                        </button>
-
-                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "research_pack" ? "" : "research_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "research_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
-                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "research_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
-                            <Globe className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1">
-                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "research_pack" ? "text-brand-gold" : "text-white"}`}>
-                              Investigación y Búsqueda
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "research_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>CAT 7</span>
-                            </div>
-                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Búsqueda web en tiempo real.</div>
-                          </div>
-                          {activeSkill === "research_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
-                        </button>
-
-                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "data_pack" ? "" : "data_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "data_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
-                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "data_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
-                            <BarChart3 className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1">
-                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "data_pack" ? "text-brand-gold" : "text-white"}`}>
-                              Análisis y Datos
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "data_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>CAT 8</span>
-                            </div>
-                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Reportes y métricas de desempeño.</div>
-                          </div>
-                          {activeSkill === "data_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
-                        </button>
-
-                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "profile_pack" ? "" : "profile_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "profile_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
-                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "profile_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
-                            <User className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1">
-                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "profile_pack" ? "text-brand-gold" : "text-white"}`}>
-                              Perfil y Social
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "profile_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>CAT 9</span>
-                            </div>
-                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Amigos y personalización.</div>
-                          </div>
-                          {activeSkill === "profile_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
-                        </button>
-
-                        <button type="button" onClick={() => { setActiveSkill(activeSkill === "education_pack" ? "" : "education_pack"); setShowAttachMenu(false); }} className={`w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 group ${activeSkill === "education_pack" ? "bg-brand-gold/10 border-brand-gold/30" : "bg-white/5 hover:bg-white/10 border-white/5"}`}>
-                          <div className={`p-2 rounded-lg transition-transform ${activeSkill === "education_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-black/20 text-gray-300 group-hover:text-white group-hover:scale-110"}`}>
-                            <GraduationCap className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1">
-                            <div className={`text-sm font-semibold flex items-center justify-between ${activeSkill === "education_pack" ? "text-brand-gold" : "text-white"}`}>
-                              Educación Especializada
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeSkill === "education_pack" ? "bg-brand-gold/20 text-brand-gold" : "bg-white/10 text-gray-400"}`}>CAT 10</span>
-                            </div>
-                            <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">Tutoría, traducción y debate socrático.</div>
-                          </div>
-                          {activeSkill === "education_pack" && <CheckCircle2 className="w-4 h-4 text-brand-gold self-center" />}
-                        </button>
-                        <button type="button" disabled className="w-full opacity-60 text-left p-3 rounded-xl bg-white/5 border border-white/5 flex items-start gap-3">
-                          <div className="bg-black/20 p-2 rounded-lg text-gray-400">
-                            <Puzzle className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="text-sm font-semibold text-gray-300 flex items-center justify-between">
-                              Conectores
-                              <span className="bg-white/10 text-gray-400 text-[9px] px-1.5 py-0.5 rounded-full">Próximamente</span>
-                            </div>
-                            <div className="text-[10px] text-gray-500 mt-0.5 leading-tight">Notion, Google Drive, GitHub, etc.</div>
-                          </div>
-                        </button>
-                      </div>
-                    </div>
+                <div className="absolute bottom-full left-0 mb-2 w-56 bg-surface-2 border border-border-subtle rounded-xl shadow-2xl p-2 z-50">
+                  <div className="flex flex-col gap-1">
+                    <button
+                      type="button"
+                      onClick={() => { document.getElementById("file-upload")?.click(); setShowAttachMenu(false); }}
+                      className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-white/5 text-gray-300 flex items-center gap-2"
+                    >
+                      <Paperclip className="w-4 h-4" />
+                      <span>Añadir Archivo</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setIsSkillsModalOpen(true); setShowAttachMenu(false); }}
+                      className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-white/5 text-gray-300 flex items-center gap-2"
+                    >
+                      <Command className="w-4 h-4 text-purple-400" />
+                      <span>Skills & Herramientas</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-white/5 text-gray-300 flex items-center gap-2"
+                      onClick={() => setShowAttachMenu(false)}
+                    >
+                      <Globe className="w-4 h-4 text-blue-400" />
+                      <span>Búsqueda Web</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-white/5 text-gray-300 flex items-center gap-2"
+                      onClick={() => setShowAttachMenu(false)}
+                    >
+                      <LinkIcon className="w-4 h-4 text-green-400" />
+                      <span>Conectores</span>
+                    </button>
                   </div>
                 </div>
               )}
@@ -1365,7 +1167,7 @@ export default function AIChatComponent({
                     <button
                       type="button"
                       onClick={() => setShowAttachMenu(!showAttachMenu)}
-                      className={`p-1.5 rounded-md transition-colors ${showAttachMenu || activeSkill ? "text-brand-gold bg-brand-gold/10" : "text-gray-400 hover:text-brand-gold hover:bg-white/5"}`}
+                      className={`p-1.5 rounded-md transition-colors ${showAttachMenu || activeSkills.length > 0 ? "text-brand-gold bg-brand-gold/10" : "text-gray-400 hover:text-brand-gold hover:bg-white/5"}`}
                     >
                       <Plus className="w-5 h-5" />
                     </button>

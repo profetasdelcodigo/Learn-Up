@@ -4,7 +4,7 @@ import { getAICompletion } from "@/lib/ai";
 import { buildUserMessage } from "./ai-tutor";
 import { getTimeContext } from "@/lib/ai/time-context";
 import { createClient } from "@/utils/supabase/server";
-import { TOOL_DEFINITIONS, parseToolCall, executeToolAction, type ToolAction } from "@/lib/ai-tools";
+import { getToolDefinitions, parseToolCall, executeToolAction, type ToolAction } from "@/lib/ai-tools";
 import { buildAgentSystemPrompt } from "@/lib/ai/agent-registry";
 
 export async function askJarvis(
@@ -42,11 +42,20 @@ export async function askJarvis(
     const { findRelatedConcepts } = await import("@/lib/knowledge-graph");
     const nodes = await findRelatedConcepts(user.id, message);
 
+    // Parse active skills from message
+    let activeSkills: string[] = [];
+    let cleanedMessage = message;
+    const skillsMatch = message.match(/^\[Skills Activas: (.*?)\]\n\n/);
+    if (skillsMatch) {
+      activeSkills = skillsMatch[1].split(",");
+      cleanedMessage = message.replace(skillsMatch[0], "");
+    }
+
     // Fast-Path
-    const isSimpleMessage = message.trim().length < 50 && !message.includes("?") && !message.includes("/") && !mediaUrl;
-    const isGreeting = /^(hola|buenas|hey|buenos|que tal|como estas|gracias|adios|ok|vale|perfecto)/i.test(message.trim());
+    const isSimpleMessage = cleanedMessage.trim().length < 50 && !cleanedMessage.includes("?") && !cleanedMessage.includes("/") && !mediaUrl;
+    const isGreeting = /^(hola|buenas|hey|buenos|que tal|como estas|gracias|adios|ok|vale|perfecto)/i.test(cleanedMessage.trim());
     
-    const toolDefs = (isSimpleMessage && isGreeting) ? "\n" : `\n${TOOL_DEFINITIONS}`;
+    const toolDefs = (isSimpleMessage && isGreeting) ? "\n" : `\n${getToolDefinitions(activeSkills)}`;
 
     const systemPrompt = `${getTimeContext()}
 
@@ -63,7 +72,7 @@ INSTRUCCIONES ADICIONALES:
 ${toolDefs}`;
 
     const { content: finalMessageContent, model: finalModel } =
-      await buildUserMessage(message, mediaUrl, mediaType);
+      await buildUserMessage(cleanedMessage, mediaUrl, mediaType);
 
     const truncatedHistory = history.slice(-15);
 

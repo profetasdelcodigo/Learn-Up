@@ -4,7 +4,7 @@ import { getAICompletion, fetchRemoteMediaBuffer, getAIEmbedding } from "@/lib/a
 import { getTimeContext } from "@/lib/ai/time-context";
 import { createClient } from "@/utils/supabase/server";
 import { generateFalImage } from "@/lib/fal";
-import { TOOL_DEFINITIONS, parseToolCall, executeToolAction, type ToolAction } from "@/lib/ai-tools";
+import { getToolDefinitions, parseToolCall, executeToolAction, type ToolAction } from "@/lib/ai-tools";
 import { buildAgentSystemPrompt } from "@/lib/ai/agent-registry";
 
 const MODEL = "gemini-2.0-flash";
@@ -280,13 +280,22 @@ export async function askProfessor(
         error: "Por favor escribe una pregunta o envía un archivo",
       };
 
+    // Parse active skills from user message
+    let activeSkills: string[] = [];
+    let cleanedMessage = message;
+    const skillsMatch = message.match(/^\[Skills Activas: (.*?)\]\n\n/);
+    if (skillsMatch) {
+      activeSkills = skillsMatch[1].split(",");
+      cleanedMessage = message.replace(skillsMatch[0], "");
+    }
+
     // Fast-Path: Si es un saludo corto o mensaje simple de cortesía, no cargamos las definiciones de herramientas completas.
     // Esto baja la latencia dramáticamente.
-    const isSimpleMessage = message.trim().length < 50 && !message.includes("?") && !message.includes("/") && !mediaUrl;
-    const isGreeting = /^(hola|buenas|hey|buenos|que tal|como estas|gracias|adios|ok|vale|perfecto)/i.test(message.trim());
+    const isSimpleMessage = cleanedMessage.trim().length < 50 && !cleanedMessage.includes("?") && !cleanedMessage.includes("/") && !mediaUrl;
+    const isGreeting = /^(hola|buenas|hey|buenos|que tal|como estas|gracias|adios|ok|vale|perfecto)/i.test(cleanedMessage.trim());
     
     // Si es un mensaje simple/saludo, pasamos un set de herramientas vacío o muy reducido para ahorrar tokens y latencia
-    const toolDefs = (isSimpleMessage && isGreeting) ? "\n" : `\n${TOOL_DEFINITIONS}`;
+    const toolDefs = (isSimpleMessage && isGreeting) ? "\n" : `\n${getToolDefinitions(activeSkills)}`;
 
     const systemPrompt = `${getTimeContext()}
 
@@ -312,7 +321,7 @@ PERSONALIDAD:
 ${toolDefs}`;
 
     const { content: finalMessageContent, model: finalModel } =
-      await buildUserMessage(message, mediaUrl, mediaType);
+      await buildUserMessage(cleanedMessage, mediaUrl, mediaType);
 
     const truncatedHistory = history.slice(-15);
 
@@ -432,14 +441,23 @@ HERRAMIENTAS:
 - Al final de tu respuesta, si usaste fuentes externas, agrega "📚 Fuentes:" con los links.
 `;
     
-    const isSimpleMessage = problem.trim().length < 50 && !problem.includes("?") && !problem.includes("/") && !mediaUrl;
-    const isGreeting = /^(hola|buenas|hey|buenos|que tal|como estas|gracias|adios|ok|vale|perfecto)/i.test(problem.trim());
-    const toolDefs = (isSimpleMessage && isGreeting) ? "\n" : `\n${TOOL_DEFINITIONS}`;
+    // Parse active skills from problem
+    let activeSkills: string[] = [];
+    let cleanedProblem = problem;
+    const skillsMatch = problem.match(/^\[Skills Activas: (.*?)\]\n\n/);
+    if (skillsMatch) {
+      activeSkills = skillsMatch[1].split(",");
+      cleanedProblem = problem.replace(skillsMatch[0], "");
+    }
+    
+    const isSimpleMessage = cleanedProblem.trim().length < 50 && !cleanedProblem.includes("?") && !cleanedProblem.includes("/") && !mediaUrl;
+    const isGreeting = /^(hola|buenas|hey|buenos|que tal|como estas|gracias|adios|ok|vale|perfecto)/i.test(cleanedProblem.trim());
+    const toolDefs = (isSimpleMessage && isGreeting) ? "\n" : `\n${getToolDefinitions(activeSkills)}`;
     
     const finalSystemPrompt = systemPrompt + toolDefs;
 
     const { content: finalMessageContent, model: finalModel } =
-      await buildUserMessage(problem, mediaUrl, mediaType);
+      await buildUserMessage(cleanedProblem, mediaUrl, mediaType);
 
     const truncatedHistory = history.slice(-15);
 
