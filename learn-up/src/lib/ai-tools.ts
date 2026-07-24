@@ -567,7 +567,7 @@ const ToolSchemas: Record<string, z.ZodType> = {
   submit_bug_report: z.object({ description: z.string() }), view_bug_reports: z.object({}),
   read_system_announcements: z.object({}), dismiss_announcement: z.object({ announcement_id: z.string() }),
   change_app_theme: z.object({ theme: z.string() }), change_app_language: z.object({ language: z.string() }), change_timezone: z.object({ timezone: z.string() }),
-  configure_notifications: z.object({ settings: z.record(z.boolean()) }), configure_email_preferences: z.object({ settings: z.record(z.boolean()) }),
+  configure_notifications: z.object({ settings: z.record(z.string(), z.boolean()) }), configure_email_preferences: z.object({ settings: z.record(z.string(), z.boolean()) }),
   verify_account_email: z.object({ token: z.string() }), request_account_verification: z.object({}),
   view_available_tools: z.object({}),
 };
@@ -588,14 +588,13 @@ export interface ToolResult {
 
 // ── Definiciones de herramientas (para el system prompt del LLM) ───
 export function getToolDefinitions(activeSkills: string[] = []): string {
-  // If no skills are active, return a baseline set or an empty string.
-  if (!activeSkills || activeSkills.length === 0) {
-    return "No hay paquetes de habilidades extra activados. Usa las herramientas básicas si las tienes.";
-  }
+  // If no skills are explicitly selected, activate ALL packs so the AI always has full capabilities
+  const ALL_PACKS = ["calendar_pack", "chat_pack", "library_pack", "learning_pack", "content_pack", "media_pack", "research_pack", "stats_pack", "profile_pack", "edu_pack"];
+  const skills = (!activeSkills || activeSkills.length === 0) ? ALL_PACKS : activeSkills;
 
   let prompt = "";
   
-  if (activeSkills.includes("calendar_pack")) {
+  if (skills.includes("calendar_pack")) {
     prompt += `\n\n═══════════════════════════════════════════════════
 📅 CATEGORÍA 1: CALENDARIO Y HABIT TRACKER
 ═══════════════════════════════════════════════════
@@ -655,7 +654,7 @@ export function getToolDefinitions(activeSkills: string[] = []): string {
     args: {"event_id": "uuid"}`;
   }
 
-  if (activeSkills.includes("chat_pack")) {
+  if (skills.includes("chat_pack")) {
     prompt += `\n\n═══════════════════════════════════════════════════
 💬 CATEGORÍA 2: CHAT SOCIAL Y GRUPOS
 ═══════════════════════════════════════════════════
@@ -711,7 +710,7 @@ export function getToolDefinitions(activeSkills: string[] = []): string {
     args: {"room_id": "uuid"}`;
   }
 
-  if (activeSkills.includes("library_pack")) {
+  if (skills.includes("library_pack")) {
     prompt += `\n\n═══════════════════════════════════════════════════
 📚 CATEGORÍA 3: BIBLIOTECA Y DOCUMENTOS
 ═══════════════════════════════════════════════════
@@ -761,7 +760,7 @@ export function getToolDefinitions(activeSkills: string[] = []): string {
     args: {"document_id": "uuid"}`;
   }
 
-  if (activeSkills.includes("knowledge_pack")) {
+  if (skills.includes("learning_pack")) {
     prompt += `\n\n═══════════════════════════════════════════════════
 🧠 CATEGORÍA 4: APRENDIZAJE Y KNOWLEDGE GRAPH
 ═══════════════════════════════════════════════════
@@ -797,7 +796,7 @@ export function getToolDefinitions(activeSkills: string[] = []): string {
     args: {}`;
   }
 
-  if (activeSkills.includes("content_pack")) {
+  if (skills.includes("content_pack")) {
     prompt += `\n\n═══════════════════════════════════════════════════
 📝 CATEGORÍA 5: GENERACIÓN DE CONTENIDO
 ═══════════════════════════════════════════════════
@@ -847,7 +846,7 @@ export function getToolDefinitions(activeSkills: string[] = []): string {
      args: {"topic": "..."}`;
   }
 
-  if (activeSkills.includes("media_pack")) {
+  if (skills.includes("media_pack")) {
     prompt += `\n\n═══════════════════════════════════════════════════
 🖼️ CATEGORÍA 6: MULTIMEDIA
 ═══════════════════════════════════════════════════
@@ -883,7 +882,7 @@ export function getToolDefinitions(activeSkills: string[] = []): string {
      args: {"url": "..."}`;
   }
 
-  if (activeSkills.includes("research_pack")) {
+  if (skills.includes("research_pack")) {
     prompt += `\n\n═══════════════════════════════════════════════════
 🔍 CATEGORÍA 7: INVESTIGACIÓN Y BÚSQUEDA
 ═══════════════════════════════════════════════════
@@ -925,7 +924,7 @@ export function getToolDefinitions(activeSkills: string[] = []): string {
      args: {"location": "..."}`;
   }
 
-  if (activeSkills.includes("data_pack")) {
+  if (skills.includes("stats_pack")) {
     prompt += `\n\n═══════════════════════════════════════════════════
 📊 CATEGORÍA 8: ANÁLISIS Y DATOS
 ═══════════════════════════════════════════════════
@@ -959,7 +958,7 @@ export function getToolDefinitions(activeSkills: string[] = []): string {
      args: {}`;
   }
 
-  if (activeSkills.includes("profile_pack")) {
+  if (skills.includes("profile_pack")) {
     prompt += `\n\n═══════════════════════════════════════════════════
 👤 CATEGORÍA 9: PERFIL Y SOCIAL
 ═══════════════════════════════════════════════════
@@ -999,7 +998,7 @@ export function getToolDefinitions(activeSkills: string[] = []): string {
      args: {"platform": "..."}`;
   }
 
-  if (activeSkills.includes("education_pack")) {
+  if (skills.includes("edu_pack")) {
     prompt += `\n\n═══════════════════════════════════════════════════
 🏫 CATEGORÍA 10: EDUCACIÓN ESPECIALIZADA
 ═══════════════════════════════════════════════════
@@ -2487,7 +2486,7 @@ export async function executeToolAction(
       case "list_indexed_documents": {
         try {
           const { getUserIndexedDocuments } = await import("@/actions/library");
-          const docs = await getUserIndexedDocuments(args.session_id);
+          const docs = await getUserIndexedDocuments();
           return { success: true, message: `Encontré ${docs.length} documentos indexados.`, data: docs };
         } catch (e: any) {
           return { success: false, message: `Error: ${e.message}` };

@@ -352,10 +352,7 @@ export async function getChatMessages(roomId: string) {
     const { data, error } = await supabase
       .from("chat_messages")
       .select(
-        `
-      *,
-      profiles:user_id (*)
-    `,
+        `*, profiles:user_id (*), reactions:message_reactions (*)`
       )
       .eq("room_id", roomId)
       .order("created_at", { ascending: false })

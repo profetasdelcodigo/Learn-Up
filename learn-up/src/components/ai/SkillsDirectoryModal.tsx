@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Search, BookOpen, MessageSquare, Calendar, BrainCircuit, PenLine, Image as ImageIcon, BarChart3, User, GraduationCap, ChevronDown, CheckCircle2, SlidersHorizontal } from "lucide-react";
+import { X, Search, BookOpen, MessageSquare, Calendar, BrainCircuit, PenLine, Image as ImageIcon, BarChart3, User, GraduationCap, ChevronDown, CheckCircle2, SlidersHorizontal, Plus } from "lucide-react";
 import { SKILL_CATEGORIES, SkillCategory } from "@/lib/ai-skills-data";
 
 // Map lucide icons dynamically

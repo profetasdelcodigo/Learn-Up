@@ -340,9 +340,7 @@ export default function ChatPage() {
       } catch (error) {
         console.error("Error loading initial data:", error);
       } finally {
-        setTimeout(() => {
-          setInitialLoading(false);
-        }, 2000);
+        setInitialLoading(false);
       }
     };
     initData();
@@ -541,7 +539,7 @@ export default function ChatPage() {
             .eq("id", payload.new.id)
             .single();
 
-          if (data) {
+          if (data && data.room_id === activeChat) {
             setMessages((prev) => {
               const index = prev.findIndex((m) => m.id === data.id);
               if (index !== -1) {
