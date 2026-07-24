@@ -291,11 +291,48 @@ export default function AIChatComponent({
   const [pendingActions, setPendingActions] = useState<ToolAction[]>([]);
   const [executingAction, setExecutingAction] = useState(false);
   const [isAutonomous, setIsAutonomous] = useState(false);
+  const [isListening, setIsListening] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<any>(null);
   const isCreatingSession = useRef(false);
   const supabase = createClient();
+  
+  // Inicializar Web Speech API
+  useEffect(() => {
+    if (typeof window !== "undefined" && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.lang = 'es-ES';
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInput(prev => prev ? prev + " " + transcript : transcript);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        console.error("Speech recognition error:", event.error);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
+  }, []);
+
+  const toggleListen = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+    } else {
+      recognitionRef.current?.start();
+      setIsListening(true);
+    }
+  };
   
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [showModelMenu, setShowModelMenu] = useState(false);
@@ -1199,7 +1236,12 @@ export default function AIChatComponent({
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <button type="button" className="p-1.5 text-gray-400 hover:text-gray-200">
+                    <button 
+                      type="button" 
+                      onClick={toggleListen}
+                      className={`p-1.5 transition-colors ${isListening ? "text-red-500 bg-red-500/10 animate-pulse" : "text-gray-400 hover:text-gray-200"}`}
+                      title={isListening ? "Detener grabación" : "Dictar por voz"}
+                    >
                       <Mic className="w-4 h-4" />
                     </button>
                     <button type="button" className="p-1.5 text-gray-400 hover:text-gray-200">

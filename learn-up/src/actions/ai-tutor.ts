@@ -337,6 +337,19 @@ ${toolDefs}`;
     const rawContent = response.choices[0]?.message?.content || "";
     const { cleanText, action } = await parseToolCall(rawContent);
 
+    // Parse panel elements
+    const formulasMatch = cleanText.match(/<formula>(.*?)<\/formula>/g);
+    if (formulasMatch) {
+      const { getAiEnvironment, updateAiEnvironment } = require("./ai-environment");
+      const currentEnv = await getAiEnvironment(currentSessionId);
+      const newFormulas = formulasMatch.map(f => f.replace(/<\/?formula>/g, "").trim());
+      if (newFormulas.length > 0) {
+        await updateAiEnvironment(currentSessionId, {
+          formulas: [...(currentEnv?.formulas || []), ...newFormulas]
+        });
+      }
+    }
+
     if (action) {
       if (!action.requiresConfirm) {
         const result = await executeToolAction(action.tool, action.args);

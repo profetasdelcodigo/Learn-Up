@@ -143,10 +143,33 @@ export async function getUserRooms() {
     }));
 
     return roomsWithProfiles as (ChatRoom & { participants_profiles: any[] })[];
-  } catch (err) {
+} catch (err) {
     console.error("[getUserRooms] Unexpected error:", err);
     return [];
   }
+}
+
+export async function getChatMessages(roomId: string, limit = 50) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  // Server-side query allows us to bypass some RLS if we use the right client, but let's just query normally first
+  // If it still fails, we could use the service role key, but this is a server action so it runs with the user's auth context.
+  const { data, error } = await supabase
+    .from("chat_messages")
+    .select(`*, profiles:user_id (*), reactions:message_reactions (*)`)
+    .eq("room_id", roomId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("[getChatMessages] Error:", error);
+    return [];
+  }
+  return data ? data.reverse() : [];
 }
 
 export async function ensurePrivateRoom(friendId: string) {

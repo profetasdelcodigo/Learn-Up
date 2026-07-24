@@ -3,9 +3,8 @@
 import { useState } from "react";
 import { BookOpen } from "lucide-react";
 import NotebookLayout from "@/components/ai/NotebookLayout";
-import SourcesPanel from "@/components/ai/SourcesPanel";
 import AIChatComponent from "@/components/AIChatComponent";
-import NotebookStudio from "@/components/ai/NotebookStudio";
+import NotebookWhiteboard from "@/components/NotebookWhiteboard";
 import { askProfessor } from "@/actions/ai-tutor";
 
 export default function ProfessorChatPage() {
@@ -13,13 +12,6 @@ export default function ProfessorChatPage() {
 
   return (
     <NotebookLayout
-      leftPanel={
-        <SourcesPanel
-          aiType="profesor"
-          currentSessionId={sessionId}
-          onSessionChange={setSessionId}
-        />
-      }
       centerPanel={
         <AIChatComponent
           title="Profesor Mente"
@@ -32,7 +24,7 @@ export default function ProfessorChatPage() {
           defaultModel="groq/llama-3.3-70b-versatile"
         />
       }
-      rightPanel={<NotebookStudio currentSessionId={sessionId} />}
+      rightPanel={<NotebookWhiteboard currentSessionId={sessionId} />}
     />
   );
 }

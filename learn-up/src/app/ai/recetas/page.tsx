@@ -3,9 +3,8 @@
 import { useState } from "react";
 import { Utensils } from "lucide-react";
 import NotebookLayout from "@/components/ai/NotebookLayout";
-import SourcesPanel from "@/components/ai/SourcesPanel";
 import AIChatComponent from "@/components/AIChatComponent";
-import NotebookStudio from "@/components/ai/NotebookStudio";
+import RecipeSidebar from "@/components/RecipeSidebar";
 import { generateRecipe } from "@/actions/ai-tutor";
 
 export default function RecipesChatPage() {
@@ -14,13 +13,6 @@ export default function RecipesChatPage() {
 
   return (
     <NotebookLayout
-      leftPanel={
-        <SourcesPanel
-          aiType="nutricion"
-          currentSessionId={sessionId}
-          onSessionChange={setSessionId}
-        />
-      }
       centerPanel={
         <AIChatComponent
           title="Chef Nutre"
@@ -34,7 +26,7 @@ export default function RecipesChatPage() {
           defaultModel="openrouter/deepseek/deepseek-coder"
         />
       }
-      rightPanel={<NotebookStudio currentSessionId={sessionId} />}
+      rightPanel={<RecipeSidebar messages={messages} />}
     />
   );
 }

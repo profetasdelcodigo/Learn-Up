@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSetAtom } from "jotai";
+import { addToastAtom } from "@/store/ui";
 import {
   CalendarIcon,
   Plus,
@@ -112,7 +114,58 @@ export default function CalendarPage() {
   const [friends, setFriends] = useState<{ id: string; name: string }[]>([]);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
 
+  // Notification stuff
+  const addToast = useSetAtom(addToastAtom);
+  const notifiedEventsRef = useRef<Set<string>>(new Set());
+
   const supabase = createClient();
+
+  useEffect(() => {
+    // Request browser notification permission
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "default") {
+        Notification.requestPermission();
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    // Check for upcoming events every 30 seconds
+    const interval = setInterval(() => {
+      const now = new Date();
+      events.forEach((event) => {
+        const eventDate = new Date(event.start_time);
+        const timeDiff = eventDate.getTime() - now.getTime();
+        
+        // If event is within next 10 minutes and hasn't been notified yet
+        if (timeDiff > 0 && timeDiff <= 10 * 60 * 1000 && !notifiedEventsRef.current.has(event.id)) {
+          notifiedEventsRef.current.add(event.id);
+          
+          // Toast Notification (In-App)
+          addToast({
+            title: "Evento próximo",
+            message: `${event.title} comienza en menos de 10 minutos`,
+            type: "info"
+          });
+
+          // Browser Notification (System Push + Sound)
+          if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+            try {
+              const audio = new Audio('/notification.mp3'); // Fallback if exists
+              audio.play().catch(() => {});
+            } catch (e) {}
+
+            new Notification("Learn Up - Evento Próximo", {
+              body: `${event.title} comienza en breve`,
+              icon: "/icon.png"
+            });
+          }
+        }
+      });
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [events, addToast]);
 
   useEffect(() => {
     const init = async () => {

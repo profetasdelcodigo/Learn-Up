@@ -482,19 +482,12 @@ export default function ChatPage() {
 
     let ignore = false;
 
-    // Direct client query â€” no server round-trip
+    // Fetch via server action to bypass potential client-side RLS limits
     const loadMessagesForRoom = async (roomId: string) => {
       try {
-        const { data, error } = await supabase
-          .from("chat_messages")
-          .select(
-            `*, profiles:user_id (*), reactions:message_reactions (*)`,
-          )
-          .eq("room_id", roomId)
-          .order("created_at", { ascending: false })
-          .limit(50);
-        if (!error && data && !ignore) {
-          setMessages((data as any).reverse());
+        const data = await getChatMessages(roomId, 50);
+        if (data && !ignore) {
+          setMessages(data);
         }
       } catch (err) {
         console.error("Error loading messages:", err);

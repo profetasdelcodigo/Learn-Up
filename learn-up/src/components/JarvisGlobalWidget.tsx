@@ -29,7 +29,8 @@ export default function JarvisGlobalWidget() {
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [autoTTS, setAutoTTS] = useState(true);
-  const [selectedModel, setSelectedModel] = useState("nvidia/moonshotai/kimi-k2.6");
+  const [selectedModel, setSelectedModel] = useState("groq/llama-3.3-70b-versatile");
+  const [autopilot, setAutopilot] = useState(false);
   const [showModelMenu, setShowModelMenu] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -294,17 +295,28 @@ export default function JarvisGlobalWidget() {
                   onClick={() => setShowModelMenu(!showModelMenu)}
                   className="flex items-center gap-1 text-[10px] text-brand-gold/80 hover:text-brand-gold transition-colors"
                 >
-                  {selectedModel.includes("nemotron-3-ultra") ? "Nemotron Ultra" :
-                   selectedModel.includes("deepseek-v4-flash") ? "DS Flash" :
-                   selectedModel.includes("deepseek-v4") ? "DS V4 Pro" :
-                   selectedModel.includes("kimi") ? "Kimi K2.6" : "IA"}
-                  <ChevronDown className="w-2.5 h-2.5" />
+                  {selectedModel.includes("3.1-8b") ? "Groq 3.1 8B" :
+                   selectedModel.includes("70b") ? "Groq 3.3 70B" :
+                   "Modelo"}
+                  <ChevronDown className="w-3 h-3" />
                 </button>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-gray-400">
+            
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setAutopilot(!autopilot)}
+                className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium transition-all ${
+                  autopilot ? "bg-red-500/20 text-red-400 border border-red-500/30" : "bg-white/5 text-gray-400 hover:text-white"
+                }`}
+                title="Piloto Automático: Jarvis actuará por su cuenta hasta terminar la tarea"
+              >
+                <Activity className="w-3 h-3" />
+                Piloto {autopilot ? "ON" : "OFF"}
+              </button>
               <button 
-                onClick={() => setAutoTTS(!autoTTS)} 
+                type="button" onClick={() => setAutoTTS(!autoTTS)} 
                 className={`hover:text-white transition ${autoTTS ? 'text-brand-gold' : ''}`}
                 title={autoTTS ? "Silenciar" : "Activar Voz"}
               >
@@ -369,17 +381,8 @@ export default function JarvisGlobalWidget() {
           {showModelMenu && (
             <div className="absolute top-14 left-3 right-3 bg-black/95 border border-brand-gold/20 rounded-xl p-2 z-50 shadow-2xl">
               {[
-                { id: "openrouter/deepseek/deepseek-chat", name: "DeepSeek V4 Pro", icon: <Brain className="w-3.5 h-3.5 text-emerald-400" /> },
-                { id: "nvidia/meta/llama-3.1-8b-instruct", name: "Llama 3.1 8B", icon: <Zap className="w-3.5 h-3.5 text-yellow-400" /> },
-                { id: "nvidia/meta/llama-3.1-405b-instruct", name: "Nemotron 3 Ultra", icon: <Brain className="w-3.5 h-3.5 text-purple-400" /> },
-                { id: "nvidia/moonshotai/kimi-k2.6", name: "Kimi K2.6", icon: <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> },
-                { id: "openrouter/minimax/minimax-01", name: "MiniMax M3", icon: <Activity className="w-3.5 h-3.5 text-pink-400" /> },
-                { id: "openrouter/qwen/qwen-2.5-72b-instruct", name: "Qwen 2.5 72B", icon: <Brain className="w-3.5 h-3.5 text-blue-400" /> },
-                { id: "nvidia/mistralai/mistral-large-2407", name: "Mistral 3.5", icon: <Activity className="w-3.5 h-3.5 text-orange-400" /> },
-                { id: "groq/llama-3.1-8b-instant", name: "Nano Omni", icon: <Sparkles className="w-3.5 h-3.5 text-indigo-400" /> },
-                { id: "gemini/gemini-1.5-pro-latest", name: "Gemini 1.5 Pro", icon: <Zap className="w-3.5 h-3.5 text-brand-gold" /> },
-                { id: "groq/llama-3.3-70b-versatile", name: "Groq Llama 3 70B", icon: <Zap className="w-3.5 h-3.5 text-green-400" /> },
-                { id: "openrouter/meta-llama/llama-3.3-70b-instruct", name: "OR Llama 3.3 70B", icon: <Activity className="w-3.5 h-3.5 text-blue-400" /> },
+                { id: "groq/llama-3.3-70b-versatile", name: "Groq Llama 3.3 70B", icon: <Zap className="w-3.5 h-3.5 text-green-400" /> },
+                { id: "groq/llama-3.1-8b-instant", name: "Groq Llama 3.1 8B", icon: <Sparkles className="w-3.5 h-3.5 text-indigo-400" /> },
               ].map(m => (
                 <button
                   key={m.id}
