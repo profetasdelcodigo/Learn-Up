@@ -369,29 +369,6 @@ export async function updateGroup(
   if (error) throw error;
 }
 
-export async function getChatMessages(roomId: string) {
-  const supabase = await createClient();
-  try {
-    const { data, error } = await supabase
-      .from("chat_messages")
-      .select(
-        `*, profiles:user_id (*), reactions:message_reactions (*)`
-      )
-      .eq("room_id", roomId)
-      .order("created_at", { ascending: false })
-      .limit(50);
-
-    if (error) {
-      console.error("[getChatMessages] Error:", JSON.stringify(error));
-      return [];
-    }
-    return ((data || []) as Message[]).reverse();
-  } catch (err) {
-    console.error("[getChatMessages] Unexpected error:", err);
-    return [];
-  }
-}
-
 export async function sendMessage(
   roomId: string,
   content: string,
