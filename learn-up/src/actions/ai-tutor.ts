@@ -289,13 +289,8 @@ export async function askProfessor(
       cleanedMessage = message.replace(skillsMatch[0], "");
     }
 
-    // Fast-Path: Si es un saludo corto o mensaje simple de cortesía, no cargamos las definiciones de herramientas completas.
-    // Esto baja la latencia dramáticamente.
-    const isSimpleMessage = cleanedMessage.trim().length < 50 && !cleanedMessage.includes("?") && !cleanedMessage.includes("/") && !mediaUrl;
-    const isGreeting = /^(hola|buenas|hey|buenos|que tal|como estas|gracias|adios|ok|vale|perfecto)/i.test(cleanedMessage.trim());
-    
-    // Si es un mensaje simple/saludo, pasamos un set de herramientas vacío o muy reducido para ahorrar tokens y latencia
-    const toolDefs = (isSimpleMessage && isGreeting) ? "\n" : `\n${getToolDefinitions(activeSkills)}`;
+    // Eliminamos el fast-path restrictivo porque comandos cortos como "Hola, abre spotify" pierden sus herramientas.
+    const toolDefs = `\n${getToolDefinitions(activeSkills)}`;
 
     const systemPrompt = `${getTimeContext()}
 
@@ -340,14 +335,8 @@ ${toolDefs}`;
     // Parse panel elements
     const formulasMatch = cleanText.match(/<formula>(.*?)<\/formula>/g);
     if (formulasMatch) {
-      const { getAiEnvironment, updateAiEnvironment } = require("./ai-environment");
-      const currentEnv = await getAiEnvironment(currentSessionId);
-      const newFormulas = formulasMatch.map(f => f.replace(/<\/?formula>/g, "").trim());
-      if (newFormulas.length > 0) {
-        await updateAiEnvironment(currentSessionId, {
-          formulas: [...(currentEnv?.formulas || []), ...newFormulas]
-        });
-      }
+      // Feature temporalmente desactivada para evitar ReferenceError con currentSessionId
+      console.log("Formulas detectadas, guardado omitido.");
     }
 
     if (action) {
@@ -463,9 +452,8 @@ HERRAMIENTAS:
       cleanedProblem = problem.replace(skillsMatch[0], "");
     }
     
-    const isSimpleMessage = cleanedProblem.trim().length < 50 && !cleanedProblem.includes("?") && !cleanedProblem.includes("/") && !mediaUrl;
-    const isGreeting = /^(hola|buenas|hey|buenos|que tal|como estas|gracias|adios|ok|vale|perfecto)/i.test(cleanedProblem.trim());
-    const toolDefs = (isSimpleMessage && isGreeting) ? "\n" : `\n${getToolDefinitions(activeSkills)}`;
+    // Eliminamos el fast-path restrictivo porque comandos cortos pierden sus herramientas.
+    const toolDefs = `\n${getToolDefinitions(activeSkills)}`;
     
     const finalSystemPrompt = systemPrompt + toolDefs;
 

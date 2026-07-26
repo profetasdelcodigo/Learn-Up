@@ -927,12 +927,26 @@ export async function removeMessageReaction(messageId: string, emoji: string) {
 
 export async function getRoomMembers(roomId: string) {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const { data: members, error } = await supabase
     .from('room_members')
-    .select('id, user_id, role, muted_until, profiles:user_id(*)')
+    .select('id, user_id, role, muted_until')
     .eq('room_id', roomId);
+    
   if (error) throw error;
-  return data;
+  if (!members || members.length === 0) return [];
+  
+  const userIds = members.map(m => m.user_id);
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('*')
+    .in('id', userIds);
+    
+  const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+  
+  return members.map(m => ({
+    ...m,
+    profiles: profileMap.get(m.user_id) || null
+  }));
 }
 
 export async function muteRoomNotifications(roomId: string, hours: number | null) {

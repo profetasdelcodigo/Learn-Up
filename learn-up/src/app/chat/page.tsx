@@ -317,9 +317,6 @@ export default function ChatPage() {
 
         if (myRooms) {
           setRooms(myRooms as any);
-          if (myRooms.length > 0) {
-            setActiveChat((prev) => prev || (myRooms[0] as any).id);
-          }
         }
 
         if (pendingReqs && pendingReqs.length > 0) {
