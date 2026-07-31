@@ -1097,34 +1097,77 @@ export default function AIChatComponent({
 
               {showModelMenu && !disableModelSelector && (
                 <div className="absolute bottom-full left-0 mb-2 w-72 bg-surface-2 border border-border-subtle rounded-xl shadow-2xl p-2 z-50 max-h-80 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
-                  <div className="text-xs font-semibold text-gray-400 mb-2 px-2 uppercase tracking-wider">Motor de Inteligencia</div>
                   {[
-                    // Gemini
-                    { id: "gemini/antigravity", name: "Antigravity (Agente Nativo)", icon: <Bot className="w-4 h-4 text-purple-500" />, tag: "Ultra" },
-                    { id: "gemini/gemini-3.1-pro", name: "Gemini 3.1 Pro (High)", icon: <Sparkles className="w-4 h-4 text-blue-500" />, tag: "Nuevo" },
-                    { id: "gemini/gemini-3.5-flash", name: "Gemini 3.5 Flash", icon: <Zap className="w-4 h-4 text-blue-400" />, tag: "Rápido" },
-                    // OpenRouter
-                    { id: "openrouter/openai/gpt-oss-120b", name: "GPT OSS 120B", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "Potente" },
-                    { id: "openrouter/qwen/qwen3.6-27b", name: "Qwen 3.6 27B", icon: <Globe className="w-4 h-4 text-purple-300" />, tag: "" },
-                    { id: "openrouter/deepseek/deepseek-r1:free", name: "DeepSeek R1 (Lógico)", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "🥇" },
-                    // NVIDIA NIM
-                    { id: "nvidia/z-ai/glm-5.2", name: "GLM-5.2 Flagship", icon: <Bot className="w-4 h-4 text-emerald-400" />, tag: "⭐" },
-                    { id: "nvidia/nvidia/nemotron-3-ultra-550b-a55b", name: "Nemotron Ultra 550B", icon: <Zap className="w-4 h-4 text-emerald-500" />, tag: "" },
-                    // Groq
-                    { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Groq)", icon: <BrainCircuit className="w-4 h-4 text-orange-400" />, tag: "🚀" },
-                    { id: "groq/llama-3.1-8b-instant", name: "Llama 3.1 8B (Groq)", icon: <Zap className="w-4 h-4 text-orange-300" />, tag: "Rápido" },
-                    { id: "groq/deepseek-r1-distill-llama-70b", name: "DeepSeek R1 70B (Groq)", icon: <Globe className="w-4 h-4 text-rose-400" />, tag: "Lógico" },
-                  ].map(m => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => { setSelectedModel(m.id); setShowModelMenu(false); }}
-                      className={`w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-white/5 flex items-center gap-2 transition-colors ${selectedModel === m.id ? "bg-white/10 text-white font-medium" : "text-gray-300"}`}
-                    >
-                      {m.icon}
-                      <span className="flex-1 truncate">{m.name}</span>
-                      {m.tag && <span className="text-[9px] bg-white/5 text-gray-400 px-1.5 py-0.5 rounded-full shrink-0">{m.tag}</span>}
-                    </button>
+                    {
+                      category: "Gemini: Agentes",
+                      models: [
+                        { id: "gemini/antigravity", name: "Antigravity", icon: <Bot className="w-4 h-4 text-purple-500" />, tag: "Ultra" },
+                        { id: "gemini/deep-research-pro", name: "Deep Research Pro", icon: <Command className="w-4 h-4 text-blue-500" />, tag: "Preview" },
+                      ]
+                    },
+                    {
+                      category: "Gemini: Texto (Alta Capacidad)",
+                      models: [
+                        { id: "gemini/gemini-3.1-pro", name: "Gemini 3.1 Pro", icon: <Sparkles className="w-4 h-4 text-blue-500" />, tag: "Nuevo" },
+                        { id: "gemini/gemini-2.5-pro", name: "Gemini 2.5 Pro", icon: <Sparkles className="w-4 h-4 text-gray-400" />, tag: "" },
+                        { id: "gemini/gemma-4-31b", name: "Gemma 4 31B", icon: <Brain className="w-4 h-4 text-green-400" />, tag: "Local" },
+                      ]
+                    },
+                    {
+                      category: "Gemini: Texto (Rápido)",
+                      models: [
+                        { id: "gemini/gemini-3.6-flash", name: "Gemini 3.6 Flash", icon: <Zap className="w-4 h-4 text-blue-400" />, tag: "Beta" },
+                        { id: "gemini/gemini-3.5-flash", name: "Gemini 3.5 Flash", icon: <Zap className="w-4 h-4 text-blue-400" />, tag: "Rápido" },
+                        { id: "gemini/gemini-3.5-flash-lite", name: "Gemini 3.5 Flash Lite", icon: <Zap className="w-4 h-4 text-blue-300" />, tag: "" },
+                        { id: "gemini/gemini-3.1-flash-lite", name: "Gemini 3.1 Flash Lite", icon: <Zap className="w-4 h-4 text-blue-300" />, tag: "" },
+                        { id: "gemini/gemini-3-flash", name: "Gemini 3 Flash", icon: <Zap className="w-4 h-4 text-gray-400" />, tag: "" },
+                        { id: "gemini/gemini-2.5-flash", name: "Gemini 2.5 Flash", icon: <Zap className="w-4 h-4 text-gray-500" />, tag: "" },
+                      ]
+                    },
+                    {
+                      category: "Gemini: Experimental & Multimodal",
+                      models: [
+                        { id: "gemini/computer-use", name: "Computer Use Preview", icon: <Command className="w-4 h-4 text-red-400" />, tag: "Exp" },
+                        { id: "gemini/robotics-er-2", name: "Robotics ER 2", icon: <Bot className="w-4 h-4 text-orange-500" />, tag: "ER2" },
+                        { id: "gemini/omni-flash", name: "Gemini Omni Flash", icon: <Zap className="w-4 h-4 text-purple-400" />, tag: "Live" },
+                        { id: "gemini/veo-3-generate", name: "Veo 3 Generate (Video)", icon: <Zap className="w-4 h-4 text-red-500" />, tag: "Video" },
+                        { id: "gemini/imagen-4-ultra", name: "Imagen 4 Ultra", icon: <Sparkles className="w-4 h-4 text-pink-500" />, tag: "Img" },
+                      ]
+                    },
+                    {
+                      category: "OpenRouter & NVIDIA",
+                      models: [
+                        { id: "openrouter/openai/gpt-oss-120b", name: "GPT OSS 120B", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "Potente" },
+                        { id: "openrouter/qwen/qwen3.6-27b", name: "Qwen 3.6 27B", icon: <Globe className="w-4 h-4 text-purple-300" />, tag: "" },
+                        { id: "openrouter/deepseek/deepseek-r1:free", name: "DeepSeek R1 (Lógico)", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "🥇" },
+                        { id: "nvidia/z-ai/glm-5.2", name: "GLM-5.2 Flagship", icon: <Bot className="w-4 h-4 text-emerald-400" />, tag: "⭐" },
+                        { id: "nvidia/nvidia/nemotron-3-ultra-550b-a55b", name: "Nemotron Ultra 550B", icon: <Zap className="w-4 h-4 text-emerald-500" />, tag: "" },
+                      ]
+                    },
+                    {
+                      category: "Groq (Velocidad Extrema)",
+                      models: [
+                        { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Groq)", icon: <BrainCircuit className="w-4 h-4 text-orange-400" />, tag: "🚀" },
+                        { id: "groq/llama-3.1-8b-instant", name: "Llama 3.1 8B (Groq)", icon: <Zap className="w-4 h-4 text-orange-300" />, tag: "Rápido" },
+                        { id: "groq/deepseek-r1-distill-llama-70b", name: "DeepSeek R1 70B (Groq)", icon: <Globe className="w-4 h-4 text-rose-400" />, tag: "Lógico" },
+                      ]
+                    }
+                  ].map(cat => (
+                    <div key={cat.category} className="mb-2 last:mb-0">
+                      <div className="text-[10px] font-bold text-gray-500 mb-1 px-2 uppercase tracking-wider">{cat.category}</div>
+                      {cat.models.map(m => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => { setSelectedModel(m.id); setShowModelMenu(false); }}
+                          className={`w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-white/5 flex items-center gap-2 transition-colors ${selectedModel === m.id ? "bg-white/10 text-white font-medium" : "text-gray-300"}`}
+                        >
+                          {m.icon}
+                          <span className="flex-1 truncate">{m.name}</span>
+                          {m.tag && <span className="text-[9px] bg-white/5 text-gray-400 px-1.5 py-0.5 rounded-full shrink-0">{m.tag}</span>}
+                        </button>
+                      ))}
+                    </div>
                   ))}
                 </div>
               )}
