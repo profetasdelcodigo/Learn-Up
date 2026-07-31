@@ -1099,18 +1099,18 @@ export default function AIChatComponent({
                 <div className="absolute bottom-full left-0 mb-2 w-72 bg-surface-2 border border-border-subtle rounded-xl shadow-2xl p-2 z-50 max-h-80 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
                   {[
                     {
-                      category: "Gemini: Agentes",
+                      category: "Gemini: Agentes & Robotics",
                       models: [
                         { id: "gemini/antigravity", name: "Antigravity", icon: <Bot className="w-4 h-4 text-purple-500" />, tag: "Ultra" },
-                        { id: "gemini/deep-research-pro", name: "Deep Research Pro", icon: <Command className="w-4 h-4 text-blue-500" />, tag: "Preview" },
+                        { id: "gemini/robotics-er-2", name: "Robotics ER 2 Preview", icon: <Command className="w-4 h-4 text-orange-500" />, tag: "ER2" },
+                        { id: "gemini/robotics-er-1-6", name: "Robotics ER 1.6 Preview", icon: <Command className="w-4 h-4 text-orange-400" />, tag: "ER1.6" },
                       ]
                     },
                     {
                       category: "Gemini: Texto (Alta Capacidad)",
                       models: [
-                        { id: "gemini/gemini-3.1-pro", name: "Gemini 3.1 Pro", icon: <Sparkles className="w-4 h-4 text-blue-500" />, tag: "Nuevo" },
-                        { id: "gemini/gemini-2.5-pro", name: "Gemini 2.5 Pro", icon: <Sparkles className="w-4 h-4 text-gray-400" />, tag: "" },
                         { id: "gemini/gemma-4-31b", name: "Gemma 4 31B", icon: <Brain className="w-4 h-4 text-green-400" />, tag: "Local" },
+                        { id: "gemini/gemma-4-26b", name: "Gemma 4 26B", icon: <Brain className="w-4 h-4 text-green-500" />, tag: "Local" },
                       ]
                     },
                     {
@@ -1122,16 +1122,15 @@ export default function AIChatComponent({
                         { id: "gemini/gemini-3.1-flash-lite", name: "Gemini 3.1 Flash Lite", icon: <Zap className="w-4 h-4 text-blue-300" />, tag: "" },
                         { id: "gemini/gemini-3-flash", name: "Gemini 3 Flash", icon: <Zap className="w-4 h-4 text-gray-400" />, tag: "" },
                         { id: "gemini/gemini-2.5-flash", name: "Gemini 2.5 Flash", icon: <Zap className="w-4 h-4 text-gray-500" />, tag: "" },
+                        { id: "gemini/gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite", icon: <Zap className="w-4 h-4 text-gray-600" />, tag: "" },
                       ]
                     },
                     {
-                      category: "Gemini: Experimental & Multimodal",
+                      category: "Gemini: Live & Generación",
                       models: [
-                        { id: "gemini/computer-use", name: "Computer Use Preview", icon: <Command className="w-4 h-4 text-red-400" />, tag: "Exp" },
-                        { id: "gemini/robotics-er-2", name: "Robotics ER 2", icon: <Bot className="w-4 h-4 text-orange-500" />, tag: "ER2" },
-                        { id: "gemini/omni-flash", name: "Gemini Omni Flash", icon: <Zap className="w-4 h-4 text-purple-400" />, tag: "Live" },
-                        { id: "gemini/veo-3-generate", name: "Veo 3 Generate (Video)", icon: <Zap className="w-4 h-4 text-red-500" />, tag: "Video" },
-                        { id: "gemini/imagen-4-ultra", name: "Imagen 4 Ultra", icon: <Sparkles className="w-4 h-4 text-pink-500" />, tag: "Img" },
+                        { id: "gemini/3-flash-live", name: "Gemini 3 Flash Live", icon: <Zap className="w-4 h-4 text-purple-400" />, tag: "Live" },
+                        { id: "gemini/3.5-live-translate", name: "3.5 Live Translate", icon: <Globe className="w-4 h-4 text-purple-300" />, tag: "Live" },
+                        { id: "gemini/imagen-4-ultra", name: "Imagen 4 Ultra Generate", icon: <Sparkles className="w-4 h-4 text-pink-500" />, tag: "Img" },
                       ]
                     },
                     {
