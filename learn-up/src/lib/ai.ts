@@ -307,6 +307,14 @@ export const getNvidiaNIMCompletion = async (
   if (!apiKey) throw new Error("⚠️ Falta NVIDIA_API_KEY en las variables de entorno para usar los modelos de NVIDIA NIM.");
 
   try {
+    const extraParams: any = {};
+    if (modelName.includes("nemotron-3-ultra")) {
+      extraParams.reasoning_budget = 16384;
+      extraParams.chat_template_kwargs = { enable_thinking: true };
+    } else if (modelName.includes("deepseek-v4")) {
+      extraParams.chat_template_kwargs = { thinking: true, reasoning_effort: "high" };
+    }
+
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -316,9 +324,10 @@ export const getNvidiaNIMCompletion = async (
       body: JSON.stringify({
         model: modelName,
         messages: toTextOnlyMessages(messages),
-        max_tokens: 4096,
+        max_tokens: 16384,
         temperature: 0.7,
         response_format: jsonMode ? { type: "json_object" } : undefined,
+        ...extraParams
       }),
     });
 
@@ -365,7 +374,7 @@ const getOpenRouterCompletion = async (
         messages: toTextOnlyMessages(messages),
         max_tokens: 4096,
         response_format: jsonMode ? { type: "json_object" } : undefined,
-        ...(modelName.includes("deepseek-v4-pro") || modelName.includes("qwen3.6-max-preview") || modelName.includes("-r1")
+        ...(modelName.includes("deepseek-v4") || modelName.includes("qwen") || modelName.includes("-r1") || modelName.includes("gpt-oss")
           ? { reasoning: { enabled: true } }
           : {}),
       }),

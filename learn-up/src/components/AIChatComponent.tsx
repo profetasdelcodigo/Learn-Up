@@ -1104,6 +1104,8 @@ export default function AIChatComponent({
                         { id: "openrouter/deepseek/deepseek-r1:free", name: "DeepSeek R1", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "" },
                         { id: "openrouter/deepseek/deepseek-v4-pro", name: "DeepSeek V4 Pro", icon: <Sparkles className="w-4 h-4 text-yellow-500" />, tag: "" },
                         { id: "openrouter/qwen/qwen3-coder-flash:free", name: "Qwen 3 Coder Flash", icon: <Code className="w-4 h-4 text-blue-400" />, tag: "Gratis" },
+                        { id: "openrouter/openai/gpt-oss-120b", name: "OSS 120B", icon: <BrainCircuit className="w-4 h-4 text-orange-400" />, tag: "" },
+                        { id: "openrouter/openai/gpt-oss-20b", name: "OSS 20B", icon: <Zap className="w-4 h-4 text-orange-300" />, tag: "" },
                       ]
                     },
                     {
@@ -1117,8 +1119,6 @@ export default function AIChatComponent({
                     {
                       category: "GROQ",
                       models: [
-                        { id: "groq/openai/gpt-oss-120b", name: "OSS 120B", icon: <BrainCircuit className="w-4 h-4 text-orange-400" />, tag: "" },
-                        { id: "groq/openai/gpt-oss-20b", name: "OSS 20B", icon: <Zap className="w-4 h-4 text-orange-300" />, tag: "" },
                         { id: "groq/groq/compound", name: "Compound", icon: <Globe className="w-4 h-4 text-rose-400" />, tag: "" },
                       ]
                     }
