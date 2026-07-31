@@ -1100,6 +1100,7 @@ export default function AIChatComponent({
                   <div className="text-xs font-semibold text-gray-400 mb-2 px-2 uppercase tracking-wider">Motor de Inteligencia</div>
                   {[
                     // Gemini
+                    { id: "gemini/antigravity", name: "Antigravity (Agente Nativo)", icon: <Bot className="w-4 h-4 text-purple-500" />, tag: "Ultra" },
                     { id: "gemini/gemini-3.1-pro", name: "Gemini 3.1 Pro (High)", icon: <Sparkles className="w-4 h-4 text-blue-500" />, tag: "Nuevo" },
                     { id: "gemini/gemini-3.5-flash", name: "Gemini 3.5 Flash", icon: <Zap className="w-4 h-4 text-blue-400" />, tag: "Rápido" },
                     // OpenRouter
