@@ -1099,13 +1099,15 @@ export default function AIChatComponent({
                 <div className="absolute bottom-full left-0 mb-2 w-72 bg-surface-2 border border-border-subtle rounded-xl shadow-2xl p-2 z-50 max-h-80 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
                   <div className="text-xs font-semibold text-gray-400 mb-2 px-2 uppercase tracking-wider">Motor de Inteligencia</div>
                   {[
+                    // Gemini
+                    { id: "gemini/gemini-3.1-pro", name: "Gemini 3.1 Pro (High)", icon: <Sparkles className="w-4 h-4 text-blue-500" />, tag: "Nuevo" },
+                    { id: "gemini/gemini-3.5-flash", name: "Gemini 3.5 Flash", icon: <Zap className="w-4 h-4 text-blue-400" />, tag: "Rápido" },
                     // OpenRouter
+                    { id: "openrouter/openai/gpt-oss-120b", name: "GPT OSS 120B", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "Potente" },
+                    { id: "openrouter/qwen/qwen3.6-27b", name: "Qwen 3.6 27B", icon: <Globe className="w-4 h-4 text-purple-300" />, tag: "" },
                     { id: "openrouter/deepseek/deepseek-r1:free", name: "DeepSeek R1 (Lógico)", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "🥇" },
-                    { id: "openrouter/deepseek/deepseek-v4-pro:free", name: "DeepSeek V4 Pro (1M ctx)", icon: <Sparkles className="w-4 h-4 text-brand-gold" />, tag: "⭐" },
-                    { id: "openrouter/qwen/qwen3-coder:free", name: "Qwen 3 Coder 480B", icon: <Code className="w-4 h-4 text-blue-400" />, tag: "" },
                     // NVIDIA NIM
-                    { id: "nvidia/z-ai/glm-5.2", name: "GLM-5.2 Flagship (Agente)", icon: <Bot className="w-4 h-4 text-emerald-400" />, tag: "⭐" },
-                    { id: "nvidia/deepseek-ai/deepseek-v4-pro", name: "DeepSeek V4 Pro (NVIDIA)", icon: <Sparkles className="w-4 h-4 text-green-400" />, tag: "" },
+                    { id: "nvidia/z-ai/glm-5.2", name: "GLM-5.2 Flagship", icon: <Bot className="w-4 h-4 text-emerald-400" />, tag: "⭐" },
                     { id: "nvidia/nvidia/nemotron-3-ultra-550b-a55b", name: "Nemotron Ultra 550B", icon: <Zap className="w-4 h-4 text-emerald-500" />, tag: "" },
                     // Groq
                     { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Groq)", icon: <BrainCircuit className="w-4 h-4 text-orange-400" />, tag: "🚀" },
