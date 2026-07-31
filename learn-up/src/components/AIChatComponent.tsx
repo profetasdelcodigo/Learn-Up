@@ -1099,46 +1099,22 @@ export default function AIChatComponent({
                 <div className="absolute bottom-full left-0 mb-2 w-72 bg-surface-2 border border-border-subtle rounded-xl shadow-2xl p-2 z-50 max-h-80 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
                   {[
                     {
-                      category: "Gemini: Agentes & Robotics",
+                      category: "OpenRouter (Gratis)",
                       models: [
-                        { id: "gemini/antigravity", name: "Antigravity", icon: <Bot className="w-4 h-4 text-purple-500" />, tag: "Ultra" },
-                        { id: "gemini/robotics-er-2", name: "Robotics ER 2 Preview", icon: <Command className="w-4 h-4 text-orange-500" />, tag: "ER2" },
-                        { id: "gemini/robotics-er-1-6", name: "Robotics ER 1.6 Preview", icon: <Command className="w-4 h-4 text-orange-400" />, tag: "ER1.6" },
+                        { id: "openrouter/deepseek/deepseek-r1:free", name: "DeepSeek R1", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "🥇" },
+                        { id: "openrouter/deepseek/deepseek-chat:free", name: "DeepSeek V3", icon: <Globe className="w-4 h-4 text-purple-300" />, tag: "Rápido" },
+                        { id: "openrouter/qwen/qwen-2.5-72b-instruct:free", name: "Qwen 2.5 72B", icon: <Bot className="w-4 h-4 text-emerald-400" />, tag: "Potente" },
+                        { id: "openrouter/meta-llama/llama-3.1-8b-instruct:free", name: "Llama 3.1 8B (OR)", icon: <Zap className="w-4 h-4 text-orange-400" />, tag: "Rápido" },
+                        { id: "openrouter/nvidia/llama-3.1-nemotron-70b-instruct:free", name: "Nemotron 70B", icon: <BrainCircuit className="w-4 h-4 text-green-500" />, tag: "⭐" },
                       ]
                     },
                     {
-                      category: "Gemini: Texto (Alta Capacidad)",
+                      category: "NVIDIA NIM (Gratis)",
                       models: [
-                        { id: "gemini/gemma-4-31b", name: "Gemma 4 31B", icon: <Brain className="w-4 h-4 text-green-400" />, tag: "Local" },
-                        { id: "gemini/gemma-4-26b", name: "Gemma 4 26B", icon: <Brain className="w-4 h-4 text-green-500" />, tag: "Local" },
-                      ]
-                    },
-                    {
-                      category: "Gemini: Texto (Rápido)",
-                      models: [
-                        { id: "gemini/gemini-3.6-flash", name: "Gemini 3.6 Flash", icon: <Zap className="w-4 h-4 text-blue-400" />, tag: "Beta" },
-                        { id: "gemini/gemini-3.5-flash", name: "Gemini 3.5 Flash", icon: <Zap className="w-4 h-4 text-blue-400" />, tag: "Rápido" },
-                        { id: "gemini/gemini-3.5-flash-lite", name: "Gemini 3.5 Flash Lite", icon: <Zap className="w-4 h-4 text-blue-300" />, tag: "" },
-                        { id: "gemini/gemini-3.1-flash-lite", name: "Gemini 3.1 Flash Lite", icon: <Zap className="w-4 h-4 text-blue-300" />, tag: "" },
-                        { id: "gemini/gemini-3-flash", name: "Gemini 3 Flash", icon: <Zap className="w-4 h-4 text-gray-400" />, tag: "" },
-                        { id: "gemini/gemini-2.5-flash", name: "Gemini 2.5 Flash", icon: <Zap className="w-4 h-4 text-gray-500" />, tag: "" },
-                        { id: "gemini/gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite", icon: <Zap className="w-4 h-4 text-gray-600" />, tag: "" },
-                      ]
-                    },
-                    {
-                      category: "Gemini: Live & Generación",
-                      models: [
-                        { id: "gemini/3-flash-live", name: "Gemini 3 Flash Live", icon: <Zap className="w-4 h-4 text-purple-400" />, tag: "Live" },
-                        { id: "gemini/3.5-live-translate", name: "3.5 Live Translate", icon: <Globe className="w-4 h-4 text-purple-300" />, tag: "Live" },
-                        { id: "gemini/imagen-4-ultra", name: "Imagen 4 Ultra Generate", icon: <Sparkles className="w-4 h-4 text-pink-500" />, tag: "Img" },
-                      ]
-                    },
-                    {
-                      category: "OpenRouter & NVIDIA",
-                      models: [
-                        { id: "openrouter/deepseek/deepseek-r1:free", name: "DeepSeek R1 (OpenRouter)", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "🥇" },
+                        { id: "nvidia/nvidia/nemotron-4-340b-instruct", name: "Nemotron-4 340B", icon: <Brain className="w-4 h-4 text-emerald-500" />, tag: "Masivo" },
+                        { id: "nvidia/meta/llama-3.1-405b-instruct", name: "Llama 3.1 405B", icon: <Zap className="w-4 h-4 text-green-400" />, tag: "God" },
+                        { id: "nvidia/meta/llama-3.1-70b-instruct", name: "Llama 3.1 70B", icon: <BrainCircuit className="w-4 h-4 text-emerald-300" />, tag: "Potente" },
                         { id: "nvidia/z-ai/glm-5.2", name: "GLM-5.2 Flagship", icon: <Bot className="w-4 h-4 text-emerald-400" />, tag: "⭐" },
-                        { id: "nvidia/nvidia/nemotron-3-ultra-550b-a55b", name: "Nemotron Ultra 550B", icon: <Zap className="w-4 h-4 text-emerald-500" />, tag: "" },
                       ]
                     },
                     {
