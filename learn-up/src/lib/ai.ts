@@ -505,13 +505,28 @@ export const getGroqCompletion = async (
 ) => {
   if (!groq) throw new Error("Groq is not configured. Missing GROQ_API_KEY.");
   try {
+    const extraParams: any = {};
+    
+    if (modelName.includes("gpt-oss")) {
+      extraParams.reasoning_effort = "medium";
+    }
+
+    if (modelName.includes("compound")) {
+      extraParams.compound_custom = {
+        tools: {
+          enabled_tools: ["web_search", "code_interpreter", "visit_website"]
+        }
+      };
+    }
+
     const response = await groq.chat.completions.create({
       messages,
       model: modelName,
       response_format: jsonMode ? { type: "json_object" } : undefined,
       temperature: 0.8,
       max_tokens: modelName.includes("8b") ? 1024 : 4000,
-    });
+      ...extraParams
+    } as any);
     return {
       choices: [
         {
