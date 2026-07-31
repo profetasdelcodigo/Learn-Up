@@ -1103,7 +1103,7 @@ export default function AIChatComponent({
                       models: [
                         { id: "openrouter/deepseek/deepseek-r1:free", name: "DeepSeek R1", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "" },
                         { id: "openrouter/deepseek/deepseek-v4-pro", name: "DeepSeek V4 Pro", icon: <Sparkles className="w-4 h-4 text-yellow-500" />, tag: "" },
-                        { id: "openrouter/qwen/qwen-3-coder", name: "Qwen 3 Coder", icon: <Code className="w-4 h-4 text-blue-400" />, tag: "" },
+                        { id: "openrouter/qwen/qwen3-coder-flash:free", name: "Qwen 3 Coder Flash", icon: <Code className="w-4 h-4 text-blue-400" />, tag: "Gratis" },
                       ]
                     },
                     {
