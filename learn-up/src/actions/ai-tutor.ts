@@ -262,6 +262,7 @@ export async function askProfessor(
   mediaUrl?: string,
   mediaType?: string,
   modelId?: string,
+  sessionId?: string | null,
 ): Promise<{ response: string; error?: string; actions?: ToolAction[]; executedActions?: ToolAction[] }> {
   try {
     const supabase = await createClient();
@@ -332,11 +333,16 @@ ${toolDefs}`;
     const rawContent = response.choices[0]?.message?.content || "";
     const { cleanText, action } = await parseToolCall(rawContent);
 
-    // Parse panel elements
     const formulasMatch = cleanText.match(/<formula>(.*?)<\/formula>/g);
-    if (formulasMatch) {
-      // Feature temporalmente desactivada para evitar ReferenceError con currentSessionId
-      console.log("Formulas detectadas, guardado omitido.");
+    
+    if (formulasMatch && sessionId) {
+      const { getAiEnvironment, updateAiEnvironment } = await import("./ai-environment");
+      const env = await getAiEnvironment(sessionId);
+      const newFormulas = formulasMatch.map(f => f.replace(/<\/?formula>/g, "").trim());
+      await updateAiEnvironment(sessionId, { formulas: [...(env?.formulas || []), ...newFormulas] });
+      
+      // Eliminar los tags del texto final para que no ensucien el chat
+      cleanText = cleanText.replace(/<formula>.*?<\/formula>/g, "").trim();
     }
 
     if (action) {
@@ -468,7 +474,7 @@ HERRAMIENTAS:
         ...truncatedHistory,
         { role: "user", content: finalMessageContent },
       ],
-      modelId || "nvidia/moonshotai/kimi-k2.6",
+      modelId || "openrouter/qwen/qwen3.7-flash",
     );
 
     const rawContent = response.choices[0]?.message?.content || "";
@@ -490,7 +496,7 @@ HERRAMIENTAS:
               { role: "assistant", content: cleanText },
               { role: "user", content: followUpPrompt },
             ],
-            modelId || "nvidia/moonshotai/kimi-k2.6"
+            modelId || "openrouter/qwen/qwen3.7-flash"
           );
           
           return { response: followUpResponse.choices[0]?.message?.content || cleanText + "\n" + result.message, executedActions: [action] };

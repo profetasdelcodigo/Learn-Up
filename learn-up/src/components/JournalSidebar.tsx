@@ -12,6 +12,7 @@ const MOODS = [
 
 interface JournalSidebarProps {
   messages?: any[];
+  currentSessionId?: string | null;
 }
 
 export default function JournalSidebar({ messages = [] }: JournalSidebarProps) {

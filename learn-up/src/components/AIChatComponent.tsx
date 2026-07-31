@@ -83,6 +83,7 @@ import {
 } from "@/actions/ai-history";
 import { confirmAndExecuteTool, indexAiDocumentFromUrl } from "@/actions/ai-tutor";
 import SkillsDirectoryModal from "./ai/SkillsDirectoryModal";
+import ThinkingBlock from "./ai/ThinkingBlock";
 
 interface ToolAction {
   tool: string;
@@ -214,16 +215,7 @@ function AIMessageContent({ text }: { text: string }) {
   return (
     <>
       {thinkingContent && (
-        <details className="mb-4 bg-black/20 border border-white/5 rounded-xl overflow-hidden group/thinking">
-          <summary className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-gray-400 cursor-pointer hover:bg-white/5 transition flex items-center gap-2 select-none list-none [&::-webkit-details-marker]:hidden">
-            <BrainCircuit className="w-4 h-4 text-brand-gold group-open/thinking:animate-none animate-pulse" />
-            <span className="flex-1">Proceso de Pensamiento</span>
-            <ChevronLeft className="w-4 h-4 -rotate-90 group-open/thinking:rotate-90 transition-transform" />
-          </summary>
-          <div className="p-4 border-t border-white/5 text-xs font-mono text-gray-400 whitespace-pre-wrap leading-relaxed">
-            {thinkingContent}
-          </div>
-        </details>
+        <ThinkingBlock content={thinkingContent} isComplete={true} />
       )}
       {nodes}
     </>
@@ -250,6 +242,7 @@ interface AIChatProps {
     mediaUrl?: string,
     mediaType?: string,
     modelId?: string,
+    sessionId?: string | null,
   ) => Promise<{ response: string; error?: string; actions?: ToolAction[]; executedActions?: ToolAction[] }>;
   className?: string;
   containerStyle?: React.CSSProperties;
@@ -587,7 +580,8 @@ export default function AIChatComponent({
         historyForGroq,
         mediaUrl,
         mediaType,
-        selectedModel
+        selectedModel,
+        sessionId
       );
 
       if (result.error) {
@@ -1105,8 +1099,18 @@ export default function AIChatComponent({
                 <div className="absolute bottom-full left-0 mb-2 w-72 bg-surface-2 border border-border-subtle rounded-xl shadow-2xl p-2 z-50 max-h-80 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
                   <div className="text-xs font-semibold text-gray-400 mb-2 px-2 uppercase tracking-wider">Motor de Inteligencia</div>
                   {[
-                    { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Ultra Rápido)", icon: <Zap className="w-4 h-4 text-yellow-400" />, tag: "⭐" },
-                    { id: "groq/llama-3.1-8b-instant", name: "Llama 3.1 8B Omni", icon: <Sparkles className="w-4 h-4 text-indigo-400" />, tag: "" },
+                    // OpenRouter
+                    { id: "openrouter/deepseek/deepseek-r1:free", name: "DeepSeek R1 (Lógico)", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "🥇" },
+                    { id: "openrouter/deepseek/deepseek-v4-pro:free", name: "DeepSeek V4 Pro (1M ctx)", icon: <Sparkles className="w-4 h-4 text-brand-gold" />, tag: "⭐" },
+                    { id: "openrouter/qwen/qwen3-coder:free", name: "Qwen 3 Coder 480B", icon: <Code className="w-4 h-4 text-blue-400" />, tag: "" },
+                    // NVIDIA NIM
+                    { id: "nvidia/z-ai/glm-5.2", name: "GLM-5.2 Flagship (Agente)", icon: <Bot className="w-4 h-4 text-emerald-400" />, tag: "⭐" },
+                    { id: "nvidia/deepseek-ai/deepseek-v4-pro", name: "DeepSeek V4 Pro (NVIDIA)", icon: <Sparkles className="w-4 h-4 text-green-400" />, tag: "" },
+                    { id: "nvidia/nvidia/nemotron-3-ultra-550b-a55b", name: "Nemotron Ultra 550B", icon: <Zap className="w-4 h-4 text-emerald-500" />, tag: "" },
+                    // Groq
+                    { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Groq)", icon: <BrainCircuit className="w-4 h-4 text-orange-400" />, tag: "🚀" },
+                    { id: "groq/mixtral-8x7b-32768", name: "Mixtral 8x7b (Groq)", icon: <Zap className="w-4 h-4 text-orange-300" />, tag: "⚡" },
+                    { id: "groq/gemma2-9b-it", name: "Gemma 2 9B (Groq)", icon: <Globe className="w-4 h-4 text-rose-400" />, tag: "🔍" },
                   ].map(m => (
                     <button
                       key={m.id}
@@ -1224,18 +1228,14 @@ export default function AIChatComponent({
                     >
                       <Sparkles className="w-4 h-4" />
                       {(() => {
-                        if (selectedModel.includes("deepseek-coder")) return "DS Flash";
-                        if (selectedModel.includes("deepseek-chat")) return "DS V4 Pro";
-                        if (selectedModel.includes("405b-instruct")) return "Llama 405B";
-                        if (selectedModel.includes("claude")) return "Claude 3.5";
-                        if (selectedModel.includes("minimax")) return "MiniMax M3";
-                        if (selectedModel.includes("qwen")) return "Qwen Coder";
-                        if (selectedModel.includes("mistral-large")) return "Mistral Large";
-                        if (selectedModel.includes("llama-3.1-8b")) return "Llama Omni";
-                        if (selectedModel.includes("gemini-2.0-flash")) return "Gemini Flash";
-                        if (selectedModel.includes("gemini-1.5-pro")) return "Gemini Pro";
-                        if (selectedModel.includes("groq/llama-3.3-70b")) return "Llama 3.3";
-                        if (selectedModel.includes("openrouter/meta-llama/llama-3.3-70b")) return "OR Llama";
+                        if (selectedModel.includes("deepseek-r1")) return "R1";
+                        if (selectedModel.includes("deepseek-v4-pro")) return "V4 Pro";
+                        if (selectedModel.includes("qwen3-coder")) return "Qwen Coder";
+                        if (selectedModel.includes("glm-5.2")) return "GLM 5.2";
+                        if (selectedModel.includes("nemotron-3-ultra")) return "Nemotron";
+                        if (selectedModel.includes("gpt-oss-120b")) return "OSS 120B";
+                        if (selectedModel.includes("gpt-oss-20b")) return "OSS 20B";
+                        if (selectedModel.includes("groq/compound")) return "Compound";
                         return "IA";
                       })()}
                       <ChevronDown className="w-3 h-3 ml-1" />

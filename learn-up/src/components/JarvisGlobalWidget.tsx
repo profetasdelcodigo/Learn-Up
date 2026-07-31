@@ -3,10 +3,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { motion, useDragControls } from "framer-motion";
-import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2, ExternalLink, CalendarPlus, Search, FileText, Mic, Volume2, VolumeX, ChevronDown, Brain, Zap, Activity } from "lucide-react";
+import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2, ExternalLink, CalendarPlus, Search, FileText, Mic, Volume2, VolumeX, ChevronDown, Brain, Zap, Activity, Code, BrainCircuit, Globe } from "lucide-react";
 
 import { askJarvis } from "@/actions/jarvis";
 import dynamic from "next/dynamic";
+import ThinkingBlock from "./ai/ThinkingBlock";
 
 const JarvisOrb3D = dynamic(() => import("@/components/3d/JarvisOrb3D"), { 
   ssr: false,
@@ -29,7 +30,7 @@ export default function JarvisGlobalWidget() {
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [autoTTS, setAutoTTS] = useState(true);
-  const [selectedModel, setSelectedModel] = useState("groq/llama-3.3-70b-versatile");
+  const [selectedModel, setSelectedModel] = useState("openrouter/deepseek/deepseek-v4-pro:free");
   const [autopilot, setAutopilot] = useState(false);
   const [showModelMenu, setShowModelMenu] = useState(false);
   
@@ -295,8 +296,14 @@ export default function JarvisGlobalWidget() {
                   onClick={() => setShowModelMenu(!showModelMenu)}
                   className="flex items-center gap-1 text-[10px] text-brand-gold/80 hover:text-brand-gold transition-colors"
                 >
-                  {selectedModel.includes("3.1-8b") ? "Groq 3.1 8B" :
-                   selectedModel.includes("70b") ? "Groq 3.3 70B" :
+                  {selectedModel.includes("deepseek-r1") ? "DS R1" :
+                   selectedModel.includes("v4-pro") ? "DS V4 Pro" :
+                   selectedModel.includes("qwen") ? "Qwen 3 Coder" :
+                   selectedModel.includes("glm") ? "GLM-5.2" :
+                   selectedModel.includes("nemotron") ? "Nemotron" :
+                   selectedModel.includes("120b") ? "OSS 120B" :
+                   selectedModel.includes("20b") ? "OSS 20B" :
+                   selectedModel.includes("compound") ? "Compound" :
                    "Modelo"}
                   <ChevronDown className="w-3 h-3" />
                 </button>
@@ -352,16 +359,22 @@ export default function JarvisGlobalWidget() {
                      </button>
                   )}
 
-                  {msg.role === "assistant" ? (
-                    <>
-                      <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap">
-                        {msg.content}
-                      </div>
-                      {msg.actions && msg.actions.map((action, i) => (
-                        <div key={i}>{renderToolCard(action)}</div>
-                      ))}
-                    </>
-                  ) : (
+                  {msg.role === "assistant" ? (() => {
+                    const thinkMatch = msg.content.match(/<thinking>([\s\S]*?)<\/thinking>/);
+                    const thinkText = thinkMatch ? thinkMatch[1].trim() : null;
+                    const mainText = thinkMatch ? msg.content.replace(/<thinking>[\s\S]*?<\/thinking>/, "").trim() : msg.content;
+                    return (
+                      <>
+                        {thinkText && <ThinkingBlock content={thinkText} isComplete={true} />}
+                        <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap">
+                          {mainText}
+                        </div>
+                        {msg.actions && msg.actions.map((action, i) => (
+                          <div key={i}>{renderToolCard(action)}</div>
+                        ))}
+                      </>
+                    );
+                  })() : (
                     msg.content
                   )}
                 </div>
@@ -379,18 +392,47 @@ export default function JarvisGlobalWidget() {
 
           {/* Model Selector Mini-Popover */}
           {showModelMenu && (
-            <div className="absolute top-14 left-3 right-3 bg-black/95 border border-brand-gold/20 rounded-xl p-2 z-50 shadow-2xl">
+            <div className="absolute top-14 left-3 right-3 bg-black/95 border border-brand-gold/20 rounded-xl p-2 z-50 shadow-2xl max-h-64 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+              <div className="text-[9px] font-semibold text-gray-500 mb-1 px-2 uppercase">OpenRouter</div>
               {[
-                { id: "groq/llama-3.3-70b-versatile", name: "Groq Llama 3.3 70B", icon: <Zap className="w-3.5 h-3.5 text-green-400" /> },
-                { id: "groq/llama-3.1-8b-instant", name: "Groq Llama 3.1 8B", icon: <Sparkles className="w-3.5 h-3.5 text-indigo-400" /> },
+                { id: "openrouter/deepseek/deepseek-r1:free", name: "DeepSeek R1", icon: <Brain className="w-3 h-3 text-purple-400" /> },
+                { id: "openrouter/deepseek/deepseek-v4-pro:free", name: "DeepSeek V4 Pro", icon: <Sparkles className="w-3 h-3 text-brand-gold" /> },
+                { id: "openrouter/qwen/qwen3-coder:free", name: "Qwen 3 Coder", icon: <Code className="w-3 h-3 text-blue-400" /> },
               ].map(m => (
                 <button
                   key={m.id}
                   onClick={() => { setSelectedModel(m.id); setShowModelMenu(false); }}
-                  className={`w-full text-left px-2.5 py-1.5 text-xs rounded-lg hover:bg-white/5 flex items-center gap-2 transition-colors ${selectedModel === m.id ? "bg-white/10 text-white font-medium" : "text-gray-400"}`}
+                  className={`w-full text-left px-2 py-1.5 text-xs rounded-lg hover:bg-white/5 flex items-center gap-2 transition-colors ${selectedModel === m.id ? "bg-white/10 text-white font-medium" : "text-gray-400"}`}
                 >
-                  {m.icon}
-                  {m.name}
+                  {m.icon} {m.name}
+                </button>
+              ))}
+              <div className="text-[9px] font-semibold text-gray-500 mt-2 mb-1 px-2 uppercase">NVIDIA NIM</div>
+              {[
+                { id: "nvidia/z-ai/glm-5.2", name: "GLM-5.2", icon: <Bot className="w-3 h-3 text-emerald-400" /> },
+                { id: "nvidia/deepseek-ai/deepseek-v4-pro", name: "DS V4 Pro (NV)", icon: <Sparkles className="w-3 h-3 text-green-400" /> },
+                { id: "nvidia/nvidia/nemotron-3-ultra-550b-a55b", name: "Nemotron 550B", icon: <Zap className="w-3 h-3 text-emerald-500" /> },
+              ].map(m => (
+                <button
+                  key={m.id}
+                  onClick={() => { setSelectedModel(m.id); setShowModelMenu(false); }}
+                  className={`w-full text-left px-2 py-1.5 text-xs rounded-lg hover:bg-white/5 flex items-center gap-2 transition-colors ${selectedModel === m.id ? "bg-white/10 text-white font-medium" : "text-gray-400"}`}
+                >
+                  {m.icon} {m.name}
+                </button>
+              ))}
+              <div className="text-[9px] font-semibold text-gray-500 mt-2 mb-1 px-2 uppercase">Groq</div>
+              {[
+                { id: "groq/openai/gpt-oss-120b", name: "OSS 120B", icon: <BrainCircuit className="w-3 h-3 text-orange-400" /> },
+                { id: "groq/openai/gpt-oss-20b", name: "OSS 20B", icon: <Zap className="w-3 h-3 text-orange-300" /> },
+                { id: "groq/groq/compound", name: "Compound", icon: <Globe className="w-3 h-3 text-rose-400" /> },
+              ].map(m => (
+                <button
+                  key={m.id}
+                  onClick={() => { setSelectedModel(m.id); setShowModelMenu(false); }}
+                  className={`w-full text-left px-2 py-1.5 text-xs rounded-lg hover:bg-white/5 flex items-center gap-2 transition-colors ${selectedModel === m.id ? "bg-white/10 text-white font-medium" : "text-gray-400"}`}
+                >
+                  {m.icon} {m.name}
                 </button>
               ))}
             </div>

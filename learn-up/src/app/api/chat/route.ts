@@ -1,6 +1,6 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { google } from "@ai-sdk/google";
-import { streamText, tool } from "ai";
+import { streamText } from "ai";
 import { z } from "zod";
 import { createClient } from "@/utils/supabase/server";
 
@@ -51,37 +51,26 @@ Puedes controlar el entorno y crear contenido visual.`;
       model = groq("llama-3.3-70b-versatile");
     }
 
-    // 3. Define Tools
-    const tools = {
-      search_web: tool({
+    // 3. Define Tools as plain schema objects (no tool() wrapper needed for streamText)
+    const tools: Record<string, any> = {
+      search_web: {
         description: "Busca en internet información actualizada.",
         parameters: z.object({
           query: z.string().describe("Lo que deseas buscar en la web"),
         }),
-        execute: async ({ query }: { query: string }) => {
-          // Dummy for now, ideally call Tavily or Serper
-          return { results: `Resultados simulados para: ${query}. La capital de Francia es París.` };
-        },
-      }),
-      navigate_to: tool({
+      },
+      navigate_to: {
         description: "Redirige al usuario a otra página de Learn Up.",
         parameters: z.object({
           route: z.string().describe("La ruta a la que redirigir, ej. /dashboard, /notebook"),
         }),
-        execute: async ({ route }: { route: string }) => {
-          return { message: `Redirigiendo a ${route}...` };
-        },
-      }),
-      generate_image: tool({
+      },
+      generate_image: {
         description: "Genera una imagen usando IA.",
         parameters: z.object({
           prompt: z.string().describe("Descripción de la imagen"),
         }),
-        execute: async ({ prompt }: { prompt: string }) => {
-          // Dummy for now
-          return { url: "https://images.unsplash.com/photo-1506744626753-eba7bc3365ce?auto=format&fit=crop&w=800&q=80", prompt };
-        },
-      })
+      }
     };
 
     // 4. Execute streamText
@@ -89,7 +78,7 @@ Puedes controlar el entorno y crear contenido visual.`;
       model,
       messages: messages as any[],
       system: systemPrompt,
-      tools,
+      tools: tools as any,
       // Si el usuario marcó "Autonomía", permitimos hasta 5 pasos automáticos (la IA llama a la herramienta y se auto-responde)
       // Si no, maxSteps es 1 (por defecto), y la herramienta se pausa para pedir confirmación al cliente.
       // maxSteps: isAutonomous ? 5 : 1, // maxSteps not supported in this ai SDK version

@@ -82,7 +82,7 @@ ${toolDefs}`;
         ...truncatedHistory,
         { role: "user", content: finalMessageContent },
       ],
-      modelId || "nvidia/moonshotai/kimi-k2.6",
+      modelId || "openrouter/qwen/qwen3.7-flash",
     );
 
     const rawContent = response.choices[0]?.message?.content || "";

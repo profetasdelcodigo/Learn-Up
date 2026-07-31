@@ -5,7 +5,8 @@ import { Utensils, Flame, ShoppingCart, CalendarDays, Check, Circle, ChevronDown
 import { motion, AnimatePresence } from "framer-motion";
 
 interface RecipeSidebarProps {
-  messages: any[];
+  messages?: any[];
+  currentSessionId?: string | null;
 }
 
 interface Macros {
@@ -29,7 +30,7 @@ export default function RecipeSidebar({ messages }: RecipeSidebarProps) {
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
 
   useEffect(() => {
-    const assistantMessages = messages.filter((m) => m.role === "assistant");
+    const assistantMessages = (messages || []).filter((m) => m.role === "assistant");
     if (assistantMessages.length === 0) return;
 
     const lastMessage = assistantMessages[assistantMessages.length - 1].content;

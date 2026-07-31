@@ -143,8 +143,7 @@ export default function CalendarPage() {
           
           // Toast Notification (In-App)
           addToast({
-            title: "Evento próximo",
-            message: `${event.title} comienza en menos de 10 minutos`,
+            message: `⏰ Evento próximo: ${event.title} comienza en menos de 10 minutos`,
             type: "info"
           });
 

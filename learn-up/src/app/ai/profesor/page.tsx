@@ -29,7 +29,7 @@ export default function ProfessorChatPage() {
           onSubmitAction={askProfessor}
           currentSessionId={sessionId}
           onSessionChange={setSessionId}
-          defaultModel="groq/llama-3.3-70b-versatile"
+          defaultModel="openrouter/deepseek/deepseek-r1:free"
         />
       }
       rightPanel={<NotebookWhiteboard currentSessionId={sessionId} />}

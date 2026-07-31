@@ -30,7 +30,7 @@ export default function CounselorChatPage() {
           className="font-serif"
           currentSessionId={sessionId}
           onSessionChange={setSessionId}
-          defaultModel="groq/llama-3.1-8b-instant"
+          defaultModel="groq/llama-3.3-70b-versatile"
         />
       }
       rightPanel={<JournalSidebar currentSessionId={sessionId} />}

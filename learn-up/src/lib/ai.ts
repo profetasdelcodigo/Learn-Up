@@ -408,20 +408,22 @@ export const getAICompletion = async (
 
   // Lógica de Fallback Multi-Provider para texto
   const tryOpenRouter = async () => {
-    console.log("[AI Debug] Intentando OpenRouter (Auto-Router)...");
-    // Por defecto OpenRouter usará Llama 3.3 70B como router rápido si no se especifica
-    const orModel = model === "gemini-2.0-flash" ? "meta-llama/llama-3.3-70b-instruct" : model;
+    console.log("[AI Debug] Intentando OpenRouter (DeepSeek V4 Pro)...");
+    // DeepSeek V4 Pro: 1M context, elite coding/reasoning, gratis en OpenRouter
+    const orModel = model === "gemini-2.0-flash" ? "deepseek/deepseek-v4-pro" : model;
     return await getOpenRouterCompletion(messages, orModel, jsonMode);
   };
 
   const tryNvidia = async () => {
-    console.log("[AI Debug] Intentando Nvidia NIM...");
-    return await getNvidiaNIMCompletion(messages, "meta/llama-3.1-405b-instruct", jsonMode);
+    console.log("[AI Debug] Intentando Nvidia NIM (GLM-5.2)...");
+    // GLM-5.2 de Z.ai: flagship LLM, agentic workflows, coding, reasoning largo. FREE endpoint.
+    return await getNvidiaNIMCompletion(messages, "z-ai/glm-5.2", jsonMode);
   };
 
   const tryGroq = async () => {
     console.log("[AI Debug] Intentando Groq...");
-    return await getGroqCompletion(toTextOnlyMessages(messages), "llama-3.3-70b-versatile", jsonMode);
+    // Usando el nuevo modelo gpt-oss-120b de GroqCloud
+    return await getGroqCompletion(toTextOnlyMessages(messages), "openai/gpt-oss-120b", jsonMode);
   };
 
   const tryGemini = async () => {

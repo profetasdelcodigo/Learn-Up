@@ -6,7 +6,7 @@ import NotebookLayout from "@/components/ai/NotebookLayout";
 import AIChatComponent from "@/components/AIChatComponent";
 import RecipeSidebar from "@/components/RecipeSidebar";
 import SourcesPanel from "@/components/ai/SourcesPanel";
-import { askRecipe } from "@/actions/ai-tutor";
+import { generateRecipe } from "@/actions/ai-tutor";
 
 export default function RecipesChatPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -26,10 +26,10 @@ export default function RecipesChatPage() {
           subtitle="Tus Nutrirecetas saludables"
           icon={<ChefHat className="w-5 h-5 text-orange-400" />}
           aiType="recetas"
-          onSubmitAction={askRecipe}
+          onSubmitAction={generateRecipe}
           currentSessionId={sessionId}
           onSessionChange={setSessionId}
-          defaultModel="groq/llama-3.1-8b-instant"
+          defaultModel="groq/llama-3.3-70b-versatile"
         />
       }
       rightPanel={<RecipeSidebar currentSessionId={sessionId} />}
