@@ -204,10 +204,14 @@ const getGeminiCompletion = async (
     const systemMessage = messages.find((m) => m.role === "system");
     const otherMessages = messages.filter((m) => m.role !== "system");
 
-    // Mapping for 2026 available models
+    // Mapping for 2026 available models to real-world stable endpoints
     let actualModel = modelName;
-    if (modelName.includes("llama") || modelName.includes("flash")) {
-      actualModel = "gemini-2.0-flash";
+    if (modelName.includes("antigravity") || modelName.includes("pro") || modelName.includes("robotics")) {
+      actualModel = "gemini-1.5-pro";
+    } else if (modelName.includes("flash") || modelName.includes("gemma")) {
+      actualModel = "gemini-1.5-flash";
+    } else if (modelName.includes("llama")) {
+      actualModel = "gemini-1.5-flash"; // Fallback for some reason
     }
 
     const model = genAI.getGenerativeModel({
