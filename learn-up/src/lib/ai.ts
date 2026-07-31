@@ -363,8 +363,11 @@ const getOpenRouterCompletion = async (
       body: JSON.stringify({
         model: modelName,
         messages: toTextOnlyMessages(messages),
-        max_tokens: 2048,
+        max_tokens: 4096,
         response_format: jsonMode ? { type: "json_object" } : undefined,
+        ...(modelName.includes("deepseek-v4-pro") || modelName.includes("qwen3.6-max-preview") || modelName.includes("-r1")
+          ? { reasoning: { enabled: true } }
+          : {}),
       }),
     });
 
