@@ -1099,35 +1099,27 @@ export default function AIChatComponent({
                 <div className="absolute bottom-full left-0 mb-2 w-72 bg-surface-2 border border-border-subtle rounded-xl shadow-2xl p-2 z-50 max-h-80 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
                   {[
                     {
-                      category: "OpenRouter (Gratis)",
+                      category: "OPENROUTER",
                       models: [
-                        { id: "openrouter/deepseek/deepseek-r1:free", name: "DeepSeek R1", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "🥇" },
-                        { id: "openrouter/deepseek/deepseek-chat:free", name: "DeepSeek V3", icon: <Globe className="w-4 h-4 text-purple-300" />, tag: "Rápido" },
-                        { id: "openrouter/qwen/qwen-2.5-72b-instruct:free", name: "Qwen 2.5 72B", icon: <Bot className="w-4 h-4 text-emerald-400" />, tag: "Potente" },
-                        { id: "openrouter/meta-llama/llama-3.1-8b-instruct:free", name: "Llama 3.1 8B (OR)", icon: <Zap className="w-4 h-4 text-orange-400" />, tag: "Rápido" },
-                        { id: "openrouter/nvidia/llama-3.1-nemotron-70b-instruct:free", name: "Nemotron 70B", icon: <BrainCircuit className="w-4 h-4 text-green-500" />, tag: "⭐" },
+                        { id: "openrouter/deepseek/deepseek-r1:free", name: "DeepSeek R1", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "" },
+                        { id: "openrouter/deepseek/deepseek-v4-pro", name: "DeepSeek V4 Pro", icon: <Sparkles className="w-4 h-4 text-yellow-500" />, tag: "" },
+                        { id: "openrouter/qwen/qwen-3-coder", name: "Qwen 3 Coder", icon: <Code className="w-4 h-4 text-blue-400" />, tag: "" },
                       ]
                     },
                     {
-                      category: "NVIDIA NIM (Gratis)",
+                      category: "NVIDIA NIM",
                       models: [
-                        { id: "nvidia/nvidia/nemotron-4-340b-instruct", name: "Nemotron-4 340B", icon: <Brain className="w-4 h-4 text-emerald-500" />, tag: "Masivo" },
-                        { id: "nvidia/meta/llama-3.1-405b-instruct", name: "Llama 3.1 405B", icon: <Zap className="w-4 h-4 text-green-400" />, tag: "God" },
-                        { id: "nvidia/meta/llama-3.1-70b-instruct", name: "Llama 3.1 70B", icon: <BrainCircuit className="w-4 h-4 text-emerald-300" />, tag: "Potente" },
-                        { id: "nvidia/z-ai/glm-5.2", name: "GLM-5.2 Flagship", icon: <Bot className="w-4 h-4 text-emerald-400" />, tag: "⭐" },
+                        { id: "nvidia/z-ai/glm-5.2", name: "GLM-5.2", icon: <Bot className="w-4 h-4 text-emerald-400" />, tag: "" },
+                        { id: "nvidia/deepseek/deepseek-v4-pro", name: "DS V4 Pro (NV)", icon: <Sparkles className="w-4 h-4 text-emerald-500" />, tag: "" },
+                        { id: "nvidia/nvidia/nemotron-3-ultra-550b-a55b", name: "Nemotron 550B", icon: <Zap className="w-4 h-4 text-emerald-400" />, tag: "" },
                       ]
                     },
                     {
-                      category: "Groq (Rápidos & Experimentales)",
+                      category: "GROQ",
                       models: [
-                        { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B", icon: <BrainCircuit className="w-4 h-4 text-orange-400" />, tag: "🚀" },
-                        { id: "groq/llama-3.1-8b-instant", name: "Llama 3.1 8B", icon: <Zap className="w-4 h-4 text-orange-300" />, tag: "Rápido" },
-                        { id: "groq/qwen/qwen3.6-27b", name: "Qwen 3.6 27B", icon: <Globe className="w-4 h-4 text-purple-300" />, tag: "Vision" },
-                        { id: "groq/openai/gpt-oss-120b", name: "GPT OSS 120B", icon: <Brain className="w-4 h-4 text-gray-200" />, tag: "Potente" },
-                        { id: "groq/openai/gpt-oss-safeguard-20b", name: "GPT OSS Safeguard 20B", icon: <Bot className="w-4 h-4 text-gray-400" />, tag: "Seguro" },
-                        { id: "groq/groq/compound", name: "Groq Compound", icon: <Sparkles className="w-4 h-4 text-brand-gold" />, tag: "Beta" },
-                        { id: "groq/canopylabs/orpheus-v1-english", name: "Orpheus V1", icon: <Command className="w-4 h-4 text-blue-400" />, tag: "Rol" },
-                        { id: "groq/allam-2-7b", name: "ALLaM-2 7B", icon: <Globe className="w-4 h-4 text-green-300" />, tag: "" },
+                        { id: "groq/openai/gpt-oss-120b", name: "OSS 120B", icon: <BrainCircuit className="w-4 h-4 text-orange-400" />, tag: "" },
+                        { id: "groq/openai/gpt-oss-20b", name: "OSS 20B", icon: <Zap className="w-4 h-4 text-orange-300" />, tag: "" },
+                        { id: "groq/groq/compound", name: "Compound", icon: <Globe className="w-4 h-4 text-rose-400" />, tag: "" },
                       ]
                     }
                   ].map(cat => (
