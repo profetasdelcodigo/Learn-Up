@@ -1136,19 +1136,22 @@ export default function AIChatComponent({
                     {
                       category: "OpenRouter & NVIDIA",
                       models: [
-                        { id: "openrouter/openai/gpt-oss-120b", name: "GPT OSS 120B", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "Potente" },
-                        { id: "openrouter/qwen/qwen3.6-27b", name: "Qwen 3.6 27B", icon: <Globe className="w-4 h-4 text-purple-300" />, tag: "" },
-                        { id: "openrouter/deepseek/deepseek-r1:free", name: "DeepSeek R1 (Lógico)", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "🥇" },
+                        { id: "openrouter/deepseek/deepseek-r1:free", name: "DeepSeek R1 (OpenRouter)", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "🥇" },
                         { id: "nvidia/z-ai/glm-5.2", name: "GLM-5.2 Flagship", icon: <Bot className="w-4 h-4 text-emerald-400" />, tag: "⭐" },
                         { id: "nvidia/nvidia/nemotron-3-ultra-550b-a55b", name: "Nemotron Ultra 550B", icon: <Zap className="w-4 h-4 text-emerald-500" />, tag: "" },
                       ]
                     },
                     {
-                      category: "Groq (Velocidad Extrema)",
+                      category: "Groq (Rápidos & Experimentales)",
                       models: [
-                        { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Groq)", icon: <BrainCircuit className="w-4 h-4 text-orange-400" />, tag: "🚀" },
-                        { id: "groq/llama-3.1-8b-instant", name: "Llama 3.1 8B (Groq)", icon: <Zap className="w-4 h-4 text-orange-300" />, tag: "Rápido" },
-                        { id: "groq/deepseek-r1-distill-llama-70b", name: "DeepSeek R1 70B (Groq)", icon: <Globe className="w-4 h-4 text-rose-400" />, tag: "Lógico" },
+                        { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B", icon: <BrainCircuit className="w-4 h-4 text-orange-400" />, tag: "🚀" },
+                        { id: "groq/llama-3.1-8b-instant", name: "Llama 3.1 8B", icon: <Zap className="w-4 h-4 text-orange-300" />, tag: "Rápido" },
+                        { id: "groq/qwen/qwen3.6-27b", name: "Qwen 3.6 27B", icon: <Globe className="w-4 h-4 text-purple-300" />, tag: "Vision" },
+                        { id: "groq/openai/gpt-oss-120b", name: "GPT OSS 120B", icon: <Brain className="w-4 h-4 text-gray-200" />, tag: "Potente" },
+                        { id: "groq/openai/gpt-oss-safeguard-20b", name: "GPT OSS Safeguard 20B", icon: <Bot className="w-4 h-4 text-gray-400" />, tag: "Seguro" },
+                        { id: "groq/groq/compound", name: "Groq Compound", icon: <Sparkles className="w-4 h-4 text-brand-gold" />, tag: "Beta" },
+                        { id: "groq/canopylabs/orpheus-v1-english", name: "Orpheus V1", icon: <Command className="w-4 h-4 text-blue-400" />, tag: "Rol" },
+                        { id: "groq/allam-2-7b", name: "ALLaM-2 7B", icon: <Globe className="w-4 h-4 text-green-300" />, tag: "" },
                       ]
                     }
                   ].map(cat => (
