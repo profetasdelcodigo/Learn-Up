@@ -472,45 +472,25 @@ export const getAICompletion = async (
     }
   }
 
-  // 2. Si el usuario fuerza un proveedor via .env (Fallback Legacy)
+  // 2. Si el usuario fuerza un proveedor via .env (Fallback Legacy sin reintento)
   if (provider === "openrouter") {
-    try { return await tryOpenRouter(); } catch (e) { console.warn("OpenRouter falló, fallback a Nvidia..."); return await tryNvidia(); }
+    return await tryOpenRouter();
   }
   if (provider === "groq") {
-    try { return await tryGroq(); } catch (e) { console.warn("Groq falló, fallback a Gemini..."); return await tryGemini(); }
+    return await tryGroq();
   }
   if (provider === "gemini") {
-    try { return await tryGemini(); } catch (e) { console.warn("Gemini falló, fallback a Groq..."); return await tryGroq(); }
+    return await tryGemini();
   }
 
-  // 3. Comportamiento por defecto (Inteligente y robusto)
-  try {
-    if (openRouterApiKey) {
-      return await tryOpenRouter();
-    }
-    if (process.env.NVIDIA_API_KEY) {
-      return await tryNvidia();
-    }
-    return await tryGroq();
-  } catch (error: any) {
-    console.warn("[AI Debug] Provider primario falló:", error?.message);
-    
-    // Fallback secundario y finales
-    try {
-      if (process.env.NVIDIA_API_KEY) {
-        return await tryNvidia();
-      }
-      return await tryGemini(); 
-    } catch (fallbackError) {
-      console.error("[AI Debug] Fallback secundario falló.");
-      try {
-        return await tryGemini();
-      } catch (lastError) {
-        console.error("[AI Debug] Todos los proveedores fallaron.");
-        throw lastError;
-      }
-    }
+  // 3. Comportamiento por defecto estricto sin fallback cruzado
+  if (openRouterApiKey) {
+    return await tryOpenRouter();
   }
+  if (process.env.NVIDIA_API_KEY) {
+    return await tryNvidia();
+  }
+  return await tryGroq();
 };
 
 // ── Groq Implementation ───────────────────────────────────────────────────────
@@ -547,7 +527,7 @@ export const getGroqCompletion = async (
 export const getAIEmbedding = async (text: string): Promise<number[]> => {
   if (!genAI) throw new Error("Gemini AI not initialized for embeddings");
   try {
-    const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
+    const model = genAI.getGenerativeModel({ model: "embedding-001" });
     const result = await model.embedContent(text);
     return result.embedding.values;
   } catch (error) {

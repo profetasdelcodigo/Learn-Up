@@ -1109,8 +1109,8 @@ export default function AIChatComponent({
                     { id: "nvidia/nvidia/nemotron-3-ultra-550b-a55b", name: "Nemotron Ultra 550B", icon: <Zap className="w-4 h-4 text-emerald-500" />, tag: "" },
                     // Groq
                     { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Groq)", icon: <BrainCircuit className="w-4 h-4 text-orange-400" />, tag: "🚀" },
-                    { id: "groq/mixtral-8x7b-32768", name: "Mixtral 8x7b (Groq)", icon: <Zap className="w-4 h-4 text-orange-300" />, tag: "⚡" },
-                    { id: "groq/gemma2-9b-it", name: "Gemma 2 9B (Groq)", icon: <Globe className="w-4 h-4 text-rose-400" />, tag: "🔍" },
+                    { id: "groq/llama-3.1-8b-instant", name: "Llama 3.1 8B (Groq)", icon: <Zap className="w-4 h-4 text-orange-300" />, tag: "Rápido" },
+                    { id: "groq/deepseek-r1-distill-llama-70b", name: "DeepSeek R1 70B (Groq)", icon: <Globe className="w-4 h-4 text-rose-400" />, tag: "Lógico" },
                   ].map(m => (
                     <button
                       key={m.id}
