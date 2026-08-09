@@ -1101,9 +1101,9 @@ export default function AIChatComponent({
                     {
                       category: "OPENROUTER",
                       models: [
-                        { id: "openrouter/deepseek/deepseek-r1:free", name: "DeepSeek R1", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "" },
+                        { id: "openrouter/deepseek/deepseek-r1", name: "DeepSeek R1", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "" },
                         { id: "openrouter/deepseek/deepseek-v4-pro", name: "DeepSeek V4 Pro", icon: <Sparkles className="w-4 h-4 text-yellow-500" />, tag: "" },
-                        { id: "openrouter/qwen/qwen3-coder-flash:free", name: "Qwen 3 Coder Flash", icon: <Code className="w-4 h-4 text-blue-400" />, tag: "Gratis" },
+                        { id: "openrouter/qwen/qwen3-coder-flash", name: "Qwen 3 Coder Flash", icon: <Code className="w-4 h-4 text-blue-400" />, tag: "" },
                         { id: "openrouter/openai/gpt-oss-120b", name: "OSS 120B", icon: <BrainCircuit className="w-4 h-4 text-orange-400" />, tag: "" },
                         { id: "openrouter/openai/gpt-oss-20b", name: "OSS 20B", icon: <Zap className="w-4 h-4 text-orange-300" />, tag: "" },
                       ]
@@ -1112,14 +1112,13 @@ export default function AIChatComponent({
                       category: "NVIDIA NIM",
                       models: [
                         { id: "nvidia/z-ai/glm-5.2", name: "GLM-5.2", icon: <Bot className="w-4 h-4 text-emerald-400" />, tag: "" },
-                        { id: "nvidia/deepseek/deepseek-v4-pro", name: "DS V4 Pro (NV)", icon: <Sparkles className="w-4 h-4 text-emerald-500" />, tag: "" },
                         { id: "nvidia/nvidia/nemotron-3-ultra-550b-a55b", name: "Nemotron 550B", icon: <Zap className="w-4 h-4 text-emerald-400" />, tag: "" },
                       ]
                     },
                     {
                       category: "GROQ",
                       models: [
-                        { id: "groq/groq/compound", name: "Compound", icon: <Globe className="w-4 h-4 text-rose-400" />, tag: "" },
+                        { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B", icon: <BrainCircuit className="w-4 h-4 text-orange-400" />, tag: "Rápido" },
                       ]
                     }
                   ].map(cat => (
