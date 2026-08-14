@@ -359,7 +359,7 @@ export const getNvidiaNIMCompletion = async (
   }
 };
 
-// ── OpenRouter Implementation ────────────────────────────────────────────────
+// ── OpenRouter Implementation (Modelos Gratuitos) ────────────────────────────
 const getOpenRouterCompletion = async (
   messages: any[],
   modelName: string,
@@ -368,40 +368,58 @@ const getOpenRouterCompletion = async (
   const apiKey = openRouterApiKey;
   if (!apiKey) throw new Error("⚠️ Falta OPENROUTER_API_KEY en las variables de entorno.");
 
+  // Asegurar que modelos gratuitos usen el sufijo :free obligatorio
+  let finalModel = modelName;
+  const freeModels: Record<string, string> = {
+    "deepseek/deepseek-r1": "deepseek/deepseek-r1:free",
+    "meta-llama/llama-3.3-70b-instruct": "meta-llama/llama-3.3-70b-instruct:free",
+    "qwen/qwen-3-coder-flash": "qwen/qwen-3-coder-flash:free",
+    "microsoft/phi-4-mini": "microsoft/phi-4-mini:free",
+    "google/gemini-2.5-flash": "google/gemini-2.5-flash:free",
+  };
+  if (freeModels[finalModel]) {
+    finalModel = freeModels[finalModel];
+  }
+
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${apiKey}`,
-        "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "https://learnup.edu",
+        // OBLIGATORIOS para evitar errores 403/400 en OpenRouter
+        "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "https://learn-up-qmgx.onrender.com",
         "X-Title": "Learn Up",
       },
       body: JSON.stringify({
-        model: modelName,
+        model: finalModel,
         messages: toTextOnlyMessages(trimMessages(messages, 15)),
-        max_tokens: 1000,
+        max_tokens: 1500,
+        temperature: 0.7,
         response_format: jsonMode ? { type: "json_object" } : undefined,
-        ...(modelName.includes("deepseek-v4") || modelName.includes("qwen") || modelName.includes("-r1") || modelName.includes("gpt-oss")
-          ? { reasoning: { enabled: true } }
-          : {}),
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`OpenRouter API Error: ${response.status} ${await response.text()}`);
+      const errorData = await response.text();
+      throw new Error(`OpenRouter API Error (${response.status}): ${errorData}`);
     }
 
     const data = await response.json();
-    return {
-      choices: [
-        {
-          message: {
-            content: data.choices[0]?.message?.content || "",
-          },
-        },
-      ],
-    };
+
+    // Verificación estructural robusta
+    if (data && data.choices && data.choices[0] && data.choices[0].message) {
+      // Limpiar etiquetas <think> de modelos de razonamiento como DeepSeek R1
+      let content = data.choices[0].message.content || "";
+      if (!jsonMode) {
+        content = content.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+      }
+      return {
+        choices: [{ message: { content } }],
+      };
+    } else {
+      throw new Error("La estructura de respuesta de OpenRouter no es la esperada.");
+    }
   } catch (error) {
     console.error("OpenRouter API Error:", error);
     throw error;
@@ -432,22 +450,19 @@ export const getAICompletion = async (
 
   // Lógica de Fallback Multi-Provider para texto
   const tryOpenRouter = async () => {
-    console.log("[AI Debug] Intentando OpenRouter (DeepSeek V4 Pro)...");
-    // DeepSeek V4 Pro: 1M context, elite coding/reasoning, gratis en OpenRouter
-    const orModel = model === "gemini-2.0-flash" ? "deepseek/deepseek-v4-pro" : model;
+    console.log("[AI Debug] Intentando OpenRouter (Gratis)...");
+    const orModel = model === "gemini-2.0-flash" ? "deepseek/deepseek-r1:free" : model;
     return await getOpenRouterCompletion(messages, orModel, jsonMode);
   };
 
   const tryNvidia = async () => {
     console.log("[AI Debug] Intentando Nvidia NIM (GLM-5.2)...");
-    // GLM-5.2 de Z.ai: flagship LLM, agentic workflows, coding, reasoning largo. FREE endpoint.
     return await getNvidiaNIMCompletion(messages, "z-ai/glm-5.2", jsonMode);
   };
 
   const tryGroq = async () => {
-    console.log("[AI Debug] Intentando Groq...");
-    // Usando el nuevo modelo gpt-oss-120b de GroqCloud
-    return await getGroqCompletion(toTextOnlyMessages(messages), "openai/gpt-oss-120b", jsonMode);
+    console.log("[AI Debug] Intentando Groq (El Cerebro)...");
+    return await getGroqCompletion(toTextOnlyMessages(messages), "llama-3.3-70b-versatile", jsonMode);
   };
 
   const tryGemini = async () => {
@@ -526,49 +541,53 @@ export const getAICompletion = async (
   }
 };
 
-// ── Groq Implementation ───────────────────────────────────────────────────────
+// ── Groq Implementation (con Reintentos Exponenciales) ────────────────────────
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export const getGroqCompletion = async (
   messages: any[],
   modelName: string = "llama-3.3-70b-versatile",
-  jsonMode: boolean = false
+  jsonMode: boolean = false,
+  retries: number = 3
 ) => {
   if (!groq) throw new Error("Groq is not configured. Missing GROQ_API_KEY.");
-  try {
-    const extraParams: any = {};
-    
-    if (modelName.includes("gpt-oss")) {
-      extraParams.reasoning_effort = "medium";
-    }
 
-    if (modelName.includes("compound")) {
-      extraParams.compound_custom = {
-        tools: {
-          enabled_tools: ["web_search", "code_interpreter", "visit_website"]
-        }
-      };
-    }
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await groq.chat.completions.create({
+        messages: trimMessages(messages, 10),
+        model: modelName,
+        response_format: jsonMode ? { type: "json_object" } : undefined,
+        temperature: 0.6,
+        max_tokens: 1024,
+        top_p: 1,
+        stream: false,
+      } as any);
 
-    const response = await groq.chat.completions.create({
-      messages: trimMessages(messages, 10),
-      model: modelName,
-      response_format: jsonMode ? { type: "json_object" } : undefined,
-      temperature: 0.8,
-      max_tokens: 1024,
-      ...extraParams
-    } as any);
-    return {
-      choices: [
-        {
-          message: {
-            content: response.choices[0]?.message?.content || "",
+      return {
+        choices: [
+          {
+            message: {
+              content: response.choices[0]?.message?.content || "",
+            },
           },
-        },
-      ],
-    };
-  } catch (error) {
-    console.error("Groq API Error:", error);
-    throw error;
+        ],
+      };
+    } catch (error: any) {
+      console.error(`[Groq] Error en intento ${i + 1}/${retries} con modelo ${modelName}:`, error.message);
+
+      // Si es error 429 (Rate Limit) y quedan reintentos, esperar con backoff exponencial
+      if (error.status === 429 && i < retries - 1) {
+        const tiempoEspera = Math.pow(2, i) * 1000; // 1s, 2s, 4s
+        console.warn(`[Groq] Límite alcanzado. Esperando ${tiempoEspera}ms para reintentar...`);
+        await delay(tiempoEspera);
+      } else {
+        throw error;
+      }
+    }
   }
+
+  throw new Error("No se pudo obtener respuesta de Groq tras múltiples intentos.");
 };
 
 // ── Embedding ─────────────────────────────────────────────────────────────────

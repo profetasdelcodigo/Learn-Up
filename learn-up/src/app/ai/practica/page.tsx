@@ -510,10 +510,20 @@ export default function ExamenIAPage() {
 
                                 if (isReview) {
                                   // Highlight correct and wrong answers in review mode
-                                  if (q.correctAnswer === optIdx) {
+                                  // Usamos Number() porque correctAnswer puede ser string o number
+                                  const isCorrectOption = Number(q.correctAnswer) === optIdx;
+                                  const isStudentAnswer = Number(currentAnswer) === optIdx;
+
+                                  if (isCorrectOption && isStudentAnswer) {
+                                    // El alumno eligió la correcta
                                     btnColor =
                                       "bg-green-500/20 border-green-500 text-green-300 font-bold";
-                                  } else if (currentAnswer === optIdx) {
+                                  } else if (isCorrectOption) {
+                                    // Esta era la correcta pero el alumno no la eligió
+                                    btnColor =
+                                      "bg-green-500/20 border-green-500 text-green-300 font-bold";
+                                  } else if (isStudentAnswer) {
+                                    // El alumno eligió esta pero era incorrecta
                                     btnColor =
                                       "bg-red-500/20 border-red-500 text-red-300 font-bold line-through";
                                   } else {

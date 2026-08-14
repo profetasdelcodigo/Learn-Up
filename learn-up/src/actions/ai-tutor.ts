@@ -331,7 +331,7 @@ ${toolDefs}`;
     );
 
     const rawContent = response.choices[0]?.message?.content || "";
-    const { cleanText, action } = await parseToolCall(rawContent);
+    let { cleanText, action } = await parseToolCall(rawContent);
 
     const formulasMatch = cleanText.match(/<formula>(.*?)<\/formula>/g);
     
@@ -753,6 +753,63 @@ IMPORTANTE PARA DOCUMENTOS:
     if (!exam.sections || exam.sections.length === 0)
       throw new Error("Invalid exam structure");
 
+    // ════════════════════════════════════════════════════════════════════
+    // POST-PROCESADOR CRÍTICO: Normalizar correctAnswer a ÍNDICE NUMÉRICO
+    // La IA a veces devuelve "A) 5" o "1" (string) en vez de 0 (número).
+    // El frontend usa optIdx (0,1,2,3) para comparar, así que DEBE ser
+    // un número entero que represente el índice de la opción correcta.
+    // ════════════════════════════════════════════════════════════════════
+    exam.sections.forEach((section) => {
+      section.questions.forEach((q) => {
+        if ((q.type === "multiple_choice" || q.type === "true_false") && q.options && q.options.length > 0) {
+          const ca = q.correctAnswer;
+
+          // Caso 1: Ya es un número válido dentro del rango de opciones
+          if (typeof ca === "number" && ca >= 0 && ca < q.options.length) {
+            return; // OK, no hacer nada
+          }
+
+          // Caso 2: Es un string numérico como "0", "1", "2", "3"
+          if (typeof ca === "string" && /^\d+$/.test(ca.trim())) {
+            const idx = parseInt(ca.trim(), 10);
+            if (idx >= 0 && idx < q.options.length) {
+              q.correctAnswer = idx;
+              return;
+            }
+          }
+
+          // Caso 3: Es un string como "A) 5", "B) 6", "Verdadero", etc.
+          // Intentamos encontrar la opción que coincida
+          if (typeof ca === "string") {
+            const caLower = ca.trim().toLowerCase();
+            const matchIdx = q.options.findIndex((opt) => {
+              const optLower = opt.trim().toLowerCase();
+              // Match exacto
+              if (optLower === caLower) return true;
+              // Match parcial: "A) 5" matches "a) 5" or just "5"
+              if (optLower.includes(caLower)) return true;
+              if (caLower.includes(optLower)) return true;
+              // Match por letra: "A" matches options[0], "B" matches options[1]
+              const letterMap: Record<string, number> = { a: 0, b: 1, c: 2, d: 3, e: 4 };
+              const letterMatch = caLower.match(/^([a-e])[)\s.]/i);
+              if (letterMatch && letterMap[letterMatch[1].toLowerCase()] !== undefined) {
+                return q.options!.indexOf(opt) === letterMap[letterMatch[1].toLowerCase()];
+              }
+              return false;
+            });
+            if (matchIdx !== -1) {
+              q.correctAnswer = matchIdx;
+              return;
+            }
+          }
+
+          // Caso 4: No pudimos resolver — asumimos 0 y logueamos warning
+          console.warn(`[Exam Fix] No se pudo resolver correctAnswer "${ca}" para pregunta "${q.question}". Forzando a 0.`);
+          q.correctAnswer = 0;
+        }
+      });
+    });
+
     // Post-procesador matemático programático para garantizar que el total de puntos de las preguntas sea EXACTAMENTE 100
     let currentTotal = 0;
     exam.sections.forEach((section) => {
@@ -833,9 +890,15 @@ export async function gradeExam(
         if (q.type !== "open") {
           maxClosedScore += q.points || 0;
           const studentAns = answers[`${section.title}-${i}`];
+          // Comparación robusta: convertir ambos a número para evitar
+          // que "0" !== 0 o "A) 5" !== 0 cause calificaciones erróneas
+          const studentIdx = typeof studentAns === "string" ? parseInt(studentAns, 10) : studentAns;
+          const correctIdx = typeof q.correctAnswer === "string" ? parseInt(String(q.correctAnswer), 10) : q.correctAnswer;
           if (
-            studentAns !== undefined &&
-            String(studentAns) === String(q.correctAnswer)
+            studentIdx !== undefined &&
+            !isNaN(Number(studentIdx)) &&
+            !isNaN(Number(correctIdx)) &&
+            Number(studentIdx) === Number(correctIdx)
           ) {
             autoScore += q.points || 0;
           }
