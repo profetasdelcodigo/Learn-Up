@@ -1117,6 +1117,9 @@ export default function AIChatComponent({
                         { id: "openrouter/qwen/qwen-3-coder-flash:free", name: "Qwen 3 Coder", icon: <Zap className="w-4 h-4 text-emerald-400" />, tag: "Gratis" },
                         { id: "openrouter/microsoft/phi-4-mini:free", name: "Phi 4 Mini", icon: <Sparkles className="w-4 h-4 text-yellow-400" />, tag: "Rápido" },
                         { id: "openrouter/google/gemini-2.5-flash:free", name: "Gemini 2.5 Flash", icon: <Bot className="w-4 h-4 text-orange-400" />, tag: "Contexto" },
+                        { id: "openrouter/dots-studio/dots-3-note-preview:free", name: "Dots 3 Note", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "Preview" },
+                        { id: "openrouter/nvidia/nemotron-3.5-lightning:free", name: "Nemotron 3.5 Lightning", icon: <Zap className="w-4 h-4 text-emerald-400" />, tag: "Gratis" },
+                        { id: "openrouter/openai/gpt-oss-20b:free", name: "GPT OSS 20B", icon: <Sparkles className="w-4 h-4 text-gray-200" />, tag: "Gratis" },
                       ]
                     },
                     {
@@ -1129,8 +1132,9 @@ export default function AIChatComponent({
                     {
                       category: "GROQ",
                       models: [
-                        { id: "groq/llama-3.3-70b-versatile", name: "El Cerebro (Llama 3.3 70B)", icon: <BrainCircuit className="w-4 h-4 text-orange-400" />, tag: "Rápido" },
-                        { id: "groq/llama-3.1-8b-instant", name: "El Veloz (Llama 3.1 8B)", icon: <Zap className="w-4 h-4 text-yellow-400" />, tag: "Ultra Rápido" },
+                        { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B", icon: <BrainCircuit className="w-4 h-4 text-orange-400" />, tag: "Rápido" },
+                        { id: "groq/llama-3.1-8b-instant", name: "Llama 3.1 8B", icon: <Zap className="w-4 h-4 text-yellow-400" />, tag: "Ultra Rápido" },
+                        { id: "groq/deepseek-r1-distill-llama-70b", name: "DeepSeek R1 70B", icon: <Brain className="w-4 h-4 text-rose-400" />, tag: "Razonamiento" },
                       ]
                     }
                   ].map(cat => (
