@@ -3,11 +3,13 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { motion, useDragControls } from "framer-motion";
-import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2, ExternalLink, CalendarPlus, Search, FileText, Mic, Volume2, VolumeX, ChevronDown, Brain, Zap, Activity, Code, BrainCircuit, Globe } from "lucide-react";
+import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2, ExternalLink, CalendarPlus, Search, FileText, Mic, Volume2, VolumeX, ChevronDown, Brain, Zap, Activity, Code, BrainCircuit, Globe, Plus, Paperclip, Command, Link as LinkIcon, ImageIcon } from "lucide-react";
 
 import { askJarvis } from "@/actions/jarvis";
 import dynamic from "next/dynamic";
 import ThinkingBlock from "./ai/ThinkingBlock";
+import SkillsDirectoryModal from "./ai/SkillsDirectoryModal";
+import { createClient } from "@/utils/supabase/client";
 
 const JarvisOrb3D = dynamic(() => import("@/components/3d/JarvisOrb3D"), { 
   ssr: false,
@@ -30,14 +32,36 @@ export default function JarvisGlobalWidget() {
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [autoTTS, setAutoTTS] = useState(true);
-  const [selectedModel, setSelectedModel] = useState("openrouter/deepseek/deepseek-r1:free");
+  const [selectedModel, setSelectedModel] = useState("openrouter/dots-studio/dots-3-note-preview:free");
   const [autopilot, setAutopilot] = useState(false);
   const [showModelMenu, setShowModelMenu] = useState(false);
   
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [isSkillsModalOpen, setIsSkillsModalOpen] = useState(false);
+  const [activeSkills, setActiveSkills] = useState<string[]>([]);
+  const [file, setFile] = useState<File | null>(null);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const dragControls = useDragControls();
   const pathname = usePathname();
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+      setShowAttachMenu(false);
+    }
+  };
+
+  const getMediaType = (file: File) => {
+    if (file.type.startsWith("image/")) return "image";
+    if (file.type.startsWith("audio/")) return "audio";
+    if (file.type.startsWith("video/")) return "video";
+    if (file.type.includes("pdf")) return "pdf";
+    return "document";
+  };
 
   // Ocultar Jarvis en páginas donde ya hay un chat dedicado o pantallas de sistema
   const hiddenPaths = ["/chat", "/profesor", "/consejero", "/examenes", "/nutrirecetas", "/login"];
@@ -119,21 +143,55 @@ export default function JarvisGlobalWidget() {
 
   const sendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!input.trim() || loading) return;
+    if ((!input.trim() && !file) || loading || uploadingMedia) return;
 
     const userMessage = input.trim();
     setInput("");
-    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+    
+    // Placeholder temporal mientras sube archivo o para mostrar en UI
+    const displayMessage = userMessage || "Enviado archivo adjunto";
+    setMessages((prev) => [...prev, { role: "user", content: displayMessage }]);
     setLoading(true);
+
+    let mediaUrl: string | undefined;
+    let mediaType: string | undefined;
+
+    if (file) {
+      setUploadingMedia(true);
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("No autenticado");
+
+        const safeFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-120);
+        const filePath = `${user.id}/${Date.now()}_${safeFileName}`;
+        const { error: uploadErr } = await supabase.storage.from("ai_media").upload(filePath, file);
+        if (uploadErr) throw uploadErr;
+
+        const { data } = supabase.storage.from("ai_media").getPublicUrl(filePath);
+        mediaUrl = data.publicUrl;
+        mediaType = getMediaType(file);
+      } catch (err: any) {
+        setMessages((prev) => [...prev, { role: "assistant", content: "Error al subir el archivo." }]);
+        setLoading(false);
+        setUploadingMedia(false);
+        return;
+      }
+      setUploadingMedia(false);
+      setFile(null);
+    }
 
     try {
       const contextPrefix = `[Contexto URL: ${pathname}] `;
+      const finalUserMessage = activeSkills.length > 0 
+        ? `[Skills Activas: ${activeSkills.join(",")}]\n\n${userMessage}` 
+        : userMessage;
       
       const res = await askJarvis(
-        contextPrefix + userMessage,
+        contextPrefix + finalUserMessage,
         messages,
-        undefined,
-        undefined,
+        mediaUrl,
+        mediaType,
         selectedModel
       );
 
@@ -262,6 +320,7 @@ export default function JarvisGlobalWidget() {
   );
 
   return (
+    <>
     <motion.div 
       className="fixed bottom-6 right-6 z-[9990] flex flex-col items-end"
       drag
@@ -296,14 +355,11 @@ export default function JarvisGlobalWidget() {
                   onClick={() => setShowModelMenu(!showModelMenu)}
                   className="flex items-center gap-1 text-[10px] text-brand-gold/80 hover:text-brand-gold transition-colors"
                 >
-                  {selectedModel.includes("deepseek-r1") ? "DS R1" :
-                   selectedModel.includes("v4-pro") ? "DS V4 Pro" :
-                   selectedModel.includes("qwen") ? "Qwen 3 Coder" :
+                  {selectedModel.includes("dots-3") ? "Dots 3" :
+                   selectedModel.includes("nemotron-3.5") ? "Nem 3.5" :
+                   selectedModel.includes("gpt-oss-20b") ? "OSS 20B" :
                    selectedModel.includes("glm") ? "GLM-5.2" :
-                   selectedModel.includes("nemotron") ? "Nemotron" :
-                   selectedModel.includes("120b") ? "OSS 120B" :
-                   selectedModel.includes("20b") ? "OSS 20B" :
-                   selectedModel.includes("compound") ? "Compound" :
+                   selectedModel.includes("nemotron-3-ultra") ? "Nem 550B" :
                    "Modelo"}
                   <ChevronDown className="w-3 h-3" />
                 </button>
@@ -395,9 +451,9 @@ export default function JarvisGlobalWidget() {
             <div className="absolute top-14 left-3 right-3 bg-black/95 border border-brand-gold/20 rounded-xl p-2 z-50 shadow-2xl max-h-64 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
               <div className="text-[9px] font-semibold text-gray-500 mb-1 px-2 uppercase">OpenRouter</div>
               {[
-                { id: "openrouter/deepseek/deepseek-r1:free", name: "DeepSeek R1", icon: <Brain className="w-3 h-3 text-purple-400" /> },
-                { id: "openrouter/meta-llama/llama-3.3-70b-instruct:free", name: "Llama 3.3 70B", icon: <Sparkles className="w-3 h-3 text-brand-gold" /> },
-                { id: "openrouter/qwen/qwen-3-coder-flash:free", name: "Qwen 3 Coder", icon: <Code className="w-3 h-3 text-blue-400" /> },
+                { id: "openrouter/dots-studio/dots-3-note-preview:free", name: "Dots 3 Note", icon: <Brain className="w-3 h-3 text-purple-400" /> },
+                { id: "openrouter/nvidia/nemotron-3.5-lightning:free", name: "Nemotron 3.5 Lightning", icon: <Zap className="w-3 h-3 text-emerald-400" /> },
+                { id: "openrouter/openai/gpt-oss-20b:free", name: "GPT OSS 20B", icon: <Sparkles className="w-3 h-3 text-gray-200" /> },
               ].map(m => (
                 <button
                   key={m.id}
@@ -410,22 +466,7 @@ export default function JarvisGlobalWidget() {
               <div className="text-[9px] font-semibold text-gray-500 mt-2 mb-1 px-2 uppercase">NVIDIA NIM</div>
               {[
                 { id: "nvidia/z-ai/glm-5.2", name: "GLM-5.2", icon: <Bot className="w-3 h-3 text-emerald-400" /> },
-                { id: "nvidia/deepseek-ai/deepseek-v4-pro", name: "DS V4 Pro (NV)", icon: <Sparkles className="w-3 h-3 text-green-400" /> },
                 { id: "nvidia/nvidia/nemotron-3-ultra-550b-a55b", name: "Nemotron 550B", icon: <Zap className="w-3 h-3 text-emerald-500" /> },
-              ].map(m => (
-                <button
-                  key={m.id}
-                  onClick={() => { setSelectedModel(m.id); setShowModelMenu(false); }}
-                  className={`w-full text-left px-2 py-1.5 text-xs rounded-lg hover:bg-white/5 flex items-center gap-2 transition-colors ${selectedModel === m.id ? "bg-white/10 text-white font-medium" : "text-gray-400"}`}
-                >
-                  {m.icon} {m.name}
-                </button>
-              ))}
-              <div className="text-[9px] font-semibold text-gray-500 mt-2 mb-1 px-2 uppercase">Groq</div>
-              {[
-                { id: "groq/openai/gpt-oss-120b", name: "OSS 120B", icon: <BrainCircuit className="w-3 h-3 text-orange-400" /> },
-                { id: "groq/openai/gpt-oss-20b", name: "OSS 20B", icon: <Zap className="w-3 h-3 text-orange-300" /> },
-                { id: "groq/groq/compound", name: "Compound", icon: <Globe className="w-3 h-3 text-rose-400" /> },
               ].map(m => (
                 <button
                   key={m.id}
@@ -438,32 +479,86 @@ export default function JarvisGlobalWidget() {
             </div>
           )}
 
+          {/* Attach Menu */}
+          {showAttachMenu && (
+            <div className="absolute bottom-16 left-4 mb-2 w-56 bg-surface-2 border border-border-subtle rounded-xl shadow-2xl p-2 z-50">
+              <div className="flex flex-col gap-1">
+                <button
+                  type="button"
+                  onClick={() => { document.getElementById("jarvis-file-upload")?.click(); setShowAttachMenu(false); }}
+                  className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-white/5 text-gray-300 flex items-center gap-2"
+                >
+                  <Paperclip className="w-4 h-4" />
+                  <span>Añadir Archivo</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setIsSkillsModalOpen(true); setShowAttachMenu(false); }}
+                  className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-white/5 text-gray-300 flex items-center gap-2"
+                >
+                  <Command className="w-4 h-4 text-purple-400" />
+                  <span>Skills & Herramientas</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Input */}
-          <div className="border-t border-white/10 p-3 bg-black/40">
-            <form onSubmit={sendMessage} className="relative flex items-center">
+          <div className="border-t border-white/10 p-2 bg-black/40 flex flex-col gap-2 relative">
+            {file && (
+              <div className="flex items-center gap-2 p-2 bg-surface-3 rounded-lg w-fit mx-2 mt-1">
+                {getMediaType(file) === "image" ? (
+                  <ImageIcon className="w-4 h-4 text-gray-300" />
+                ) : (
+                  <FileText className="w-4 h-4 text-gray-300" />
+                )}
+                <span className="text-xs text-white truncate max-w-[150px]">
+                  {file.name}
+                </span>
+                <button onClick={() => setFile(null)} className="text-gray-400 hover:text-white ml-1">
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+            <form onSubmit={sendMessage} className="relative flex items-center px-1">
+              <input
+                id="jarvis-file-upload"
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                className="hidden"
+                accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.mp3,.wav,.ogg,.m4a,.mp4,.doc,.docx,.pptx,.xlsx,.txt"
+              />
+              <button
+                type="button"
+                onClick={() => setShowAttachMenu(!showAttachMenu)}
+                className={`p-1.5 rounded-full mr-1 transition-colors ${showAttachMenu || activeSkills.length > 0 ? "text-brand-gold bg-brand-gold/10" : "text-gray-400 hover:text-white"}`}
+              >
+                <Plus className="h-4 w-4" />
+              </button>
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={isListening ? "Escuchando..." : "Pídele algo a Jarvis..."}
-                className={`w-full rounded-full border border-white/10 bg-white/5 pl-10 pr-12 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition-all
+                className={`w-full rounded-full border border-white/10 bg-white/5 pl-8 pr-10 py-2 text-sm text-white placeholder-gray-500 outline-none transition-all
                   ${isListening ? 'border-red-500/50 bg-red-500/10' : 'focus:border-brand-gold/50 focus:bg-white/10'}`}
-                disabled={loading}
+                disabled={loading || uploadingMedia}
               />
               <button
                 type="button"
                 onClick={toggleListen}
-                className={`absolute left-3 text-gray-400 hover:text-white transition-colors ${isListening ? 'text-red-500 animate-pulse' : ''}`}
+                className={`absolute left-10 text-gray-400 hover:text-white transition-colors ${isListening ? 'text-red-500 animate-pulse' : ''}`}
                 title="Dictar por voz"
               >
                 <Mic className="h-4 w-4" />
               </button>
               <button
                 type="submit"
-                disabled={!input.trim() || loading}
-                className="absolute right-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-brand-gold text-black transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                disabled={(!input.trim() && !file) || loading || uploadingMedia}
+                className="absolute right-2 flex h-7 w-7 items-center justify-center rounded-full bg-brand-gold text-black transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
               >
-                <Send className="h-4 w-4" />
+                {uploadingMedia ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
               </button>
             </form>
           </div>
@@ -485,5 +580,18 @@ export default function JarvisGlobalWidget() {
         </div>
       </button>
     </motion.div>
+      <SkillsDirectoryModal
+        isOpen={isSkillsModalOpen}
+        onClose={() => setIsSkillsModalOpen(false)}
+        activeSkills={activeSkills}
+        onToggleSkill={(skillId) => {
+          setActiveSkills(prev => 
+            prev.includes(skillId) 
+              ? prev.filter(id => id !== skillId)
+              : [...prev, skillId]
+          );
+        }}
+      />
+    </>
   );
 }

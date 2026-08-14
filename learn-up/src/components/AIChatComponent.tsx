@@ -1123,13 +1123,6 @@ export default function AIChatComponent({
                         { id: "nvidia/z-ai/glm-5.2", name: "GLM-5.2", icon: <Bot className="w-4 h-4 text-emerald-400" />, tag: "Gratis" },
                         { id: "nvidia/nvidia/nemotron-3-ultra-550b-a55b", name: "Nemotron 550B", icon: <Zap className="w-4 h-4 text-emerald-400" />, tag: "Gratis" },
                       ]
-                    },
-                    {
-                      category: "GROQ",
-                      models: [
-                        { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B", icon: <BrainCircuit className="w-4 h-4 text-orange-400" />, tag: "Rápido" },
-                        { id: "groq/groq/compound", name: "Compound", icon: <Globe className="w-4 h-4 text-rose-400" />, tag: "Agente" },
-                      ]
                     }
                   ].map(cat => (
                     <div key={cat.category} className="mb-2 last:mb-0">
