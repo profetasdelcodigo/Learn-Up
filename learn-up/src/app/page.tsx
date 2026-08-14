@@ -3,22 +3,16 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { BookOpen, Users, Brain, Calendar, LogIn } from "lucide-react";
-import dynamic from "next/dynamic";
-
-const GoldenOrb = dynamic(() => import("@/components/3d/GoldenOrb"), { 
-  ssr: false,
-  loading: () => (
-    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-brand-gold/20 blur-[150px] animate-pulse" />
-  )
-});
+// Import removed
 
 export default function Home() {
   return (
     <div className="fixed inset-0 overflow-hidden">
       {/* Animated mesh background relying on global body glows */}
       <div className="absolute inset-0 overflow-hidden">
-        {/* 3D Background */}
-        <GoldenOrb />
+        {/* Glowing Backgrounds */}
+        <div className="absolute top-1/2 left-0 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-blue-500/10 blur-[150px] -translate-x-1/2" />
+        <div className="absolute top-1/2 right-0 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-brand-gold/10 blur-[150px] translate-x-1/2" />
 
         {/* Grid pattern overlay */}
         <div
