@@ -1112,9 +1112,11 @@ export default function AIChatComponent({
                     {
                       category: "OPENROUTER",
                       models: [
-                        { id: "openrouter/meta-llama/llama-3-8b-instruct:free", name: "Llama 3 8B", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "Gratis" },
-                        { id: "openrouter/google/gemma-2-9b-it:free", name: "Gemma 2 9B", icon: <Sparkles className="w-4 h-4 text-yellow-500" />, tag: "Gratis" },
-                        { id: "openrouter/mistralai/mistral-7b-instruct:free", name: "Mistral 7B", icon: <Zap className="w-4 h-4 text-blue-400" />, tag: "Gratis" }
+                        { id: "openrouter/deepseek/deepseek-r1:free", name: "DeepSeek R1", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "Razonamiento" },
+                        { id: "openrouter/meta-llama/llama-3.3-70b-instruct:free", name: "Llama 3.3 70B", icon: <BrainCircuit className="w-4 h-4 text-blue-400" />, tag: "Gratis" },
+                        { id: "openrouter/qwen/qwen-3-coder-flash:free", name: "Qwen 3 Coder", icon: <Zap className="w-4 h-4 text-emerald-400" />, tag: "Gratis" },
+                        { id: "openrouter/microsoft/phi-4-mini:free", name: "Phi 4 Mini", icon: <Sparkles className="w-4 h-4 text-yellow-400" />, tag: "Rápido" },
+                        { id: "openrouter/google/gemini-2.5-flash:free", name: "Gemini 2.5 Flash", icon: <Bot className="w-4 h-4 text-orange-400" />, tag: "Contexto" },
                       ]
                     },
                     {

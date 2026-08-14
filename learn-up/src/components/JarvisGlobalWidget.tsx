@@ -30,7 +30,7 @@ export default function JarvisGlobalWidget() {
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [autoTTS, setAutoTTS] = useState(true);
-  const [selectedModel, setSelectedModel] = useState("openrouter/deepseek/deepseek-v4-pro:free");
+  const [selectedModel, setSelectedModel] = useState("openrouter/deepseek/deepseek-r1:free");
   const [autopilot, setAutopilot] = useState(false);
   const [showModelMenu, setShowModelMenu] = useState(false);
   
@@ -396,8 +396,8 @@ export default function JarvisGlobalWidget() {
               <div className="text-[9px] font-semibold text-gray-500 mb-1 px-2 uppercase">OpenRouter</div>
               {[
                 { id: "openrouter/deepseek/deepseek-r1:free", name: "DeepSeek R1", icon: <Brain className="w-3 h-3 text-purple-400" /> },
-                { id: "openrouter/deepseek/deepseek-v4-pro:free", name: "DeepSeek V4 Pro", icon: <Sparkles className="w-3 h-3 text-brand-gold" /> },
-                { id: "openrouter/qwen/qwen3-coder:free", name: "Qwen 3 Coder", icon: <Code className="w-3 h-3 text-blue-400" /> },
+                { id: "openrouter/meta-llama/llama-3.3-70b-instruct:free", name: "Llama 3.3 70B", icon: <Sparkles className="w-3 h-3 text-brand-gold" /> },
+                { id: "openrouter/qwen/qwen-3-coder-flash:free", name: "Qwen 3 Coder", icon: <Code className="w-3 h-3 text-blue-400" /> },
               ].map(m => (
                 <button
                   key={m.id}

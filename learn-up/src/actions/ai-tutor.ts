@@ -474,7 +474,7 @@ HERRAMIENTAS:
         ...truncatedHistory,
         { role: "user", content: finalMessageContent },
       ],
-      modelId || "openrouter/qwen/qwen3.7-flash",
+      modelId || "openrouter/google/gemini-2.5-flash:free",
     );
 
     const rawContent = response.choices[0]?.message?.content || "";
@@ -496,7 +496,7 @@ HERRAMIENTAS:
               { role: "assistant", content: cleanText },
               { role: "user", content: followUpPrompt },
             ],
-            modelId || "openrouter/qwen/qwen3.7-flash"
+            modelId || "openrouter/google/gemini-2.5-flash:free"
           );
           
           return { response: followUpResponse.choices[0]?.message?.content || cleanText + "\n" + result.message, executedActions: [action] };
