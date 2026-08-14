@@ -734,7 +734,7 @@ IMPORTANTE PARA DOCUMENTOS:
         { role: "system", content: systemPrompt },
         { role: "user", content: finalMessageContent },
       ],
-      mediaUrl ? "openrouter/google/gemini-2.5-flash:free" : "openrouter/nvidia/nemotron-3.5-lightning:free",
+      mediaUrl ? "openrouter/google/gemini-2.5-flash:free" : "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
       true // FORCE JSON MODE
     );
 
@@ -749,7 +749,20 @@ IMPORTANTE PARA DOCUMENTOS:
       parsedContent = parsedContent.split("```")[1].split("```")[0];
     }
 
-    const exam = JSON.parse(parsedContent.trim()) as ExamData;
+    const firstBrace = parsedContent.indexOf("{");
+    const lastBrace = parsedContent.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace !== -1) {
+      parsedContent = parsedContent.slice(firstBrace, lastBrace + 1);
+    }
+
+    let exam: ExamData;
+    try {
+      exam = JSON.parse(parsedContent.trim()) as ExamData;
+    } catch (e) {
+      console.error("JSON parse error:", parsedContent);
+      throw new Error("Invalid exam structure");
+    }
+    
     if (!exam.sections || exam.sections.length === 0)
       throw new Error("Invalid exam structure");
 
