@@ -554,14 +554,28 @@ export const getGroqCompletion = async (
 
   for (let i = 0; i < retries; i++) {
     try {
+      const isCompound = modelName === "groq/compound";
+      const extraOptions = isCompound ? {
+        compound_custom: {
+          tools: {
+            enabled_tools: [
+              "web_search",
+              "code_interpreter",
+              "visit_website"
+            ]
+          }
+        }
+      } : {};
+
       const response = await groq.chat.completions.create({
         messages: trimMessages(messages, 10),
         model: modelName,
         response_format: jsonMode ? { type: "json_object" } : undefined,
-        temperature: 0.6,
-        max_tokens: 1024,
+        temperature: 1,
+        max_completion_tokens: 2048,
         top_p: 1,
         stream: false,
+        ...extraOptions
       } as any);
 
       return {
