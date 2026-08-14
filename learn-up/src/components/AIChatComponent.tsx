@@ -1101,24 +1101,23 @@ export default function AIChatComponent({
                     {
                       category: "OPENROUTER",
                       models: [
-                        { id: "openrouter/deepseek/deepseek-r1", name: "DeepSeek R1", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "" },
-                        { id: "openrouter/deepseek/deepseek-v4-pro", name: "DeepSeek V4 Pro", icon: <Sparkles className="w-4 h-4 text-yellow-500" />, tag: "" },
-                        { id: "openrouter/qwen/qwen3-coder-flash", name: "Qwen 3 Coder Flash", icon: <Code className="w-4 h-4 text-blue-400" />, tag: "" },
-                        { id: "openrouter/openai/gpt-oss-120b", name: "OSS 120B", icon: <BrainCircuit className="w-4 h-4 text-orange-400" />, tag: "" },
-                        { id: "openrouter/openai/gpt-oss-20b", name: "OSS 20B", icon: <Zap className="w-4 h-4 text-orange-300" />, tag: "" },
+                        { id: "openrouter/meta-llama/llama-3-8b-instruct:free", name: "Llama 3 8B", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "Gratis" },
+                        { id: "openrouter/google/gemma-2-9b-it:free", name: "Gemma 2 9B", icon: <Sparkles className="w-4 h-4 text-yellow-500" />, tag: "Gratis" },
+                        { id: "openrouter/mistralai/mistral-7b-instruct:free", name: "Mistral 7B", icon: <Zap className="w-4 h-4 text-blue-400" />, tag: "Gratis" }
                       ]
                     },
                     {
                       category: "NVIDIA NIM",
                       models: [
-                        { id: "nvidia/z-ai/glm-5.2", name: "GLM-5.2", icon: <Bot className="w-4 h-4 text-emerald-400" />, tag: "" },
-                        { id: "nvidia/nvidia/nemotron-3-ultra-550b-a55b", name: "Nemotron 550B", icon: <Zap className="w-4 h-4 text-emerald-400" />, tag: "" },
+                        { id: "nvidia/z-ai/glm-5.2", name: "GLM-5.2", icon: <Bot className="w-4 h-4 text-emerald-400" />, tag: "Gratis" },
+                        { id: "nvidia/nvidia/nemotron-3-ultra-550b-a55b", name: "Nemotron 550B", icon: <Zap className="w-4 h-4 text-emerald-400" />, tag: "Gratis" },
                       ]
                     },
                     {
                       category: "GROQ",
                       models: [
-                        { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B", icon: <BrainCircuit className="w-4 h-4 text-orange-400" />, tag: "Rápido" },
+                        { id: "groq/llama-3.3-70b-versatile", name: "El Cerebro (Llama 3.3 70B)", icon: <BrainCircuit className="w-4 h-4 text-orange-400" />, tag: "Rápido" },
+                        { id: "groq/llama-3.1-8b-instant", name: "El Veloz (Llama 3.1 8B)", icon: <Zap className="w-4 h-4 text-yellow-400" />, tag: "Ultra Rápido" },
                       ]
                     }
                   ].map(cat => (
