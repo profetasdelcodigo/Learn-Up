@@ -872,47 +872,58 @@ export async function gradeExam(
   maxScore: number;
   error?: string;
 }> {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { feedback: "", score: 0, maxScore: 0, error: "No autorizado. Por favor inicia sesión." };
+  // Auth check
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { feedback: "", score: 0, maxScore: 0, error: "No autorizado. Por favor inicia sesión." };
 
-    // Calculate auto-gradeable score and question breakdowns
-    let autoScore = 0;
-    let maxScore = 0;
-    let maxClosedScore = 0;
-    let maxOpenScore = 0;
-    let openQuestionsCount = 0;
+  // ── PASO 1: Cálculo determinístico de puntos (NUNCA falla) ──────────────
+  let autoScore = 0;
+  let maxScore = 0;
+  let maxClosedScore = 0;
+  let maxOpenScore = 0;
+  let openQuestionsCount = 0;
 
-    exam.sections.forEach((section) => {
-      section.questions.forEach((q, i) => {
-        maxScore += q.points || 0;
-        if (q.type !== "open") {
-          maxClosedScore += q.points || 0;
-          const studentAns = answers[`${section.title}-${i}`];
-          // Comparación robusta: convertir ambos a número para evitar
-          // que "0" !== 0 o "A) 5" !== 0 cause calificaciones erróneas
-          const studentIdx = typeof studentAns === "string" ? parseInt(studentAns, 10) : studentAns;
-          const correctIdx = typeof q.correctAnswer === "string" ? parseInt(String(q.correctAnswer), 10) : q.correctAnswer;
-          if (
-            studentIdx !== undefined &&
-            !isNaN(Number(studentIdx)) &&
-            !isNaN(Number(correctIdx)) &&
-            Number(studentIdx) === Number(correctIdx)
-          ) {
-            autoScore += q.points || 0;
-          }
-        } else {
-          maxOpenScore += q.points || 0;
-          openQuestionsCount++;
+  exam.sections.forEach((section) => {
+    section.questions.forEach((q, i) => {
+      const pts = q.points || 0;
+      maxScore += pts;
+      if (q.type !== "open") {
+        maxClosedScore += pts;
+        const studentAns = answers[`${section.title}-${i}`];
+        // Comparación robusta: convertir ambos a número
+        const studentIdx = typeof studentAns === "string" ? parseInt(studentAns, 10) : studentAns;
+        const correctIdx = typeof q.correctAnswer === "string" ? parseInt(String(q.correctAnswer), 10) : q.correctAnswer;
+        if (
+          studentIdx !== undefined &&
+          !isNaN(Number(studentIdx)) &&
+          !isNaN(Number(correctIdx)) &&
+          Number(studentIdx) === Number(correctIdx)
+        ) {
+          autoScore += pts;
         }
-      });
+      } else {
+        maxOpenScore += pts;
+        openQuestionsCount++;
+      }
     });
+  });
 
+  // Seguridad: si maxScore aún es 0, forzar a totalPoints del examen
+  if (maxScore === 0 && exam.totalPoints > 0) {
+    maxScore = exam.totalPoints;
+  }
+
+  console.log(`[gradeExam] autoScore=${autoScore} maxScore=${maxScore} maxClosedScore=${maxClosedScore} maxOpenScore=${maxOpenScore}`);
+
+  // ── PASO 2: Pedir retroalimentación a la IA (puede fallar sin perder nota) ──
+  let feedback = "";
+  try {
     const questionsWithAnswers = exam.sections.flatMap((section) =>
       section.questions.map((q, i) => ({
         question: q.question,
         type: q.type,
+        options: q.options,
         correctAnswer: q.correctAnswer,
         studentAnswer: answers[`${section.title}-${i}`],
         points: q.points,
@@ -972,23 +983,26 @@ INSTRUCCIONES DE CORRECCIÓN:
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      MODEL,
+      "groq/llama-3.3-70b-versatile",
     );
 
-    return {
-      feedback: response.choices[0]?.message?.content || "",
-      score: autoScore,
-      maxScore,
-    };
-  } catch (error: any) {
-    console.error("Error en gradeExam:", error);
-    return {
-      feedback: "",
-      score: 0,
-      maxScore: 0,
-      error: "Error al calificar el examen.",
-    };
+    feedback = response.choices[0]?.message?.content || "";
+  } catch (feedbackError: any) {
+    console.error("[gradeExam] Error generando feedback de IA:", feedbackError.message);
+    // Generar feedback de respaldo sin IA
+    const pct = maxScore > 0 ? Math.round((autoScore / maxScore) * 100) : 0;
+    const emoji = pct >= 80 ? "🏆" : pct >= 50 ? "👍" : "💪";
+    feedback = `${emoji} **Puntuación Final: ${autoScore} / ${maxScore} (${pct}%)**\n\n` +
+      `El sistema calificó automáticamente tus respuestas objetivas.\n` +
+      `Obtuviste ${autoScore} de ${maxClosedScore} puntos en preguntas cerradas.\n\n` +
+      `_(La retroalimentación detallada de la IA no está disponible en este momento. Revisa tus respuestas en el modo de revisión.)_`;
   }
+
+  return {
+    feedback,
+    score: autoScore,
+    maxScore,
+  };
 }
 
 // ── Ejecutar herramienta confirmada por el usuario ────────────────────────────
