@@ -23,10 +23,10 @@ export const generateFalImage = async (prompt: string): Promise<string | null> =
   }
   try {
     ensureFalConfig();
-    const result: any = await fal.subscribe("fal-ai/flux/schnell", {
+    const result: any = await fal.subscribe("fal-ai/flux-pro/v1.1", {
       input: {
         prompt: prompt,
-        image_size: "landscape_4_3",
+        aspect_ratio: "16:9",
       },
       logs: true,
       onQueueUpdate: (update) => {
@@ -53,7 +53,7 @@ export const generateFalVideo = async (prompt: string): Promise<string | null> =
   }
   try {
     ensureFalConfig();
-    const result: any = await fal.subscribe("fal-ai/minimax/video-01", {
+    const result: any = await fal.subscribe("fal-ai/kling-video/v1/standard/text-to-video", {
       input: {
         prompt: prompt,
       },

@@ -159,10 +159,33 @@ export default function ThinkingBlock({ content, isComplete }: ThinkingBlockProp
               <div className="border-t border-purple-500/10 pt-2">
                 {lines.map((line, i) => {
                   const trimmed = line.trim();
-                  // Detect numbered steps like "1.", "2.", etc.
                   const isStep = /^\d+\./.test(trimmed);
-                  // Detect labels like "ANÁLISIS:", "HERRAMIENTAS:", etc.
                   const isLabel = /^[A-ZÁÉÍÓÚÑ\s]+:/.test(trimmed);
+
+                  const parseThinkingText = (txt: string) => {
+                    const linkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+                    const parts = [];
+                    let lastIndex = 0;
+                    let match;
+                  
+                    while ((match = linkRegex.exec(txt)) !== null) {
+                      if (match.index > lastIndex) {
+                        parts.push(txt.slice(lastIndex, match.index));
+                      }
+                      parts.push(
+                        <a key={match.index} href={match[2]} target="_blank" rel="noopener noreferrer" className="text-purple-400 font-medium hover:underline inline-flex items-center gap-0.5 mx-1">
+                          {match[1]} <Globe className="w-2 h-2" />
+                        </a>
+                      );
+                      lastIndex = linkRegex.lastIndex;
+                    }
+                    
+                    if (lastIndex < txt.length) {
+                      parts.push(txt.slice(lastIndex));
+                    }
+                  
+                    return parts.length > 0 ? parts : txt;
+                  };
 
                   return (
                     <motion.div
@@ -181,7 +204,7 @@ export default function ThinkingBlock({ content, isComplete }: ThinkingBlockProp
                       {isStep && (
                         <span className="inline-block w-1 h-1 rounded-full bg-purple-400/60 mt-1.5 flex-shrink-0" />
                       )}
-                      <span>{isStep ? trimmed.replace(/^\d+\.\s*/, "") : trimmed}</span>
+                      <span>{parseThinkingText(isStep ? trimmed.replace(/^\d+\.\s*/, "") : trimmed)}</span>
                     </motion.div>
                   );
                 })}

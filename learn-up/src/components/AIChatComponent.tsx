@@ -145,20 +145,31 @@ function AIMessageContent({ text }: { text: string }) {
     if (match.index > lastIndex) {
       nodes.push(text.slice(lastIndex, match.index));
     }
-
     const key = `${match.index}-${tokenRegex.lastIndex}`;
-
     if (match[2]) {
       const safeUrl = getSafeExternalUrl(match[2]);
       if (safeUrl) {
         nodes.push(
-          <img
+          <a
             key={key}
-            src={safeUrl}
-            alt={match[1] || "Imagen"}
-            className="rounded-xl max-w-full my-2 border border-white/10"
-            style={{ maxHeight: 300 }}
-          />,
+            href={safeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block relative group my-3 cursor-zoom-in max-w-2xl"
+          >
+            <img
+              src={safeUrl}
+              alt={match[1] || "Imagen"}
+              className="rounded-xl w-full object-cover border border-white/10 transition-transform duration-300 group-hover:scale-[1.01] group-hover:border-white/30"
+              style={{ maxHeight: 450 }}
+            />
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center backdrop-blur-sm">
+              <span className="text-white text-sm font-semibold bg-white/20 px-4 py-2 rounded-full border border-white/30 flex items-center gap-2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                Ver imagen original
+              </span>
+            </div>
+          </a>,
         );
       }
     } else if (match[4]) {
