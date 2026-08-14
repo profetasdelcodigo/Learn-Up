@@ -29,7 +29,7 @@ export default function ProfessorChatPage() {
           onSubmitAction={askProfessor}
           currentSessionId={sessionId}
           onSessionChange={setSessionId}
-          defaultModel="openrouter/deepseek/deepseek-r1:free"
+          defaultModel="openrouter/dots-studio/dots-3-note-preview:free"
         />
       }
       rightPanel={<NotebookWhiteboard currentSessionId={sessionId} />}

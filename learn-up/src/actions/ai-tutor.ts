@@ -327,7 +327,7 @@ ${toolDefs}`;
         ...truncatedHistory,
         { role: "user", content: finalMessageContent },
       ],
-      modelId || "groq/llama-3.3-70b-versatile",
+      modelId || "openrouter/nvidia/nemotron-3.5-lightning:free",
     );
 
     const rawContent = response.choices[0]?.message?.content || "";
@@ -734,7 +734,7 @@ IMPORTANTE PARA DOCUMENTOS:
         { role: "system", content: systemPrompt },
         { role: "user", content: finalMessageContent },
       ],
-      mediaUrl ? "openrouter/google/gemini-2.5-flash:free" : "openrouter/meta-llama/llama-3.3-70b-instruct:free",
+      mediaUrl ? "openrouter/google/gemini-2.5-flash:free" : "openrouter/nvidia/nemotron-3.5-lightning:free",
       true // FORCE JSON MODE
     );
 
@@ -983,7 +983,7 @@ INSTRUCCIONES DE CORRECCIÓN:
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      "groq/llama-3.3-70b-versatile",
+      "openrouter/nvidia/nemotron-3.5-lightning:free",
     );
 
     feedback = response.choices[0]?.message?.content || "";
