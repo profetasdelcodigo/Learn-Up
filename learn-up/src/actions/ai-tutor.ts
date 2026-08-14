@@ -734,7 +734,7 @@ IMPORTANTE PARA DOCUMENTOS:
         { role: "system", content: systemPrompt },
         { role: "user", content: finalMessageContent },
       ],
-      "groq/llama-3.3-70b-versatile",
+      mediaUrl ? "openrouter/google/gemini-2.5-flash:free" : "openrouter/meta-llama/llama-3.3-70b-instruct:free",
       true // FORCE JSON MODE
     );
 

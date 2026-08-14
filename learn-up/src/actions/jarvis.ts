@@ -51,11 +51,7 @@ export async function askJarvis(
       cleanedMessage = message.replace(skillsMatch[0], "");
     }
 
-    // Fast-Path
-    const isSimpleMessage = cleanedMessage.trim().length < 50 && !cleanedMessage.includes("?") && !cleanedMessage.includes("/") && !mediaUrl;
-    const isGreeting = /^(hola|buenas|hey|buenos|que tal|como estas|gracias|adios|ok|vale|perfecto)/i.test(cleanedMessage.trim());
-    
-    const toolDefs = (isSimpleMessage && isGreeting) ? "\n" : `\n${getToolDefinitions(activeSkills)}`;
+    const toolDefs = `\n${getToolDefinitions(activeSkills)}`;
 
     const systemPrompt = `${getTimeContext()}
 
