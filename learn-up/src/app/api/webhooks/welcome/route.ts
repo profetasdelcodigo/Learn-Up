@@ -34,6 +34,11 @@ export async function POST(req: Request) {
     return new Response("ok (email skipped)", { status: 200 });
   }
 
+  if (!email) {
+    console.log("No email provided in the webhook payload, skipping welcome email");
+    return new Response("ok (no email)", { status: 200 });
+  }
+
   try {
     const data = await resend.emails.send({
       from: "Learn Up <bienvenida@learnup.app>", // El usuario deberá configurar este dominio en Resend

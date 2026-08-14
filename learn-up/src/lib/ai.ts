@@ -297,6 +297,14 @@ const getGeminiCompletion = async (
   }
 };
 
+// ── Helper to manage context window ─────────────────────────────────────────────
+const trimMessages = (messages: any[], limit: number = 10) => {
+  const systemMsg = messages.find(m => m.role === "system");
+  const userMessages = messages.filter(m => m.role !== "system");
+  const trimmed = userMessages.slice(-limit);
+  return systemMsg ? [systemMsg, ...trimmed] : trimmed;
+};
+
 // ── Nvidia NIM Implementation ──────────────────────────────────────────────────
 export const getNvidiaNIMCompletion = async (
   messages: any[],
@@ -309,7 +317,7 @@ export const getNvidiaNIMCompletion = async (
   try {
     const extraParams: any = {};
     if (modelName.includes("nemotron-3-ultra")) {
-      extraParams.reasoning_budget = 16384;
+      extraParams.reasoning_budget = 4096;
       extraParams.chat_template_kwargs = { enable_thinking: true };
     } else if (modelName.includes("deepseek-v4")) {
       extraParams.chat_template_kwargs = { thinking: true, reasoning_effort: "high" };
@@ -323,8 +331,8 @@ export const getNvidiaNIMCompletion = async (
       },
       body: JSON.stringify({
         model: modelName,
-        messages: toTextOnlyMessages(messages),
-        max_tokens: 16384,
+        messages: toTextOnlyMessages(trimMessages(messages, 15)),
+        max_tokens: 4096,
         temperature: 0.7,
         response_format: jsonMode ? { type: "json_object" } : undefined,
         ...extraParams
@@ -371,8 +379,8 @@ const getOpenRouterCompletion = async (
       },
       body: JSON.stringify({
         model: modelName,
-        messages: toTextOnlyMessages(messages),
-        max_tokens: 4096,
+        messages: toTextOnlyMessages(trimMessages(messages, 15)),
+        max_tokens: 1000,
         response_format: jsonMode ? { type: "json_object" } : undefined,
         ...(modelName.includes("deepseek-v4") || modelName.includes("qwen") || modelName.includes("-r1") || modelName.includes("gpt-oss")
           ? { reasoning: { enabled: true } }
@@ -499,14 +507,23 @@ export const getAICompletion = async (
     return await tryGemini();
   }
 
-  // 3. Comportamiento por defecto estricto sin fallback cruzado
-  if (openRouterApiKey) {
+  // 3. Fallback inteligente (Si el .env no fuerza nada, prioriza el mejor disponible gratis)
+  try {
     return await tryOpenRouter();
+  } catch (errorOR: any) {
+    console.log("[AI Debug] Falló OpenRouter:", errorOR.message);
+    try {
+      return await tryNvidia();
+    } catch (errorNV: any) {
+      console.log("[AI Debug] Falló Nvidia NIM:", errorNV.message);
+      try {
+        return await tryGroq();
+      } catch (errorGroq: any) {
+        console.log("[AI Debug] Falló Groq:", errorGroq.message);
+        return await tryGemini();
+      }
+    }
   }
-  if (process.env.NVIDIA_API_KEY) {
-    return await tryNvidia();
-  }
-  return await tryGroq();
 };
 
 // ── Groq Implementation ───────────────────────────────────────────────────────
@@ -532,11 +549,11 @@ export const getGroqCompletion = async (
     }
 
     const response = await groq.chat.completions.create({
-      messages,
+      messages: trimMessages(messages, 10),
       model: modelName,
       response_format: jsonMode ? { type: "json_object" } : undefined,
       temperature: 0.8,
-      max_tokens: modelName.includes("8b") ? 1024 : 4000,
+      max_tokens: 1024,
       ...extraParams
     } as any);
     return {
