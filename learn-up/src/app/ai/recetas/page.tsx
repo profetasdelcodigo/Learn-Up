@@ -29,7 +29,7 @@ export default function RecipesChatPage() {
           onSubmitAction={generateRecipe}
           currentSessionId={sessionId}
           onSessionChange={setSessionId}
-          defaultModel="groq/llama-3.3-70b-versatile"
+          defaultModel="groq/openai/gpt-oss-20b"
         />
       }
       rightPanel={<RecipeSidebar currentSessionId={sessionId} />}

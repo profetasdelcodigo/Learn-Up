@@ -43,9 +43,9 @@ export async function askJarvis(
     const nodes = await findRelatedConcepts(user.id, message);
 
     // Parse active skills from message
-    let activeSkills: string[] = [];
+    let activeSkills: string[] = ["research_pack", "library_pack", "learning_pack", "content_pack", "edu_pack"];
     let cleanedMessage = message;
-    const skillsMatch = message.match(/^\[Skills Activas: (.*?)\]\n\n/);
+    const skillsMatch = message.match(/\[Skills Activas: (.*?)\]\n\n/);
     if (skillsMatch) {
       activeSkills = skillsMatch[1].split(",");
       cleanedMessage = message.replace(skillsMatch[0], "");
@@ -78,7 +78,7 @@ ${toolDefs}`;
         ...truncatedHistory,
         { role: "user", content: finalMessageContent },
       ],
-      modelId || "openrouter/qwen/qwen3.7-flash",
+      modelId || "groq/openai/gpt-oss-20b",
     );
 
     const rawContent = response.choices[0]?.message?.content || "";
@@ -100,7 +100,7 @@ ${toolDefs}`;
               { role: "assistant", content: cleanText },
               { role: "user", content: followUpPrompt },
             ],
-            modelId || "nvidia/moonshotai/kimi-k2.6"
+            modelId || "groq/openai/gpt-oss-20b"
           );
           
           return { response: followUpResponse.choices[0]?.message?.content || cleanText + "\n" + result.message };

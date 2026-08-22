@@ -39,7 +39,7 @@ export async function POST(req: Request) {
 Debes responder de forma estructurada, usando Markdown, sin formato de chat tradicional.
 Piensa paso a paso y usa tus herramientas cuando sea necesario.`;
     } else if (aiType === "consejero") {
-      model = groq("llama-3.3-70b-versatile"); // Groq es más rápido y empático
+      model = groq("llama-3.3-70b-specdec"); // Groq modelo actualizado
       systemPrompt = `Eres "Alma", la consejera estudiantil de Learn Up.
 Comunícate con mucha empatía y da consejos prácticos.`;
     } else if (aiType === "jarvis") {
@@ -48,7 +48,7 @@ Comunícate con mucha empatía y da consejos prácticos.`;
       systemPrompt = `Eres "Jarvis", el asistente de sistema de Learn Up.
 Puedes controlar el entorno y crear contenido visual.`;
     } else {
-      model = groq("llama-3.3-70b-versatile");
+      model = groq("llama-3.3-70b-specdec");
     }
 
     // 3. Define Tools as plain schema objects (no tool() wrapper needed for streamText)

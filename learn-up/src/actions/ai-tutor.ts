@@ -153,15 +153,6 @@ export async function indexAiDocumentFromUrl({
     } = await supabase.auth.getUser();
     if (!user) return { success: false, error: "No autorizado" };
 
-    const extracted = await parseMediaInput(url, mimeType || "");
-    if (
-      !extracted ||
-      extracted.length < 80 ||
-      /no se pudo|no soportado|no compatible/i.test(extracted)
-    ) {
-      return { success: false, error: extracted || "No se pudo leer el documento" };
-    }
-
     const { data: document, error: docError } = await supabase
       .from("ai_documents")
       .insert({
@@ -170,7 +161,7 @@ export async function indexAiDocumentFromUrl({
         title,
         source_url: url,
         mime_type: mimeType || null,
-        status: "ready",
+        status: "processing", // Iniciamos en proceso
         metadata: { indexed_by: "ai_chat_upload" },
       })
       .select("id")
@@ -178,6 +169,17 @@ export async function indexAiDocumentFromUrl({
 
     if (docError || !document) {
       return { success: false, error: "No se pudo registrar el documento" };
+    }
+
+    const extracted = await parseMediaInput(url, mimeType || "");
+    if (
+      !extracted ||
+      extracted.length < 80 ||
+      /no se pudo|no soportado|no compatible/i.test(extracted)
+    ) {
+      // Marcar como pendiente si Gemini falla al extraer texto
+      await supabase.from("ai_documents").update({ status: "pending_embeddings" }).eq("id", document.id);
+      return { success: false, error: extracted || "No se pudo leer el documento de forma automática" };
     }
 
     const chunks = chunkTextForSearch(extracted);
@@ -206,10 +208,15 @@ export async function indexAiDocumentFromUrl({
         .from("ai_document_chunks")
         .insert(rows);
       if (chunkError) {
+        await supabase.from("ai_documents").update({ status: "pending_embeddings" }).eq("id", document.id);
         return { success: false, error: "No se pudieron guardar los fragmentos" };
       }
+    } else {
+      await supabase.from("ai_documents").update({ status: "pending_embeddings" }).eq("id", document.id);
+      return { success: false, error: "No se generaron fragmentos para indexar" };
     }
 
+    await supabase.from("ai_documents").update({ status: "ready" }).eq("id", document.id);
     return { success: true, chunks: rows.length };
   } catch (error) {
     console.error("indexAiDocumentFromUrl failed:", error);
@@ -586,7 +593,7 @@ FORMATO ESTRICTO DE RESPUESTA:
         ...truncatedHistory,
         { role: "user", content: finalMessageContent },
       ],
-      modelId || "groq/llama-3.3-70b-versatile",
+      modelId || "groq/openai/gpt-oss-20b",
     );
 
     let finalResponse = response.choices[0]?.message?.content || "";
@@ -597,7 +604,13 @@ FORMATO ESTRICTO DE RESPUESTA:
       const dishMatch = firstLine.match(/🍽️\s*(.*)/);
       if (dishMatch && dishMatch[1]) {
         const dishName = dishMatch[1].replace(/\*/g, "").trim();
-        const imageUrl = await generateFalImage(dishName);
+        let imageUrl = await searchRecipeImage(dishName);
+        
+        // Fallback a Fal.ai si no hay resultado en Unsplash o el usuario lo pidió explícitamente
+        if (!imageUrl || ingredients.toLowerCase().includes("generar imagen") || ingredients.toLowerCase().includes("genera imagen")) {
+           imageUrl = await generateFalImage(dishName) || imageUrl;
+        }
+
         if (imageUrl) {
           finalResponse += `\n\n![${dishName}](${imageUrl})`;
         }

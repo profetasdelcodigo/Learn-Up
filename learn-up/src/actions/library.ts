@@ -440,9 +440,8 @@ export async function uploadAndIndexAiDocument(
     });
 
     if (!indexResult.success) {
-      // Cleanup file if indexing fails
-      await supabase.storage.from("documents").remove([fileName]);
-      return { success: false, error: indexResult.error || "Error al indexar el documento" };
+      // Guardar el documento con estado pending_embeddings (no borrar de storage)
+      return { success: true, error: "Archivo subido correctamente, pero la indexación de IA falló o quedó pendiente. (" + indexResult.error + ")" };
     }
 
     return { success: true };
