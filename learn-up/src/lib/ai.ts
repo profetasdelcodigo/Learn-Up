@@ -11,9 +11,9 @@ const AI_TEXT_TIMEOUT_MS = Number(process.env.AI_TEXT_TIMEOUT_MS || 18000);
 
 export const AI_MODELS = {
   groqFast: "openai/gpt-oss-20b",
-  openRouterFast: "openai/gpt-oss-20b:free",
-  geminiFast: process.env.GEMINI_TEXT_MODEL || "gemini-2.5-flash",
-  nvidiaReasoning: "nvidia/nemotron-3-ultra-550b-a55b",
+  openRouterFast: "meta-llama/llama-3.1-8b-instruct:free",
+  geminiFast: process.env.GEMINI_TEXT_MODEL || "gemini-1.5-flash",
+  nvidiaReasoning: "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
 } as const;
 
 if (!openRouterApiKey && provider === "openrouter") {
@@ -164,7 +164,7 @@ export async function extractDocumentText(
 }
 
 // 🧠 Helper to manage context window 🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠
-const trimMessages = (messages: any[], limit: number = 8) => {
+const trimMessages = (messages: any[], limit: number = 4) => {
   const systemMsg = messages.find(m => m.role === "system");
   const userMessages = messages.filter(m => m.role !== "system");
   const trimmed = userMessages.slice(-limit);
@@ -211,7 +211,7 @@ export const getNvidiaNIMCompletion = async (
   if (!apiKey) throw new Error("⚠️ Falta NVIDIA_API_KEY en las variables de entorno.");
 
   try {
-    const finalModel = modelName.replace(/^nvidia\/nvidia\//, "nvidia/").replace(/^nvidia\//, "");
+    const finalModel = modelName.replace(/^nvidia\//, "");
     
     // Solo si el usuario explícitamente pide razonamiento u otro parámetro
     const extraParams: any = {};
@@ -228,7 +228,7 @@ export const getNvidiaNIMCompletion = async (
       },
       body: JSON.stringify({
         model: finalModel,
-        messages: toTextOnlyMessages(trimMessages(messages, 8)),
+        messages: toTextOnlyMessages(trimMessages(messages, 4)),
         max_tokens: Number(process.env.AI_MAX_OUTPUT_TOKENS || 2048),
         temperature: 0.7,
         response_format: jsonMode ? { type: "json_object" } : undefined,
@@ -270,10 +270,12 @@ const getOpenRouterCompletion = async (
   // Mapeo seguro de fallbacks
   const freeModels: Record<string, string> = {
     "deepseek/deepseek-r1": "deepseek/deepseek-r1:free",
-    "openai/gpt-oss-20b": "openai/gpt-oss-20b:free",
+    "openai/gpt-oss-20b": "meta-llama/llama-3.1-8b-instruct:free",
     "meta-llama/llama-3.3-70b-instruct": "meta-llama/llama-3.3-70b-instruct:free",
     "qwen/qwen-3-coder-flash": "qwen/qwen-3-coder-flash:free",
-    "google/gemini-2.5-flash": "google/gemini-2.5-flash:free",
+    "google/gemini-2.5-flash": "google/gemini-1.5-flash",
+    "google/gemini-2.0-flash": "google/gemini-1.5-flash",
+    "gemini-2.0-flash": "google/gemini-1.5-flash",
   };
   
   if (freeModels[finalModel]) {
@@ -291,7 +293,7 @@ const getOpenRouterCompletion = async (
       },
       body: JSON.stringify({
         model: finalModel,
-        messages: toTextOnlyMessages(trimMessages(messages, 8)),
+        messages: toTextOnlyMessages(trimMessages(messages, 4)),
         max_tokens: Number(process.env.AI_MAX_OUTPUT_TOKENS || 2048),
         temperature: 0.7,
         response_format: jsonMode ? { type: "json_object" } : undefined,
@@ -351,7 +353,7 @@ export const getGroqCompletion = async (
     } : {};
 
     const promise = groq.chat.completions.create({
-      messages: trimMessages(messages, 8),
+      messages: trimMessages(messages, 4),
       model: finalModel,
       response_format: jsonMode ? { type: "json_object" } : undefined,
       temperature: 1,
@@ -558,7 +560,7 @@ export const getAICompletion = async (
 export const getAIEmbedding = async (text: string): Promise<number[]> => {
   if (!genAI) throw new Error("Gemini AI not initialized for embeddings");
   try {
-    const promise = genAI.getGenerativeModel({ model: "embedding-001" }).embedContent(text);
+    const promise = genAI.getGenerativeModel({ model: "text-embedding-004" }).embedContent(text);
     const result = await withTimeout(promise);
     return result.embedding.values;
   } catch (error) {
