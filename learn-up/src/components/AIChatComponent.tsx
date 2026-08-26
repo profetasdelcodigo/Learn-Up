@@ -1149,7 +1149,7 @@ export default function AIChatComponent({
                   <div className="flex flex-col gap-1">
                     <button
                       type="button"
-                      onClick={() => { document.getElementById("file-upload")?.click(); setShowAttachMenu(false); }}
+                      onClick={() => { document.getElementById("ai-chat-file-input")?.click(); setShowAttachMenu(false); }}
                       className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-white/5 text-gray-300 flex items-center gap-2"
                     >
                       <Paperclip className="w-4 h-4" />
@@ -1246,13 +1246,13 @@ export default function AIChatComponent({
                     >
                       <Sparkles className="w-4 h-4" />
                       {(() => {
-                        if (selectedModel.includes("deepseek-r1")) return "R1";
-                        if (selectedModel.includes("deepseek-v4-pro")) return "V4 Pro";
-                        if (selectedModel.includes("qwen3-coder")) return "Qwen Coder";
-                        if (selectedModel.includes("glm-5.2")) return "GLM 5.2";
-                        if (selectedModel.includes("nemotron-3-ultra")) return "Nemotron";
-                        if (selectedModel.includes("gpt-oss-120b")) return "OSS 120B";
+                        if (selectedModel.includes("dots-3")) return "Dots 3 Note";
+                        if (selectedModel.includes("nemotron-3.5-lightning")) return "Nemotron 3.5";
                         if (selectedModel.includes("gpt-oss-20b")) return "OSS 20B";
+                        if (selectedModel.includes("glm-5.2")) return "GLM 5.2";
+                        if (selectedModel.includes("nemotron-3-ultra")) return "Nemotron 550B";
+                        if (selectedModel.includes("deepseek-r1")) return "R1";
+                        if (selectedModel.includes("qwen3-coder")) return "Qwen Coder";
                         if (selectedModel.includes("groq/compound")) return "Compound";
                         return "IA";
                       })()}
