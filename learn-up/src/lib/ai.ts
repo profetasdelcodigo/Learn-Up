@@ -9,11 +9,13 @@ const provider = process.env.AI_PROVIDER || "openrouter";
 const MAX_REMOTE_MEDIA_BYTES = 25 * 1024 * 1024;
 const REMOTE_MEDIA_TIMEOUT_MS = 15_000;
 const AI_TEXT_TIMEOUT_MS = Number(process.env.AI_TEXT_TIMEOUT_MS || 18000);
+const AI_MULTIMODAL_TIMEOUT_MS = 60000; // Un minuto entero para procesamiento multimodal
 
 export const AI_MODELS = {
   groqFast: "openai/gpt-oss-20b",
   openRouterFast: "meta-llama/llama-3.1-8b-instruct:free",
   geminiFast: process.env.GEMINI_TEXT_MODEL || "gemini-3.6-flash",
+  geminiMultimodal: process.env.GEMINI_MULTIMODAL_MODEL || "gemini-3.7-flash",
   nvidiaReasoning: "nvidia/nemotron-3-ultra-550b-a55b",
 } as const;
 
@@ -379,7 +381,7 @@ export const getGroqCompletion = async (
       ...extraOptions
     } as any);
 
-    const response: any = await withTimeout(promise);
+    const response: any = await withTimeout(promise, AI_TEXT_TIMEOUT_MS);
 
     return {
       choices: [
@@ -404,6 +406,7 @@ const getGeminiCompletion = async (
   }[],
   modelName: string,
   jsonMode: boolean = false,
+  isMultimodal: boolean = false
 ) => {
   if (!genAI) throw new Error("Gemini AI not initialized");
 
@@ -411,14 +414,8 @@ const getGeminiCompletion = async (
     const systemMessage = messages.find((m) => m.role === "system");
     const otherMessages = messages.filter((m) => m.role !== "system");
 
-    let finalModel = modelName.replace(/^gemini\//, "");
-    if (finalModel.includes("antigravity") || finalModel.includes("pro") || finalModel.includes("robotics")) {
-      finalModel = "gemini-3.1-pro"; // Modern mapping
-    } else if (finalModel.includes("flash") || finalModel.includes("gemma")) {
-      finalModel = AI_MODELS.geminiFast;
-    } else if (finalModel.includes("llama")) {
-      finalModel = AI_MODELS.geminiFast; 
-    }
+    // Limpiamos el prefijo (gemini/), pero no hacemos mapeos agresivos
+    const finalModel = modelName.replace(/^gemini\//, "");
 
     const model = genAI.getGenerativeModel({
       model: finalModel,
@@ -440,7 +437,10 @@ const getGeminiCompletion = async (
                 if (urlLower.endsWith(".pdf")) mimeType = "application/pdf";
                 
                 const isImage = mimeType.startsWith("image/") || urlLower.match(/\.(jpg|jpeg|png|webp|heic)$/i);
-                if (isImage) {
+                
+                console.log(`[Gemini Multimedia] Archivo detectado. mimeType=${mimeType}, bytes=${buffer.length}, model=${finalModel}`);
+
+                if (isImage || mimeType === "application/pdf") {
                   return {
                     inlineData: {
                       data: buffer.toString("base64"),
@@ -449,7 +449,9 @@ const getGeminiCompletion = async (
                   };
                 }
 
+                // Extracción local de DOCX/PPTX (cuando Gemini no lo soporta nativamente en inlineData)
                 try {
+                  console.log(`[Gemini Multimedia] Parseando documento localmente para: ${mimeType}`);
                   const extractedText = await extractDocumentText(
                     buffer,
                     urlLower,
@@ -485,7 +487,9 @@ const getGeminiCompletion = async (
       },
     });
 
-    const result = await withTimeout(promise);
+    // Timeout dedicado para multimedia
+    const timeout = isMultimodal ? AI_MULTIMODAL_TIMEOUT_MS : AI_TEXT_TIMEOUT_MS;
+    const result = await withTimeout(promise, timeout);
 
     return {
       choices: [
@@ -514,37 +518,39 @@ export const getAICompletion = async (
   const hasRemoteMedia = messageHasRemoteMedia(messages);
 
   if (hasRemoteMedia && !genAI) {
-    throw new Error("Se intento adjuntar un archivo pero Gemini no esta configurado.");
+    throw new Error("Se intentó adjuntar un archivo pero Gemini no está configurado.");
   }
 
-  // Si hay multimedia, obligatoriamente usamos Gemini
+  // 1. MULTIMEDIA PIPELINE (Estricto)
   if (hasRemoteMedia) {
-    console.log("[AI Debug] Solicitud con multimedia, forzando uso de Gemini...");
-    return await getGeminiCompletion(messages, model, jsonMode);
+    console.log(`[AI Debug] Solicitud con multimedia detectada. Forzando Gemini Multimodal. Ignorando modelo de texto: ${model}`);
+    try {
+      return await getGeminiCompletion(messages, AI_MODELS.geminiMultimodal, jsonMode, true);
+    } catch (e: any) {
+      console.error("[AI Debug] Fallo crítico en pipeline multimedia:", e);
+      throw new Error(`Error específico de procesamiento multimedia: ${e.message}`);
+    }
   }
 
+  // 2. TEXT-ONLY PIPELINE
   const errors: string[] = [];
   
   const providers = [
     {
       name: "User Selected",
       run: async () => {
+        // Validación Estricta de Proveedor
         if (model.startsWith("nvidia/")) return await getNvidiaNIMCompletion(messages, model, jsonMode);
         if (model.startsWith("openrouter/")) return await getOpenRouterCompletion(messages, model, jsonMode);
         if (model.startsWith("groq/")) return await getGroqCompletion(toTextOnlyMessages(messages), model, jsonMode);
-        if (model.startsWith("gemini/")) return await getGeminiCompletion(messages, model, jsonMode);
+        if (model.startsWith("gemini/")) return await getGeminiCompletion(messages, model, jsonMode, false);
         
-        // Asume OpenRouter o Gemini si no hay prefijo claro, pero evita ciclos recursivos de providers
-        if (model.includes("nemotron")) return await getNvidiaNIMCompletion(messages, model, jsonMode);
-        if (model.includes("llama-3.3-70b") || model.includes(AI_MODELS.groqFast)) {
-            return await getGroqCompletion(toTextOnlyMessages(messages), AI_MODELS.groqFast, jsonMode);
-        }
-        return await getOpenRouterCompletion(messages, model, jsonMode);
+        throw new Error(`Proveedor no reconocido o formato de modelo inválido: ${model}`);
       }
     },
     {
       name: "Gemini Fast (Primary Fallback)",
-      run: async () => await getGeminiCompletion(messages, AI_MODELS.geminiFast, jsonMode)
+      run: async () => await getGeminiCompletion(messages, AI_MODELS.geminiFast, jsonMode, false)
     },
     {
       name: "Groq Fast (Secondary Fallback)",
