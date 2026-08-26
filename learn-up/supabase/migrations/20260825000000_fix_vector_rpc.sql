@@ -33,13 +33,13 @@ BEGIN
     kn.confidence_level,
     kn.source_type,
     kn.created_at,
-    (1 - (kn.embedding <=> query_embedding))::float AS similarity
+    (1 - (kn.embedding OPERATOR(extensions.<=>) query_embedding))::float AS similarity
   FROM public.knowledge_nodes kn
   WHERE 
     kn.user_id = p_user_id
     AND kn.embedding IS NOT NULL
-    AND (1 - (kn.embedding <=> query_embedding)) > match_threshold
-  ORDER BY kn.embedding <=> query_embedding
+    AND (1 - (kn.embedding OPERATOR(extensions.<=>) query_embedding)) > match_threshold
+  ORDER BY kn.embedding OPERATOR(extensions.<=>) query_embedding
   LIMIT match_count;
 END;
 $$;

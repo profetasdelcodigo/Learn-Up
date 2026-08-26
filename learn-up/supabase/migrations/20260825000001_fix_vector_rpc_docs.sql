@@ -24,13 +24,13 @@ BEGIN
     adc.content, 
     adc.chunk_index, 
     adc.metadata, 
-    (1 - (adc.embedding <=> query_embedding))::float as similarity 
+    (1 - (adc.embedding OPERATOR(extensions.<=>) query_embedding))::float as similarity 
   FROM public.ai_document_chunks adc
   WHERE 
     adc.user_id = p_user_id
     AND adc.embedding IS NOT NULL
-    AND (1 - (adc.embedding <=> query_embedding)) > match_threshold 
-  ORDER BY adc.embedding <=> query_embedding 
+    AND (1 - (adc.embedding OPERATOR(extensions.<=>) query_embedding)) > match_threshold 
+  ORDER BY adc.embedding OPERATOR(extensions.<=>) query_embedding 
   LIMIT match_count;
 END;
 $$;

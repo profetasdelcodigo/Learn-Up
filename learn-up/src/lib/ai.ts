@@ -478,30 +478,69 @@ const getGeminiCompletion = async (
       }),
     );
 
-    const promise = model.generateContent({
-      contents,
-      generationConfig: {
-        responseMimeType: jsonMode ? "application/json" : "text/plain",
-        temperature: 0.8,
-        maxOutputTokens: Number(process.env.AI_MAX_OUTPUT_TOKENS || 2048),
-      },
-    });
+    const maxRetries = 2; // 3 intentos en total
+    let attempt = 0;
+    
+    while (attempt <= maxRetries) {
+      try {
+        if (isMultimodal && attempt > 0) {
+          console.log(`[Gemini Multimedia] intento ${attempt + 1}/${maxRetries + 1}`);
+        }
 
-    // Timeout dedicado para multimedia
-    const timeout = isMultimodal ? AI_MULTIMODAL_TIMEOUT_MS : AI_TEXT_TIMEOUT_MS;
-    const result = await withTimeout(promise, timeout);
-
-    return {
-      choices: [
-        {
-          message: {
-            content: result.response.text(),
+        const promise = model.generateContent({
+          contents,
+          generationConfig: {
+            responseMimeType: jsonMode ? "application/json" : "text/plain",
+            temperature: 0.8,
+            maxOutputTokens: Number(process.env.AI_MAX_OUTPUT_TOKENS || 2048),
           },
-        },
-      ],
-    };
+        });
+
+        // Timeout dedicado para multimedia
+        const timeout = isMultimodal ? AI_MULTIMODAL_TIMEOUT_MS : AI_TEXT_TIMEOUT_MS;
+        const result = await withTimeout(promise, timeout);
+
+        if (isMultimodal && attempt > 0) {
+          console.log(`[Gemini Multimedia] éxito en intento ${attempt + 1}`);
+        }
+
+        return {
+          choices: [
+            {
+              message: {
+                content: result.response.text(),
+              },
+            },
+          ],
+        };
+      } catch (error: any) {
+        const errorMsg = error?.message || "";
+        const isRetryableError = 
+          errorMsg.includes("503") || 
+          errorMsg.includes("429") || 
+          errorMsg.includes("500") || 
+          errorMsg.includes("502") || 
+          errorMsg.includes("504");
+          
+        if (isRetryableError && attempt < maxRetries) {
+          attempt++;
+          // Base backoff: 1000ms para intento 1, 2000ms para intento 2, más un jitter de hasta 500ms
+          const backoff = (attempt * 1000) + Math.random() * 500;
+          console.log(`[Gemini Multimedia] ${errorMsg.substring(0, 100)}... recibido, reintentando en ${Math.round(backoff)}ms`);
+          await new Promise((res) => setTimeout(res, backoff));
+        } else {
+          if (attempt >= maxRetries && isMultimodal) {
+            console.log(`[Gemini Multimedia] todos los intentos agotados`);
+          }
+          console.error("Gemini API Error:", error);
+          throw error;
+        }
+      }
+    }
+    
+    throw new Error("Fallo inesperado en getGeminiCompletion");
   } catch (error) {
-    console.error("Gemini API Error:", error);
+    console.error("Gemini API Error (outer):", error);
     throw error;
   }
 };
