@@ -82,7 +82,7 @@ describe("buildUserMessage", () => {
     const message = "Hola profesor";
     const result = await buildUserMessage(message);
     expect(result.content).toBe("Hola profesor");
-    expect(result.model).toBe("gemini-3-flash-preview");
+    expect(result.model).toBe("gemini-3.6-flash");
   });
 
   it("should extract YouTube transcripts from link in message", async () => {
@@ -97,7 +97,7 @@ describe("buildUserMessage", () => {
     const message = "Analiza esta imagen";
     const mediaUrl = "https://example.com/image.jpg";
     const result = await buildUserMessage(message, mediaUrl, "image/jpeg");
-    expect(result.model).toBe("gemini-3-flash-preview");
+    expect(result.model).toBe("gemini-3.6-flash");
     expect(result.content).toBeInstanceOf(Array);
     expect(result.content[0]).toEqual({ type: "text", text: "Analiza esta imagen" });
     expect(result.content[1]).toEqual({ type: "file_url", file_url: { url: mediaUrl } });

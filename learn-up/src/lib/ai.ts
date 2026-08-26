@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import Groq from "groq-sdk";
+import { withRetryAndCircuitBreaker, CircuitBreakerOpenError } from "./retry";
 
 const geminiApiKey = process.env.GEMINI_API_KEY || process.env.AI_API_KEY;
 const groqApiKey = process.env.GROQ_API_KEY;
@@ -12,8 +13,8 @@ const AI_TEXT_TIMEOUT_MS = Number(process.env.AI_TEXT_TIMEOUT_MS || 18000);
 export const AI_MODELS = {
   groqFast: "openai/gpt-oss-20b",
   openRouterFast: "meta-llama/llama-3.1-8b-instruct:free",
-  geminiFast: process.env.GEMINI_TEXT_MODEL || "gemini-1.5-flash",
-  nvidiaReasoning: "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
+  geminiFast: process.env.GEMINI_TEXT_MODEL || "gemini-3.6-flash",
+  nvidiaReasoning: "nvidia/nemotron-3-ultra-550b-a55b",
 } as const;
 
 if (!openRouterApiKey && provider === "openrouter") {
@@ -164,11 +165,23 @@ export async function extractDocumentText(
 }
 
 // 🧠 Helper to manage context window 🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠
-const trimMessages = (messages: any[], limit: number = 4) => {
+const MAX_HISTORY = 12;
+const MAX_CONTEXT_CHARS = 12000;
+
+const trimMessages = (messages: any[], limit: number = MAX_HISTORY) => {
   const systemMsg = messages.find(m => m.role === "system");
   const userMessages = messages.filter(m => m.role !== "system");
   const trimmed = userMessages.slice(-limit);
-  return systemMsg ? [systemMsg, ...trimmed] : trimmed;
+  
+  // Truncate message contents to prevent Payload Too Large errors
+  const processed = trimmed.map(m => {
+    if (typeof m.content === 'string' && m.content.length > MAX_CONTEXT_CHARS) {
+      return { ...m, content: m.content.substring(0, MAX_CONTEXT_CHARS) + "\n...[Contenido Truncado]..." };
+    }
+    return m;
+  });
+
+  return systemMsg ? [systemMsg, ...processed] : processed;
 };
 
 // 🧠 fetchWithTimeout 🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠🧠
@@ -212,6 +225,8 @@ export const getNvidiaNIMCompletion = async (
 
   try {
     const finalModel = modelName.replace(/^nvidia\//, "");
+    // Ensure we don't duplicate nvidia/ if it's not present or incorrectly present
+    const requestModel = finalModel.startsWith("nvidia/") ? finalModel : `nvidia/${finalModel}`;
     
     // Solo si el usuario explícitamente pide razonamiento u otro parámetro
     const extraParams: any = {};
@@ -227,8 +242,8 @@ export const getNvidiaNIMCompletion = async (
         "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: finalModel,
-        messages: toTextOnlyMessages(trimMessages(messages, 4)),
+        model: requestModel,
+        messages: toTextOnlyMessages(trimMessages(messages, MAX_HISTORY)),
         max_tokens: Number(process.env.AI_MAX_OUTPUT_TOKENS || 2048),
         temperature: 0.7,
         response_format: jsonMode ? { type: "json_object" } : undefined,
@@ -273,9 +288,10 @@ const getOpenRouterCompletion = async (
     "openai/gpt-oss-20b": "meta-llama/llama-3.1-8b-instruct:free",
     "meta-llama/llama-3.3-70b-instruct": "meta-llama/llama-3.3-70b-instruct:free",
     "qwen/qwen-3-coder-flash": "qwen/qwen-3-coder-flash:free",
-    "google/gemini-2.5-flash": "google/gemini-1.5-flash",
-    "google/gemini-2.0-flash": "google/gemini-1.5-flash",
-    "gemini-2.0-flash": "google/gemini-1.5-flash",
+    "google/gemini-2.5-flash": "google/gemini-3.6-flash",
+    "google/gemini-2.0-flash": "google/gemini-3.6-flash",
+    "gemini-2.0-flash": "google/gemini-3.6-flash",
+    "google/gemini-1.5-flash": "google/gemini-3.6-flash",
   };
   
   if (freeModels[finalModel]) {
@@ -293,7 +309,7 @@ const getOpenRouterCompletion = async (
       },
       body: JSON.stringify({
         model: finalModel,
-        messages: toTextOnlyMessages(trimMessages(messages, 4)),
+        messages: toTextOnlyMessages(trimMessages(messages, MAX_HISTORY)),
         max_tokens: Number(process.env.AI_MAX_OUTPUT_TOKENS || 2048),
         temperature: 0.7,
         response_format: jsonMode ? { type: "json_object" } : undefined,
@@ -353,7 +369,7 @@ export const getGroqCompletion = async (
     } : {};
 
     const promise = groq.chat.completions.create({
-      messages: trimMessages(messages, 4),
+      messages: trimMessages(messages, MAX_HISTORY),
       model: finalModel,
       response_format: jsonMode ? { type: "json_object" } : undefined,
       temperature: 1,
@@ -397,7 +413,7 @@ const getGeminiCompletion = async (
 
     let finalModel = modelName.replace(/^gemini\//, "");
     if (finalModel.includes("antigravity") || finalModel.includes("pro") || finalModel.includes("robotics")) {
-      finalModel = "gemini-1.5-pro";
+      finalModel = "gemini-3.1-pro"; // Modern mapping
     } else if (finalModel.includes("flash") || finalModel.includes("gemma")) {
       finalModel = AI_MODELS.geminiFast;
     } else if (finalModel.includes("llama")) {
@@ -513,32 +529,33 @@ export const getAICompletion = async (
     {
       name: "User Selected",
       run: async () => {
-        if (model.startsWith("openrouter/")) return await getOpenRouterCompletion(messages, model, jsonMode);
         if (model.startsWith("nvidia/")) return await getNvidiaNIMCompletion(messages, model, jsonMode);
+        if (model.startsWith("openrouter/")) return await getOpenRouterCompletion(messages, model, jsonMode);
         if (model.startsWith("groq/")) return await getGroqCompletion(toTextOnlyMessages(messages), model, jsonMode);
         if (model.startsWith("gemini/")) return await getGeminiCompletion(messages, model, jsonMode);
         
-        // Si no tiene prefijo pero el usuario lo pide, asume OpenRouter (fallback antiguo) o Groq
-        if (model.includes("llama-3.3-70b-versatile") || model.includes(AI_MODELS.groqFast)) {
+        // Asume OpenRouter o Gemini si no hay prefijo claro, pero evita ciclos recursivos de providers
+        if (model.includes("nemotron")) return await getNvidiaNIMCompletion(messages, model, jsonMode);
+        if (model.includes("llama-3.3-70b") || model.includes(AI_MODELS.groqFast)) {
             return await getGroqCompletion(toTextOnlyMessages(messages), AI_MODELS.groqFast, jsonMode);
         }
         return await getOpenRouterCompletion(messages, model, jsonMode);
       }
     },
     {
-      name: "Groq Fast",
-      run: async () => await getGroqCompletion(toTextOnlyMessages(messages), AI_MODELS.groqFast, jsonMode)
-    },
-    {
-      name: "OpenRouter Fast",
-      run: async () => await getOpenRouterCompletion(messages, AI_MODELS.openRouterFast, jsonMode)
-    },
-    {
-      name: "Gemini Fast",
+      name: "Gemini Fast (Primary Fallback)",
       run: async () => await getGeminiCompletion(messages, AI_MODELS.geminiFast, jsonMode)
     },
     {
-      name: "Nvidia Fallback",
+      name: "Groq Fast (Secondary Fallback)",
+      run: async () => await getGroqCompletion(toTextOnlyMessages(messages), AI_MODELS.groqFast, jsonMode)
+    },
+    {
+      name: "OpenRouter Fast (Tertiary Fallback)",
+      run: async () => await getOpenRouterCompletion(messages, AI_MODELS.openRouterFast, jsonMode)
+    },
+    {
+      name: "Nvidia (Final Fallback)",
       run: async () => await getNvidiaNIMCompletion(messages, AI_MODELS.nvidiaReasoning, jsonMode)
     }
   ];
@@ -546,10 +563,14 @@ export const getAICompletion = async (
   for (const provider of providers) {
     try {
       console.log(`[AI Debug] Intentando proveedor: ${provider.name}`);
-      return await provider.run();
+      return await withRetryAndCircuitBreaker(provider.name, provider.run, { maxRetries: 1 });
     } catch (e: any) {
-      console.log(`[AI Debug] Proveedor ${provider.name} falló: ${e.message}`);
-      errors.push(`[${provider.name}] ${e.message}`);
+      if (e instanceof CircuitBreakerOpenError) {
+        console.log(`[AI Debug] Proveedor ${provider.name} saltado (Circuit Breaker Open)`);
+      } else {
+        console.log(`[AI Debug] Proveedor ${provider.name} falló: ${e.message}`);
+        errors.push(`[${provider.name}] ${e.message}`);
+      }
     }
   }
 
@@ -560,7 +581,10 @@ export const getAICompletion = async (
 export const getAIEmbedding = async (text: string): Promise<number[]> => {
   if (!genAI) throw new Error("Gemini AI not initialized for embeddings");
   try {
-    const promise = genAI.getGenerativeModel({ model: "text-embedding-004" }).embedContent(text);
+    const promise = genAI.getGenerativeModel({ model: "gemini-embedding-2" }).embedContent({
+      content: { role: "user", parts: [{ text }] },
+      outputDimensionality: 768
+    } as any);
     const result = await withTimeout(promise);
     return result.embedding.values;
   } catch (error) {

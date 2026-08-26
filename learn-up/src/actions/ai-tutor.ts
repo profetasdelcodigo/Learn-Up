@@ -7,8 +7,8 @@ import { generateFalImage } from "@/lib/fal";
 import { getToolDefinitions, parseToolCall, executeToolAction, type ToolAction } from "@/lib/ai-tools";
 import { buildAgentSystemPrompt } from "@/lib/ai/agent-registry";
 
-const MODEL = "gemini-2.0-flash";
-const VISION_MODEL = "gemini-2.0-flash";
+const MODEL = "gemini-3.6-flash";
+const VISION_MODEL = "gemini-3.6-flash";
 
 async function extractOfficeText(buffer: Buffer, fileType: string): Promise<string> {
   const officeParser = await import("officeparser");
@@ -747,7 +747,7 @@ IMPORTANTE PARA DOCUMENTOS:
         { role: "system", content: systemPrompt },
         { role: "user", content: finalMessageContent },
       ],
-      mediaUrl ? "openrouter/google/gemini-2.5-flash:free" : "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
+      mediaUrl ? "openrouter/google/gemini-2.5-flash:free" : "nvidia/nemotron-3-ultra-550b-a55b",
       true // FORCE JSON MODE
     );
 

@@ -44,7 +44,7 @@ Piensa paso a paso y usa tus herramientas cuando sea necesario.`;
 Comunícate con mucha empatía y da consejos prácticos.`;
     } else if (aiType === "jarvis") {
       // Jarvis usa Gemini por defecto para multimodal
-      model = google("gemini-1.5-pro-latest");
+      model = google("gemini-3.6-flash");
       systemPrompt = `Eres "Jarvis", el asistente de sistema de Learn Up.
 Puedes controlar el entorno y crear contenido visual.`;
     } else {
