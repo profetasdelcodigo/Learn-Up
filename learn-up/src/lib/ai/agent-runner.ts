@@ -1,6 +1,6 @@
 import { getAICompletion } from "@/lib/ai";
 import { parseToolCall, executeToolAction, type ToolAction } from "@/lib/ai-tools";
-import { shouldExecuteTool, type ToolMode } from "./tool-contract";
+import { normalizeToolName, shouldExecuteTool, type ToolMode } from "./tool-contract";
 
 export interface AgentLoopOptions {
   maxSteps?: number;
@@ -22,11 +22,30 @@ export interface AgentLoopResult {
 const MAX_TOOL_STEPS = 8;
 const MAX_PARALLEL_TOOLS = 4;
 
+function sanitizeAssistantText(text: string): string {
+  return String(text || "")
+    .replace(/<thinking>[\s\S]*?<\/thinking>/gi, "")
+    .replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, "")
+    .replace(/<function_call>[\s\S]*?<\/function_call>/gi, "")
+    .replace(/```(?:tool|function_call|json)\s*[\s\S]*?```/gi, "")
+    .replace(/^\s*\{\s*"(?:tool|function|function_call)"[\s\S]*?\}\s*$/gim, "")
+    .trim();
+}
+
+function normalizeAction(action: ToolAction): ToolAction {
+  const tool = normalizeToolName(action.tool);
+  return {
+    ...action,
+    tool,
+    description: action.description || `Preparando ${tool}`,
+  };
+}
+
 function compactToolFeedback(toolResults: Array<{ action: ToolAction; success: boolean; message: string; data: unknown }>): string {
   return toolResults
     .map((result) => {
-      const safeMessage = String(result.message || (result.success ? "Completado" : "Error al ejecutar")).slice(0, 4000);
-      return `[Tool: ${result.action.tool}] ${result.success ? "OK" : "ERROR"}\n${safeMessage}`;
+      const safeMessage = String(result.message || (result.success ? "Completado" : "Error al ejecutar")).slice(0, 3000);
+      return `[Resultado de herramienta: ${result.action.tool}] ${result.success ? "OK" : "ERROR"}\n${safeMessage}`;
     })
     .join("\n\n");
 }
@@ -60,16 +79,12 @@ async function executeInBatches(actions: ToolAction[], maxParallel: number) {
   return results;
 }
 
-/**
- * Agent loop for action-based agents. Manual mode returns pending actions to
- * the UI; autopilot executes only tools allowed by the backend policy.
- */
 export async function runAgentLoop(
   systemPrompt: string,
   history: { role: "user" | "assistant" | "system"; content: string | any[] }[] = [],
   userMessage: string | any[],
   model: string,
-  options: AgentLoopOptions = {}
+  options: AgentLoopOptions = {},
 ): Promise<AgentLoopResult> {
   const maxSteps = Math.min(options.maxSteps ?? MAX_TOOL_STEPS, MAX_TOOL_STEPS);
   const maxParallel = Math.min(options.maxParallelTools ?? MAX_PARALLEL_TOOLS, MAX_PARALLEL_TOOLS);
@@ -88,7 +103,9 @@ export async function runAgentLoop(
   for (let step = 0; step < maxSteps; step += 1) {
     const response = await getAICompletion(currentMessages, model);
     const rawContent = response.choices[0]?.message?.content || "";
-    let { cleanText, actions } = await parseToolCall(rawContent);
+    const parsed = await parseToolCall(rawContent);
+    let cleanText = sanitizeAssistantText(parsed.cleanText);
+    const actions = (parsed.actions || []).map(normalizeAction);
 
     if (options.onFormulaExtracted) {
       const formulasMatch = cleanText.match(/<formula>(.*?)<\/formula>/g);
@@ -100,7 +117,7 @@ export async function runAgentLoop(
     }
 
     lastCleanText = cleanText;
-    if (!actions?.length) {
+    if (!actions.length) {
       return {
         response: cleanText,
         executedActions: executedActions.length ? executedActions : undefined,
@@ -129,12 +146,12 @@ export async function runAgentLoop(
     if (denied.length > 0 && executable.length === 0) {
       return {
         response: cleanText || "No puedo ejecutar esa acción con los permisos actuales.",
-        error: `Herramientas rechazadas: ${denied.map((action) => action.tool).join(", ")}`,
+        error: `No se pudieron ejecutar: ${denied.map((action) => action.tool).join(", ")}`,
         executedActions: executedActions.length ? executedActions : undefined,
       };
     }
 
-    if (executable.length === 0) {
+    if (!executable.length) {
       return {
         response: cleanText,
         executedActions: executedActions.length ? executedActions : undefined,
@@ -142,16 +159,16 @@ export async function runAgentLoop(
     }
 
     const toolResults = await executeInBatches(executable, maxParallel);
-    executedActions.push(...executable);
+    executedActions.push(...toolResults.map((item) => item.action));
 
     const feedback = compactToolFeedback(toolResults);
     currentMessages.push({
       role: "assistant",
-      content: cleanText || "He ejecutado las herramientas necesarias.",
+      content: cleanText || "He completado parte de la tarea y continuaré con lo necesario.",
     });
     currentMessages.push({
       role: "user",
-      content: `Resultados reales de las herramientas. No inventes resultados.\n\n${feedback}\n\nContinúa la tarea con las herramientas disponibles si todavía queda trabajo pendiente. Cuando termines, responde al usuario de forma natural y no muestres JSON, nombres internos de tools ni código.`,
+      content: `Resultados estructurados de las herramientas. Úsalos como hechos.\n\n${feedback}\n\nContinúa con otras herramientas necesarias. No escribas sintaxis interna de tools, JSON de ejecución ni bloques de pensamiento. Cuando termines, responde naturalmente al estudiante.`,
     });
   }
 
