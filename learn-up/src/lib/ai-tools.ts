@@ -1114,7 +1114,7 @@ function buildAction(toolJson: any): ToolAction | null {
     args = result.data;
   }
 
-  const registryTool = require('./ai/agent-registry').AI_AGENT_REGISTRY.find((t: any) => t.name === toolName);
+  const registryTool = Object.values(AI_AGENT_REGISTRY).flatMap((agent) => agent.tools).find((t) => t.name === toolName);
   const needsConfirm = registryTool 
     ? registryTool.requiresConfirmation 
     : !AUTO_EXECUTE_TOOLS.includes(toolName);
@@ -1445,8 +1445,8 @@ function stripToolLeaks(text: string): string {
 
 export async function parseToolCall(response: string): Promise<{ cleanText: string; action: ToolAction | null; actions: ToolAction[] }> {
   let cleanText = response;
-  let action: ToolAction | null = null;
-  let actions: ToolAction[] = [];
+  const action: ToolAction | null = null;
+  const actions: ToolAction[] = [];
 
   // Pattern 1: ```tool\n{...}\n``` or ```json\n{...}\n```
   const toolBlockRegex = /```(?:tool|json|javascript|js|typescript)?\s*\n?(\{[\s\S]*?\})\n?```/g;
@@ -1560,7 +1560,7 @@ export async function executeToolAction(
       }
       case "update_calendar_event": {
         try {
-          let updates: any = {};
+          const updates: any = {};
           if (args.title) updates.title = args.title;
           if (args.description !== undefined) updates.description = args.description;
           if (args.date && args.start_time) updates.start_time = `${args.date}T${args.start_time}:00`;

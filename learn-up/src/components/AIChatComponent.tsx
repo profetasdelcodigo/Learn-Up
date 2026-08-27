@@ -304,7 +304,6 @@ export default function AIChatComponent({
   const recognitionRef = useRef<any>(null);
   const isCreatingSession = useRef(false);
   const submitInFlight = useRef(false);
-  const submitInFlight = useRef(false);
   const supabase = createClient();
   
   // Inicializar Web Speech API

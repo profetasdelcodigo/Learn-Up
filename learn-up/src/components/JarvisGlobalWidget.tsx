@@ -271,7 +271,7 @@ export default function JarvisGlobalWidget() {
               <Search className="w-4 h-4" />
               <span className="text-xs font-bold uppercase tracking-wider">Búsqueda Web Pendiente</span>
             </div>
-            <p className="text-sm text-gray-300">¿Deseas que busque "{action.args.query}" en internet?</p>
+            <p className="text-sm text-gray-300">¿Deseas que busque &quot;{action.args.query}&quot; en internet?</p>
             <button className="mt-1 w-full py-2 bg-blue-500/20 text-blue-400 rounded-lg text-sm font-semibold hover:bg-blue-500/30 transition-colors">
               Proceder con la Búsqueda
             </button>
