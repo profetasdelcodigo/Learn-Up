@@ -1583,7 +1583,8 @@ export async function executeToolAction(
       }
 
       case "add_calendar_event": {
-        let { title, description, date, start_time, end_time, recurrence_rule, reminder_minutes } = args;
+        const { title, description, recurrence_rule, reminder_minutes } = args;
+        let { date } = args;
         if (!title || !date) {
           return { success: false, message: "Faltan datos del evento (título y fecha son obligatorios)." };
         }
