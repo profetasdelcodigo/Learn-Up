@@ -161,7 +161,7 @@ export const AI_AGENT_REGISTRY: Record<AiAgentId, AiAgentConfig> = {
       "1. Si la pregunta es academica o de estudio, delega o adopta el rol Profesor.",
       "2. Si es de organizacion o bienestar, adopta el rol Consejero y usa herramientas.",
       "3. Nunca asumas informacion privada que no este en el contexto inyectado.",
-      "4. Si necesitas usar una herramienta (tool), DEBES responder EXCLUSIVAMENTE con un bloque tool {...} tal como espera el sistema.",
+      "4. Usa llamadas de herramientas estructuradas cuando una acción requiera una tool; nunca expongas el protocolo interno al usuario.",
     ],
     tools: [...readOnlyTools, ...writeTools],
   },

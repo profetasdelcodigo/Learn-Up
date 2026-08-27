@@ -6,6 +6,8 @@ import { motion, useDragControls } from "framer-motion";
 import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2, ExternalLink, CalendarPlus, Search, FileText, Mic, Volume2, VolumeX, ChevronDown, Brain, Zap, Activity, Code, BrainCircuit, Globe, Plus, Paperclip, Command, Link as LinkIcon, ImageIcon } from "lucide-react";
 
 import { askJarvis } from "@/actions/jarvis";
+import { addAiMessage, createAiSession } from "@/actions/ai-history";
+import { confirmAndExecuteTool } from "@/actions/ai-tutor";
 import dynamic from "next/dynamic";
 import ThinkingBlock from "./ai/ThinkingBlock";
 import SkillsDirectoryModal from "./ai/SkillsDirectoryModal";
@@ -27,7 +29,9 @@ interface JarvisMessage {
 export default function JarvisGlobalWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [messages, setMessages] = useState<JarvisMessage[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [executingTool, setExecutingTool] = useState(false);
+const [messages, setMessages] = useState<JarvisMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);

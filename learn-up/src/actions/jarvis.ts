@@ -14,6 +14,8 @@ export async function askJarvis(
   mediaUrl?: string,
   mediaType?: string,
   modelId?: string,
+  sessionId?: string | null,
+  isAutonomous?: boolean,
 ): Promise<{ response: string; error?: string; actions?: ToolAction[]; executedActions?: ToolAction[] }> {
   try {
     const supabase = await createClient();
@@ -80,6 +82,8 @@ ${toolDefs}`;
       finalModel || modelId || "groq/openai/gpt-oss-20b",
       {
         userId: user.id,
+        sessionId,
+        isAutonomous: Boolean(isAutonomous),
       }
     );
 

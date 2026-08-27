@@ -7,6 +7,7 @@ import { generateFalImage } from "@/lib/fal";
 import { getToolDefinitions, parseToolCall, executeToolAction, type ToolAction } from "@/lib/ai-tools";
 import { runAgentLoop } from "@/lib/ai/agent-runner";
 import { buildAgentSystemPrompt } from "@/lib/ai/agent-registry";
+import { resolveSkillPackTools } from "@/lib/ai/skill-pack-tools";
 
 const MODEL = "gemini-3.6-flash";
 const VISION_MODEL = "gemini-3.6-flash";
@@ -299,7 +300,8 @@ export async function askProfessor(
     }
 
     // Eliminamos el fast-path restrictivo porque comandos cortos como "Hola, abre spotify" pierden sus herramientas.
-    const toolDefs = `\n${getToolDefinitions(activeSkills)}`;
+    const selectedToolNames = resolveSkillPackTools(activeSkills);
+    const toolDefs = `\n\${getToolDefinitions(selectedToolNames)}`;
 
     const systemPrompt = `${getTimeContext()}
 

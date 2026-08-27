@@ -349,15 +349,16 @@ export default function AIChatComponent({
   const [hasFileAttached, setHasFileAttached] = useState(false);
 
   useEffect(() => {
-    if (currentSessionId) {
-      if (isCreatingSession.current) {
-        isCreatingSession.current = false;
-        return;
-      }
-      loadSessionMessages(currentSessionId);
-    } else {
-      setMessages([]);
+    if (!currentSessionId) {
+      if (!submitInFlight.current) setMessages([]);
+      return;
     }
+    if (isCreatingSession.current) {
+      isCreatingSession.current = false;
+      return;
+    }
+    if (submitInFlight.current) return;
+    void loadSessionMessages(currentSessionId);
   }, [currentSessionId]);
 
   useEffect(() => {
@@ -419,9 +420,23 @@ export default function AIChatComponent({
 
   const loadSessionMessages = async (sessionId: string) => {
     setLoading(true);
-    const msgs = await getAiMessages(sessionId);
-    setMessages(msgs);
-    setLoading(false);
+    try {
+      const durable = await getAiMessages(sessionId);
+      setMessages((prev) => {
+        const pending = prev.filter((m) =>
+          m.clientMessageId &&
+          (m.status === "sending" || m.status === "streaming" || m.status === "tool_pending" || m.status === "tool_running")
+        );
+        const durableIds = new Set(durable.map((m: any) => m.id).filter(Boolean));
+        const durableClientIds = new Set(durable.map((m: any) => m.clientMessageId).filter(Boolean));
+        const merged = durable.filter((m: any) => !pending.some((p) => p.id === m.id || (p.clientMessageId && p.clientMessageId === m.clientMessageId)));
+        return [...merged, ...pending.filter((p) => !durableIds.has(p.id) && !durableClientIds.has(p.clientMessageId))];
+      });
+    } catch (error) {
+      console.error("[CHAT] Error cargando historial:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
 
@@ -545,6 +560,7 @@ export default function AIChatComponent({
     }
 
     let mediaUrl: string | undefined;
+    let mediaMessageSaved = false;
 
     if (backupFile) {
       setUploadingMedia(true);
@@ -568,6 +584,23 @@ export default function AIChatComponent({
           .getPublicUrl(filePath);
         mediaUrl = data.publicUrl;
 
+        // CRITICAL: persist the user's attachment immediately.
+        // Indexing/OCR/embeddings are secondary and must never make the chat message disappear.
+        const mediaMessage = await addAiMessage(
+          sessionId,
+          "user",
+          userMessage,
+          mediaUrl,
+          mediaType,
+          undefined,
+          clientMessageId,
+        );
+        if (mediaMessage?.error) throw new Error(mediaMessage.error);
+        mediaMessageSaved = true;
+        setMessages((prev) => prev.map((m) =>
+          m.clientMessageId === clientMessageId ? { ...m, media_url: mediaUrl, status: "sending" } : m
+        ));
+
         setMessages((prev) =>
           prev.map(m => m.clientMessageId === clientMessageId ? { ...m, media_url: mediaUrl } : m)
         );
@@ -581,6 +614,7 @@ export default function AIChatComponent({
     try {
       const savedUserMessage = await addAiMessage(sessionId, "user", userMessage, mediaUrl, mediaType, undefined, clientMessageId);
       if (savedUserMessage?.error) throw new Error(savedUserMessage.error);
+      mediaMessageSaved = true;
       messagePersisted = true;
 
       // Indexing is deliberately AFTER message persistence.
@@ -621,7 +655,8 @@ export default function AIChatComponent({
         mediaUrl,
         mediaType,
         selectedModel,
-        sessionId
+        sessionId,
+        isAutonomous
       );
 
       if (result.error) {
