@@ -6,12 +6,23 @@ export interface ToolDefinition {
   id: string;
   name: string;
   category: string;
+  schema?: unknown;
   requiresConfirmation: boolean;
   externalEffect: boolean;
   readOnly: boolean;
   supportsAutopilot: boolean;
   supportsParallel: boolean;
   uiType: "search" | "navigation" | "calendar" | "chat" | "document" | "learning" | "content" | "media" | "research" | "data" | "profile" | "education" | "generic";
+}
+
+const TOOL_ALIASES: Record<string, string> = {
+  create_calendar_event: "add_calendar_event",
+  create_group: "create_study_group",
+  create_event: "add_calendar_event",
+};
+
+export function normalizeToolName(name: string): string {
+  return TOOL_ALIASES[name] || name;
 }
 
 const READ_ONLY = new Set([
@@ -33,6 +44,7 @@ const READ_ONLY = new Set([
   "view_screen_time", "get_screen_time_warning", "view_water_stats", "view_sleep_stats",
   "get_ergonomic_advice", "view_report_status", "view_blocked_users", "view_appeal_status",
   "view_feature_roadmap", "view_bug_reports", "read_system_announcements", "search_image",
+  "search_youtube_video", "search_scientific_image", "search_creative_commons_images", "search_statistics",
   "analyze_image", "describe_math_image", "generate_summary", "generate_presentation_outline",
   "generate_glossary", "generate_comparison_table", "generate_code", "generate_practice_questions",
   "generate_mind_map", "generate_bibliography", "generate_project_template", "generate_timeline",
@@ -68,7 +80,8 @@ function categoryFor(name: string): string {
   return "generic";
 }
 
-export function getToolDefinition(name: string): ToolDefinition {
+export function getToolDefinition(rawName: string): ToolDefinition {
+  const name = normalizeToolName(rawName);
   const readOnly = READ_ONLY.has(name);
   const externalEffect = EXTERNAL.has(name);
   const highRisk = HIGH_RISK.has(name);
@@ -80,22 +93,22 @@ export function getToolDefinition(name: string): ToolDefinition {
     externalEffect,
     readOnly,
     supportsAutopilot: readOnly && !highRisk,
-    supportsParallel: readOnly && !["open_url", "browse_web_page"].includes(name),
-    uiType: readOnly ? (name.includes("search") ? "search" : "generic") : "generic"
+    supportsParallel: readOnly && ["browse_web_page", "search_web", "advanced_web_search", "search_image", "search_news", "search_academic_paper"].includes(name),
+    uiType: name.includes("browse") || name === "open_url" ? "navigation" : readOnly && name.includes("search") ? "search" : readOnly ? "generic" : name.includes("calendar") ? "calendar" : name.includes("document") ? "document" : name.includes("image") || name.includes("video") ? "media" : "generic"
   };
 }
 
 export function shouldExecuteTool(
-  name: string,
+  rawName: string,
   mode: ToolMode,
-  permissions = true
+  permissions = true,
 ): ToolDecision {
   if (!permissions) return "deny";
-  const tool = getToolDefinition(name);
+  const tool = getToolDefinition(rawName);
   if (mode === "autopilot" && tool.supportsAutopilot) return "execute";
   return tool.requiresConfirmation ? "pending_confirmation" : "execute";
 }
 
-export function isReadOnlyTool(name: string): boolean {
-  return READ_ONLY.has(name);
+export function isReadOnlyTool(rawName: string): boolean {
+  return READ_ONLY.has(normalizeToolName(rawName));
 }
