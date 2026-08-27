@@ -15,35 +15,42 @@ function edit(rel, fn) {
 }
 
 edit("learn-up/src/actions/ai-tutor.ts", (s) => {
-  s = s.replace(
-    'const toolDefs = `\\n\\${getToolDefinitions(selectedToolNames)}`;',
-    'const toolDefs = `\\n${getToolDefinitions(selectedToolNames)}`;'
-  );
-  s = s.replace(
-    'const toolDefs = `\\n\\${getToolDefinitions(activeSkills)}`;',
-    'const toolDefs = `\\n${getToolDefinitions(resolveSkillPackTools(activeSkills))}`;'
-  );
   s = s.replace(/const MODEL = "gemini-3\.6-flash";/g, 'const MODEL = process.env.GEMINI_TEXT_MODEL || "gemini-3.7-flash";');
   s = s.replace(/const VISION_MODEL = "gemini-3\.6-flash";/g, 'const VISION_MODEL = process.env.GEMINI_MULTIMODAL_MODEL || "gemini-3.7-flash";');
+  s = s.replace(/const toolDefs = `\\n\\\$\{getToolDefinitions\(selectedToolNames\)\}`;/g, 'const toolDefs = `\\n${getToolDefinitions(selectedToolNames)}`;');
+  s = s.replace(/const toolDefs = `\\n\\\$\{getToolDefinitions\(activeSkills\)\}`;/g, 'const toolDefs = `\\n${getToolDefinitions(resolveSkillPackTools(activeSkills))}`;');
   s = s.replace(/const toolDefs = `\\n\$\{getToolDefinitions\(selectedToolNames\)\}`;/g, 'const toolDefs = `\\n${getToolDefinitions(selectedToolNames)}`;');
   return s;
 });
 
 edit("learn-up/src/components/AIChatComponent.tsx", (s) => {
-  // Repair an accidentally nested failure branch produced by earlier automated patches.
-  const broken = /      if \(!messagePersisted\) \{\n        if \(!messagePersisted\) \{\n        if \(!messagePersisted\) \{\n        setMessages\(\(prev\) => prev\.filter\(\(m\) => m\.clientMessageId !== clientMessageId\)\);\n      \} else \{\n        setMessages\(\(prev\) => prev\.map\(\(m\) => m\.clientMessageId === clientMessageId \? \{ \.\.\.m, status: "failed" \} : m\)\);\n      \}\n      \} else \{\n        setMessages\(\(prev\) => prev\.map\(\(m\) => m\.clientMessageId === clientMessageId \? \{ \.\.\.m, status: "failed" \} : m\)\);\n      \}\n      \} else \{\n        setMessages\(\(prev\) => prev\.map\(\(m\) => m\.clientMessageId === clientMessageId \? \{ \.\.\.m, status: "failed" \} : m\)\);\n      \}/m;
-  s = s.replace(broken,
-`      if (!messagePersisted) {
-        setMessages((prev) => prev.filter((m) => m.clientMessageId !== clientMessageId));
-      } else {
-        setMessages((prev) => prev.map((m) =>
-          m.clientMessageId === clientMessageId ? { ...m, status: "failed" } : m
-        ));
-      }`);
-  // Don't keep an unused secondary flag.
-  s = s.replace(/\n    let mediaMessageSaved = false;/g, "");
-  s = s.replace(/\n        mediaMessageSaved = true;/g, "");
-  s = s.replace(/\n      mediaMessageSaved = true;/g, "");
+  const attachmentStart = s.indexOf('        // CRITICAL: persist the user\'s attachment immediately.');
+  const attachmentCatch = s.indexOf('      } catch (uploadErr: any) {', attachmentStart);
+  if (attachmentStart >= 0 && attachmentCatch > attachmentStart) {
+    const canonicalAttachment = `        // Persist attachment metadata before any slow OCR/indexing work.\n        const mediaMessage = await addAiMessage(\n          sessionId,\n          "user",\n          userMessage,\n          mediaUrl,\n          mediaType,\n          undefined,\n          clientMessageId,\n        );\n        if (mediaMessage?.error) throw new Error(mediaMessage.error);\n        messagePersisted = true;\n        setMessages((prev) => prev.map((m) =>\n          m.clientMessageId === clientMessageId\n            ? { ...m, media_url: mediaUrl, status: "sending" }\n            : m\n        ));\n\n`;
+    s = s.slice(0, attachmentStart) + canonicalAttachment + s.slice(attachmentCatch);
+  }
+
+  const failureStart = s.indexOf('      if (!messagePersisted) {');
+  const failureEnd = s.indexOf('      setLoading(false);', failureStart);
+  if (failureStart >= 0 && failureEnd > failureStart) {
+    const canonicalFailure = `      if (!messagePersisted) {\n        setMessages((prev) => prev.filter((m) => m.clientMessageId !== clientMessageId));\n      } else {\n        setMessages((prev) => prev.map((m) =>\n          m.clientMessageId === clientMessageId ? { ...m, status: "failed" } : m\n        ));\n      }\n`;
+    s = s.slice(0, failureStart) + canonicalFailure + s.slice(failureEnd);
+  }
+
+  const duplicateSave = /    try \{\n      const savedUserMessage = await addAiMessage\(sessionId, "user", userMessage, mediaUrl, mediaType, undefined, clientMessageId\);\n      if \(savedUserMessage\?\.error\) throw new Error\(savedUserMessage\.error\);\n      messagePersisted = true;\n\n      \/\/ Indexing is deliberately AFTER message persistence\./m;
+  if (duplicateSave.test(s)) {
+    s = s.replace(duplicateSave,
+`    try {
+      if (!messagePersisted) {
+        const savedUserMessage = await addAiMessage(sessionId, "user", userMessage, mediaUrl, mediaType, undefined, clientMessageId);
+        if (savedUserMessage?.error) throw new Error(savedUserMessage.error);
+        messagePersisted = true;
+      }
+
+      // Indexing is deliberately AFTER message persistence.`);
+  }
+
   return s;
 });
 
@@ -53,4 +60,4 @@ edit("learn-up/src/lib/ai.ts", (s) => {
   return s;
 });
 
-console.log("[runtime-fix] done");
+console.log("[runtime-fix] normalized successfully");
