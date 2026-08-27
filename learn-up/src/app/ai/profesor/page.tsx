@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { BookOpen } from "lucide-react";
 import NotebookLayout from "@/components/ai/NotebookLayout";
-import AIChatComponent from "@/components/AIChatComponent";
+import StableAIChatComponent from "@/components/StableAIChatComponent";
 import NotebookWhiteboard from "@/components/NotebookWhiteboard";
 import { askProfessorStable } from "@/actions/stable-ai-agents";
 import SourcesPanel from "@/components/ai/SourcesPanel";
@@ -21,7 +21,7 @@ export default function ProfessorChatPage() {
         />
       }
       centerPanel={
-        <AIChatComponent
+        <StableAIChatComponent
           title="Profesor Mente"
           subtitle="Tu tutor socrático personal"
           icon={<BookOpen className="w-5 h-5 text-brand-gold" />}
