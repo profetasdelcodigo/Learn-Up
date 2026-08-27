@@ -304,6 +304,7 @@ export default function AIChatComponent({
   const recognitionRef = useRef<any>(null);
   const isCreatingSession = useRef(false);
   const submitInFlight = useRef(false);
+  const submitInFlight = useRef(false);
   const supabase = createClient();
   
   // Inicializar Web Speech API
@@ -715,7 +716,10 @@ export default function AIChatComponent({
     setPendingActions([]);
     if (loading) return;
 
-    const clientSideUserMsg: Message = { role: "user", content: option };
+    const clientMessageId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : String(Date.now()) + "-" + Math.random().toString(36).slice(2);
+    const clientSideUserMsg: Message = { id: clientMessageId, clientMessageId, status: "sending", role: "user", content: option };
     setMessages((prev) => [...prev, clientSideUserMsg]);
     setLoading(true);
 
@@ -746,23 +750,25 @@ export default function AIChatComponent({
     }
 
     try {
-      await addAiMessage(sessionId, "user", option);
-      const historyForGroq = messages.map((m) => ({ role: m.role, content: m.content }));
+      await addAiMessage(sessionId, "user", option, undefined, undefined, undefined, clientMessageId);
+      const historyForGroq = [...messages, clientSideUserMsg].map((m) => ({ role: m.role, content: m.content }));
       const result = await onSubmitAction(option, historyForGroq, undefined, undefined, selectedModel);
 
       if (result.error) {
         setError(result.error);
-      } else if (result.response) {
+      }
+      if (result.actions && result.actions.length > 0) {
+        setPendingActions(result.actions);
+      }
+      if (result.response) {
         await addAiMessage(sessionId, "assistant", result.response);
         setMessages((prev) => [...prev, { role: "assistant", content: result.response }]);
-        if (result.actions && result.actions.length > 0) {
-          setPendingActions(result.actions);
-        }
       }
     } catch (err) {
       setError("Error inesperado al procesar la opción.");
     } finally {
       setLoading(false);
+      submitInFlight.current = false;
     }
   };
 
