@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Heart, HeartPulse } from "lucide-react";
+import { Heart } from "lucide-react";
 import NotebookLayout from "@/components/ai/NotebookLayout";
 import AIChatComponent from "@/components/AIChatComponent";
 import JournalSidebar from "@/components/JournalSidebar";
@@ -14,10 +14,10 @@ export default function CounselorChatPage() {
   return (
     <NotebookLayout
       leftPanel={
-        <SourcesPanel 
-          aiType="consejero" 
-          currentSessionId={sessionId} 
-          onSessionChange={setSessionId} 
+        <SourcesPanel
+          aiType="consejero"
+          currentSessionId={sessionId}
+          onSessionChange={setSessionId}
         />
       }
       centerPanel={
@@ -30,7 +30,7 @@ export default function CounselorChatPage() {
           className="font-serif"
           currentSessionId={sessionId}
           onSessionChange={setSessionId}
-          defaultModel="groq/llama-3.3-70b-versatile"
+          defaultModel="openrouter/openrouter/free"
         />
       }
       rightPanel={<JournalSidebar currentSessionId={sessionId} />}
