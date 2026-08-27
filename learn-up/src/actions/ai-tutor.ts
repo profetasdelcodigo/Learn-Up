@@ -434,7 +434,7 @@ HERRAMIENTAS:
     
     // Eliminamos el fast-path restrictivo porque comandos cortos pierden sus herramientas.
     const selectedToolNames = resolveSkillPackTools(activeSkills);
-    const toolDefs = `\n\${getToolDefinitions(selectedToolNames)}`;
+    const toolDefs = `\n${getToolDefinitions(selectedToolNames)}`;
     
     const finalSystemPrompt = systemPrompt + toolDefs;
 

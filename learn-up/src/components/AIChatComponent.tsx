@@ -505,19 +505,11 @@ export default function AIChatComponent({
         }
       }
       if (!messagePersisted) {
-        if (!messagePersisted) {
-        if (!messagePersisted) {
         setMessages((prev) => prev.filter((m) => m.clientMessageId !== clientMessageId));
-      } else {
-        setMessages((prev) => prev.map((m) => m.clientMessageId === clientMessageId ? { ...m, status: "failed" } : m));
-      }
       } else {
         setMessages((prev) => prev.map((m) =>
           m.clientMessageId === clientMessageId ? { ...m, status: "failed" } : m
         ));
-      }
-      } else {
-        setMessages((prev) => prev.map((m) => m.clientMessageId === clientMessageId ? { ...m, status: "failed" } : m));
       }
       setLoading(false);
       setUploadingMedia(false);
@@ -586,8 +578,7 @@ export default function AIChatComponent({
           .getPublicUrl(filePath);
         mediaUrl = data.publicUrl;
 
-        // CRITICAL: persist the user's attachment immediately.
-        // Indexing/OCR/embeddings are secondary and must never make the chat message disappear.
+        // Persist attachment metadata before any slow OCR/indexing work.
         const mediaMessage = await addAiMessage(
           sessionId,
           "user",
@@ -598,46 +589,13 @@ export default function AIChatComponent({
           clientMessageId,
         );
         if (mediaMessage?.error) throw new Error(mediaMessage.error);
-        mediaMessageSaved = true;
+        messagePersisted = true;
         setMessages((prev) => prev.map((m) =>
-          m.clientMessageId === clientMessageId ? { ...m, media_url: mediaUrl, status: "sending" } : m
+          m.clientMessageId === clientMessageId
+            ? { ...m, media_url: mediaUrl, status: "sending" }
+            : m
         ));
 
-        // CRITICAL: persist the user's attachment immediately.
-        // Indexing/OCR/embeddings are secondary and must never make the chat message disappear.
-        const mediaMessage = await addAiMessage(
-          sessionId,
-          "user",
-          userMessage,
-          mediaUrl,
-          mediaType,
-          undefined,
-          clientMessageId,
-        );
-        if (mediaMessage?.error) throw new Error(mediaMessage.error);
-        setMessages((prev) => prev.map((m) =>
-          m.clientMessageId === clientMessageId ? { ...m, media_url: mediaUrl, status: "sending" } : m
-        ));
-
-        // CRITICAL: persist the user's attachment immediately.
-        // Indexing/OCR/embeddings are secondary and must never make the chat message disappear.
-        const mediaMessage = await addAiMessage(
-          sessionId,
-          "user",
-          userMessage,
-          mediaUrl,
-          mediaType,
-          undefined,
-          clientMessageId,
-        );
-        if (mediaMessage?.error) throw new Error(mediaMessage.error);
-        setMessages((prev) => prev.map((m) =>
-          m.clientMessageId === clientMessageId ? { ...m, media_url: mediaUrl, status: "sending" } : m
-        ));
-
-        setMessages((prev) =>
-          prev.map(m => m.clientMessageId === clientMessageId ? { ...m, media_url: mediaUrl } : m)
-        );
       } catch (uploadErr: any) {
         handleFailure("Error al subir el archivo adjunto. Intenta de nuevo.");
         return;
