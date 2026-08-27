@@ -1,0 +1,991 @@
+"use server";
+
+import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
+import {
+  createServerNotification,
+  createServerNotifications,
+  sendWebPushToUsers,
+} from "@/utils/server-notifications";
+
+// ─── SAFETY HELPER ───────────────────────────────────────────────────────────
+// Supabase can return JSONB arrays as strings in some edge cases.
+// This helper always returns a clean string[].
+function safeParseArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter((v) => typeof v === "string");
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed))
+        return parsed.filter((v) => typeof v === "string");
+    } catch {}
+  }
+  return [];
+}
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isValidUUID(id: unknown): id is string {
+  return typeof id === "string" && UUID_REGEX.test(id);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ChatRoom {
+  id: string;
+  type: "private" | "group";
+  name?: string;
+  participants: string[];
+  participants_profiles?: {
+    id: string;
+    full_name: string;
+    avatar_url: string | null;
+    school?: string;
+    grade?: string;
+    section?: string;
+    role?: string;
+    username?: string;
+    description?: string | null;
+    country?: string | null;
+    socials?: Record<string, string | null> | null;
+  }[];
+  last_message?: string;
+  updated_at: string; // ISO string
+  avatar_url?: string | null;
+  description?: string | null;
+  admins?: string[];
+  only_admins_message?: boolean;
+}
+
+export interface Message {
+  id: string;
+  content: string;
+  user_id: string; // CORRECT: user_id
+  room_id: string;
+  created_at: string;
+  updated_at?: string;
+  is_edited?: boolean;
+  is_deleted_for_everyone?: boolean;
+  deleted_for?: string[];
+  profiles?: {
+    full_name: string;
+    username?: string;
+    avatar_url: string | null;
+    school?: string;
+    grade?: string;
+    section?: string;
+    role?: string;
+    description?: string | null;
+    country?: string | null;
+    socials?: Record<string, string | null> | null;
+  };
+}
+
+export async function getUserRooms() {
+  const supabase = await createClient();
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    // Fetch rooms where participants (JSONB array) contains user.id
+    const { data: rooms, error } = await supabase
+      .from("chat_rooms")
+      .select("*")
+      .filter("participants", "cs", `{${user.id}}`)
+      .order("updated_at", { ascending: false });
+
+    if (error) {
+      console.error(
+        "[getUserRooms] Error fetching rooms:",
+        JSON.stringify(error),
+      );
+      return [];
+    }
+
+    if (!rooms || rooms.length === 0) return [];
+
+    // Normalise participants for every room — safeParseArray handles null/string/array
+    const normalizedRooms = rooms.map((room) => ({
+      ...room,
+      participants: safeParseArray(room.participants),
+    }));
+
+    // Collect all unique participant IDs across all rooms
+    const allParticipantIds = Array.from(
+      new Set(normalizedRooms.flatMap((r) => r.participants)),
+    ).filter(isValidUUID); // extra safety — only real UUIDs
+
+    // Fetch profiles for all participants to ensure Header has info even if not friends
+    const { data: profiles, error: profError } = await supabase
+      .from("profiles")
+      .select("*")
+      .in(
+        "id",
+        allParticipantIds.length > 0
+          ? allParticipantIds
+          : ["00000000-0000-0000-0000-000000000000"],
+      );
+
+    if (profError) {
+      console.error(
+        "[getUserRooms] Error fetching profiles:",
+        JSON.stringify(profError),
+      );
+    }
+
+    // Attach profiles to rooms (safe with fallback empty array)
+    const roomsWithProfiles = normalizedRooms.map((room) => ({
+      ...room,
+      participants_profiles: (profiles || []).filter((p) =>
+        room.participants.includes(p.id),
+      ),
+    }));
+
+    return roomsWithProfiles as (ChatRoom & { participants_profiles: any[] })[];
+} catch (err) {
+    console.error("[getUserRooms] Unexpected error:", err);
+    return [];
+  }
+}
+
+export async function getChatMessages(roomId: string, limit = 50) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  // Server-side query allows us to bypass some RLS if we use the right client, but let's just query normally first
+  // If it still fails, we could use the service role key, but this is a server action so it runs with the user's auth context.
+  const { data, error } = await supabase
+    .from("chat_messages")
+    .select(`*, profiles:user_id (*)`)
+    .eq("room_id", roomId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("[getChatMessages] Error:", error);
+    return [];
+  }
+  return data ? data.reverse() : [];
+}
+
+export async function ensurePrivateRoom(friendId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  // Validate friendId is a UUID
+  if (!isValidUUID(friendId)) {
+    throw new Error(
+      `Invalid friendId - not a UUID: "${friendId}". Check caller.`,
+    );
+  }
+
+  // Step 1: Find rooms where current user is a participant
+  const { data: myRooms, error: fetchError } = await supabase
+    .from("chat_rooms")
+    .select("id, participants, type")
+    .eq("type", "private")
+    .filter("participants", "cs", `{${user.id}}`);
+
+  if (fetchError) {
+    console.error("[ensurePrivateRoom] Error fetching rooms:", fetchError);
+    throw fetchError;
+  }
+
+  // Step 2: In JS, find one where friendId is also a participant (exact 2-person room)
+  const exactMatch = (myRooms || []).find((r) => {
+    const parts = safeParseArray(r.participants);
+    return parts.length === 2 && parts.includes(friendId);
+  });
+
+  if (exactMatch) {
+    return exactMatch.id;
+  }
+
+  // Step 3: Create new private room with strictly validated array
+  const participants: string[] = [user.id, friendId]; // both already UUID-validated
+  const { data: newRoom, error: createError } = await supabase
+    .from("chat_rooms")
+    .insert({
+      type: "private",
+      participants,
+      updated_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (createError) {
+    console.error(
+      "[ensurePrivateRoom] Error creating room:",
+      JSON.stringify(createError),
+      "| participants attempted:",
+      JSON.stringify(participants),
+    );
+    throw createError;
+  }
+
+  return newRoom.id;
+}
+
+export async function createGroup(
+  name: string,
+  participantIds: string[],
+  avatar_url?: string | null,
+  description?: string | null,
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  // Validate participants are UUIDs — filter out ANY non-UUID value to prevent 22P02
+  const rawIds: unknown[] = [user.id, ...participantIds];
+  const validParticipants = Array.from(new Set(rawIds)).filter(
+    (id) => typeof id === "string" && id.length === 36, // fallback simple UUID check
+  ) as string[];
+
+  if (validParticipants.length < 2) {
+    throw new Error(
+      `Invalid participants: need at least 2 valid UUIDs, got ${validParticipants.length}`,
+    );
+  }
+
+  // Verify that all added participants are accepted friends
+  const others = validParticipants.filter((id) => id !== user.id);
+  if (others.length > 0) {
+    const { data: friendships, error: fError } = await supabase
+      .from("friendships")
+      .select("id, requester_id, addressee_id")
+      .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
+      .eq("status", "accepted");
+    
+    if (fError) throw fError;
+    
+    const friendIds = friendships
+      ? friendships.map((f: any) => f.requester_id === user.id ? f.addressee_id : f.requester_id)
+      : [];
+      
+    const nonFriends = others.filter(id => !friendIds.includes(id));
+    if (nonFriends.length > 0) {
+      throw new Error("Solo puedes agregar a usuarios que sean tus amigos aceptados.");
+    }
+  }
+
+  const { data, error } = await supabase
+    .from("chat_rooms")
+    .insert({
+      type: "group",
+      name,
+      participants: validParticipants,
+      admins: [user.id],
+      avatar_url: avatar_url || null, // Add avatar_url
+      description: description || null,
+      only_admins_message: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  // Notify participants (except creator)
+  (async () => {
+    try {
+      const others = validParticipants.filter((id) => id !== user.id);
+      for (const pId of others) {
+        await createServerNotification({
+          user_id: pId,
+          sender_id: user.id,
+          title: "Nuevo Grupo: " + name,
+          message: `Te han añadido al grupo "${name}". ¡Saluda a tus compañeros!`,
+          type: "message",
+          link: "/chat",
+          is_read: false,
+          created_at: new Date().toISOString(),
+        });
+      }
+    } catch (e) {
+      console.error("Error notifying group participants:", e);
+    }
+  })();
+
+  return data.id;
+}
+
+export async function updateGroup(
+  roomId: string,
+  name?: string,
+  avatar_url?: string | null,
+  description?: string | null,
+  only_admins_message?: boolean,
+  admins?: string[],
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  // Verify admin status (optional but recommended)
+  const { data: room } = await supabase
+    .from("chat_rooms")
+    .select("admins")
+    .eq("id", roomId)
+    .single();
+
+  if (!room?.admins || !room.admins.includes(user.id)) {
+    throw new Error("Only admins can update group info");
+  }
+
+  const updates: any = {
+    updated_at: new Date().toISOString(),
+  };
+  if (name !== undefined) updates.name = name;
+  if (avatar_url !== undefined) updates.avatar_url = avatar_url;
+  if (description !== undefined) updates.description = description;
+  if (only_admins_message !== undefined)
+    updates.only_admins_message = only_admins_message;
+  if (admins !== undefined) {
+    // make sure at least the current user remains an admin, or valid uuid check
+    const validAdmins = admins.filter(isValidUUID);
+    if (validAdmins.length > 0) {
+      updates.admins = validAdmins;
+    }
+  }
+
+  const { error } = await supabase
+    .from("chat_rooms")
+    .update(updates)
+    .eq("id", roomId);
+
+  if (error) throw error;
+}
+
+export async function sendMessage(
+  roomId: string,
+  content: string,
+  id?: string,
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+  if (!isValidUUID(roomId)) throw new Error("Invalid room ID");
+
+  const SYSTEM_TOKENS = [
+    "[CALL_OFFER_VIDEO]",
+    "[CALL_OFFER_VOICE]",
+    "[CALL_ENDED_VOICE]",
+    "[CALL_ENDED_VIDEO]",
+    "[CALL_ACCEPTED]",
+    "[CALL_REJECTED]",
+  ];
+  const isSystemMsg = SYSTEM_TOKENS.some((token) => content.includes(token));
+
+  const { data: room, error: roomFetchError } = await supabase
+    .from("chat_rooms")
+    .select("participants, admins, only_admins_message, type, name")
+    .eq("id", roomId)
+    .single();
+
+  if (roomFetchError || !room) {
+    throw roomFetchError || new Error("Room not found");
+  }
+
+  const participants = safeParseArray(room.participants);
+  if (!participants.includes(user.id)) {
+    throw new Error("Forbidden");
+  }
+
+  const admins = safeParseArray(room.admins);
+  if (room.only_admins_message && !admins.includes(user.id) && !isSystemMsg) {
+    throw new Error("Solo administradores pueden enviar mensajes en este grupo.");
+  }
+
+  const messageData: any = {
+    room_id: roomId,
+    user_id: user.id,
+    content,
+  };
+  if (id) messageData.id = id;
+
+  const { data, error } = await supabase
+    .from("chat_messages")
+    .insert(messageData)
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  // Update room updated_at
+  const now = new Date().toISOString();
+  // JUSTIFICACIÓN: Se utiliza createAdminClient para permitir que cualquier participante del chat
+  // actualice la fecha de última actividad (updated_at) del cuarto de chat sin necesidad de
+  // otorgar permisos de edición/actualización completos en las políticas de RLS de chat_rooms.
+  const roomUpdateClient = createAdminClient() || supabase;
+  const { error: roomUpdateError } = await roomUpdateClient
+    .from("chat_rooms")
+    .update({
+      updated_at: now,
+      last_message: content,
+    })
+    .eq("id", roomId);
+
+  if (roomUpdateError) {
+    console.error(
+      "[sendMessage] Room update error:",
+      JSON.stringify(roomUpdateError),
+    );
+    // Non-fatal: message was sent, just log the error
+  }
+
+  // Send Notifications (Fire and Forget but with error logging)
+  (async () => {
+    try {
+      // 1. Get room participants
+      const { data: room } = await supabase
+        .from("chat_rooms")
+        .select("participants, type, name")
+        .eq("id", roomId)
+        .single();
+
+      if (room && room.participants) {
+        const recipients = room.participants.filter(
+          (id: string) => id !== user.id,
+        );
+
+        // Internal system tokens — never create a notification for these
+        const SYSTEM_TOKENS = [
+          "[CALL_OFFER_VIDEO]",
+          "[CALL_OFFER_VOICE]",
+          "[CALL_ENDED_VOICE]",
+          "[CALL_ENDED_VIDEO]",
+          "[CALL_ACCEPTED]",
+          "[CALL_REJECTED]",
+        ];
+        const isSystemMsg = SYSTEM_TOKENS.some((t) => content.includes(t));
+
+        const notificationsToInsert: Parameters<typeof createServerNotifications>[0] = [];
+        const pushRecipients: string[] = [];
+        const { data: senderData } = await supabase
+          .from("profiles")
+          .select("full_name, avatar_url")
+          .eq("id", user.id)
+          .single();
+        const senderName = senderData?.full_name || "Alguien";
+
+        for (const recipientId of recipients) {
+          const title =
+            room.type === "group"
+              ? `Nuevo Mensaje en ${room.name}`
+              : "Nuevo Mensaje";
+          const msgContent = content.substring(0, 80);
+
+          const shouldNotifyInApp =
+            !isSystemMsg || content.includes("[CALL_OFFER");
+
+          if (shouldNotifyInApp) {
+            let notificationType = "message";
+            let notificationTitle = title;
+            let notificationMessage = msgContent;
+
+            if (content.includes("[CALL_OFFER_VIDEO]")) {
+              notificationType = "video_call";
+              notificationTitle = "Videollamada entrante";
+              notificationMessage = "Entra para responder ahora.";
+            } else if (content.includes("[CALL_OFFER_VOICE]")) {
+              notificationType = "call";
+              notificationTitle = "Llamada de voz entrante";
+              notificationMessage = "Entra para responder ahora.";
+            }
+
+            notificationsToInsert.push({
+              user_id: recipientId,
+              sender_id: user.id,
+              title: notificationTitle,
+              message: notificationMessage,
+              type: notificationType,
+              link: "/chat",
+              is_read: false,
+              created_at: new Date().toISOString(),
+              room_id: roomId,
+              event_type:
+                notificationType === "video_call"
+                  ? "chat.video_call"
+                  : notificationType === "call"
+                    ? "chat.voice_call"
+                    : "chat.message",
+              source: "chat",
+              priority:
+                notificationType === "video_call" || notificationType === "call"
+                  ? "urgent"
+                  : "normal",
+              metadata: {
+                room_id: roomId,
+                room_type: room.type,
+                room_name: room.name || null,
+                sender_name: senderName,
+                sender_avatar: senderData?.avatar_url || null,
+              },
+            });
+          }
+
+          pushRecipients.push(recipientId);
+        }
+
+        const pushTitle = content.includes("[CALL_OFFER_VIDEO]")
+          ? `Videollamada de: ${senderName}`
+          : content.includes("[CALL_OFFER_VOICE]")
+            ? `Llamada de: ${senderName}`
+            : `Nuevo mensaje de: ${senderName}`;
+
+        const filteredContent = content.startsWith("[CALL_OFFER")
+          ? "Entra para responder."
+          : content.substring(0, 80);
+
+        await Promise.all([
+          createServerNotifications(notificationsToInsert),
+          sendWebPushToUsers(pushRecipients, () => ({
+            title: pushTitle,
+            message: filteredContent,
+            link: "/chat",
+          })),
+        ]);
+      }
+    } catch (e) {
+      console.error("Error sending notifications logic:", e);
+    }
+  })();
+
+  return data;
+}
+
+export async function markMessagesAsRead(roomId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return;
+
+  const { error } = await supabase
+    .from("notifications")
+    .update({ is_read: true, read_at: new Date().toISOString() })
+    .eq("user_id", user.id)
+    .eq("room_id", roomId)
+    .eq("is_read", false);
+
+  if (
+    error &&
+    (error.code === "PGRST204" || /room_id|read_at|column/i.test(error.message || ""))
+  ) {
+    console.warn(
+      "markMessagesAsRead skipped until notification metadata migration is applied.",
+    );
+  } else if (error) {
+    console.error("markMessagesAsRead failed:", error);
+  }
+}
+
+export async function updateMessage(messageId: string, newContent: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const { error } = await supabase
+    .from("chat_messages")
+    .update({
+      content: newContent,
+      is_edited: true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", messageId)
+    .eq("user_id", user.id); // Only allow editing own messages
+
+  if (error) throw error;
+}
+
+export async function deleteMessage(
+  messageId: string,
+  forEveryone: boolean = false,
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  if (forEveryone) {
+    // 1. Fetch the message with its room info
+    const { data: msgInfo } = await supabase
+      .from("chat_messages")
+      .select("user_id, room_id")
+      .eq("id", messageId)
+      .single();
+
+    if (!msgInfo) throw new Error("Message not found");
+
+    // 2. Check if user is owner OR if user is an admin in that room
+    const isOwner = msgInfo.user_id === user.id;
+    let isAdmin = false;
+
+    if (!isOwner) {
+      const { data: room } = await supabase
+        .from("chat_rooms")
+        .select("admins")
+        .eq("id", msgInfo.room_id)
+        .single();
+      if (room?.admins && Array.isArray(room.admins)) {
+        isAdmin = room.admins.includes(user.id);
+      }
+    }
+
+    if (!isOwner && !isAdmin) {
+      throw new Error(
+        "Unauthorized: Only author or admins can delete for everyone",
+      );
+    }
+
+    // Delete for everyone — try soft delete with flag, fall back to content-wipe
+    try {
+      // JUSTIFICACIÓN: Se usa createAdminClient para permitir el borrado de mensajes para todos.
+      // Si el borrado lo realiza un administrador del grupo (y no el autor del mensaje), las políticas
+      // de RLS normales restringirían la edición del mensaje de otro usuario, requiriendo bypass RLS.
+      const moderationClient = createAdminClient() || supabase;
+      const { error } = await moderationClient
+        .from("chat_messages")
+        .update({
+          is_deleted_for_everyone: true,
+          content: "Este mensaje fue eliminado",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", messageId);
+
+      if (
+        error &&
+        (error.code === "PGRST204" || error.message?.includes("column"))
+      ) {
+        // Column doesn't exist yet — fall back to just wiping the content
+        const { error: fallbackErr } = await moderationClient
+          .from("chat_messages")
+          .update({ content: "Este mensaje fue eliminado" })
+          .eq("id", messageId);
+        if (fallbackErr) throw fallbackErr;
+      } else if (error) {
+        throw error;
+      }
+    } catch (e: any) {
+      if (e?.code !== "PGRST204") throw e;
+    }
+  } else {
+    // Delete for me — try array column, fall back to physical delete
+    try {
+      const { data: message } = await supabase
+        .from("chat_messages")
+        .select("deleted_for")
+        .eq("id", messageId)
+        .single();
+
+      const deletedFor: string[] = Array.isArray(message?.deleted_for)
+        ? message.deleted_for
+        : [];
+      if (!deletedFor.includes(user.id)) deletedFor.push(user.id);
+
+      const { error } = await supabase
+        .from("chat_messages")
+        .update({ deleted_for: deletedFor })
+        .eq("id", messageId);
+
+      if (
+        error &&
+        (error.code === "PGRST204" || error.message?.includes("column"))
+      ) {
+        // Column doesn't exist yet — just hard delete
+        await supabase.from("chat_messages").delete().eq("id", messageId);
+      } else if (error) {
+        throw error;
+      }
+    } catch (e: any) {
+      if (e?.code !== "PGRST204") throw e;
+    }
+  }
+}
+
+export async function uploadChatMedia(file: File, roomId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const fileExt = file.name.split(".").pop();
+  const fileName = `${roomId}/${user.id}/${Date.now()}.${fileExt}`;
+
+  const { data, error } = await supabase.storage
+    .from("chat-media")
+    .upload(fileName, file, {
+      cacheControl: "3600",
+      upsert: false,
+    });
+
+  if (error) throw error;
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("chat-media").getPublicUrl(fileName);
+
+  return publicUrl;
+}
+
+export async function leaveGroup(roomId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const { data: room, error: fetchError } = await supabase
+    .from("chat_rooms")
+    .select("participants")
+    .eq("id", roomId)
+    .single();
+
+  if (fetchError || !room) throw fetchError || new Error("Room not found");
+
+  // safeParseArray prevents 22P02 if participants arrives as a JSON string
+  const currentParticipants = safeParseArray(room.participants);
+  const updatedParticipants = currentParticipants.filter(
+    (id) => id !== user.id,
+  );
+
+  // JUSTIFICACIÓN: Se usa createAdminClient para permitir que un usuario salga del grupo.
+  // Las políticas normales de RLS de chat_rooms pueden no permitir que miembros que no son
+  // dueños del grupo editen la lista de participantes, por lo que se requiere bypass.
+  const updateClient = createAdminClient() || supabase;
+  const { error } = await updateClient
+    .from("chat_rooms")
+    .update({
+      participants: updatedParticipants,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", roomId);
+
+  if (error) throw error;
+}
+
+// ── Agregar miembro a un grupo existente ─────────────────────────────────────
+export async function addGroupMember(roomId: string, newUserId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  if (!isValidUUID(newUserId)) throw new Error("ID de usuario inválido");
+
+  const { data: room, error: fetchError } = await supabase
+    .from("chat_rooms")
+    .select("participants, name, admins")
+    .eq("id", roomId)
+    .single();
+
+  if (fetchError || !room) throw fetchError || new Error("Room not found");
+
+  const currentParticipants = safeParseArray(room.participants);
+  const admins = safeParseArray(room.admins);
+
+  // Only admins can add members
+  if (!admins.includes(user.id)) {
+    throw new Error("Solo los administradores pueden agregar miembros");
+  }
+
+  // Check if already a member
+  if (currentParticipants.includes(newUserId)) {
+    throw new Error("El usuario ya es miembro del grupo");
+  }
+
+  // Verify friendship status before adding to the group
+  const { data: friendship, error: fError } = await supabase
+    .from("friendships")
+    .select("status")
+    .or(`and(requester_id.eq.${user.id},addressee_id.eq.${newUserId}),and(requester_id.eq.${newUserId},addressee_id.eq.${user.id})`)
+    .eq("status", "accepted")
+    .maybeSingle();
+
+  if (fError) throw fError;
+  if (!friendship) {
+    throw new Error("Solo puedes agregar a miembros que sean tus amigos aceptados.");
+  }
+
+  const updatedParticipants = [...currentParticipants, newUserId];
+
+  const { error } = await supabase
+    .from("chat_rooms")
+    .update({
+      participants: updatedParticipants,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", roomId);
+
+  if (error) throw error;
+
+  // Notify the new member
+  const { data: adderProfile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .single();
+
+  await createServerNotification({
+    user_id: newUserId,
+    sender_id: user.id,
+    type: "group_invite",
+    title: "Te han agregado a un grupo 👥",
+    message: `${adderProfile?.full_name || "Alguien"} te agregó al grupo "${room.name}".`,
+    link: `/chat`,
+    is_read: false,
+  });
+}
+// --- SOCIAL CHAT UPGRADE (NUEVAS FUNCIONES) -----------------------------------
+
+export async function searchUsers(query: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, avatar_url, school, grade, username')
+    .ilike('full_name', '%' + query + '%')
+    .limit(10);
+  if (error) throw error;
+  return data;
+}
+
+export async function getUnreadMessagesCount(roomId?: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return 0;
+  
+  let q = supabase
+    .from('chat_messages')
+    .select('id', { count: 'exact' })
+    .neq('user_id', user.id)
+    .is('read_at', null);
+    
+  if (roomId) {
+    q = q.eq('room_id', roomId);
+  }
+  const { count, error } = await q;
+  if (error) return 0;
+  return count || 0;
+}
+
+export async function pinMessage(messageId: string, isPinned: boolean) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('chat_messages')
+    .update({ is_pinned: isPinned })
+    .eq('id', messageId);
+  if (error) throw error;
+}
+
+export async function addMessageReaction(messageId: string, emoji: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Unauthorized');
+
+  const { error } = await supabase
+    .from('message_reactions')
+    .insert({ message_id: messageId, user_id: user.id, emoji });
+  
+  if (error) throw error;
+}
+
+export async function removeMessageReaction(messageId: string, emoji: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Unauthorized');
+
+  const { error } = await supabase
+    .from('message_reactions')
+    .delete()
+    .eq('message_id', messageId)
+    .eq('user_id', user.id)
+    .eq('emoji', emoji);
+    
+  if (error) throw error;
+}
+
+export async function getRoomMembers(roomId: string) {
+  const supabase = await createClient();
+  const { data: members, error } = await supabase
+    .from('room_members')
+    .select('id, user_id, role, muted_until')
+    .eq('room_id', roomId);
+    
+  if (error) throw error;
+  if (!members || members.length === 0) return [];
+  
+  const userIds = members.map(m => m.user_id);
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('*')
+    .in('id', userIds);
+    
+  const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+  
+  return members.map(m => ({
+    ...m,
+    profiles: profileMap.get(m.user_id) || null
+  }));
+}
+
+export async function muteRoomNotifications(roomId: string, hours: number | null) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Unauthorized');
+
+  let mutedUntil = null;
+  if (hours !== null) {
+    const d = new Date();
+    d.setHours(d.getHours() + hours);
+    mutedUntil = d.toISOString();
+  }
+
+  const { error } = await supabase
+    .from('room_members')
+    .update({ muted_until: mutedUntil })
+    .eq('room_id', roomId)
+    .eq('user_id', user.id);
+    
+  if (error) throw error;
+}
+
+export async function exportConversation(roomId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('chat_messages')
+    .select('content, created_at, profiles:user_id(full_name)')
+    .eq('room_id', roomId)
+    .order('created_at', { ascending: true });
+    
+  if (error) throw error;
+  
+  let txt = 'Historial de Conversaci�n\n\n';
+  data.forEach((m: any) => {
+    const name = m.profiles?.full_name || 'Desconocido';
+    const date = new Date(m.created_at).toLocaleString();
+    txt += '[' + date + '] ' + name + ': ' + m.content + '\n';
+  });
+  
+  return txt;
+}
