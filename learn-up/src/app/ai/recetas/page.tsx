@@ -6,7 +6,7 @@ import NotebookLayout from "@/components/ai/NotebookLayout";
 import AIChatComponent from "@/components/AIChatComponent";
 import RecipeSidebar from "@/components/RecipeSidebar";
 import SourcesPanel from "@/components/ai/SourcesPanel";
-import { generateRecipe } from "@/actions/ai-tutor";
+import { generateRecipeStable } from "@/actions/stable-ai-agents";
 
 export default function RecipesChatPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -26,7 +26,7 @@ export default function RecipesChatPage() {
           subtitle="Tus Nutrirecetas saludables"
           icon={<ChefHat className="w-5 h-5 text-orange-400" />}
           aiType="recetas"
-          onSubmitAction={generateRecipe}
+          onSubmitAction={generateRecipeStable}
           currentSessionId={sessionId}
           onSessionChange={setSessionId}
           defaultModel="openrouter/openrouter/free"
