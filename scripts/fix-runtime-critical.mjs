@@ -23,8 +23,16 @@ edit("learn-up/src/actions/ai-tutor.ts", (s) => {
   return s;
 });
 
+edit("learn-up/src/lib/ai-tools.ts", (s) => {
+  s = s.replace(
+    /const \{ title, description, recurrence_rule, reminder_minutes \} = args;/g,
+    'const { title, description, start_time, end_time, recurrence_rule, reminder_minutes } = args;'
+  );
+  return s;
+});
+
 edit("learn-up/src/components/AIChatComponent.tsx", (s) => {
-  const attachmentStart = s.indexOf('        // CRITICAL: persist the user\'s attachment immediately.');
+  const attachmentStart = s.indexOf('        // Persist attachment metadata before any slow OCR/indexing work.');
   const attachmentCatch = s.indexOf('      } catch (uploadErr: any) {', attachmentStart);
   if (attachmentStart >= 0 && attachmentCatch > attachmentStart) {
     const canonicalAttachment = `        // Persist attachment metadata before any slow OCR/indexing work.\n        const mediaMessage = await addAiMessage(\n          sessionId,\n          "user",\n          userMessage,\n          mediaUrl,\n          mediaType,\n          undefined,\n          clientMessageId,\n        );\n        if (mediaMessage?.error) throw new Error(mediaMessage.error);\n        messagePersisted = true;\n        setMessages((prev) => prev.map((m) =>\n          m.clientMessageId === clientMessageId\n            ? { ...m, media_url: mediaUrl, status: "sending" }\n            : m\n        ));\n\n`;
@@ -38,7 +46,7 @@ edit("learn-up/src/components/AIChatComponent.tsx", (s) => {
     s = s.slice(0, failureStart) + canonicalFailure + s.slice(failureEnd);
   }
 
-  const duplicateSave = /    try \{\n      const savedUserMessage = await addAiMessage\(sessionId, "user", userMessage, mediaUrl, mediaType, undefined, clientMessageId\);\n      if \(savedUserMessage\?\.error\) throw new Error\(savedUserMessage\.error\);\n      messagePersisted = true;\n\n      \/\/ Indexing is deliberately AFTER message persistence\./m;
+  const duplicateSave = /    try \{\n      const savedUserMessage = await addAiMessage\(sessionId, "user", userMessage, mediaUrl, mediaType, undefined, clientMessageId\);\n      if \(savedUserMessage\?\.error\) throw new Error\(savedUserMessage\.error\);\n      messagePersisted = true;/m;
   if (duplicateSave.test(s)) {
     s = s.replace(duplicateSave,
 `    try {
@@ -46,18 +54,20 @@ edit("learn-up/src/components/AIChatComponent.tsx", (s) => {
         const savedUserMessage = await addAiMessage(sessionId, "user", userMessage, mediaUrl, mediaType, undefined, clientMessageId);
         if (savedUserMessage?.error) throw new Error(savedUserMessage.error);
         messagePersisted = true;
-      }
+      }`);
+  }
 
-      // Indexing is deliberately AFTER message persistence.`);
+  const autoOld = /        if \(result\.actions && result\.actions\.length > 0\) \{\n          if \(isAutonomous\) \{[\s\S]*?\n          \} else \{\n            setPendingActions\(result\.actions\);\n          \}\n        \}/m;
+  if (autoOld.test(s)) {
+    s = s.replace(autoOld, `        if (result.actions && result.actions.length > 0 && !isAutonomous) {\n          setPendingActions(result.actions);\n        }`);
   }
 
   return s;
 });
 
 edit("learn-up/src/lib/ai.ts", (s) => {
-  s = s.replace(/openRouterFast: "meta-llama\/llama-3\.1-8b-instruct:free",/g,
+  return s.replace(/openRouterFast: "meta-llama\/llama-3\.1-8b-instruct:free",/g,
     'openRouterFast: process.env.OPENROUTER_MODEL || "openrouter/free",');
-  return s;
 });
 
 console.log("[runtime-fix] normalized successfully");
