@@ -92,16 +92,29 @@ export default function NotificationsPage() {
   useEffect(() => {
     loadNotifications();
 
-    const channel = supabase
-      .channel("notifications_rt")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "notifications" },
-        () => loadNotifications(),
-      )
-      .subscribe();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    return () => { supabase.removeChannel(channel); };
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+
+      channel = supabase
+        .channel(`notifications_rt:${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "notifications",
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => loadNotifications(),
+        )
+        .subscribe();
+    });
+
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
   }, [supabase, loadNotifications]);
 
   const markAsRead = async (id: string) => {

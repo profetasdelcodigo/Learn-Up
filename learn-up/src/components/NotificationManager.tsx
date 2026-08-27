@@ -11,6 +11,36 @@ import { addToastAtom } from "@/store/ui";
 const SYSTEM_REGEX = /\[CALL_[A-Z_]+\]/;
 const isSystemMsg = (text?: string) => !!text && SYSTEM_REGEX.test(text);
 
+type RealtimeNotification = {
+  title?: string | null;
+  message?: string | null;
+  type?: string | null;
+  link?: string | null;
+  room_id?: string | null;
+  metadata?: {
+    sender_name?: string | null;
+    room_name?: string | null;
+  } | null;
+};
+
+function buildToastMessage(notification: RealtimeNotification) {
+  const senderName = notification.metadata?.sender_name || "Alguien";
+
+  if (notification.type === "message" || notification.title === "Nuevo Mensaje") {
+    return `Nuevo mensaje de: ${senderName}`;
+  }
+
+  if (notification.type === "call") {
+    return `Llamada entrante de: ${senderName}`;
+  }
+
+  if (notification.type === "video_call") {
+    return `Videollamada entrante de: ${senderName}`;
+  }
+
+  return notification.message || notification.title || "Tienes una nueva notificacion";
+}
+
 export default function NotificationManager() {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -54,43 +84,20 @@ export default function NotificationManager() {
             table: "notifications",
             filter: `user_id=eq.${user.id}`,
           },
-          async (payload) => {
-            const newNotif = payload.new as any;
-            
-            // Refresh count
+          (payload) => {
+            const newNotif = payload.new as RealtimeNotification;
+
             fetchUnreadCount();
+            addToast({ message: buildToastMessage(newNotif), type: "info" });
 
-            // Handle In-App Toast
-            let toastMessage = newNotif.message || "Tienes una nueva notificación";
-            if (newNotif.sender_id) {
-              const { data: senderProfile } = await supabase
-                .from("profiles")
-                .select("full_name")
-                .eq("id", newNotif.sender_id)
-                .single();
-
-              if (senderProfile) {
-                const name = senderProfile.full_name || "Alguien";
-                if (newNotif.type === "message" || newNotif.title === "Nuevo Mensaje") {
-                  toastMessage = `Nuevo mensaje de: ${name}`;
-                } else if (newNotif.type === "call") {
-                  toastMessage = `Llamada entrante de: ${name}`;
-                } else {
-                  toastMessage = `${newNotif.title}: ${name}`;
-                }
-              }
-            }
-            addToast({ message: toastMessage, type: "info" });
-
-            // Skip system call tokens — never show them as native notifications
-            if (isSystemMsg(newNotif.message) || isSystemMsg(newNotif.title))
+            if (isSystemMsg(newNotif.message || undefined) || isSystemMsg(newNotif.title || undefined)) {
               return;
+            }
 
-            // Trigger Native Notification if the tab is hidden
             if (document.hidden && Notification.permission === "granted") {
               try {
                 const n = new Notification(newNotif.title || "Learn Up", {
-                  body: newNotif.message,
+                  body: newNotif.message || "Tienes una nueva notificacion",
                   icon: "/favicon.svg",
                   tag: newNotif.room_id || "general",
                 });

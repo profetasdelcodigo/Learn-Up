@@ -163,14 +163,27 @@ export async function performWebSearch(query: string, totalResults: number = 5):
 
   const searchPromises: Promise<SearchResult[]>[] = [];
 
-  if (canTavily && tavilyMax > 0) searchPromises.push(searchTavily(query, tavilyMax));
-  if (canSerper && serperMax > 0) searchPromises.push(searchSerper(query, serperMax));
+  const timeoutMs = Number(process.env.AI_TEXT_TIMEOUT_MS || 18000);
+  const addTimeout = (p: Promise<SearchResult[]>) => 
+    new Promise<SearchResult[]>((resolve) => {
+      const timer = setTimeout(() => resolve([]), timeoutMs);
+      p.then(res => { clearTimeout(timer); resolve(res); })
+       .catch(err => { console.error(err); clearTimeout(timer); resolve([]); });
+    });
 
-  const allResponses = await Promise.all(searchPromises);
-  
-  allResponses.forEach(res => results.push(...res));
+  if (canTavily && tavilyMax > 0) searchPromises.push(addTimeout(searchTavily(query, tavilyMax)));
+  if (canSerper && serperMax > 0) searchPromises.push(addTimeout(searchSerper(query, serperMax)));
 
-  if (results.length === 0) return '';
+  const settled = await Promise.allSettled(searchPromises);
+  settled.forEach(outcome => {
+    if (outcome.status === 'fulfilled') {
+      results.push(...outcome.value);
+    }
+  });
+
+  if (results.length === 0) {
+    return '\n\n--- AVISO WEB ---\n[Sistema]: La búsqueda web (Tavily/Serper) falló o demoró demasiado. Por favor, responde sin usar fuentes externas.\n--- FIN AVISO ---\n';
+  }
 
   let contextString = `\n\n--- CONTEXTO WEB ---\n`;
   contextString += `INSTRUCCIONES OBLIGATORIAS:\n`;

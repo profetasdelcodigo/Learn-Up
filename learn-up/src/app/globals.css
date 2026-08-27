@@ -29,6 +29,25 @@
   /* Spacing base */
   --space-page-x: 1rem;
   --space-page-x-md: 1.5rem;
+  
+  /* Premium Chat Colors - Learn Up Brand */
+  --chat-bg: #0A0A0F;
+  --chat-user: hsl(43, 85%, 55%);      /* Dorado Learn Up */
+  --chat-user-text: #0A0A0F;            /* Negro sobre dorado */
+  --chat-assistant: hsl(240, 10%, 14%); /* Gris oscuro elegante */
+  --chat-assistant-text: #E8E8ED;       /* Texto claro */
+}
+
+/* ── Light Theme ── */
+html.light {
+  --background: #F8F8FC;
+  --foreground: #1A1A2E;
+
+  --chat-bg: #F8F8FC;
+  --chat-user: hsl(43, 85%, 50%);
+  --chat-user-text: #FFFFFF;
+  --chat-assistant: hsl(240, 10%, 94%);
+  --chat-assistant-text: #1A1A2E;
 }
 
 @theme {
@@ -279,6 +298,15 @@ body {
     @apply w-10 h-10 rounded-xl flex items-center justify-center text-lg
            border shadow-lg;
   }
+  
+  /* ── Glassmorphism ── */
+  .glass-strong {
+    @apply bg-black/40 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)];
+  }
+  
+  .glass-light {
+    @apply bg-white/5 backdrop-blur-lg border border-white/5;
+  }
 }
 
 /* ── Global background glows (Optimized for Performance) ── */
@@ -309,10 +337,85 @@ body::after {
   z-index: 0;
 }
 
+/* ── Light Mode Surface Overrides ── */
+html.light body {
+  background: var(--background);
+  color: var(--foreground);
+}
+html.light body::before {
+  background: radial-gradient(circle, rgba(240, 200, 80, 0.08) 0%, rgba(240, 200, 80, 0) 70%);
+}
+html.light body::after {
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.06) 0%, rgba(59, 130, 246, 0) 70%);
+}
+html.light .glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+}
+html.light .glass-strong {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(30px) saturate(1.5);
+  -webkit-backdrop-filter: blur(30px) saturate(1.5);
+}
+html.light .bg-brand-black,
+html.light .bg-surface-1,
+html.light .bg-surface-2 {
+  background-color: rgba(255, 255, 255, 0.88);
+}
+html.light .text-white {
+  color: #171724;
+}
+html.light .text-gray-200,
+html.light .text-gray-300,
+html.light .text-gray-400 {
+  color: #4b5563;
+}
+html.light .border-white\/5,
+html.light .border-white\/6,
+html.light .border-white\/10 {
+  border-color: rgba(15, 23, 42, 0.1);
+}
+html.light .bg-white\/5,
+html.light .bg-black\/20,
+html.light .bg-black\/40 {
+  background-color: rgba(15, 23, 42, 0.04);
+}
+html.light .prose-ai,
+html.light .prose-ai strong {
+  color: #171724;
+}
+
 /* ─────────────────────────────────────────────────
    UTILITIES LAYER
 ───────────────────────────────────────────────── */
 @layer utilities {
+  .chat-bg-pattern {
+    background-color: var(--chat-bg);
+    background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+  
+  .chat-bubble-sent {
+    background-color: var(--chat-user);
+    color: var(--chat-user-text);
+    border-radius: 16px;
+    border-top-right-radius: 4px;
+    box-shadow: 0 4px 12px rgba(240, 200, 80, 0.15);
+  }
+  
+  .chat-bubble-received {
+    background-color: var(--chat-assistant);
+    color: var(--chat-assistant-text);
+    border-radius: 16px;
+    border-top-left-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  
+  .chat-seen-icon {
+    color: var(--chat-seen);
+  }
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
   }
@@ -457,4 +560,27 @@ body::after {
 @keyframes glow-pulse {
   0%, 100% { opacity: 0.4; }
   50% { opacity: 1; }
+}
+
+@keyframes typing-dot {
+  0%, 100% { transform: translateY(0); opacity: 0.5; }
+  50% { transform: translateY(-4px); opacity: 1; }
+}
+
+/* ─────────────────────────────────────────────────
+   Chat background patterns
+   NOTE: URLs must live here in CSS (not in TSX style props)
+   so Webpack can resolve them correctly from /public
+───────────────────────────────────────────────── */
+.chat-bg-pattern {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Crect width='40' height='40' fill='none' stroke='rgba(255,255,255,0.03)' stroke-width='0.5'/%3E%3C/svg%3E");
+  background-size: 40px 40px;
+  background-repeat: repeat;
+}
+
+.chat-grid-bg {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Crect width='40' height='40' fill='none' stroke='rgba(255,255,255,0.025)' stroke-width='0.5'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 40px 40px;
+  background-color: rgba(0, 0, 0, 0.05);
 }

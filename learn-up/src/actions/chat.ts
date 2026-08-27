@@ -4,7 +4,8 @@ import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
 import {
   createServerNotification,
-  sendWebPushToUser,
+  createServerNotifications,
+  sendWebPushToUsers,
 } from "@/utils/server-notifications";
 
 // ─── SAFETY HELPER ───────────────────────────────────────────────────────────
@@ -142,10 +143,33 @@ export async function getUserRooms() {
     }));
 
     return roomsWithProfiles as (ChatRoom & { participants_profiles: any[] })[];
-  } catch (err) {
+} catch (err) {
     console.error("[getUserRooms] Unexpected error:", err);
     return [];
   }
+}
+
+export async function getChatMessages(roomId: string, limit = 50) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  // Server-side query allows us to bypass some RLS if we use the right client, but let's just query normally first
+  // If it still fails, we could use the service role key, but this is a server action so it runs with the user's auth context.
+  const { data, error } = await supabase
+    .from("chat_messages")
+    .select(`*, profiles:user_id (*)`)
+    .eq("room_id", roomId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("[getChatMessages] Error:", error);
+    return [];
+  }
+  return data ? data.reverse() : [];
 }
 
 export async function ensurePrivateRoom(friendId: string) {
@@ -345,32 +369,6 @@ export async function updateGroup(
   if (error) throw error;
 }
 
-export async function getChatMessages(roomId: string) {
-  const supabase = await createClient();
-  try {
-    const { data, error } = await supabase
-      .from("chat_messages")
-      .select(
-        `
-      *,
-      profiles:user_id (*)
-    `,
-      )
-      .eq("room_id", roomId)
-      .order("created_at", { ascending: false })
-      .limit(50);
-
-    if (error) {
-      console.error("[getChatMessages] Error:", JSON.stringify(error));
-      return [];
-    }
-    return ((data || []) as Message[]).reverse();
-  } catch (err) {
-    console.error("[getChatMessages] Unexpected error:", err);
-    return [];
-  }
-}
-
 export async function sendMessage(
   roomId: string,
   content: string,
@@ -438,6 +436,7 @@ export async function sendMessage(
     .from("chat_rooms")
     .update({
       updated_at: now,
+      last_message: content,
     })
     .eq("id", roomId);
 
@@ -475,16 +474,15 @@ export async function sendMessage(
         ];
         const isSystemMsg = SYSTEM_TOKENS.some((t) => content.includes(t));
 
-        const notificationPromises: Promise<void>[] = [];
-        const pushPromises: Promise<void>[] = [];
+        const notificationsToInsert: Parameters<typeof createServerNotifications>[0] = [];
+        const pushRecipients: string[] = [];
         const { data: senderData } = await supabase
           .from("profiles")
-          .select("full_name")
+          .select("full_name, avatar_url")
           .eq("id", user.id)
           .single();
         const senderName = senderData?.full_name || "Alguien";
 
-        // Explicitly insert for each recipient as requested
         for (const recipientId of recipients) {
           const title =
             room.type === "group"
@@ -492,7 +490,6 @@ export async function sendMessage(
               : "Nuevo Mensaje";
           const msgContent = content.substring(0, 80);
 
-          // Skip in-app notification for minor system messages, but INCLUDE calls
           const shouldNotifyInApp =
             !isSystemMsg || content.includes("[CALL_OFFER");
 
@@ -511,21 +508,22 @@ export async function sendMessage(
               notificationMessage = "Entra para responder ahora.";
             }
 
-            notificationPromises.push(createServerNotification({
+            notificationsToInsert.push({
               user_id: recipientId,
               sender_id: user.id,
               title: notificationTitle,
               message: notificationMessage,
               type: notificationType,
-              link: `/chat`,
+              link: "/chat",
               is_read: false,
               created_at: new Date().toISOString(),
               room_id: roomId,
-              event_type: notificationType === "video_call"
-                ? "chat.video_call"
-                : notificationType === "call"
-                  ? "chat.voice_call"
-                  : "chat.message",
+              event_type:
+                notificationType === "video_call"
+                  ? "chat.video_call"
+                  : notificationType === "call"
+                    ? "chat.voice_call"
+                    : "chat.message",
               source: "chat",
               priority:
                 notificationType === "video_call" || notificationType === "call"
@@ -535,40 +533,33 @@ export async function sendMessage(
                 room_id: roomId,
                 room_type: room.type,
                 room_name: room.name || null,
+                sender_name: senderName,
+                sender_avatar: senderData?.avatar_url || null,
               },
-            }));
+            });
           }
 
-          // Dispatch Native Web Push
-          // JUSTIFICACIÓN: Se requiere createAdminClient para consultar la tabla push_subscriptions
-          // del destinatario. Por seguridad y privacidad, las políticas de RLS restringen la lectura
-          // de suscripciones de push a su propio usuario, por lo que el emisor necesita privilegios
-          // de admin para obtener el endpoint de push del destinatario.
-          try {
-              const pushTitle = content.includes("[CALL_OFFER_VIDEO]")
-                ? `Videollamada de: ${senderName}`
-                : content.includes("[CALL_OFFER_VOICE]")
-                  ? `Llamada de: ${senderName}`
-                  : `Nuevo mensaje de: ${senderName}`;
-
-              const filteredContent = content.startsWith("[CALL_OFFER")
-                ? "Entra para responder."
-                : msgContent;
-
-              pushPromises.push(sendWebPushToUser(recipientId, {
-                title: pushTitle,
-                message: filteredContent,
-                link: "/chat",
-              }));
-          } catch (pushErr) {
-            console.error(
-              "Push scheduling failed for user",
-              recipientId,
-              pushErr,
-            );
-          }
+          pushRecipients.push(recipientId);
         }
-        await Promise.all([...notificationPromises, ...pushPromises]);
+
+        const pushTitle = content.includes("[CALL_OFFER_VIDEO]")
+          ? `Videollamada de: ${senderName}`
+          : content.includes("[CALL_OFFER_VOICE]")
+            ? `Llamada de: ${senderName}`
+            : `Nuevo mensaje de: ${senderName}`;
+
+        const filteredContent = content.startsWith("[CALL_OFFER")
+          ? "Entra para responder."
+          : content.substring(0, 80);
+
+        await Promise.all([
+          createServerNotifications(notificationsToInsert),
+          sendWebPushToUsers(pushRecipients, () => ({
+            title: pushTitle,
+            message: filteredContent,
+            link: "/chat",
+          })),
+        ]);
       }
     } catch (e) {
       console.error("Error sending notifications logic:", e);
@@ -865,4 +856,136 @@ export async function addGroupMember(roomId: string, newUserId: string) {
     link: `/chat`,
     is_read: false,
   });
+}
+// --- SOCIAL CHAT UPGRADE (NUEVAS FUNCIONES) -----------------------------------
+
+export async function searchUsers(query: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, avatar_url, school, grade, username')
+    .ilike('full_name', '%' + query + '%')
+    .limit(10);
+  if (error) throw error;
+  return data;
+}
+
+export async function getUnreadMessagesCount(roomId?: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return 0;
+  
+  let q = supabase
+    .from('chat_messages')
+    .select('id', { count: 'exact' })
+    .neq('user_id', user.id)
+    .is('read_at', null);
+    
+  if (roomId) {
+    q = q.eq('room_id', roomId);
+  }
+  const { count, error } = await q;
+  if (error) return 0;
+  return count || 0;
+}
+
+export async function pinMessage(messageId: string, isPinned: boolean) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('chat_messages')
+    .update({ is_pinned: isPinned })
+    .eq('id', messageId);
+  if (error) throw error;
+}
+
+export async function addMessageReaction(messageId: string, emoji: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Unauthorized');
+
+  const { error } = await supabase
+    .from('message_reactions')
+    .insert({ message_id: messageId, user_id: user.id, emoji });
+  
+  if (error) throw error;
+}
+
+export async function removeMessageReaction(messageId: string, emoji: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Unauthorized');
+
+  const { error } = await supabase
+    .from('message_reactions')
+    .delete()
+    .eq('message_id', messageId)
+    .eq('user_id', user.id)
+    .eq('emoji', emoji);
+    
+  if (error) throw error;
+}
+
+export async function getRoomMembers(roomId: string) {
+  const supabase = await createClient();
+  const { data: members, error } = await supabase
+    .from('room_members')
+    .select('id, user_id, role, muted_until')
+    .eq('room_id', roomId);
+    
+  if (error) throw error;
+  if (!members || members.length === 0) return [];
+  
+  const userIds = members.map(m => m.user_id);
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('*')
+    .in('id', userIds);
+    
+  const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+  
+  return members.map(m => ({
+    ...m,
+    profiles: profileMap.get(m.user_id) || null
+  }));
+}
+
+export async function muteRoomNotifications(roomId: string, hours: number | null) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Unauthorized');
+
+  let mutedUntil = null;
+  if (hours !== null) {
+    const d = new Date();
+    d.setHours(d.getHours() + hours);
+    mutedUntil = d.toISOString();
+  }
+
+  const { error } = await supabase
+    .from('room_members')
+    .update({ muted_until: mutedUntil })
+    .eq('room_id', roomId)
+    .eq('user_id', user.id);
+    
+  if (error) throw error;
+}
+
+export async function exportConversation(roomId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('chat_messages')
+    .select('content, created_at, profiles:user_id(full_name)')
+    .eq('room_id', roomId)
+    .order('created_at', { ascending: true });
+    
+  if (error) throw error;
+  
+  let txt = 'Historial de Conversaci�n\n\n';
+  data.forEach((m: any) => {
+    const name = m.profiles?.full_name || 'Desconocido';
+    const date = new Date(m.created_at).toLocaleString();
+    txt += '[' + date + '] ' + name + ': ' + m.content + '\n';
+  });
+  
+  return txt;
 }

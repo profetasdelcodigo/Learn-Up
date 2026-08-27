@@ -72,6 +72,7 @@ export async function addAiMessage(
   content: string,
   mediaUrl?: string,
   mediaType?: string,
+  toolCalls?: any[]
 ) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -87,15 +88,21 @@ export async function addAiMessage(
     return { error: "Unauthorized or session not found" };
   }
 
-  const { data, error } = await supabase
-    .from("ai_messages")
-    .insert({
+  const payload: any = {
       session_id: sessionId,
       role,
       content,
       media_url: mediaUrl || null,
       media_type: mediaType || null,
-    })
+  };
+  
+  if (toolCalls && toolCalls.length > 0) {
+      payload.tool_calls = toolCalls;
+  }
+
+  const { data, error } = await supabase
+    .from("ai_messages")
+    .insert(payload)
     .select()
     .single();
 

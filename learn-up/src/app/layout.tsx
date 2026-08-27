@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import Script from "next/script";
 import { Space_Grotesk, Inter } from "next/font/google";
 import "./globals.css";
 
@@ -22,6 +23,8 @@ import HardwareBackHandler from "@/components/HardwareBackHandler";
 import OfflineDetector from "@/components/OfflineDetector";
 import DeepLinkHandler from "@/components/DeepLinkHandler";
 import ShareModal from "@/components/ShareModal";
+import JarvisGlobalWidget from "@/components/JarvisGlobalWidget";
+import ThemeProvider from "@/components/ThemeProvider";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://learn-up-qmgx.onrender.com"),
@@ -77,18 +80,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
+    <html lang="es" suppressHydrationWarning>
       <body
-        className={`${spaceGrotesk.variable} ${inter.variable} antialiased bg-brand-black text-white`}
+        className={`${spaceGrotesk.variable} ${inter.variable} antialiased bg-[var(--background)] text-[var(--foreground)]`}
       >
-        <SmoothScroll>
-          <OfflineDetector />
-          <PushNotificationManager />
-          <HardwareBackHandler />
-          <DeepLinkHandler />
-          <MainLayout>{children}</MainLayout>
-          <ShareModal />
-        </SmoothScroll>
+        <ThemeProvider>
+          <SmoothScroll>
+            <OfflineDetector />
+            <PushNotificationManager />
+            <HardwareBackHandler />
+            <DeepLinkHandler />
+            <MainLayout>{children}</MainLayout>
+            <ShareModal />
+            <JarvisGlobalWidget />
+          </SmoothScroll>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -105,6 +110,14 @@ export default function RootLayout({
             }),
           }}
         />
+        {process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID && (
+          <Script
+            src="https://cloud.umami.is/script.js"
+            data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
+            strategy="afterInteractive"
+          />
+        )}
+        </ThemeProvider>
       </body>
     </html>
   );

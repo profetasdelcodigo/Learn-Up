@@ -33,6 +33,10 @@ import {
   FileText,
   Music,
   StopCircle,
+  Monitor,
+  Pin,
+  Smile,
+  BarChart2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
@@ -55,6 +59,10 @@ import {
   uploadChatMedia,
   ensurePrivateRoom,
   leaveGroup,
+  getRoomMembers,
+  pinMessage,
+  addMessageReaction,
+  removeMessageReaction,
 } from "@/actions/chat";
 import dynamic from "next/dynamic";
 import CreateGroupModal from "@/components/chat/CreateGroupModal";
@@ -88,6 +96,11 @@ interface Message {
   is_edited?: boolean;
   is_deleted_for_everyone?: boolean;
   deleted_for?: string[];
+  is_pinned?: boolean;
+  media_type?: string;
+  media_url?: string;
+  metadata?: any;
+  reactions?: any[];
   profiles?: {
     full_name: string;
     username?: string;
@@ -153,6 +166,13 @@ export default function ChatPage() {
     null,
   );
 
+  // Room Members State (for read receipts and roles)
+  const [roomMembers, setRoomMembers] = useState<any[]>([]);
+
+  // Reactions State
+  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
+  const [showEmojiPickerFor, setShowEmojiPickerFor] = useState<string | null>(null);
+
   // Data State
   const [friends, setFriends] = useState<UserProfile[]>([]);
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
@@ -162,6 +182,7 @@ export default function ChatPage() {
   const [activeChat, setActiveChat] = useState<string | null>(null);
   const [mobileShowChat, setMobileShowChat] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
+  const [isMinimizedCall, setIsMinimizedCall] = useState(false);
   const [showWhiteboard, setShowWhiteboard] = useState(false);
 
   // New Tab State
@@ -231,7 +252,7 @@ export default function ChatPage() {
       }
       setCurrentUserId(user.id);
 
-      // 1. Fetch current user profile — direct client query
+      // 1. Fetch current user profile â€” direct client query
       const { data: profile } = await supabase
         .from("profiles")
         .select("*")
@@ -294,7 +315,9 @@ export default function ChatPage() {
           );
         }
 
-        if (myRooms) setRooms(myRooms as any);
+        if (myRooms) {
+          setRooms(myRooms as any);
+        }
 
         if (pendingReqs && pendingReqs.length > 0) {
           const reqIds = pendingReqs.map((r: any) => r.requester_id);
@@ -319,9 +342,7 @@ export default function ChatPage() {
       } catch (error) {
         console.error("Error loading initial data:", error);
       } finally {
-        setTimeout(() => {
-          setInitialLoading(false);
-        }, 2000);
+        setInitialLoading(false);
       }
     };
     initData();
@@ -394,7 +415,7 @@ export default function ChatPage() {
     // Simple confirm for MVP
     if (
       confirm(
-        "¿Deseas eliminar este mensaje para todos? (Cancelar para eliminar solo para ti)",
+        "Â¿Deseas eliminar este mensaje para todos? (Cancelar para eliminar solo para ti)",
       )
     ) {
       try {
@@ -452,38 +473,49 @@ export default function ChatPage() {
   // ... (loadMessages useEffect and others remain same)
 
   // Load Messages when activeChat changes
+  // Load Messages when activeChat changes
   useEffect(() => {
     if (!activeChat) return;
 
-    // Direct client query — no server round-trip
+    let ignore = false;
+
+    // Fetch via server action to bypass potential client-side RLS limits
     const loadMessagesForRoom = async (roomId: string) => {
       try {
-        const { data, error } = await supabase
-          .from("chat_messages")
-          .select(
-            `*, profiles:user_id (*)`,
-          )
-          .eq("room_id", roomId)
-          .order("created_at", { ascending: false })
-          .limit(50);
-        if (!error && data) {
-          setMessages((data as any).reverse());
+        const data = await getChatMessages(roomId, 50);
+        if (data && !ignore) {
+          setMessages(data);
         }
       } catch (err) {
         console.error("Error loading messages:", err);
       }
     };
 
+    const loadMembers = async (roomId: string) => {
+      try {
+        const members = await getRoomMembers(roomId);
+        if (members && !ignore) setRoomMembers(members);
+      } catch (err) {
+        console.error("Error loading members:", err);
+      }
+    };
+
     const init = async () => {
+      setMessages([]); // Immediately clear old messages
       setInitialLoading(true);
-      await loadMessagesForRoom(activeChat);
-      markMessagesAsRead(activeChat);
-      setInitialLoading(false);
+      await Promise.all([
+        loadMessagesForRoom(activeChat),
+        loadMembers(activeChat)
+      ]);
+      if (!ignore) {
+        markMessagesAsRead(activeChat);
+        setInitialLoading(false);
+      }
     };
 
     init();
 
-    // ── Realtime subscription (primary) ──────────────────────────────────────
+    // â”€â”€ Realtime subscription (primary) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const channel = supabase
       .channel(`room:${activeChat}`)
       .on(
@@ -508,7 +540,7 @@ export default function ChatPage() {
             .eq("id", payload.new.id)
             .single();
 
-          if (data) {
+          if (data && data.room_id === activeChat) {
             setMessages((prev) => {
               const index = prev.findIndex((m) => m.id === data.id);
               if (index !== -1) {
@@ -526,12 +558,12 @@ export default function ChatPage() {
       )
       .subscribe();
 
-    // ── Polling fallback (30 s) — keeps messages current if WS stales ────────
+    // â”€â”€ Polling fallback (30 s) â€” keeps messages current if WS stales â”€â”€â”€â”€â”€â”€â”€â”€
     const pollInterval = setInterval(() => {
       loadMessagesForRoom(activeChat);
     }, 30_000);
 
-    // ── Page Visibility API — re-fetch when user returns to the tab ──────────
+    // â”€â”€ Page Visibility API â€” re-fetch when user returns to the tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
         loadMessagesForRoom(activeChat);
@@ -539,11 +571,12 @@ export default function ChatPage() {
     };
     document.addEventListener("visibilitychange", handleVisibility);
 
-    // ── Window focus — re-fetch when window regains focus ────────────────────
+    // â”€â”€ Window focus â€” re-fetch when window regains focus â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const handleFocus = () => loadMessagesForRoom(activeChat);
     window.addEventListener("focus", handleFocus);
 
     return () => {
+      ignore = true;
       supabase.removeChannel(channel);
       clearInterval(pollInterval);
       document.removeEventListener("visibilitychange", handleVisibility);
@@ -584,7 +617,7 @@ export default function ChatPage() {
 
   const handleStartChat = async (friendId: string) => {
     try {
-      // Check locally if room exists — null-safe participants check
+      // Check locally if room exists â€” null-safe participants check
       const existingRoom = rooms.find(
         (r) =>
           r.type === "private" &&
@@ -633,7 +666,7 @@ export default function ChatPage() {
 
   const handleLeaveGroup = async () => {
     if (!activeChat) return;
-    if (confirm("¿Estás seguro de que quieres salir del grupo?")) {
+    if (confirm("Â¿EstÃ¡s seguro de que quieres salir del grupo?")) {
       try {
         await leaveGroup(activeChat);
         setActiveChat(null);
@@ -715,7 +748,7 @@ export default function ChatPage() {
     }
   };
 
-  // ── File & Media handlers ──────────────────────────────────────────────────
+  // â”€â”€ File & Media handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -758,7 +791,7 @@ export default function ChatPage() {
     }
   };
 
-  // ── Voice recording ────────────────────────────────────────────────────────
+  // â”€â”€ Voice recording â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -786,7 +819,7 @@ export default function ChatPage() {
         1000,
       );
     } catch {
-      setAddToast({ message: "No se pudo acceder al micrófono", type: "error" });
+      setAddToast({ message: "No se pudo acceder al micrÃ³fono", type: "error" });
     }
   };
 
@@ -844,8 +877,10 @@ export default function ChatPage() {
             animate={{ x: 0, opacity: 1 }}
             transition={{ delay: 0.2, duration: 0.5 }}
             className={`${
-              mobileShowChat || showVideo ? "hidden" : "flex"
-            } ${showVideo ? "md:hidden" : "md:flex"} w-full md:w-80 border-r border-white/6 flex-col bg-surface-2/40 backdrop-blur-xl relative z-10 transition-all duration-300`}
+              mobileShowChat || (showVideo && !isMinimizedCall) ? "hidden" : "flex"
+            } ${
+              showVideo && !isMinimizedCall ? "md:hidden" : "md:flex"
+            } w-full md:w-80 lg:w-[400px] flex-shrink-0 border-r border-white/6 flex-col bg-surface-2/40 backdrop-blur-xl relative z-10 transition-all duration-300`}
           >
               {/* Sidebar Header */}
             <div
@@ -853,7 +888,7 @@ export default function ChatPage() {
               style={{ paddingTop: "calc(env(safe-area-inset-top) + 1rem)" }}
             >
                 <div className="flex items-center justify-between mb-3">
-                  {/* Back button — top-left, universal */}
+                  {/* Back button â€” top-left, universal */}
                   <button
                     onClick={() => router.push("/dashboard")}
                     className="flex items-center justify-center w-9 h-9 rounded-full bg-surface-2 border border-white/6 text-gray-400 hover:text-white hover:border-brand-gold/40 transition-all shrink-0"
@@ -1125,47 +1160,89 @@ export default function ChatPage() {
               } md:flex flex-1 flex-col bg-transparent relative`}
             >
               {activeChat ? (
-                showVideo ? (
-                  <div className="w-full h-full relative">
-                    <VideoRoom
-                      roomName={`learn-up-${activeChat}`}
-                      username={currentProfile?.full_name || "Usuario"}
-                      role={currentProfile?.role || "estudiante"}
-                      isCreator={isCallCreator}
-                      onLeave={async () => {
-                        setShowVideo(false);
-                        setShowWhiteboard(false);
-                        await sendMessageAction(
-                          activeChat,
-                          isVideoCall
-                            ? "[CALL_ENDED_VIDEO]"
-                            : "[CALL_ENDED_VOICE]",
-                        );
-                      }}
-                      videoEnabled={isVideoCall}
-                    />
-                    <AnimatePresence>
-                      {showWhiteboard && (
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.95 }}
-                          className="absolute inset-4 md:inset-12 z-60 bg-white rounded-2xl shadow-2xl overflow-hidden border-2 border-brand-gold"
-                        >
-                          <div className="w-full h-full relative">
-                            <Whiteboard roomId={activeChat || "temp-room"} />
-                            <button
-                              onClick={() => setShowWhiteboard(false)}
-                              className="absolute top-4 right-4 p-2 bg-red-500/10 text-red-500 hover:bg-red-500/20 rounded-full z-10 transition-colors"
+                <>
+                  <AnimatePresence>
+                    {showVideo && (
+                      <motion.div
+                        drag={isMinimizedCall}
+                        dragMomentum={false}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={
+                          isMinimizedCall
+                            ? {
+                                position: "absolute",
+                                right: 16,
+                                top: 80,
+                                width: 280, // slightly smaller for pip
+                                height: 420,
+                                zIndex: 100, // very high
+                                borderRadius: 16,
+                                opacity: 1,
+                                scale: 1,
+                              }
+                            : {
+                                position: "absolute",
+                                inset: 0,
+                                zIndex: 50,
+                                borderRadius: 0,
+                                opacity: 1,
+                                scale: 1,
+                              }
+                        }
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        className="bg-brand-black shadow-2xl overflow-hidden flex flex-col border border-brand-gold/30"
+                      >
+                        <div className="absolute top-4 left-4 right-4 z-50 flex gap-2 justify-between items-center pointer-events-none">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setIsMinimizedCall(!isMinimizedCall); }}
+                            className="p-2 bg-black/50 hover:bg-black/80 border border-white/10 rounded-full text-white backdrop-blur-md transition-all shadow-lg pointer-events-auto"
+                            title={isMinimizedCall ? "Maximizar Llamada" : "Minimizar a PIP"}
+                          >
+                            {isMinimizedCall ? <Monitor className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        <VideoRoom
+                          roomName={`learn-up-${activeChat}`}
+                          username={currentProfile?.full_name || "Usuario"}
+                          role={currentProfile?.role || "estudiante"}
+                          isCreator={isCallCreator}
+                          onLeave={async () => {
+                            setShowVideo(false);
+                            setShowWhiteboard(false);
+                            setIsMinimizedCall(false);
+                            await sendMessageAction(
+                              activeChat,
+                              isVideoCall
+                                ? "[CALL_ENDED_VIDEO]"
+                                : "[CALL_ENDED_VOICE]",
+                            );
+                          }}
+                          videoEnabled={isVideoCall}
+                        />
+                        <AnimatePresence>
+                          {showWhiteboard && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.95 }}
+                              className="absolute inset-4 md:inset-12 z-60 bg-white rounded-2xl shadow-2xl overflow-hidden border-2 border-brand-gold"
                             >
-                              <X className="w-5 h-5" />
-                            </button>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                ) : (
+                              <div className="w-full h-full relative">
+                                <Whiteboard roomId={activeChat || "temp-room"} />
+                                <button
+                                  onClick={() => setShowWhiteboard(false)}
+                                  className="absolute top-4 right-4 p-2 bg-red-500/10 text-red-500 hover:bg-red-500/20 rounded-full z-10 transition-colors"
+                                >
+                                  <X className="w-5 h-5" />
+                                </button>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   <>
                     {/* Chat Header */}
                     <div
@@ -1264,7 +1341,7 @@ export default function ChatPage() {
                                   )}
                                 {activeRoom.type === "group" && (
                                   <p className="text-xs text-gray-400">
-                                    {activeRoom.participants.length} miembros •
+                                    {activeRoom.participants.length} miembros â€¢
                                     Toca para info
                                   </p>
                                 )}
@@ -1292,17 +1369,43 @@ export default function ChatPage() {
                         </button>
                       </div>
                     </div>
-
                     {/* Messages Area */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-[url('/grid-pattern.svg')] bg-opacity-5">
-                      {messages.map((msg) => {
+                    <div 
+                      className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-[#0b141a] chat-bg-pattern relative"
+                    >
+                      {/* Pinned Messages Banner */}
+                      {messages.some(m => m.is_pinned) && (
+                        <div className="sticky top-0 z-10 w-full mb-4 px-2">
+                          <div className="bg-[#202c33]/95 backdrop-blur-md border-l-4 border-brand-gold rounded-xl p-2 shadow-lg flex items-center gap-3 w-full cursor-pointer hover:bg-[#202c33] transition-colors"
+                               onClick={() => {
+                                 const firstPinned = messages.find(m => m.is_pinned);
+                                 if (firstPinned) {
+                                   document.getElementById(`msg-${firstPinned.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                 }
+                               }}>
+                            <Pin className="w-4 h-4 text-brand-gold shrink-0" />
+                            <div className="flex flex-col overflow-hidden w-full">
+                              <span className="text-brand-gold font-bold text-[11px] uppercase tracking-wider">Mensaje Fijado</span>
+                              <span className="text-white/90 text-xs truncate">
+                                {messages.find(m => m.is_pinned)?.content || "Archivo adjunto"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {messages.map((msg, idx) => {
                         const isMe = msg.user_id === currentUserId;
                         const senderAvatar = msg.profiles?.avatar_url;
                         const senderInitial = (msg.profiles?.full_name || "?")[0].toUpperCase();
                         return (
-                          <div
+                          <motion.div
+                            initial={{ opacity: 0, y: 15, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            transition={{ duration: 0.2, ease: "easeOut" }}
                             key={msg.id}
-                            className={`flex items-end gap-2 ${isMe ? "justify-end" : "justify-start"} group animate-in slide-in-from-bottom-2 duration-300`}
+                            id={`msg-${msg.id}`}
+                            className={`flex items-end gap-2 ${isMe ? "justify-end" : "justify-start"} group`}
                           >
                             {/* Avatar for incoming messages */}
                             {!isMe && (
@@ -1315,11 +1418,7 @@ export default function ChatPage() {
                               </div>
                             )}
                             <div
-                              className={`max-w-[80%] md:max-w-[65%] rounded-2xl p-4 shadow-sm relative ${
-                                isMe
-                                  ? "bg-brand-blue-glow/20 text-white rounded-tr-sm border border-brand-blue-glow/30 shadow-[0_0_15px_-5px_var(--brand-blue-glow)]"
-                                  : "bg-surface-2/60 backdrop-blur-sm text-white rounded-tl-sm border border-white/6"
-                              }`}
+                              className={`max-w-[85%] md:max-w-[70%] p-2 pb-5 relative flex flex-col gap-1 ${isMe ? "bg-[#005c4b]/95 backdrop-blur-md text-white rounded-2xl rounded-tr-md border border-[#005c4b] shadow-md" : "bg-[#202c33]/95 backdrop-blur-md text-white rounded-2xl rounded-tl-md border border-white/5 shadow-md"}`}
                             >
                               {msg.is_deleted_for_everyone ? (
                                 <p className="italic text-sm opacity-70 flex items-center gap-2">
@@ -1339,7 +1438,34 @@ export default function ChatPage() {
                                     )}
 
                                   {/* Media Rendering Helper */}
-                                  {msg.content.startsWith("[image]") ? (
+                                  {msg.media_type === "poll" ? (
+                                    <div className="flex flex-col gap-2 min-w-[200px] sm:min-w-[240px]">
+                                      <div className="flex items-center gap-2 font-bold mb-2">
+                                        <BarChart2 className="w-5 h-5 text-brand-gold" />
+                                        <span>Encuesta: {msg.content}</span>
+                                      </div>
+                                      {msg.metadata?.options?.map((opt: string, i: number) => {
+                                        const votes = msg.metadata?.votes?.[opt] || [];
+                                        const hasVoted = votes.includes(currentUserId);
+                                        const totalVotes = Object.values(msg.metadata?.votes || {}).flat().length;
+                                        const percent = totalVotes > 0 ? Math.round((votes.length / totalVotes) * 100) : 0;
+                                        return (
+                                          <div key={i} 
+                                               className={`relative overflow-hidden rounded-lg p-2 border cursor-pointer transition-all ${hasVoted ? 'border-brand-gold bg-brand-gold/10' : 'border-white/10 hover:bg-white/5 bg-black/20'}`}
+                                               onClick={() => {
+                                                 // In a real app, this would trigger an update to msg.metadata.votes
+                                                 setAddToast({ message: "Votación (Simulación)", type: "info" });
+                                               }}>
+                                            <div className="absolute top-0 left-0 h-full bg-brand-gold/20" style={{ width: `${percent}%` }} />
+                                            <div className="relative flex justify-between items-center text-sm z-10">
+                                              <span>{opt}</span>
+                                              <span className="opacity-70 text-xs">{percent}% ({votes.length})</span>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : msg.content.startsWith("[image]") ? (
                                     <img
                                       src={msg.content.replace("[image]", "")}
                                       className="rounded-lg max-w-full cursor-pointer max-h-60 object-cover"
@@ -1358,17 +1484,19 @@ export default function ChatPage() {
                                       className="rounded-lg max-w-full max-h-60"
                                     />
                                   ) : msg.content.startsWith("[audio]") ? (
-                                    <div className="flex flex-col gap-1">
-                                      <p className="text-[10px] opacity-70 flex items-center gap-1 mb-1">
-                                        <span>🎤</span> Mensaje de voz
-                                      </p>
-                                      <audio
-                                        src={msg.content.replace("[audio]", "")}
-                                        controls
-                                        className="max-w-full"
-                                        style={{ height: 36 }}
-                                      />
-                                    </div>
+                                      <div className="flex flex-col gap-1 min-w-[200px]">
+                                        <p className="text-[10px] opacity-70 flex items-center gap-1 mb-1 font-medium">
+                                          <Mic className="w-3 h-3 text-brand-gold" /> Nota de voz
+                                        </p>
+                                        <div className="bg-black/20 rounded-full px-2 py-1 backdrop-blur-sm border border-white/10 shadow-inner">
+                                          <audio
+                                            src={msg.content.replace("[audio]", "")}
+                                            controls
+                                            className="w-full outline-none sepia-[.3] hue-rotate-[180deg] saturate-[2]"
+                                            style={{ height: 32 }}
+                                          />
+                                        </div>
+                                      </div>
                                   ) : msg.content.startsWith("[file:") ? (
                                     <a
                                       href={msg.content.replace(
@@ -1379,7 +1507,7 @@ export default function ChatPage() {
                                       rel="noopener noreferrer"
                                       className="flex items-center gap-2 text-sm underline"
                                     >
-                                      <span>📄</span>
+                                      <span>ðŸ“„</span>
                                       {msg.content.match(
                                         /^\[file:([^\]]+)\]/,
                                       )?.[1] || "Archivo"}
@@ -1532,9 +1660,44 @@ export default function ChatPage() {
                                     </p>
                                   )}
 
+                                  {/* Reactions row */}
+                                  {msg.reactions && msg.reactions.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1 -mb-2 z-10">
+                                      {Object.entries(
+                                        msg.reactions.reduce((acc: any, r: any) => {
+                                          acc[r.emoji] = (acc[r.emoji] || 0) + 1;
+                                          return acc;
+                                        }, {})
+                                      ).map(([emoji, count]: [string, any]) => {
+                                        const haveIReacted = msg.reactions?.some((r: any) => r.emoji === emoji && r.user_id === currentUserId);
+                                        return (
+                                          <div
+                                            key={emoji}
+                                            className={`px-1.5 py-0.5 rounded-full text-xs flex items-center gap-1 cursor-pointer transition-colors ${
+                                              haveIReacted ? 'bg-brand-gold/20 border border-brand-gold/50' : 'bg-black/30 border border-white/5'
+                                            }`}
+                                            onClick={async () => {
+                                              if (haveIReacted) {
+                                                await removeMessageReaction(msg.id, emoji);
+                                                // Optimistic update omitted for brevity, will rely on realtime
+                                              } else {
+                                                await addMessageReaction(msg.id, emoji);
+                                              }
+                                            }}
+                                          >
+                                            <span>{emoji}</span>
+                                            <span className="opacity-80 text-[10px]">{count}</span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+
                                   <div
-                                    className={`text-[10px] mt-1.5 flex items-center justify-end gap-1 ${isMe ? "text-brand-black/60" : "text-gray-400"}`}
+                                    className={`text-[10px] mt-auto pt-1 self-end flex items-center justify-end gap-1 ${isMe ? "text-white/70" : "text-gray-400"}`}
                                   >
+                                    {msg.is_edited && <span className="italic mr-1">Editado</span>}
+                                    {msg.is_pinned && <Pin className="w-3 h-3 text-brand-gold" />}
                                     <span>
                                       {new Date(
                                         msg.created_at,
@@ -1543,8 +1706,16 @@ export default function ChatPage() {
                                         minute: "2-digit",
                                       })}
                                     </span>
-                                    {msg.is_edited && <span>• Editado</span>}
-                                    {isMe && <CheckCheck className="w-3 h-3" />}
+                                    {isMe && (() => {
+                                      const isReadByAnyone = roomMembers.some(rm => 
+                                        rm.user_id !== currentUserId && 
+                                        rm.last_read_at && 
+                                        new Date(rm.last_read_at) >= new Date(msg.created_at)
+                                      );
+                                      return (
+                                        <CheckCheck className={`w-4 h-4 ml-0.5 ${isReadByAnyone ? "text-[#53bdeb]" : "text-white/50"}`} />
+                                      );
+                                    })()}
                                   </div>
                                 </>
                               )}
@@ -1558,10 +1729,51 @@ export default function ChatPage() {
                                   currentUserId &&
                                   activeRoom.admins.includes(currentUserId);
                                 if (msg.is_deleted_for_everyone) return null;
-                                if (!isMe && !isAdmin) return null;
 
                                 return (
                                   <div className="absolute -top-3 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-surface-2 rounded-lg p-1 border border-white/10 shadow-xl z-10">
+                                    <div className="relative">
+                                      <button
+                                        className="p-1 hover:text-brand-gold text-gray-400"
+                                        onClick={() => setShowEmojiPickerFor(msg.id === showEmojiPickerFor ? null : msg.id)}
+                                      >
+                                        <Smile className="w-3 h-3" />
+                                      </button>
+                                      {/* Emoji Picker Popup */}
+                                      <AnimatePresence>
+                                        {showEmojiPickerFor === msg.id && (
+                                          <motion.div
+                                            initial={{ opacity: 0, y: 5 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: 5 }}
+                                            className="absolute bottom-full mb-2 right-0 bg-[#0b141a] border border-white/10 rounded-xl p-2 shadow-2xl flex gap-2 z-50"
+                                          >
+                                            {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
+                                              <button
+                                                key={emoji}
+                                                className="text-xl hover:scale-125 transition-transform"
+                                                onClick={async () => {
+                                                  setShowEmojiPickerFor(null);
+                                                  await addMessageReaction(msg.id, emoji);
+                                                }}
+                                              >
+                                                {emoji}
+                                              </button>
+                                            ))}
+                                          </motion.div>
+                                        )}
+                                      </AnimatePresence>
+                                    </div>
+
+                                    {(isAdmin || isMe) && (
+                                      <button
+                                        className={`p-1 ${msg.is_pinned ? 'text-brand-gold' : 'text-gray-400 hover:text-white'}`}
+                                        onClick={() => pinMessage(msg.id, !msg.is_pinned)}
+                                      >
+                                        <Pin className="w-3 h-3" />
+                                      </button>
+                                    )}
+
                                     {isMe && (
                                       <button
                                         className="p-1 hover:text-brand-gold text-gray-400"
@@ -1573,25 +1785,27 @@ export default function ChatPage() {
                                         <Edit2 className="w-3 h-3" />
                                       </button>
                                     )}
-                                    <button
-                                      className="p-1 hover:text-red-500 text-gray-400"
-                                      onClick={() =>
-                                        handleDeleteMessage(msg.id)
-                                      }
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                    </button>
+                                    {(isMe || isAdmin) && (
+                                      <button
+                                        className="p-1 hover:text-red-500 text-gray-400"
+                                        onClick={() =>
+                                          handleDeleteMessage(msg.id)
+                                        }
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </button>
+                                    )}
                                   </div>
                                 );
                               })()}
                             </div>
-                          </div>
+                          </motion.div>
                         );
                       })}
                       <div ref={messagesEndRef} />
                     </div>
 
-                    {/* ── Input Area ── */}
+                    {/* â”€â”€ Input Area â”€â”€ */}
                     <div className="p-4 border-t border-white/6 fixed bottom-0 left-0 w-full md:sticky md:bottom-0 md:w-auto z-40 pb-[max(1rem,env(safe-area-inset-bottom))] md:pb-4">
                       {editingMessageId && (
                         <div className="flex items-center justify-between bg-brand-gold/10 p-2 px-4 rounded-t-xl border border-brand-gold/20 text-xs mb-2">
@@ -1609,7 +1823,7 @@ export default function ChatPage() {
                         </div>
                       )}
 
-                      {/* ── File preview bar ── */}
+                      {/* â”€â”€ File preview bar â”€â”€ */}
                       {pendingFile && (
                         <div className="flex items-center gap-2 bg-surface-2 px-3 py-2 rounded-xl border border-brand-gold/30 mb-2">
                           {pendingFile.type.startsWith("image/") ? (
@@ -1626,10 +1840,10 @@ export default function ChatPage() {
                           ) : (
                             <div className="w-10 h-10 rounded-lg bg-surface-2 flex items-center justify-center border border-white/10 text-lg">
                               {pendingFile.type.includes("pdf")
-                                ? "📄"
+                                ? "ðŸ“„"
                                 : pendingFile.type.includes("audio")
-                                  ? "🎵"
-                                  : "📎"}
+                                  ? "ðŸŽµ"
+                                  : "ðŸ“Ž"}
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
@@ -1649,7 +1863,7 @@ export default function ChatPage() {
                         </div>
                       )}
 
-                      {/* ── Voice recording indicator ── */}
+                      {/* â”€â”€ Voice recording indicator â”€â”€ */}
                       {isRecording && (
                         <div className="flex items-center gap-3 bg-red-500/10 border border-red-500/30 px-3 py-2 rounded-xl mb-2">
                           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
@@ -1665,7 +1879,7 @@ export default function ChatPage() {
                         </div>
                       )}
 
-                      {/* ── File Upload indicator ── */}
+                      {/* â”€â”€ File Upload indicator â”€â”€ */}
                       {uploadingMedia && uploadingMediaType && (
                         <div className="flex items-center gap-3 bg-brand-gold/10 border border-brand-gold/30 px-3 py-2 rounded-xl mb-2">
                           <Loader2 className="w-4 h-4 text-brand-gold animate-spin" />
@@ -1681,8 +1895,8 @@ export default function ChatPage() {
                         </div>
                       )}
 
-                      <div className="relative flex items-end gap-2 bg-surface-2/50 p-2 rounded-2xl border border-white/6 focus-within:border-brand-gold/50 transition-colors">
-                        {/* Paperclip — all file types */}
+                      <div className="relative flex items-end gap-2 bg-[#202c33] p-1.5 rounded-full border border-white/10 shadow-lg transition-colors">
+                        {/* Paperclip â€” all file types */}
                         <button
                           className="p-3 text-gray-400 hover:text-brand-gold hover:bg-brand-gold/10 rounded-full transition-colors"
                           onClick={() => fileInputRef.current?.click()}
@@ -1731,7 +1945,7 @@ export default function ChatPage() {
                           rows={1}
                         />
 
-                        {/* Mic button — hold to record / tap to toggle */}
+                        {/* Mic button â€” hold to record / tap to toggle */}
                         {!editingMessageId && (
                           <button
                             onClick={
@@ -1743,7 +1957,7 @@ export default function ChatPage() {
                                 : "text-gray-400 hover:text-brand-gold hover:bg-brand-gold/10"
                             }`}
                             title={
-                              isRecording ? "Detener grabación" : "Grabar audio"
+                              isRecording ? "Detener grabaciÃ³n" : "Grabar audio"
                             }
                           >
                             {isRecording ? (
@@ -1767,7 +1981,7 @@ export default function ChatPage() {
                               ? !editContent
                               : !input && !pendingFile)
                           }
-                          className="p-3 bg-brand-blue-glow/20 text-brand-blue-glow rounded-xl hover:bg-brand-blue-glow hover:text-white border border-brand-blue-glow/30 shadow-[0_0_15px_-5px_var(--brand-blue-glow)] transition-all disabled:opacity-50 disabled:shadow-none disabled:bg-surface-2 disabled:border-white/6 disabled:text-gray-500"
+                          className="p-3.5 bg-[#00a884] text-white rounded-full hover:bg-[#008f6f] shadow-lg transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
                         >
                           {uploadingMedia ? (
                             <Loader2 className="w-5 h-5 animate-spin" />
@@ -1778,9 +1992,11 @@ export default function ChatPage() {
                       </div>
                     </div>
                   </>
-                )
+                </>
               ) : (
-                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[url('/grid-pattern.svg')] bg-opacity-5">
+                <div 
+                  className="flex-1 flex flex-col items-center justify-center p-8 text-center chat-grid-bg"
+                >
                   <div className="w-24 h-24 bg-brand-blue-glow/10 rounded-full flex items-center justify-center mb-6 animate-pulse">
                     <MessageCircle className="w-12 h-12 text-brand-blue-glow" />
                   </div>
@@ -1788,12 +2004,11 @@ export default function ChatPage() {
                     Aprendamos Juntos
                   </h2>
                   <p className="text-gray-400 max-w-md">
-                    Selecciona una conversación para empezar a chatear.
+                    Selecciona una conversaciÃ³n para empezar a chatear.
                   </p>
                 </div>
               )}
             </div>
-
             {/* Modals */}
             <CreateGroupModal
               isOpen={showCreateGroup}
@@ -1828,3 +2043,6 @@ export default function ChatPage() {
     </>
   );
 }
+
+
+

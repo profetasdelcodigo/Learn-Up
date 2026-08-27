@@ -10,6 +10,7 @@ import {
   Users,
   Loader2,
   CheckCircle,
+
   Sparkles,
   GraduationCap,
 } from "lucide-react";
@@ -17,6 +18,7 @@ import {
   StaggerContainer,
   FadeUpItem,
 } from "@/components/animations/StaggerReveal";
+import { appSignOut } from "@/lib/auth-logout";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -34,6 +36,9 @@ export default function OnboardingPage() {
     school: "",
     grade: "",
     section: "",
+    dob: "",
+    acceptTerms: false,
+    acceptAI: false,
   });
 
   const [usernameError, setUsernameError] = useState("");
@@ -106,9 +111,16 @@ export default function OnboardingPage() {
     if (
       !formData.username ||
       !formData.school ||
-      !formData.grade
+      !formData.grade ||
+      !formData.dob
     ) {
       setError("Por favor completa todos los campos obligatorios");
+      setLoading(false);
+      return;
+    }
+
+    if (!formData.acceptTerms || !formData.acceptAI) {
+      setError("Debes aceptar los Términos y Condiciones y el uso de IA para continuar.");
       setLoading(false);
       return;
     }
@@ -165,13 +177,15 @@ export default function OnboardingPage() {
   return (
     /* Fixed full-screen container — independent of MainLayout overflow */
     <div className="fixed inset-0 bg-brand-black flex flex-col lg:flex-row">
+      
       {/* Left Side - Branding (Visible on Desktop) */}
       <div className="hidden lg:flex lg:w-1/2 relative flex-col items-center justify-center p-12 overflow-hidden border-r border-white/6">
         <div className="absolute inset-0 bg-mesh-1" />
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {/* AMARILLO ARRIBA A LA IZQUIERDA */}
           <motion.div
-            className="absolute top-1/4 -left-1/4 w-[500px] h-[500px] bg-brand-purple/15 rounded-full blur-[120px]"
-            animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.15, 0.1] }}
+            className="absolute top-0 -left-1/4 w-[600px] h-[600px] bg-brand-gold/20 rounded-full blur-[150px]"
+            animate={{ scale: [1, 1.1, 1], opacity: [0.15, 0.25, 0.15] }}
             transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
           />
         </div>
@@ -195,8 +209,9 @@ export default function OnboardingPage() {
 
       {/* Right Side - Form (scrollable) */}
       <div className="w-full lg:w-1/2 flex items-center justify-center relative bg-brand-black overflow-y-auto">
-        <div className="absolute inset-0 overflow-hidden lg:hidden pointer-events-none">
-          <motion.div className="absolute top-1/4 right-1/4 w-72 h-72 bg-brand-purple/15 rounded-full blur-[80px]" />
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {/* AZUL ABAJO A LA DERECHA */}
+          <motion.div className="absolute bottom-0 -right-1/4 w-[600px] h-[600px] bg-blue-500/20 rounded-full blur-[150px]" />
         </div>
 
         <motion.div
@@ -260,10 +275,9 @@ export default function OnboardingPage() {
             )}
 
             {/* Form */}
-            {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-6">
               <StaggerContainer delayOffset={0.3}>
-                {/* Username Field - NEW */}
+                {/* Username Field */}
                 <FadeUpItem>
                   <div>
                     <label className="block text-sm font-medium text-gray-400 mb-2 font-body">
@@ -291,34 +305,8 @@ export default function OnboardingPage() {
                             "check_username_availability",
                             { username_check: val },
                           );
-                          // Also check if it's OUR username (if editing existing profile)
-                          const isSelf = user?.user_metadata?.username === val;
 
-                          if (!data && !isSelf) {
-                            // data is true if available? RPC returns boolean.
-                            // RPC: RETURN NOT EXISTS ...
-                            // So if it returns true, it IS available.
-                            // BUT wait, if user already has this username, check_username_availability will return FALSE.
-                            // We need to handle re-saving own username.
-                            // Ideally, we check if the found profile ID is ours.
-                            // Simple fix: If RPC says unavailable, verify if it belongs to current user?
-                            // RPC implementation: SELECT 1 FROM profiles WHERE username = username_check
-                            // I should probably stick to simple check. If unavailable, error.
-                            // BUT if I am reloading the page, I load my own username.
-                            // So I should only check validation if it Changed? Or rely on upsert?
-                            // Let's assume on mount satisfied "profile complete" check.
-                            // If we are here, we are saving.
-                            // I'll trust the RPC for new inputs.
-                            // If prefilled, user might not change it.
-                            // Let's rely on RPC.
-                          }
                           if (!data) {
-                            // Unavailable
-                            // Double check if it's ours?
-                            // Client side check:
-                            // We can't easily check owner without another query.
-                            // Assume if unavailable, it's taken.
-                            // Exception: If we just loaded our own profile.
                             if (user?.user_metadata?.username !== val) {
                               setUsernameError(
                                 "Nombre de usuario no disponible",
@@ -454,6 +442,49 @@ export default function OnboardingPage() {
                       className="input-base !rounded-xl"
                       placeholder="A, B, C..."
                     />
+                  </div>
+                </FadeUpItem>
+
+                {/* Fecha de Nacimiento & Terminos */}
+                <FadeUpItem>
+                  <div className="space-y-4 mb-2 mt-4 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-gray-400 font-body">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">
+                        ¿Cuál es tu fecha de nacimiento? <span className="text-brand-gold">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={formData.dob}
+                        onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-brand-gold text-sm"
+                      />
+                      <p className="text-[10px] text-gray-500 mt-1">La usamos solo para saber qué protecciones aplicarte.</p>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <input 
+                        type="checkbox" 
+                        id="terms" 
+                        required 
+                        checked={formData.acceptTerms}
+                        onChange={(e) => setFormData({ ...formData, acceptTerms: e.target.checked })}
+                        className="mt-1 shrink-0 accent-brand-gold w-4 h-4 rounded" 
+                      />
+                      <label htmlFor="terms" className="leading-tight">Acepto los <a href="/legal" target="_blank" className="text-brand-gold hover:underline">Términos de Servicio y Política de Privacidad</a>.</label>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <input 
+                        type="checkbox" 
+                        id="ai-consent" 
+                        required 
+                        checked={formData.acceptAI}
+                        onChange={(e) => setFormData({ ...formData, acceptAI: e.target.checked })}
+                        className="mt-1 shrink-0 accent-brand-gold w-4 h-4 rounded" 
+                      />
+                      <label htmlFor="ai-consent" className="leading-tight">Entiendo que la IA (Tutor/Consejero) procesará mis datos para ayudarme a estudiar y asumo que puede cometer errores.</label>
+                    </div>
                   </div>
                 </FadeUpItem>
 

@@ -69,13 +69,23 @@ function getParticipantDisplayName(
   participant: RemoteParticipant | LocalParticipant,
 ) {
   const metadata = getParticipantMetadata(participant);
-  return (
-    metadata.displayName ||
-    metadata.name ||
-    (participant as any).name ||
-    metadata.username ||
-    "Usuario"
-  );
+  const pName = (participant as any).name || "";
+  const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+  
+  const candidates = [
+    metadata.displayName,
+    metadata.name,
+    pName,
+    metadata.username,
+  ];
+
+  for (const name of candidates) {
+    if (name && typeof name === "string" && !isUUID(name) && name.trim() !== "") {
+      return name.trim();
+    }
+  }
+  
+  return "Usuario";
 }
 
 // ─── Root Component ──────────────────────────────────────────────────────────
@@ -114,8 +124,12 @@ export default function VideoRoom({
         {!error && (
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-gold" />
         )}
-        <p className="text-brand-gold font-mono animate-pulse text-sm">
-          Estableciendo conexión segura...
+        <p
+          className={`max-w-sm text-center text-sm font-semibold ${
+            error ? "text-red-300" : "text-brand-gold animate-pulse"
+          }`}
+        >
+          {error || "Estableciendo conexion segura..."}
         </p>
       </div>
     );
@@ -130,7 +144,7 @@ export default function VideoRoom({
       serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
       data-lk-theme="default"
       style={{ height: "100%", backgroundColor: "#0A0A0A" }}
-      className="relative rounded-2xl overflow-hidden border-2 border-brand-gold/30 shadow-[0_0_30px_rgba(212,175,55,0.1)]"
+      className="relative rounded-2xl overflow-hidden border border-brand-gold/20 shadow-[0_0_40px_rgba(212,175,55,0.08),0_0_80px_rgba(212,175,55,0.04),inset_0_1px_0_rgba(255,255,255,0.05)]"
       onDisconnected={onLeave}
     >
       <VideoRoomInner
@@ -168,11 +182,7 @@ function ParticipantTileCard({
 
   return (
     <div
-      className={`relative shrink-0 rounded-xl overflow-hidden border-2 transition-all duration-200 bg-brand-black ${
-        isSpeaking
-          ? "border-brand-gold shadow-[0_0_16px_rgba(212,175,55,0.6)]"
-          : "border-white/6"
-      }`}
+      className={`relative shrink-0 rounded-3xl overflow-hidden border transition-all duration-300 bg-zinc-900 ${isSpeaking ? "border-[#00a884] shadow-[0_0_20px_rgba(0,168,132,0.4)]" : "border-white/10"}`}
       style={{ width: "100%", aspectRatio: "16/9" }}
     >
       {/* Camera or avatar */}
@@ -201,7 +211,7 @@ function ParticipantTileCard({
       )}
 
       {/* Bottom status bar */}
-      <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-1.5 py-1 bg-linear-to-t from-black/80 to-transparent">
+      <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between px-3 py-1.5 bg-black/50 backdrop-blur-md rounded-2xl border border-white/10">
         <span className="text-white text-[9px] font-medium truncate max-w-[60%]">
           {displayName}
           {isLocal && <span className="text-brand-gold ml-0.5">(Tú)</span>}
@@ -220,16 +230,19 @@ function ParticipantTileCard({
         </div>
       </div>
 
-      {/* Speaking ring */}
+      {/* Speaking ring — layered glow for premium feel */}
       {isSpeaking && (
-        <div className="absolute inset-0 rounded-xl ring-1 ring-brand-gold animate-pulse pointer-events-none" />
+        <>
+          <div className="absolute inset-0 rounded-3xl ring-2 ring-[#00a884]/70 animate-pulse pointer-events-none" />
+          <div className="absolute inset-0 rounded-3xl shadow-[inset_0_0_20px_rgba(0,168,132,0.15)] pointer-events-none" />
+        </>
       )}
     </div>
   );
 }
 
 // ─── Participants Panel (2-col grid, scrollable — used for voice AND video) ───
-function ParticipantsGrid({ username }: { username: string }) {
+function ParticipantsGrid() {
   const participants = useParticipants();
 
   if (participants.length === 0) {
@@ -539,7 +552,8 @@ function VideoRoomInner({
   const [permissionToast, setPermissionToast] = useState<string | null>(null);
   // Permission request modal (for host)
   const [permissionRequest, setPermissionRequest] = useState<{
-    from: string;
+    fromUserId: string;
+    fromName: string;
     action: string;
   } | null>(null);
   // Granular permissions for students (granted by host)
@@ -554,6 +568,11 @@ function VideoRoomInner({
   });
 
   const canShare = role === "profesor" || role === "admin" || isCreator;
+  const { localParticipant } = useLocalParticipant();
+  const localMetadata = getParticipantMetadata(localParticipant);
+  const localUserId = localMetadata.userId || localParticipant.identity;
+  const localDisplayName =
+    localMetadata.displayName || getParticipantDisplayName(localParticipant);
 
   const showToast = (msg: string) => {
     setPermissionToast(msg);
@@ -578,10 +597,18 @@ function VideoRoomInner({
         onLeave();
       } else if (data.type === "PERMISSION_REQUEST" && canShare) {
         // Host receives permission request from a student — show modal
-        setPermissionRequest({ from: data.from, action: data.action });
+        setPermissionRequest({
+          fromUserId: data.fromUserId || data.from || "unknown",
+          fromName: data.fromName || data.from || "Usuario",
+          action: data.action,
+        });
       } else if (data.type === "PERMISSION_GRANTED") {
         // Student receives grant — check if it's for them
-        if (data.to === username) {
+        if (
+          data.toUserId === localUserId ||
+          data.to === localUserId ||
+          data.to === localDisplayName
+        ) {
           const action = data.action; // "esperar acción específica"
           setGrantedPermissions((prev) => ({
             ...prev,
@@ -591,7 +618,7 @@ function VideoRoomInner({
             video: action === "video" || action === "compartir video" ? true : prev.video,
             screen: action === "screen" || action === "compartir pantalla" ? true : prev.screen,
           }));
-          showToast(`✅ Permiso concedido: ${action}`);
+          showToast(`Permiso concedido: ${action}`);
         }
       }
     } catch {}
@@ -601,23 +628,27 @@ function VideoRoomInner({
   const sendPermissionRequest = (action: string) => {
     send(
       new TextEncoder().encode(
-        JSON.stringify({ type: "PERMISSION_REQUEST", from: username, action }),
+        JSON.stringify({
+          type: "PERMISSION_REQUEST",
+          fromUserId: localUserId,
+          fromName: localDisplayName,
+          action,
+        }),
       ),
       { reliable: true },
     );
     showToast(`Solicitud enviada al profesor para ${action}`);
   };
 
-  // Host grants permission to student
-  const grantPermission = (to: string, action: string) => {
+  const grantPermission = (toUserId: string, toName: string, action: string) => {
     send(
       new TextEncoder().encode(
-        JSON.stringify({ type: "PERMISSION_GRANTED", to, action }),
+        JSON.stringify({ type: "PERMISSION_GRANTED", toUserId, to: toName, action }),
       ),
       { reliable: true },
     );
     setPermissionRequest(null);
-    showToast(`✅ Permiso concedido a ${to} para ${action}`);
+    showToast(`Permiso concedido a ${toName} para ${action}`);
   };
 
   const broadcastVideo = (url: string) => {
@@ -669,7 +700,7 @@ function VideoRoomInner({
           <div className="bg-zinc-900 border border-brand-gold/50 rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center">
             <p className="text-2xl mb-2">📩</p>
             <h3 className="text-white font-bold text-lg mb-1">
-              {permissionRequest.from}
+              {permissionRequest.fromName}
             </h3>
             <p className="text-gray-400 text-sm mb-5">
               solicita permiso para:{" "}
@@ -679,7 +710,13 @@ function VideoRoomInner({
             </p>
             <div className="flex gap-3">
               <button
-                onClick={() => grantPermission(permissionRequest.from, permissionRequest.action)}
+                onClick={() =>
+                  grantPermission(
+                    permissionRequest.fromUserId,
+                    permissionRequest.fromName,
+                    permissionRequest.action,
+                  )
+                }
                 className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-colors"
               >
                 ✓ Aceptar
@@ -714,7 +751,7 @@ function VideoRoomInner({
           </div>
 
           {/* Always show the same 2-col participant grid for both voice and video */}
-          <ParticipantsGrid username={username} />
+          <ParticipantsGrid />
           <RoomAudioRenderer />
         </div>
 
@@ -722,7 +759,7 @@ function VideoRoomInner({
         <div className="flex-1 flex flex-col overflow-hidden relative">
           {/* Mode tabs — only for privileged users */}
           {canShare && (
-            <div className="flex items-center gap-1 px-3 py-1.5 bg-zinc-900 border-b border-brand-gold/10 shrink-0">
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full shrink-0 z-50 shadow-2xl">
               <button
                 onClick={() => {
                   setPresentationMode("whiteboard");
@@ -979,10 +1016,10 @@ function CustomControlBar({
   };
 
   const btn =
-    "p-3 rounded-full transition-all duration-200 hover:scale-110 border border-white/10 flex items-center justify-center";
+    "p-3 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 border border-white/10 flex items-center justify-center backdrop-blur-sm";
 
   return (
-    <div className="flex items-center gap-2 bg-black/70 px-5 py-2.5 rounded-2xl border border-brand-gold/20 shadow-2xl backdrop-blur-xl">
+    <div className="flex items-center gap-2 px-5 py-3 rounded-2xl border border-white/10 bg-black/50 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.04),inset_0_1px_0_rgba(255,255,255,0.06)]">
       {/* Mic */}
       <button
         onClick={toggleMic}
@@ -1038,7 +1075,7 @@ function CustomControlBar({
       <button
         onClick={handleLeave}
         title="Colgar"
-        className="p-3 rounded-full bg-red-600 hover:bg-red-700 text-white transition-all hover:scale-110 shadow-[0_0_12px_rgba(220,38,38,0.5)] border-2 border-red-500"
+        className="p-3.5 rounded-full bg-red-600 hover:bg-red-500 active:scale-95 text-white transition-all duration-200 hover:scale-110 shadow-[0_0_20px_rgba(220,38,38,0.5),0_0_40px_rgba(220,38,38,0.2)] border border-red-500/50"
       >
         <PhoneOff className="w-5 h-5" />
       </button>

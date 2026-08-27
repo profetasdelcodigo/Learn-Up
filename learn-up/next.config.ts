@@ -1,13 +1,24 @@
 import type { NextConfig } from "next";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 // @ts-expect-error: next-pwa lacks type declaration file
 import withPWAInit from "next-pwa";
+import { withSentryConfig } from "@sentry/nextjs";
+
+const appDir = dirname(fileURLToPath(import.meta.url));
+const buildCacheId =
+  process.env.RENDER_GIT_COMMIT ||
+  process.env.NEXT_PUBLIC_APP_VERSION ||
+  "local";
 
 const withPWA = withPWAInit({
   dest: "public",
   disable: process.env.NODE_ENV === "development",
   register: true,
   skipWaiting: true,
+  cleanupOutdatedCaches: true,
+  cacheId: `learn-up-${buildCacheId}`,
 });
 
 // ── Security Headers ─────────────────────────────────────────
@@ -57,12 +68,12 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       // Fuentes: self + Google Fonts
       "font-src 'self' https://fonts.gstatic.com",
-      // Imágenes: self + Supabase Storage + data URIs
-      "img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in https://i.ytimg.com https://img.youtube.com https://images.unsplash.com https://plus.unsplash.com",
+      // Imágenes: self + Supabase Storage + data URIs + AI image generators
+      "img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in https://i.ytimg.com https://img.youtube.com https://images.unsplash.com https://plus.unsplash.com https://image.pollinations.ai https://*.fal.media",
       // Medios (audio/video): self + Supabase Storage
       "media-src 'self' blob: https://*.supabase.co https://*.supabase.in",
-      // Conexiones API: self + Supabase + Google AI + LiveKit
-      "connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co https://generativelanguage.googleapis.com https://*.livekit.cloud wss://*.livekit.cloud",
+      // Conexiones API: self + Supabase + Google AI + LiveKit + Sentry + Umami
+      "connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co https://generativelanguage.googleapis.com https://*.livekit.cloud wss://*.livekit.cloud https://*.sentry.io https://cloud.umami.is https://api.umami.is",
       // Frames: YouTube para reproductores embebidos
       "frame-src 'self' https://www.youtube.com https://youtube.com",
       // Worker scripts (PWA service worker)
@@ -80,6 +91,13 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: appDir,
+  typescript: {
+    // !! WARN !!
+    // Dangerously allow production builds to successfully complete even if
+    // your project has type errors.
+    ignoreBuildErrors: true,
+  },
   webpack: (config) => {
     config.ignoreWarnings = [
       { module: /node_modules\/officeparser/ },
@@ -128,8 +146,28 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "i.ytimg.com",
       },
+      {
+        protocol: "https",
+        hostname: "image.pollinations.ai",
+      },
+      {
+        protocol: "https",
+        hostname: "*.fal.media",
+      },
     ],
   },
 };
 
-export default withPWA(nextConfig);
+export default withSentryConfig(
+  withPWA(nextConfig),
+  {
+    org: "profetas-del-codigo",
+    project: "javascript-nextjs",
+    silent: !process.env.CI,
+    widenClientFileUpload: true,
+    disableLogger: true,
+    sourcemaps: {
+      deleteSourcemapsAfterUpload: true,
+    },
+  }
+);

@@ -1,17 +1,39 @@
 "use client";
 
-import { HeartPulse } from "lucide-react";
+import { useState } from "react";
+import { Heart, HeartPulse } from "lucide-react";
+import NotebookLayout from "@/components/ai/NotebookLayout";
 import AIChatComponent from "@/components/AIChatComponent";
+import JournalSidebar from "@/components/JournalSidebar";
+import SourcesPanel from "@/components/ai/SourcesPanel";
 import { askCounselor } from "@/actions/ai-tutor";
 
 export default function CounselorChatPage() {
+  const [sessionId, setSessionId] = useState<string | null>(null);
+
   return (
-    <AIChatComponent
-      title="Alma"
-      subtitle="Tu consejera de confianza"
-      icon={<HeartPulse className="w-5 h-5 text-brand-gold" />}
-      aiType="consejero"
-      onSubmitAction={askCounselor}
+    <NotebookLayout
+      leftPanel={
+        <SourcesPanel 
+          aiType="consejero" 
+          currentSessionId={sessionId} 
+          onSessionChange={setSessionId} 
+        />
+      }
+      centerPanel={
+        <AIChatComponent
+          title="Alma (Consejera)"
+          subtitle="Apoyo emocional y motivación diaria"
+          icon={<Heart className="w-5 h-5 text-rose-500" />}
+          aiType="consejero"
+          onSubmitAction={askCounselor}
+          className="font-serif"
+          currentSessionId={sessionId}
+          onSessionChange={setSessionId}
+          defaultModel="groq/llama-3.3-70b-versatile"
+        />
+      }
+      rightPanel={<JournalSidebar currentSessionId={sessionId} />}
     />
   );
 }

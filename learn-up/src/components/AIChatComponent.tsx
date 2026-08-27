@@ -13,7 +13,7 @@ import {
   Music,
   FileText,
   Bot,
-  PlusCircle,
+  Plus,
   Trash2,
   History,
   ChevronLeft,
@@ -26,6 +26,49 @@ import {
   XCircle,
   Share2,
   Copy,
+  User,
+  ToggleLeft,
+  ToggleRight,
+  BrainCircuit,
+  CheckCircle2,
+  Camera,
+  FolderPlus,
+  Zap,
+  Link,
+  Puzzle,
+  Globe,
+  ChevronDown,
+  Mic,
+  Activity,
+  PenLine,
+  GraduationCap,
+  Code,
+  Coffee,
+  Sparkles,
+  Brain,
+  CalendarPlus,
+  CalendarSearch,
+  CalendarCheck,
+  CalendarX,
+  Bell,
+  Clock,
+  Target,
+  TrendingUp,
+  Archive,
+  BarChart3,
+  Users,
+  UserPlus,
+  LogOut,
+  Megaphone,
+  Lightbulb,
+  Download,
+  Package,
+  ScrollText,
+  ChevronRight,
+  Bookmark,
+  BookOpen,
+  Command,
+  Link as LinkIcon,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import ShareButton from "./ShareButton";
@@ -39,6 +82,8 @@ import {
   deleteAiSession,
 } from "@/actions/ai-history";
 import { confirmAndExecuteTool, indexAiDocumentFromUrl } from "@/actions/ai-tutor";
+import SkillsDirectoryModal from "./ai/SkillsDirectoryModal";
+import ThinkingBlock from "./ai/ThinkingBlock";
 
 interface ToolAction {
   tool: string;
@@ -78,6 +123,18 @@ function downloadTextArtifact(title: string, content: string) {
 }
 
 function AIMessageContent({ text }: { text: string }) {
+  // Manejo de bloques de pensamiento <thinking> ... </thinking>
+  const thinkingRegex = /<thinking>([\s\S]*?)<\/thinking>/;
+  const matchThinking = text.match(thinkingRegex);
+  
+  let mainText = text;
+  let thinkingContent = null;
+  
+  if (matchThinking) {
+    thinkingContent = matchThinking[1].trim();
+    mainText = text.replace(thinkingRegex, "").trim();
+  }
+
   const nodes: ReactNode[] = [];
   const tokenRegex =
     /!\[([^\]]*)\]\(([^)]*)\)|\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|\*([^*]+)\*|(https?:\/\/[^\s<]+)/g;
@@ -88,20 +145,31 @@ function AIMessageContent({ text }: { text: string }) {
     if (match.index > lastIndex) {
       nodes.push(text.slice(lastIndex, match.index));
     }
-
     const key = `${match.index}-${tokenRegex.lastIndex}`;
-
     if (match[2]) {
       const safeUrl = getSafeExternalUrl(match[2]);
       if (safeUrl) {
         nodes.push(
-          <img
+          <a
             key={key}
-            src={safeUrl}
-            alt={match[1] || "Imagen"}
-            className="rounded-xl max-w-full my-2 border border-white/10"
-            style={{ maxHeight: 300 }}
-          />,
+            href={safeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block relative group my-3 cursor-zoom-in max-w-2xl"
+          >
+            <img
+              src={safeUrl}
+              alt={match[1] || "Imagen"}
+              className="rounded-xl w-full object-cover border border-white/10 transition-transform duration-300 group-hover:scale-[1.01] group-hover:border-white/30"
+              style={{ maxHeight: 450 }}
+            />
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center backdrop-blur-sm">
+              <span className="text-white text-sm font-semibold bg-white/20 px-4 py-2 rounded-full border border-white/30 flex items-center gap-2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                Ver imagen original
+              </span>
+            </div>
+          </a>,
         );
       }
     } else if (match[4]) {
@@ -151,14 +219,19 @@ function AIMessageContent({ text }: { text: string }) {
     lastIndex = tokenRegex.lastIndex;
   }
 
-  if (lastIndex < text.length) {
-    nodes.push(text.slice(lastIndex));
+  if (lastIndex < mainText.length) {
+    nodes.push(mainText.slice(lastIndex));
   }
 
-  return <>{nodes}</>;
+  return (
+    <>
+      {thinkingContent && (
+        <ThinkingBlock content={thinkingContent} isComplete={true} />
+      )}
+      {nodes}
+    </>
+  );
 }
-
-// shareAIMessage removed in favor of ShareButton
 
 interface Message {
   id?: string;
@@ -166,6 +239,7 @@ interface Message {
   content: string;
   media_url?: string;
   media_type?: string;
+  tool_calls?: ToolAction[];
 }
 
 interface AIChatProps {
@@ -178,7 +252,16 @@ interface AIChatProps {
     history: { role: "user" | "assistant"; content: string }[],
     mediaUrl?: string,
     mediaType?: string,
-  ) => Promise<{ response: string; error?: string; actions?: ToolAction[] }>;
+    modelId?: string,
+    sessionId?: string | null,
+  ) => Promise<{ response: string; error?: string; actions?: ToolAction[]; executedActions?: ToolAction[] }>;
+  className?: string;
+  containerStyle?: React.CSSProperties;
+  onMessagesChange?: (messages: Message[]) => void;
+  currentSessionId: string | null;
+  onSessionChange: (sessionId: string | null) => void;
+  defaultModel?: string;
+  disableModelSelector?: boolean;
 }
 
 export default function AIChatComponent({
@@ -187,33 +270,107 @@ export default function AIChatComponent({
   icon,
   aiType,
   onSubmitAction,
+  className,
+  containerStyle,
+  onMessagesChange,
+  currentSessionId,
+  onSessionChange,
+  defaultModel,
+  disableModelSelector,
 }: AIChatProps) {
   const router = useRouter();
-  const [sessions, setSessions] = useState<any[]>([]);
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+
+  useEffect(() => {
+    if (onMessagesChange) onMessagesChange(messages);
+  }, [messages, onMessagesChange]);
 
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
   const [error, setError] = useState("");
-  const [showHistory, setShowHistory] = useState(false);
 
   const [file, setFile] = useState<File | null>(null);
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [pendingActions, setPendingActions] = useState<ToolAction[]>([]);
   const [executingAction, setExecutingAction] = useState(false);
+  const [isAutonomous, setIsAutonomous] = useState(false);
+  const [isListening, setIsListening] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<any>(null);
+  const isCreatingSession = useRef(false);
   const supabase = createClient();
-
+  
+  // Inicializar Web Speech API
   useEffect(() => {
-    loadSessions(false); // Do not load last session messages automatically
+    if (typeof window !== "undefined" && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.lang = 'es-ES';
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInput(prev => prev ? prev + " " + transcript : transcript);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        console.error("Speech recognition error:", event.error);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
   }, []);
 
-  // Mini-mensajes dinámicos durante la carga (contextuales)
+  const toggleListen = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+    } else {
+      recognitionRef.current?.start();
+      setIsListening(true);
+    }
+  };
+  
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [showModelMenu, setShowModelMenu] = useState(false);
+  const [selectedModel, setSelectedModel] = useState(defaultModel || "groq/llama-3.3-70b-versatile");
+  const [activeSkills, setActiveSkills] = useState<string[]>([]);
+  const [isSkillsModalOpen, setIsSkillsModalOpen] = useState(false);
   const [hasFileAttached, setHasFileAttached] = useState(false);
+
+  useEffect(() => {
+    if (currentSessionId) {
+      if (isCreatingSession.current) {
+        isCreatingSession.current = false;
+        return;
+      }
+      loadSessionMessages(currentSessionId);
+    } else {
+      setMessages([]);
+    }
+  }, [currentSessionId]);
+
+  useEffect(() => {
+    const handleTriggerJarvis = (e: CustomEvent) => {
+      const msg = e.detail?.message;
+      if (msg) {
+        setInput(msg);
+        setTimeout(() => {
+          const form = document.getElementById('chat-form');
+          if (form) form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+        }, 100);
+      }
+    };
+    window.addEventListener("triggerJarvis" as any, handleTriggerJarvis);
+    return () => window.removeEventListener("triggerJarvis" as any, handleTriggerJarvis);
+  }, []);
 
   useEffect(() => {
     if (!loading) {
@@ -257,36 +414,26 @@ export default function AIChatComponent({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  const loadSessions = async (shouldLoadMessages: boolean = true) => {
-    const data = await getAiSessions(aiType);
-    setSessions(data);
-    if (shouldLoadMessages && data.length > 0 && !currentSessionId) {
-      loadSessionMessages(data[0].id);
-    }
-  };
-
   const loadSessionMessages = async (sessionId: string) => {
-    setCurrentSessionId(sessionId);
     setMessages([]);
     setLoading(true);
     const msgs = await getAiMessages(sessionId);
     setMessages(msgs);
-    setShowHistory(false);
     setLoading(false);
   };
 
-  const handleNewSession = () => {
-    setCurrentSessionId(null);
-    setMessages([]);
-    setShowHistory(false);
-  };
-
-  const handleDeleteSession = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    await deleteAiSession(id);
-    if (currentSessionId === id) handleNewSession();
-    loadSessions();
-  };
+  useEffect(() => {
+    if (currentSessionId) {
+      if (isCreatingSession.current) {
+        // Prevent clearing messages when a new session was created in the current active chat flow
+        isCreatingSession.current = false;
+        return;
+      }
+      loadSessionMessages(currentSessionId);
+    } else {
+      setMessages([]);
+    }
+  }, [currentSessionId]);
 
   const getMediaType = (file: File) => {
     if (file.type.startsWith("image/")) return "image";
@@ -305,11 +452,9 @@ export default function AIChatComponent({
     e.preventDefault();
     if ((!input.trim() && !file) || loading) return;
 
-    // Respaldar estados locales por si falla el envío
     const backupInput = input;
     const backupFile = file;
 
-    // Auto-generar mensaje si solo hay archivo sin texto
     let userMessage = input.trim();
     if (!userMessage && file) {
       const mType = getMediaType(file);
@@ -363,6 +508,7 @@ export default function AIChatComponent({
     let newSession = false;
 
     if (!sessionId) {
+      isCreatingSession.current = true;
       try {
         const { session, error: sErr } = await createAiSession(
           aiType,
@@ -371,10 +517,11 @@ export default function AIChatComponent({
         if (sErr) throw new Error(sErr);
         if (session) {
           sessionId = session.id;
-          setCurrentSessionId(session.id);
+          onSessionChange(session.id);
           newSession = true;
         }
       } catch (err: any) {
+        isCreatingSession.current = false;
         handleFailure("Error al iniciar sesión de IA. Verifica tu conexión.");
         return;
       }
@@ -442,37 +589,45 @@ export default function AIChatComponent({
         content: m.content,
       }));
 
+      const finalUserMessage = activeSkills.length > 0 
+        ? `[Skills Activas: ${activeSkills.join(",")}]\n\n${userMessage}` 
+        : userMessage;
+
       const result = await onSubmitAction(
-        userMessage,
+        finalUserMessage,
         historyForGroq,
         mediaUrl,
         mediaType,
+        selectedModel,
+        sessionId
       );
 
       if (result.error) {
         handleFailure(result.error);
       } else if (result.response) {
-        await addAiMessage(sessionId, "assistant", result.response);
+        await addAiMessage(sessionId, "assistant", result.response, undefined, undefined, result.executedActions);
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: result.response },
+          { role: "assistant", content: result.response, tool_calls: result.executedActions },
         ]);
 
         if (result.actions && result.actions.length > 0) {
-          setPendingActions(result.actions);
+          if (isAutonomous) {
+            result.actions.forEach(action => {
+               setTimeout(() => handleConfirmAction(action), 500);
+            });
+          } else {
+            setPendingActions(result.actions);
+          }
         }
       }
     } catch (err) {
       handleFailure("Ocurrió un error inesperado al procesar la IA.");
     } finally {
-      if (newSession) {
-        loadSessions(false);
-      }
       setLoading(false);
     }
   };
 
-  // ── Manejar confirmación/rechazo de acciones de IA ────────────────────────
   const handleConfirmAction = async (action: ToolAction) => {
     setExecutingAction(true);
     let actionResult: any = null;
@@ -481,20 +636,31 @@ export default function AIChatComponent({
         const safeUrl = getSafeExternalUrl(action.args.url);
         if (!safeUrl) throw new Error("URL no permitida");
         window.open(safeUrl, "_blank", "noopener,noreferrer");
+        const msg = `Abriendo: ${action.args.title || safeUrl}`;
+        if (currentSessionId) await addAiMessage(currentSessionId, "assistant", msg, undefined, undefined, [action]);
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: `Abriendo: ${action.args.title || safeUrl}` },
+          { role: "assistant", content: msg, tool_calls: [action] },
+        ]);
+      } else if (action.tool === "trigger_jarvis") {
+        window.dispatchEvent(new CustomEvent("triggerJarvis", { 
+          detail: { message: `Fui invocado por ${title}. ${action.args.reason || '¿En qué puedo ayudarte?'}` } 
+        }));
+        const msg = `He llamado a Jarvis para que se encargue de esto.`;
+        if (currentSessionId) await addAiMessage(currentSessionId, "assistant", msg, undefined, undefined, [action]);
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: msg, tool_calls: [action] },
         ]);
       } else {
         actionResult = await confirmAndExecuteTool(action.tool, action.args);
         
-        // Manejar sugerencias si hay múltiples coincidencias
         if (!actionResult.success && actionResult.data?.suggestions) {
+            if (currentSessionId) await addAiMessage(currentSessionId, "assistant", actionResult.message);
             setMessages((prev) => [
                 ...prev,
                 { role: "assistant", content: actionResult.message },
             ]);
-            // Convertimos las sugerencias en botones de acción temporales
             const suggestionActions = actionResult.data.suggestions.map((s: any) => ({
                 tool: action.tool,
                 args: { ...action.args, recipient_id: s.id, recipient_type: s.type, recipient_name: s.name },
@@ -513,9 +679,19 @@ export default function AIChatComponent({
                 actionResult.data.content,
               );
             }
+
+            if (actionResult.success) {
+               if (action.tool.includes("calendar")) {
+                 window.dispatchEvent(new CustomEvent("calendarUpdated"));
+               } else if (action.tool.includes("habit")) {
+                 window.dispatchEvent(new CustomEvent("habitsUpdated"));
+               }
+            }
+
+            if (currentSessionId) await addAiMessage(currentSessionId, "assistant", actionResult.message, undefined, undefined, [action]);
             setMessages((prev) => [
               ...prev,
-              { role: "assistant", content: actionResult.message },
+              { role: "assistant", content: actionResult.message, tool_calls: [action] },
             ]);
         }
       }
@@ -523,31 +699,171 @@ export default function AIChatComponent({
       setError("Error al ejecutar la acción.");
     } finally {
       setExecutingAction(false);
-      // No limpiamos pendingActions si hay sugerencias, ya que las usamos para renderizar botones
       if (!actionResult?.data?.suggestions) setPendingActions([]);
     }
   };
 
-  const handleRejectAction = () => {
+  const handleRejectAction = async () => {
+    const msg = "Entendido, no realicé la acción. ¿Necesitas algo más?";
+    if (currentSessionId) await addAiMessage(currentSessionId, "assistant", msg);
     setMessages((prev) => [
       ...prev,
-      { role: "assistant", content: "Entendido, no realicé la acción. ¿Necesitas algo más?" },
+      { role: "assistant", content: msg },
     ]);
     setPendingActions([]);
   };
 
-  const getToolIcon = (tool: string) => {
-    switch (tool) {
-      case "open_url": return <ExternalLink className="w-4 h-4" />;
-      case "add_calendar_event": return <Calendar className="w-4 h-4" />;
-      case "send_message": return <MessageSquare className="w-4 h-4" />;
-      case "search_library": return <Search className="w-4 h-4" />;
-      case "update_profile": return <UserCog className="w-4 h-4" />;
-      default: return <Bot className="w-4 h-4" />;
+  const handleOptionSelect = async (option: string) => {
+    setPendingActions([]);
+    if (loading) return;
+
+    const clientSideUserMsg: Message = { role: "user", content: option };
+    setMessages((prev) => [...prev, clientSideUserMsg]);
+    setLoading(true);
+
+    let sessionId = currentSessionId;
+    let newSession = false;
+
+    if (!sessionId) {
+      try {
+        const { session, error: sErr } = await createAiSession(aiType, option.substring(0, 30) || "Nueva Sesión");
+        if (session) {
+          sessionId = session.id;
+          newSession = true;
+          isCreatingSession.current = true;
+          onSessionChange?.(session.id);
+        }
+      } catch (err) {
+        console.error("Error creating session:", err);
+        setError("Error al iniciar sesión.");
+        setLoading(false);
+        return;
+      }
+    }
+
+    if (!sessionId) {
+      setError("No se pudo obtener la sesión.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      await addAiMessage(sessionId, "user", option);
+      const historyForGroq = messages.map((m) => ({ role: m.role, content: m.content }));
+      const result = await onSubmitAction(option, historyForGroq, undefined, undefined, selectedModel);
+
+      if (result.error) {
+        setError(result.error);
+      } else if (result.response) {
+        await addAiMessage(sessionId, "assistant", result.response);
+        setMessages((prev) => [...prev, { role: "assistant", content: result.response }]);
+        if (result.actions && result.actions.length > 0) {
+          setPendingActions(result.actions);
+        }
+      }
+    } catch (err) {
+      setError("Error inesperado al procesar la opción.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Removed abrupt return to allow AnimatePresence to handle it
+  const getToolIcon = (tool: string) => {
+    const icons: Record<string, ReactNode> = {
+      open_url: <ExternalLink className="w-4 h-4" />,
+      add_calendar_event: <CalendarPlus className="w-4 h-4" />,
+      read_calendar_events: <CalendarSearch className="w-4 h-4" />,
+      update_calendar_event: <CalendarCheck className="w-4 h-4" />,
+      delete_calendar_event: <CalendarX className="w-4 h-4" />,
+      search_calendar_events: <Search className="w-4 h-4" />,
+      add_habit: <Target className="w-4 h-4" />,
+      update_habit: <PenLine className="w-4 h-4" />,
+      complete_habit_entry: <CheckCircle2 className="w-4 h-4" />,
+      undo_habit_entry: <XCircle className="w-4 h-4" />,
+      delete_habit: <Trash2 className="w-4 h-4" />,
+      archive_habit: <Archive className="w-4 h-4" />,
+      read_habit_tracker: <TrendingUp className="w-4 h-4" />,
+      view_habit_stats: <BarChart3 className="w-4 h-4" />,
+      create_shared_calendar: <Users className="w-4 h-4" />,
+      add_shared_calendar_member: <UserPlus className="w-4 h-4" />,
+      add_shared_event: <CalendarPlus className="w-4 h-4" />,
+      read_shared_events: <CalendarSearch className="w-4 h-4" />,
+      delete_shared_event: <CalendarX className="w-4 h-4" />,
+      send_shared_message: <MessageSquare className="w-4 h-4" />,
+      read_shared_chat: <MessageSquare className="w-4 h-4" />,
+      delete_shared_message: <Trash2 className="w-4 h-4" />,
+      leave_shared_calendar: <LogOut className="w-4 h-4" />,
+      view_shared_members: <Users className="w-4 h-4" />,
+      notify_habit_progress: <Megaphone className="w-4 h-4" />,
+      suggest_weekly_plan: <Lightbulb className="w-4 h-4" />,
+      export_calendar_ics: <Download className="w-4 h-4" />,
+      send_message: <MessageSquare className="w-4 h-4" />,
+      search_library: <Search className="w-4 h-4" />,
+      update_profile: <UserCog className="w-4 h-4" />,
+      search_web: <Globe className="w-4 h-4" />,
+      generate_image: <ImageIcon className="w-4 h-4" />,
+      search_image: <ImageIcon className="w-4 h-4" />,
+      generate_video: <Video className="w-4 h-4" />,
+      generate_document: <FileText className="w-4 h-4" />,
+      create_exam: <GraduationCap className="w-4 h-4" />,
+      generate_flashcards: <ScrollText className="w-4 h-4" />,
+      save_learned_concept: <Brain className="w-4 h-4" />,
+      notify_user: <Bell className="w-4 h-4" />,
+      trigger_jarvis: <Zap className="w-4 h-4" />,
+    };
+    return icons[tool] || <Bot className="w-4 h-4" />;
+  };
+
+  const getToolLabel = (tool: string): string => {
+    const labels: Record<string, string> = {
+      add_calendar_event: "Agregar Evento",
+      read_calendar_events: "Leer Calendario",
+      update_calendar_event: "Editar Evento",
+      delete_calendar_event: "Eliminar Evento",
+      search_calendar_events: "Buscar Eventos",
+      add_habit: "Nuevo Hábito",
+      update_habit: "Editar Hábito",
+      complete_habit_entry: "Completar Hábito",
+      undo_habit_entry: "Desmarcar Hábito",
+      delete_habit: "Eliminar Hábito",
+      archive_habit: "Archivar Hábito",
+      read_habit_tracker: "Tracker de Hábitos",
+      view_habit_stats: "Estadísticas de Hábitos",
+      create_shared_calendar: "Crear Calendario Grupal",
+      add_shared_calendar_member: "Agregar Miembro",
+      add_shared_event: "Evento Compartido",
+      read_shared_events: "Ver Eventos Grupales",
+      delete_shared_event: "Eliminar Evento Grupal",
+      send_shared_message: "Mensaje al Grupo",
+      read_shared_chat: "Leer Chat Grupal",
+      delete_shared_message: "Borrar Mensaje",
+      leave_shared_calendar: "Salir del Grupo",
+      view_shared_members: "Ver Miembros",
+      notify_habit_progress: "Notificar Progreso",
+      suggest_weekly_plan: "Plan Semanal IA",
+      export_calendar_ics: "Exportar .ICS",
+      send_message: "Enviar Mensaje",
+      search_web: "Búsqueda Web",
+      generate_image: "Generar Imagen",
+      search_image: "Buscar Imagen",
+      generate_video: "Generar Video",
+      generate_document: "Generar Documento",
+      create_exam: "Crear Examen",
+      generate_flashcards: "Flashcards",
+      notify_user: "Notificación",
+      open_url: "Abrir Enlace",
+    };
+    return labels[tool] || tool;
+  };
+
+  const getToolColor = (tool: string): string => {
+    if (tool.includes("calendar") || tool.includes("event")) return "text-blue-400 bg-blue-400/10 border-blue-400/20";
+    if (tool.includes("habit")) return "text-emerald-400 bg-emerald-400/10 border-emerald-400/20";
+    if (tool.includes("shared") || tool.includes("member")) return "text-purple-400 bg-purple-400/10 border-purple-400/20";
+    if (tool.includes("image") || tool.includes("video")) return "text-pink-400 bg-pink-400/10 border-pink-400/20";
+    if (tool.includes("search") || tool.includes("web")) return "text-cyan-400 bg-cyan-400/10 border-cyan-400/20";
+    return "text-brand-gold bg-brand-gold/10 border-brand-gold/20";
+  };
 
   return (
     <AnimatePresence mode="wait">
@@ -557,10 +873,9 @@ export default function AIChatComponent({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, scale: 1.02 }}
         transition={{ duration: 0.2, ease: "easeOut" }}
-        className="flex flex-col w-full relative z-10"
-        style={{ height: "100dvh", overflow: "hidden" }}
+        className={`flex flex-col relative z-10 w-full h-full ${className || ''}`}
+        style={containerStyle}
       >
-        {/* ──────────────────── HEADER ──────────────────── */}
         <div
           className="shrink-0 relative flex items-center justify-between px-4 bg-surface-2/40 backdrop-blur-xl z-30"
           style={{
@@ -568,7 +883,6 @@ export default function AIChatComponent({
             paddingBottom: "0.75rem",
           }}
         >
-            {/* LEFT: Back button */}
             <button
               onClick={() => router.back()}
               className="flex items-center justify-center w-10 h-10 rounded-full bg-surface-2 border border-white/6 text-gray-400 hover:text-white hover:border-brand-gold/40 transition-all shrink-0"
@@ -577,10 +891,9 @@ export default function AIChatComponent({
               <ChevronLeft className="w-5 h-5" />
             </button>
 
-            {/* CENTER: AI info */}
             <div className="flex flex-col items-center flex-1 px-3 min-w-0">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center shrink-0">
+                <div className="w-7 h-7 rounded-full bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center text-brand-gold shrink-0">
                   {icon}
                 </div>
                 <h1 className="font-bold text-white text-sm leading-tight truncate">
@@ -592,111 +905,33 @@ export default function AIChatComponent({
               </p>
             </div>
 
-            {/* RIGHT: History */}
-            <button
-              onClick={() => setShowHistory((v) => !v)}
-              className={`flex items-center justify-center w-10 h-10 rounded-full border transition-all shrink-0 ${
-                showHistory
-                  ? "bg-brand-gold text-brand-black border-brand-gold"
-                  : "bg-surface-2 border-white/6 text-gray-400 hover:border-brand-gold/40 hover:text-white"
-              }`}
-              aria-label="Historial"
-            >
-              <History className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/20 border border-white/5 shrink-0">
+              <span className="text-[10px] text-gray-400 font-medium hidden md:inline">
+                Piloto Automático
+              </span>
+              <button
+                onClick={() => setIsAutonomous(!isAutonomous)}
+                className="text-brand-gold transition-transform hover:scale-105"
+                title="Permitir que la IA ejecute herramientas sin preguntar"
+              >
+                {isAutonomous ? (
+                  <ToggleRight className="w-5 h-5" />
+                ) : (
+                  <ToggleLeft className="w-5 h-5 text-gray-500" />
+                )}
+              </button>
+            </div>
           </div>
 
-          {/* ──────────────────── HISTORY DRAWER ──────────────────── */}
-          <AnimatePresence>
-            {showHistory && (
-              <>
-                {/* Backdrop */}
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="fixed inset-0 bg-black/60 z-20"
-                  onClick={() => setShowHistory(false)}
-                />
-                {/* Drawer from right */}
-                <motion.div
-                  initial={{ x: "100%" }}
-                  animate={{ x: 0 }}
-                  exit={{ x: "100%" }}
-                  transition={{ type: "spring", damping: 28, stiffness: 300 }}
-                  className="fixed top-0 right-0 h-full w-72 bg-surface-1 border-l border-white/6 z-30 flex flex-col"
-                  style={{
-                    paddingTop: "calc(env(safe-area-inset-top) + 0rem)",
-                  }}
-                >
-                  <div className="flex items-center justify-between p-4 border-b border-white/6">
-                    <h3 className="font-bold text-white flex items-center gap-2 text-sm">
-                      <Bot className="w-4 h-4 text-brand-gold" /> Historial
-                    </h3>
-                    <button
-                      onClick={() => setShowHistory(false)}
-                      className="text-gray-400 hover:text-white"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                  <div className="p-3">
-                    <button
-                      onClick={handleNewSession}
-                      className="w-full py-2.5 bg-brand-gold/10 text-brand-gold border border-brand-gold/30 rounded-xl hover:bg-brand-gold hover:text-black transition-all flex items-center justify-center gap-2 mb-3 font-semibold text-sm"
-                    >
-                      <PlusCircle className="w-4 h-4" /> Nueva Sesión
-                    </button>
-                  </div>
-                  <div className="flex-1 overflow-y-auto px-3 space-y-1 pb-4">
-                    {sessions.length === 0 ? (
-                      <p className="text-gray-500 text-xs text-center py-4">
-                        No hay sesiones previas
-                      </p>
-                    ) : (
-                      sessions.map((s) => (
-                        <div
-                          key={s.id}
-                          onClick={() => loadSessionMessages(s.id)}
-                          className={`p-3 rounded-xl cursor-pointer flex justify-between items-center group transition-colors ${
-                            currentSessionId === s.id
-                              ? "bg-surface-2 border border-white/10"
-                              : "hover:bg-white/5/50"
-                          }`}
-                        >
-                          <div className="truncate pr-2">
-                            <p className="text-sm text-white truncate font-medium">
-                              {s.title}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {new Date(s.updated_at).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <button
-                            onClick={(e) => handleDeleteSession(e, s.id)}
-                            className="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
-
-          {/* ──────────────────── MESSAGES ──────────────────── */}
-          <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+          <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 bg-surface-1" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 pb-8">
-                <div className="w-20 h-20 rounded-full bg-surface-2 border border-white/6 flex items-center justify-center mb-4">
+                <div className="w-20 h-20 rounded-3xl bg-surface-2 shadow-2xl border border-white/6 flex items-center justify-center mb-6 text-brand-gold">
                   {icon}
                 </div>
-                <p className="max-w-xs text-sm">
-                  Comienza a chatear. También puedes subir imágenes, audios o
-                  documentos PDF.
+                <h2 className="text-xl font-medium text-white mb-2">¿En qué puedo ayudarte?</h2>
+                <p className="max-w-sm text-sm">
+                  Comienza a chatear. Puedes activar el Piloto Automático para que tome acciones por ti o subir documentos para análisis profundo.
                 </p>
               </div>
             )}
@@ -704,84 +939,97 @@ export default function AIChatComponent({
             {messages.map((message, index) => (
               <motion.div
                 key={message.id || index}
-                initial={{ opacity: 0, y: 18, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
                 transition={{
                   type: "spring",
                   damping: 22,
                   stiffness: 180,
                   duration: 0.45,
                 }}
-                className={`flex ${message.role === "user" ? "justify-end" : "justify-start group"}`}
+                className={`flex flex-col w-full max-w-4xl mx-auto group ${message.role === "user" ? "items-end" : "items-start"}`}
               >
-                <div
-                  className={`max-w-[85%] md:max-w-[70%] p-4 rounded-2xl ${
-                    message.role === "user"
-                      ? "bg-brand-gold text-brand-black rounded-tr-sm"
-                      : "bg-surface-2 text-white rounded-tl-sm"
-                  }`}
-                >
-                  {message.media_url && message.media_type === "image" && (
-                    <img
-                      src={message.media_url}
-                      alt="Upload"
-                      className="w-full max-w-sm rounded-xl mb-3 border border-brand-gold/20"
-                    />
-                  )}
-                  {message.media_url && message.media_type !== "image" && (
-                    <div className="flex items-center gap-2 p-3 bg-black/20 rounded-xl mb-3 border border-black/10">
-                      {message.media_type === "audio" ? (
-                        <Music className="w-5 h-5" />
-                      ) : message.media_type === "video" ? (
-                        <Video className="w-5 h-5" />
-                      ) : (
-                        <FileText className="w-5 h-5" />
-                      )}
-                      <span className="text-sm font-semibold truncate">
-                        Archivo Adjunto
-                      </span>
+                {message.role === "user" ? (
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-5 max-w-[85%] md:max-w-[70%]">
+                    <div className="flex items-center gap-2 mb-2 text-gray-400 text-xs font-medium">
+                      <User className="w-3 h-3" /> Tú
                     </div>
-                  )}
-                  {message.content && (
-                    <div>
-                      {message.role === "assistant" ? (
-                        <div
-                          className="prose-ai text-sm md:text-base leading-relaxed whitespace-pre-wrap break-words [&_a]:text-brand-gold [&_a]:hover:underline [&_img]:rounded-xl [&_img]:max-w-full [&_img]:my-2 [&_img]:border [&_img]:border-white/10 [&_strong]:text-white [&_strong]:font-semibold"
-                        >
-                          <AIMessageContent text={message.content} />
-                        </div>
-                      ) : (
-                        <p className="whitespace-pre-wrap text-sm md:text-base leading-relaxed">
-                          {message.content}
-                        </p>
-                      )}
-                      {message.role === "assistant" && (
-                        <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <ShareButton
-                            payload={{
-                              title: "Respuesta de IA",
-                              text: message.content.slice(0, 300) + (message.content.length > 300 ? "..." : ""),
-                              type: "text"
-                            }}
-                          />
-                        </div>
-                      )}
+                    {message.media_url && message.media_type === "image" && (
+                      <img
+                        src={message.media_url}
+                        alt="Upload"
+                        className="w-full rounded-xl mb-3 border border-white/10"
+                      />
+                    )}
+                    {message.media_url && message.media_type !== "image" && (
+                      <div className="flex items-center gap-2 p-3 bg-black/20 rounded-xl mb-3 border border-black/10">
+                        {message.media_type === "audio" ? (
+                          <Music className="w-5 h-5" />
+                        ) : message.media_type === "video" ? (
+                          <Video className="w-5 h-5" />
+                        ) : (
+                          <FileText className="w-5 h-5" />
+                        )}
+                        <span className="text-sm font-semibold truncate">
+                          Archivo Adjunto
+                        </span>
+                      </div>
+                    )}
+                    <p className="whitespace-pre-wrap text-sm md:text-base leading-relaxed text-gray-200">
+                      {message.content}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="w-full">
+                    <div className="flex items-center gap-2 mb-3 text-brand-gold text-xs font-semibold uppercase tracking-wider">
+                      <Bot className="w-3 h-3" /> {title}
                     </div>
-                  )}
-                </div>
+                    <div className="prose-ai text-gray-200 text-sm md:text-base leading-relaxed whitespace-pre-wrap break-words [&_a]:text-brand-gold [&_a]:hover:underline [&_img]:rounded-xl [&_img]:max-w-full [&_img]:my-2 [&_img]:border [&_img]:border-white/10 [&_strong]:text-white [&_strong]:font-semibold">
+                      <AIMessageContent text={message.content} />
+                    </div>
+                    {message.tool_calls && message.tool_calls.length > 0 && (
+                      <div className="mt-3 flex flex-col gap-2">
+                        {message.tool_calls.map((tc, idx) => (
+                           <div key={idx} className="flex items-center gap-3 p-3 bg-black/20 border border-brand-gold/20 rounded-xl text-xs text-gray-300">
+                             <div className="bg-brand-gold/10 p-1.5 rounded-lg border border-brand-gold/20">
+                               <BrainCircuit className="w-4 h-4 text-brand-gold" />
+                             </div>
+                             <div>
+                               <div className="font-semibold text-brand-gold uppercase tracking-wider text-[10px] mb-0.5">Herramienta Ejecutada</div>
+                               <div className="font-medium">{tc.description || tc.tool}</div>
+                             </div>
+                           </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex gap-1 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <ShareButton
+                        payload={{
+                          title: "Respuesta de IA",
+                          text: message.content.slice(0, 300) + (message.content.length > 300 ? "..." : ""),
+                          type: "text"
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
               </motion.div>
             ))}
 
             {loading && (
               <div className="flex justify-start">
                 <div className="bg-surface-2 rounded-2xl p-4 rounded-tl-sm flex items-center gap-3">
-                  <Loader2 className="w-5 h-5 text-brand-gold animate-spin shrink-0" />
+                  <div className="flex items-center gap-1 opacity-70">
+                    <div className="w-2 h-2 bg-brand-gold rounded-full" style={{ animation: 'typing-dot 1.4s infinite ease-in-out both' }} />
+                    <div className="w-2 h-2 bg-brand-gold rounded-full" style={{ animation: 'typing-dot 1.4s infinite ease-in-out both', animationDelay: '0.2s' }} />
+                    <div className="w-2 h-2 bg-brand-gold rounded-full" style={{ animation: 'typing-dot 1.4s infinite ease-in-out both', animationDelay: '0.4s' }} />
+                  </div>
                   <motion.span 
                     key={loadingMessage}
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -5 }}
-                    className="text-sm text-gray-400 font-medium"
+                    className="text-sm text-gray-400 font-medium ml-1"
                   >
                     {loadingMessage}
                   </motion.span>
@@ -789,8 +1037,7 @@ export default function AIChatComponent({
               </div>
             )}
 
-            {/* ──── Tarjetas de confirmación de acciones y SUGERENCIAS ──── */}
-            {(pendingActions.length > 0 || (messages[messages.length - 1]?.role === 'assistant' && (messages[messages.length - 1]?.content.includes('He encontrado varios') || messages[messages.length - 1]?.content.includes('similares')))) && !loading && (
+            {(pendingActions.length > 0) && !loading && (
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -802,13 +1049,16 @@ export default function AIChatComponent({
                       key={i}
                       className="bg-surface-2 rounded-2xl p-4 rounded-tl-sm shadow-lg border border-white/5"
                     >
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-8 h-8 rounded-full bg-brand-gold/10 flex items-center justify-center text-brand-gold">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${getToolColor(action.tool)}`}>
                           {getToolIcon(action.tool)}
                         </div>
                         <div>
-                          <p className="text-sm font-semibold text-white">¿Realizar esta acción?</p>
-                          <p className="text-xs text-gray-400">{action.description}</p>
+                          <p className="text-sm font-bold text-white flex items-center gap-1.5">
+                            {getToolLabel(action.tool)}
+                            <span className="text-[10px] bg-brand-gold/20 text-brand-gold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Acción</span>
+                          </p>
+                          <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{action.description}</p>
                         </div>
                       </div>
                       <div className="flex gap-2">
@@ -839,7 +1089,6 @@ export default function AIChatComponent({
             <div ref={messagesEndRef} />
           </div>
 
-          {/* ──────────────────── ERROR ──────────────────── */}
           {error && (
             <div className="shrink-0 px-4">
               <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-xl text-red-400 text-sm mb-2">
@@ -848,71 +1097,206 @@ export default function AIChatComponent({
             </div>
           )}
 
-          {/* ──────────────────── INPUT AREA ──────────────────── */}
           <div
-            className="shrink-0 bg-brand-black/95 backdrop-blur-xl px-4 pt-3"
-            style={{
-              paddingBottom: "calc(env(safe-area-inset-bottom) + 0.75rem)",
-            }}
+            className="shrink-0 px-4 pt-3 pb-6 flex flex-col items-center bg-surface-1"
+            style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 1.5rem)" }}
           >
-            {file && (
-              <div className="mb-3 flex items-center gap-2 p-2 bg-surface-2 rounded-xl">
-                {getMediaType(file) === "image" ? (
-                  <ImageIcon className="w-4 h-4 text-brand-gold" />
-                ) : (
-                  <FileText className="w-4 h-4 text-brand-gold" />
-                )}
-                <span className="text-sm text-white truncate max-w-[200px]">
-                  {file.name}
-                </span>
-                <button
-                  onClick={() => setFile(null)}
-                  className="text-gray-400 hover:text-red-400 ml-auto"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            )}
+            <div className="w-full max-w-3xl relative">
+              <SkillsDirectoryModal 
+                isOpen={isSkillsModalOpen} 
+                onClose={() => setIsSkillsModalOpen(false)} 
+                activeSkills={activeSkills}
+                onToggleSkill={(id) => {
+                  setActiveSkills(prev => 
+                    prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
+                  );
+                }}
+              />
 
-            <form onSubmit={handleSubmit} className="flex gap-2">
-              <input
-                id="ai-chat-file-input"
-                name="ai-chat-file"
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileSelect}
-                className="hidden"
-                accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.mp3,.wav,.ogg,.m4a,.mp4,.doc,.docx,.pptx,.xlsx,.txt"
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="p-3 rounded-full bg-surface-2 text-gray-400 hover:text-brand-gold hover:bg-white/5 transition-colors shrink-0 flex items-center justify-center"
-              >
-                <Paperclip className="w-5 h-5" />
-              </button>
-              <input
-                id="ai-chat-message-input"
-                name="ai-chat-message"
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Escribe tu mensaje..."
-                disabled={loading || uploadingMedia}
-                className="flex-1 min-w-0 px-4 py-3.5 bg-surface-2 rounded-full text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-brand-gold transition-colors disabled:opacity-50 text-sm shadow-inner"
-              />
-              <button
-                type="submit"
-                disabled={loading || uploadingMedia || (!input.trim() && !file)}
-                className="px-4 py-3 bg-brand-gold text-brand-black rounded-full hover:bg-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shrink-0 font-bold"
-              >
-                {loading || uploadingMedia ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Send className="w-5 h-5" />
-                )}
-              </button>
-            </form>
+              {showModelMenu && !disableModelSelector && (
+                <div className="absolute bottom-full left-0 mb-2 w-72 bg-surface-2 border border-border-subtle rounded-xl shadow-2xl p-2 z-50 max-h-80 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+                  {[
+                    {
+                      category: "OPENROUTER",
+                      models: [
+                        { id: "openrouter/dots-studio/dots-3-note-preview:free", name: "Dots 3 Note", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "Preview" },
+                        { id: "openrouter/nvidia/nemotron-3.5-lightning:free", name: "Nemotron 3.5 Lightning", icon: <Zap className="w-4 h-4 text-emerald-400" />, tag: "Gratis" },
+                        { id: "openrouter/openai/gpt-oss-20b:free", name: "GPT OSS 20B", icon: <Sparkles className="w-4 h-4 text-gray-200" />, tag: "Gratis" },
+                      ]
+                    },
+                    {
+                      category: "NVIDIA NIM",
+                      models: [
+                        { id: "nvidia/z-ai/glm-5.2", name: "GLM-5.2", icon: <Bot className="w-4 h-4 text-emerald-400" />, tag: "Gratis" },
+                        { id: "nvidia/nemotron-3-ultra-550b-a55b", name: "Nemotron 550B", icon: <Zap className="w-4 h-4 text-emerald-400" />, tag: "Gratis" },
+                      ]
+                    }
+                  ].map(cat => (
+                    <div key={cat.category} className="mb-2 last:mb-0">
+                      <div className="text-[10px] font-bold text-gray-500 mb-1 px-2 uppercase tracking-wider">{cat.category}</div>
+                      {cat.models.map(m => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => { setSelectedModel(m.id); setShowModelMenu(false); }}
+                          className={`w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-white/5 flex items-center gap-2 transition-colors ${selectedModel === m.id ? "bg-white/10 text-white font-medium" : "text-gray-300"}`}
+                        >
+                          {m.icon}
+                          <span className="flex-1 truncate">{m.name}</span>
+                          {m.tag && <span className="text-[9px] bg-white/5 text-gray-400 px-1.5 py-0.5 rounded-full shrink-0">{m.tag}</span>}
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {showAttachMenu && (
+                <div className="absolute bottom-full left-0 mb-2 w-56 bg-surface-2 border border-border-subtle rounded-xl shadow-2xl p-2 z-50">
+                  <div className="flex flex-col gap-1">
+                    <button
+                      type="button"
+                      onClick={() => { document.getElementById("ai-chat-file-input")?.click(); setShowAttachMenu(false); }}
+                      className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-white/5 text-gray-300 flex items-center gap-2"
+                    >
+                      <Paperclip className="w-4 h-4" />
+                      <span>Añadir Archivo</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setIsSkillsModalOpen(true); setShowAttachMenu(false); }}
+                      className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-white/5 text-gray-300 flex items-center gap-2"
+                    >
+                      <Command className="w-4 h-4 text-purple-400" />
+                      <span>Skills & Herramientas</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-white/5 text-gray-300 flex items-center gap-2"
+                      onClick={() => setShowAttachMenu(false)}
+                    >
+                      <Globe className="w-4 h-4 text-blue-400" />
+                      <span>Búsqueda Web</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-white/5 text-gray-300 flex items-center gap-2"
+                      onClick={() => setShowAttachMenu(false)}
+                    >
+                      <LinkIcon className="w-4 h-4 text-green-400" />
+                      <span>Conectores</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {file && (
+                <div className="mb-2 flex items-center gap-2 p-2 bg-surface-3 rounded-lg w-fit">
+                  {getMediaType(file) === "image" ? (
+                    <ImageIcon className="w-4 h-4 text-gray-300" />
+                  ) : (
+                    <FileText className="w-4 h-4 text-gray-300" />
+                  )}
+                  <span className="text-xs text-white truncate max-w-[200px]">
+                    {file.name}
+                  </span>
+                  <button onClick={() => setFile(null)} className="text-gray-400 hover:text-white ml-2">
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+
+              <form id="chat-form" onSubmit={handleSubmit} className="flex flex-col bg-surface-2 border border-border-subtle rounded-2xl p-2 shadow-sm transition-all focus-within:border-brand-gold/30">
+                <input
+                  id="ai-chat-file-input"
+                  name="ai-chat-file"
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.mp3,.wav,.ogg,.m4a,.mp4,.doc,.docx,.pptx,.xlsx,.txt"
+                />
+                
+                {/* Text Area Placeholder */}
+                <div className="flex-1 min-h-[50px] relative px-2 pt-1">
+                  <textarea
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder="Escribe un mensaje para preguntar a Learn Up..."
+                    disabled={loading || uploadingMedia}
+                    className="w-full bg-transparent text-gray-100 placeholder-gray-500 resize-none focus:outline-none text-base pb-8 font-body"
+                    rows={input ? Math.min(5, input.split("\n").length) : 1}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSubmit(e as any);
+                      }
+                    }}
+                  />
+                </div>
+
+                {/* Bottom Bar of Input */}
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowAttachMenu(!showAttachMenu)}
+                      className={`p-1.5 rounded-md transition-colors ${showAttachMenu || activeSkills.length > 0 ? "text-brand-gold bg-brand-gold/10" : "text-gray-400 hover:text-brand-gold hover:bg-white/5"}`}
+                    >
+                      <Plus className="w-5 h-5" />
+                    </button>
+                    {!disableModelSelector && (
+                    <button
+                      type="button"
+                      onClick={() => setShowModelMenu(!showModelMenu)}
+                      className="p-1.5 rounded-md text-gray-400 hover:text-brand-gold hover:bg-white/5 transition-colors flex items-center gap-1 text-xs font-medium bg-surface-3 px-2 ml-2"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      {(() => {
+                        if (selectedModel.includes("dots-3")) return "Dots 3 Note";
+                        if (selectedModel.includes("nemotron-3.5-lightning")) return "Nemotron 3.5";
+                        if (selectedModel.includes("gpt-oss-20b")) return "OSS 20B";
+                        if (selectedModel.includes("glm-5.2")) return "GLM 5.2";
+                        if (selectedModel.includes("nemotron-3-ultra")) return "Nemotron 550B";
+                        if (selectedModel.includes("deepseek-r1")) return "R1";
+                        if (selectedModel.includes("qwen3-coder")) return "Qwen Coder";
+                        if (selectedModel.includes("groq/compound")) return "Compound";
+                        return "IA";
+                      })()}
+                      <ChevronDown className="w-3 h-3 ml-1" />
+                    </button>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <button 
+                      type="button" 
+                      onClick={toggleListen}
+                      className={`p-1.5 transition-colors ${isListening ? "text-red-500 bg-red-500/10 animate-pulse" : "text-gray-400 hover:text-gray-200"}`}
+                      title={isListening ? "Detener grabación" : "Dictar por voz"}
+                    >
+                      <Mic className="w-4 h-4" />
+                    </button>
+                    <button type="button" className="p-1.5 text-gray-400 hover:text-gray-200">
+                      <Activity className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={loading || uploadingMedia || (!input.trim() && !file)}
+                      className="p-1.5 ml-1 bg-white text-black rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50 disabled:bg-gray-600 disabled:text-gray-400"
+                    >
+                      {loading || uploadingMedia ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <Send className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </form>
+
+
+            </div>
           </div>
       </motion.div>
     </AnimatePresence>
