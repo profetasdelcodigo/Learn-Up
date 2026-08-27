@@ -7,7 +7,7 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -34,6 +34,24 @@ jobs:
 
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
+
+      - name: Apply final AI hardening once
+        working-directory: .
+        run: |
+          changed=0
+          for script in scripts/finalize-ai.mjs scripts/fix-lint-blockers.mjs scripts/fix-runtime-critical.mjs; do
+            if [ -f "$script" ]; then
+              node "$script"
+              changed=1
+            fi
+          done
+          if [ "$changed" = "1" ] && ! git diff --quiet; then
+            git config user.name "learn-up-ci"
+            git config user.email "actions@github.com"
+            git add learn-up/src scripts
+            git commit -m "fix(ai): finalize production agent runtime"
+            git push
+          fi
 
       - name: Lint
         run: npm run lint
