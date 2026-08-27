@@ -7,8 +7,8 @@ import { buildAgentSystemPrompt } from "@/lib/ai/agent-registry";
 import { getToolDefinitions, executeToolAction, type ToolAction } from "@/lib/ai-tools";
 import type { ToolMode } from "@/lib/ai/tool-contract";
 
-const TEXT_MODEL = "openrouter/openrouter/free";
-const MULTIMODAL_MODEL = "gemini/gemini-3.6-flash";
+const TEXT_MODEL = "openrouter/free";
+const MULTIMODAL_MODEL = "google/gemini-3-flash-preview";
 
 function extractSkills(message: string, defaults: string[]) {
   const match = message.match(/\[Skills Activas:\s*(.*?)\]\s*/i);
@@ -25,10 +25,11 @@ function extractMode(modelId?: string): { mode: ToolMode; model: string } {
 
 function normalizeTextModel(modelId?: string): string {
   const { model } = extractMode(modelId);
-  if (!model || model === "openrouter/free") return TEXT_MODEL;
+  if (!model) return TEXT_MODEL;
+  if (model === "openrouter/openrouter/free" || model === "openrouter/free") return TEXT_MODEL;
   if (model.includes("dots-studio/dots-3-note-preview") || model.includes("llama-3.1-8b-instruct:free") || model.includes("nemotron-3.5-lightning:free")) return TEXT_MODEL;
-  if (model.includes("llama-3.3-70b-versatile") || model.includes("llama-3.3-70b-specdec")) return "groq/openai/gpt-oss-20b";
-  if (model.startsWith("nvidia/")) return "nvidia/nemotron-3-ultra-550b-a55b";
+  if (model.includes("llama-3.3-70b-versatile") || model.includes("llama-3.3-70b-specdec")) return TEXT_MODEL;
+  if (model.startsWith("nvidia/")) return model;
   return model;
 }
 
@@ -42,7 +43,6 @@ async function getUserId() {
 export async function approveStableToolAction(tool: string, args: Record<string, unknown>) {
   const userId = await getUserId();
   console.log(`[TOOL] approved name=${tool}`);
-  // The existing executor remains the single implementation path.
   return executeToolAction(tool, { ...args, user_id: userId });
 }
 
@@ -76,6 +76,7 @@ REGLAS DE EJECUCIÓN DE LEARN UP:
 - En consultas web o investigación, puedes encadenar varias fuentes y herramientas.
 - Los datos obtenidos por tools son la fuente de verdad para describir acciones realizadas.
 - MODO ACTUAL: ${mode}. Respeta la política de ejecución del servidor.
+- Nunca escribas sintaxis de herramientas como texto visible. Genera tool calls estructuradas únicamente cuando el proveedor las soporte.
 
 ${getToolDefinitions(skills)}`;
 
@@ -110,8 +111,9 @@ export async function askCounselorStable(
   mediaUrl?: string,
   mediaType?: string,
   modelId?: string,
+  sessionId?: string | null,
 ) {
-  return runStableAgent("consejero", problem, history, mediaUrl, mediaType, modelId);
+  return runStableAgent("consejero", problem, history, mediaUrl, mediaType, modelId, sessionId);
 }
 
 export async function generateRecipeStable(
@@ -120,6 +122,7 @@ export async function generateRecipeStable(
   mediaUrl?: string,
   mediaType?: string,
   modelId?: string,
+  sessionId?: string | null,
 ) {
-  return runStableAgent("nutrirecetas", ingredients, history, mediaUrl, mediaType, modelId);
+  return runStableAgent("nutrirecetas", ingredients, history, mediaUrl, mediaType, modelId, sessionId);
 }
