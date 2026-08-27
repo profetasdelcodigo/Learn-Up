@@ -2,45 +2,47 @@ import { tool } from "ai";
 import { z } from "zod";
 import { executeToolAction, ToolSchemas } from "@/lib/ai-tools";
 import { AiToolDefinition } from "./agent-registry";
+import { getToolDefinition, shouldExecuteTool } from "./tool-contract";
 
 export function buildToolsForAgent(
   agentTools: AiToolDefinition[],
   isAutonomous: boolean,
-  userId: string
+  userId: string,
 ): Record<string, any> {
   const vercelTools: Record<string, any> = {};
+  const mode = isAutonomous ? "autopilot" : "manual" as const;
 
   for (const def of agentTools) {
-    const schema = ToolSchemas[def.name] || z.object({});
-    
-    // Determine if we should auto-execute this tool on the server
-    const shouldAutoExecute = isAutonomous 
-      ? true // In autopilot, we auto-execute everything (or based on policy)
-      : !def.requiresConfirmation; // In manual, we only auto-execute if no confirmation is needed
+    const contract = getToolDefinition(def.name);
+    const schema = contract?.schema || ToolSchemas[def.name] || z.object({});
 
-    if (shouldAutoExecute) {
-      vercelTools[def.name] = (tool as any)({
+    // Backend policy is authoritative. The prompt cannot grant execution rights.
+    const decision = contract
+      ? shouldExecuteTool(contract, mode, contract.risk, ["ai.tools.execute"])
+      : "deny";
+
+    if (decision === "execute") {
+      vercelTools[def.name] = tool({
         description: def.description,
         inputSchema: schema,
-        parameters: schema,
         execute: async (args: any) => {
-          console.log(`[TOOL] Ejecutando automáticamente: ${def.name}`);
+          console.log(`[TOOL] ${def.name} status=running`);
           try {
             const result = await executeToolAction(def.name, { ...args, userId });
+            console.log(`[TOOL] ${def.name} status=${result.success ? "success" : "error"}`);
             return result;
           } catch (error: any) {
-            console.error(`[TOOL] Error ejecutando ${def.name}:`, error);
-            return { success: false, error: error.message };
+            console.error(`[TOOL] ${def.name} status=error`);
+            return { success: false, displayMessage: "No se pudo completar la acción.", error: error?.message || "Error de herramienta" };
           }
         },
-      });
+      } as any);
     } else {
-      // If it requires confirmation, DO NOT provide an execute function.
-      vercelTools[def.name] = (tool as any)({
+      // The model may request a confirmation-only tool, but server execution is absent until approved.
+      vercelTools[def.name] = tool({
         description: def.description,
         inputSchema: schema,
-        parameters: schema,
-      });
+      } as any);
     }
   }
 
