@@ -2,6 +2,7 @@ import { getAICompletion } from "@/lib/ai";
 import { executeUnifiedTool } from "./tool-executor";
 import { parseToolCalls, type ParsedToolAction } from "./tool-parser";
 import { getToolDefinition, shouldExecuteTool, type ToolActionState } from "./tool-contract";
+import { getPanelToolPrompt } from "./panel-tools";
 
 type ToolAction = ParsedToolAction;
 
@@ -62,7 +63,7 @@ function toolResultForModel(action: ToolAction, result: ToolResult): string {
 }
 
 function sanitizeSystemPrompt(prompt: string): string {
-  return prompt
+  return `${prompt}\n${getPanelToolPrompt()}`
     .replace(/\n?\s*\d+\.\s*Si necesitas usar una herramienta \(tool\), DEBES responder EXCLUSIVAMENTE con un bloque tool \{\.\.\.\} tal como espera el sistema\.?/gi, "")
     .replace(/\n?\s*La herramienta debe ser llamada en formato JSON\.?/gi, "")
     .replace(/\n?\s*DEBES responder EXCLUSIVAMENTE con un bloque tool[^\n]*/gi, "")
@@ -132,18 +133,10 @@ export async function runAgentLoop(
     }
 
     if (pending.length) {
-      return {
-        response: cleanText || pendingResponse(pending),
-        actions: pending,
-        executedActions: executedActions.length ? executedActions : undefined,
-      };
+      return { response: cleanText || pendingResponse(pending), actions: pending, executedActions: executedActions.length ? executedActions : undefined };
     }
-
     if (!executable.length) {
-      return {
-        response: cleanText || "No tengo autorización para realizar esa acción.",
-        executedActions: executedActions.length ? executedActions : undefined,
-      };
+      return { response: cleanText || "No tengo autorización para realizar esa acción.", executedActions: executedActions.length ? executedActions : undefined };
     }
 
     const allResults: Array<{ action: ToolAction; state: ToolActionState; result: ToolResult }> = [];
