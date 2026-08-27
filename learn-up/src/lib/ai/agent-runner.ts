@@ -1,6 +1,8 @@
 import { getAICompletion } from "@/lib/ai";
-import { executeToolAction, type ToolAction } from "@/lib/ai-tools";
-import { parseToolCalls } from "./tool-parser";
+import { executeToolAction } from "@/lib/ai-tools";
+import { parseToolCalls, type ParsedToolAction } from "./tool-parser";
+
+type ToolAction = ParsedToolAction;
 
 export interface AgentLoopOptions {
   maxSteps?: number;
@@ -32,13 +34,15 @@ export async function runAgentLoop(
   history: { role: "user" | "assistant" | "system"; content: string | any[] }[] = [],
   userMessage: string | any[],
   model: string,
-  options: AgentLoopOptions = {}
+  options: AgentLoopOptions = {},
 ): Promise<AgentLoopResult> {
   const maxSteps = Math.min(options.maxSteps ?? MAX_TOOL_STEPS, MAX_TOOL_STEPS);
   const maxParallel = Math.min(options.maxParallelTools ?? MAX_PARALLEL_TOOLS, MAX_PARALLEL_TOOLS);
   const executedActions: ToolAction[] = [];
   const currentMessages: { role: "user" | "assistant" | "system"; content: string | any[] }[] = [
-    { role: "system", content: systemPrompt }, ...history, { role: "user", content: userMessage },
+    { role: "system", content: systemPrompt },
+    ...history,
+    { role: "user", content: userMessage },
   ];
   let lastCleanText = "";
 
@@ -47,7 +51,7 @@ export async function runAgentLoop(
     const rawContent = response.choices[0]?.message?.content || "";
     const parsed = parseToolCalls(rawContent);
     let cleanText = parsed.cleanText;
-    const actions = parsed.actions as ToolAction[];
+    const actions = parsed.actions;
 
     if (options.onFormulaExtracted && cleanText) {
       const formulas = cleanText.match(/<formula>(.*?)<\/formula>/g);
@@ -58,13 +62,19 @@ export async function runAgentLoop(
     }
     lastCleanText = cleanText;
 
-    if (!actions.length) return { response: cleanText, executedActions: executedActions.length ? executedActions : undefined };
+    if (!actions.length) {
+      return { response: cleanText, executedActions: executedActions.length ? executedActions : undefined };
+    }
 
     const pending = options.isAutonomous ? [] : actions.filter(a => a.requiresConfirm);
-    if (pending.length) return { response: cleanText, actions: pending, executedActions: executedActions.length ? executedActions : undefined };
+    if (pending.length) {
+      return { response: cleanText, actions: pending, executedActions: executedActions.length ? executedActions : undefined };
+    }
 
     const executable = options.isAutonomous ? actions : actions.filter(a => !a.requiresConfirm);
-    if (!executable.length) return { response: cleanText, actions, executedActions: executedActions.length ? executedActions : undefined };
+    if (!executable.length) {
+      return { response: cleanText, actions, executedActions: executedActions.length ? executedActions : undefined };
+    }
 
     const allResults: Array<{ action: ToolAction; success: boolean; message: string; data?: any }> = [];
     for (const batch of chunk(executable, maxParallel)) {
@@ -83,10 +93,16 @@ export async function runAgentLoop(
     currentMessages.push({ role: "assistant", content: cleanText || "He ejecutado las acciones solicitadas." });
     currentMessages.push({
       role: "user",
-      content: allResults.map(r => `[Resultado estructurado de herramienta ${r.action.tool}]\nsuccess=${r.success}\nmessage=${r.message}\n${r.data !== undefined ? `data=${JSON.stringify(r.data)}` : ""}`).join("\n\n") +
-        "\n\nContinúa la tarea usando estos resultados. Si necesitas otras herramientas, ejecútalas. No muestres llamadas, JSON interno ni código de herramientas al usuario."
+      content:
+        allResults.map(r =>
+          `[Resultado de herramienta: ${r.action.tool}]\nsuccess=${r.success}\nmessage=${r.message}\n${r.data !== undefined ? `data=${JSON.stringify(r.data)}` : ""}`,
+        ).join("\n\n") +
+        "\n\nContinúa la tarea usando estos resultados. Si necesitas otras herramientas, ejecútalas. No muestres llamadas, JSON interno ni código de herramientas al usuario.",
     });
   }
 
-  return { response: lastCleanText || "No pude completar la tarea dentro del límite de pasos.", executedActions: executedActions.length ? executedActions : undefined };
+  return {
+    response: lastCleanText || "No pude completar la tarea dentro del límite de pasos.",
+    executedActions: executedActions.length ? executedActions : undefined,
+  };
 }
