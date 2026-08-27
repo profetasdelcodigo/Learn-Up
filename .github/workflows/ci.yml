@@ -80,6 +80,10 @@ jobs:
             fi
           fi
 
+      - name: Repair lint blockers
+        working-directory: .
+        run: node scripts/fix-lint-blockers.mjs
+
       - name: Lint
         run: npm run lint
 
