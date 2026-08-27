@@ -5,6 +5,7 @@ import { buildUserMessage } from "./ai-tutor";
 import { runAgentLoop } from "@/lib/ai/agent-runner";
 import { buildAgentSystemPrompt } from "@/lib/ai/agent-registry";
 import { getToolDefinitions, type ToolAction } from "@/lib/ai-tools";
+import type { ToolMode } from "@/lib/ai/tool-contract";
 
 const TEXT_MODEL = "openrouter/openrouter/free";
 const MULTIMODAL_MODEL = "gemini/gemini-3.6-flash";
@@ -17,6 +18,28 @@ function extractSkills(message: string, defaults: string[]) {
     .map((item) => item.trim())
     .filter(Boolean);
   return { skills: skills.length ? skills : defaults, text: message.replace(match[0], "") };
+}
+
+function extractMode(modelId?: string): { mode: ToolMode; model: string } {
+  const raw = modelId || TEXT_MODEL;
+  const autopilot = /::autopilot$/i.test(raw);
+  const model = raw.replace(/::autopilot$/i, "");
+  return { mode: autopilot ? "autopilot" : "manual", model };
+}
+
+function normalizeTextModel(modelId?: string): string {
+  const { model } = extractMode(modelId);
+  if (!model || model === "openrouter/free") return TEXT_MODEL;
+  if (model.includes("dots-studio/dots-3-note-preview") || model.includes("llama-3.1-8b-instruct:free") || model.includes("nemotron-3.5-lightning:free")) {
+    return TEXT_MODEL;
+  }
+  if (model.includes("llama-3.3-70b-versatile") || model.includes("llama-3.3-70b-specdec")) {
+    return "groq/openai/gpt-oss-20b";
+  }
+  if (model.startsWith("nvidia/")) {
+    return "nvidia/nemotron-3-ultra-550b-a55b";
+  }
+  return model;
 }
 
 function buildMultimodalMessage(message: string, mediaUrl?: string) {
@@ -44,7 +67,6 @@ async function runStableAgent(
   sessionId?: string | null,
 ): Promise<{ response: string; error?: string; actions?: ToolAction[]; executedActions?: ToolAction[] }> {
   const userId = await getUserId();
-
   const defaults = agentId === "profesor"
     ? ["library_pack", "learning_pack", "content_pack", "research_pack", "edu_pack", "media_pack"]
     : agentId === "consejero"
@@ -52,6 +74,10 @@ async function runStableAgent(
       : ["content_pack", "media_pack", "research_pack"];
 
   const { skills, text } = extractSkills(message, defaults);
+  const { mode, model: requestedModel } = extractMode(modelId);
+  const isMultimedia = Boolean(mediaUrl);
+  const model = isMultimedia ? MULTIMODAL_MODEL : normalizeTextModel(requestedModel);
+
   const systemPrompt = `${buildAgentSystemPrompt(agentId)}
 
 REGLAS DE EJECUCIÓN DE LEARN UP:
@@ -60,21 +86,13 @@ REGLAS DE EJECUCIÓN DE LEARN UP:
 - En acciones que cambian datos, espera la confirmación de la interfaz salvo que el modo sea autopilot.
 - En consultas web o investigación, puedes encadenar varias fuentes y herramientas.
 - Los datos obtenidos por tools son la fuente de verdad para describir acciones realizadas.
+- MODO ACTUAL: ${mode}. Respeta la política de ejecución del servidor.
 
 ${getToolDefinitions(skills)}`;
 
-  const isMultimedia = Boolean(mediaUrl);
   let content: string | any[] = text;
-  let model = modelId || TEXT_MODEL;
-
   if (isMultimedia) {
     content = buildMultimodalMessage(text, mediaUrl);
-    model = MULTIMODAL_MODEL;
-  }
-
-  // Re-use the existing media builder only when it provides a real multimedia payload;
-  // for text we deliberately bypass its historical Gemini default.
-  if (isMultimedia) {
     const built = await buildUserMessage(text, mediaUrl, mediaType);
     content = built.content;
   }
@@ -88,7 +106,7 @@ ${getToolDefinitions(skills)}`;
       sessionId,
       userId,
       permissions: true,
-      mode: "manual",
+      mode,
     },
   );
 }
