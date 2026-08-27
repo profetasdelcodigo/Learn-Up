@@ -5,10 +5,9 @@ on:
   push:
     branches:
       - main
-      - ai-rebuild-critical
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -18,12 +17,10 @@ jobs:
   verify:
     name: Verify
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: learn-up
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,90 +28,12 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: learn-up/package-lock.json
 
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
-
-      - name: Apply chat state migration
-        working-directory: .
-        run: |
-          if [ -f scripts/fix-chat-state.mjs ]; then
-            node scripts/fix-chat-state.mjs
-            if ! git diff --quiet -- learn-up/src/components/AIChatComponent.tsx learn-up/src/components/JournalSidebar.tsx learn-up/src/components/RecipeSidebar.tsx learn-up/src/components/NotebookWhiteboard.tsx learn-up/src/actions/ai-tutor.ts; then
-              git config user.name "learn-up-ci"
-              git config user.email "actions@github.com"
-              git add learn-up/src/components/AIChatComponent.tsx learn-up/src/components/JournalSidebar.tsx learn-up/src/components/RecipeSidebar.tsx learn-up/src/components/NotebookWhiteboard.tsx learn-up/src/actions/ai-tutor.ts
-              git commit -m "fix(ai): wire chat state and interactive panels"
-              git push
-            fi
-          fi
-
-      - name: Apply attachment persistence repair
-        working-directory: .
-        run: |
-          if [ -f scripts/fix-attachments-persistence.mjs ]; then
-            node scripts/fix-attachments-persistence.mjs
-            if ! git diff --quiet -- learn-up/src/components/AIChatComponent.tsx; then
-              git config user.name "learn-up-ci"
-              git config user.email "actions@github.com"
-              git add learn-up/src/components/AIChatComponent.tsx
-              git commit -m "fix(chat): persist attachments before indexing"
-              git push
-            fi
-          fi
-
-      - name: Apply critical AI finalization
-        working-directory: .
-        run: |
-          if [ -f scripts/fix-critical-ai.mjs ]; then
-            node scripts/fix-critical-ai.mjs
-            if ! git diff --quiet -- learn-up/src/components/AIChatComponent.tsx learn-up/src/components/JarvisGlobalWidget.tsx learn-up/src/actions/jarvis.ts learn-up/src/actions/ai-tutor.ts learn-up/src/lib/ai/agent-registry.ts learn-up/src/lib/ai/agent-runner.ts learn-up/src/lib/ai/skill-pack-tools.ts; then
-              git config user.name "learn-up-ci"
-              git config user.email "actions@github.com"
-              git add learn-up/src/components/AIChatComponent.tsx learn-up/src/components/JarvisGlobalWidget.tsx learn-up/src/actions/jarvis.ts learn-up/src/actions/ai-tutor.ts learn-up/src/lib/ai/agent-registry.ts learn-up/src/lib/ai/agent-runner.ts learn-up/src/lib/ai/skill-pack-tools.ts
-              git commit -m "fix(ai): finalize tool routing, panel access and chat state"
-              git push
-            fi
-          fi
-
-      - name: Repair lint blockers
-        working-directory: .
-        run: |
-          node scripts/fix-lint-blockers.mjs
-          if ! git diff --quiet -- learn-up/src/app/legal/page.tsx learn-up/src/components/LegalGate.tsx learn-up/src/lib/ai-tools.ts; then
-            git config user.name "learn-up-ci"
-            git config user.email "actions@github.com"
-            git add learn-up/src/app/legal/page.tsx learn-up/src/components/LegalGate.tsx learn-up/src/lib/ai-tools.ts
-            git commit -m "fix(ci): repair lint blockers"
-            git push
-          fi
-
-      - name: Apply runtime AI fixes
-        working-directory: .
-        run: |
-          node scripts/fix-runtime-critical.mjs
-          if ! git diff --quiet -- learn-up/src/components/AIChatComponent.tsx learn-up/src/actions/ai-tutor.ts learn-up/src/lib/ai.ts; then
-            git config user.name "learn-up-ci"
-            git config user.email "actions@github.com"
-            git add learn-up/src/components/AIChatComponent.tsx learn-up/src/actions/ai-tutor.ts learn-up/src/lib/ai.ts
-            git commit -m "fix(ai): repair skill routing and attachment state"
-            git push
-          fi
-
-      - name: Apply autopilot UI fix
-        working-directory: .
-        run: |
-          node scripts/fix-autopilot-ui.mjs
-          if ! git diff --quiet -- learn-up/src/components/AIChatComponent.tsx; then
-            git config user.name "learn-up-ci"
-            git config user.email "actions@github.com"
-            git add learn-up/src/components/AIChatComponent.tsx
-            git commit -m "fix(ai): prevent autopilot tool double execution"
-            git push
-          fi
 
       - name: Lint
         run: npm run lint
