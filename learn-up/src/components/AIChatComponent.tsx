@@ -495,85 +495,9 @@ export default function AIChatComponent({
       if (fileInputRef.current) {
         try {
           if (backupFile) {
-            const dataTransfer = new DataTransfer();
-            dataTransfer.items.add(backupFile);
-            fileInputRef.current.files = dataTransfer.files;
-          } else {
-            fileInputRef.current.value = "";
-          }
-        } catch (e) {
-          fileInputRef.current.value = "";
-        }
-      }
-      if (!messagePersisted) {
-        if (!messagePersisted) {
-        if (!messagePersisted) {
-        setMessages((prev) => prev.filter((m) => m.clientMessageId !== clientMessageId));
-      } else {
-        setMessages((prev) => prev.map((m) => m.clientMessageId === clientMessageId ? { ...m, status: "failed" } : m));
-      }
-      } else {
-        setMessages((prev) => prev.map((m) => m.clientMessageId === clientMessageId ? { ...m, status: "failed" } : m));
-      }
-      } else {
-        setMessages((prev) => prev.map((m) =>
-          m.clientMessageId === clientMessageId ? { ...m, status: "failed" } : m
-        ));
-      }
-      setLoading(false);
-      setUploadingMedia(false);
-    };
-
-    setMessages((prev) => [...prev, clientSideUserMsg]);
-    setInput("");
-    setFile(null);
-    setHasFileAttached(Boolean(backupFile));
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    
-    setError("");
-    setHasFileAttached(!!file);
-    setLoading(true);
-
-    let sessionId = currentSessionId;
-    let newSession = false;
-
-    if (!sessionId) {
-      isCreatingSession.current = true;
-      try {
-        const { session, error: sErr } = await createAiSession(
-          aiType,
-          userMessage.substring(0, 30) || "Nueva Sesión",
-        );
-        if (sErr) throw new Error(sErr);
-        if (session) {
-          sessionId = session.id;
-          onSessionChange(session.id);
-          newSession = true;
-        }
-      } catch (err: any) {
-        isCreatingSession.current = false;
-        handleFailure("Error al iniciar sesión de IA. Verifica tu conexión.");
-        return;
-      }
-    }
-
-    if (!sessionId) {
-      handleFailure("Error al crear sesión.");
-      return;
-    }
-
-    let mediaUrl: string | undefined;
-    let mediaMessageSaved = false;
-    let mediaMessageSaved = false;
-    let mediaMessageSaved = false;
-    let mediaMessageSaved = false;
-
-    if (backupFile) {
       setUploadingMedia(true);
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("No autenticado");
 
         const safeFileName = backupFile.name
@@ -585,75 +509,43 @@ export default function AIChatComponent({
           .upload(filePath, backupFile);
         if (uploadErr) throw uploadErr;
 
-        const { data } = supabase.storage
-          .from("ai_media")
-          .getPublicUrl(filePath);
+        const { data } = supabase.storage.from("ai_media").getPublicUrl(filePath);
         mediaUrl = data.publicUrl;
 
-        // CRITICAL: persist the user's attachment immediately.
-        // Indexing/OCR/embeddings are secondary and must never make the chat message disappear.
-        const mediaMessage = await addAiMessage(
-          sessionId,
-          "user",
-          userMessage,
-          mediaUrl,
-          mediaType,
-          undefined,
-          clientMessageId,
-        );
-        if (mediaMessage?.error) throw new Error(mediaMessage.error);
-        mediaMessageSaved = true;
-        setMessages((prev) => prev.map((m) =>
-          m.clientMessageId === clientMessageId ? { ...m, media_url: mediaUrl, status: "sending" } : m
-        ));
-
-        // CRITICAL: persist the user's attachment immediately.
-        // Indexing/OCR/embeddings are secondary and must never make the chat message disappear.
-        const mediaMessage = await addAiMessage(
-          sessionId,
-          "user",
-          userMessage,
-          mediaUrl,
-          mediaType,
-          undefined,
-          clientMessageId,
-        );
-        if (mediaMessage?.error) throw new Error(mediaMessage.error);
-        mediaMessageSaved = true;
-        setMessages((prev) => prev.map((m) =>
-          m.clientMessageId === clientMessageId ? { ...m, media_url: mediaUrl, status: "sending" } : m
-        ));
-
-        // Persist attachment metadata before any slow OCR/indexing work.
-        const mediaMessage = await addAiMessage(
-          sessionId,
-          "user",
-          userMessage,
-          mediaUrl,
-          mediaType,
-          undefined,
-          clientMessageId,
-        );
+        // Durable chat persistence is the first responsibility; indexing can fail without removing the message.
+        const mediaMessage = await addAiMessage(sessionId, "user", userMessage, mediaUrl, mediaType, undefined, clientMessageId);
         if (mediaMessage?.error) throw new Error(mediaMessage.error);
         messagePersisted = true;
         setMessages((prev) => prev.map((m) =>
-          m.clientMessageId === clientMessageId
-            ? { ...m, media_url: mediaUrl, status: "sending" }
-            : m
+          m.clientMessageId === clientMessageId ? { ...m, media_url: mediaUrl, status: "sending" } : m
         ));
-
       } catch (uploadErr: any) {
         handleFailure("Error al subir el archivo adjunto. Intenta de nuevo.");
         return;
       }
       setUploadingMedia(false);
+
+      if (mediaUrl) {
+        try {
+          const indexResult = await indexAiDocumentFromUrl({
+            title: backupFile.name,
+            url: mediaUrl,
+            mimeType: backupFile.type,
+            sessionId,
+          });
+          if (!indexResult.success) console.warn("[MEDIA] Indexación omitida:", indexResult.error);
+        } catch (indexError) {
+          console.warn("[MEDIA] Indexación falló después de persistir el mensaje:", indexError);
+        }
+      }
     }
 
     try {
-      const savedUserMessage = await addAiMessage(sessionId, "user", userMessage, mediaUrl, mediaType, undefined, clientMessageId);
-      if (savedUserMessage?.error) throw new Error(savedUserMessage.error);
-      mediaMessageSaved = true;
-      messagePersisted = true;
+      if (!messagePersisted) {
+        const savedUserMessage = await addAiMessage(sessionId, "user", userMessage, mediaUrl, mediaType, undefined, clientMessageId);
+        if (savedUserMessage?.error) throw new Error(savedUserMessage.error);
+        messagePersisted = true;
+      }
 
       // Indexing is deliberately AFTER message persistence.
       // Failure/latency here must never make the user's attachment disappear from chat.
