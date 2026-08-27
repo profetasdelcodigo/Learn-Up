@@ -35,15 +35,15 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: Apply final AI hardening once
+      - name: Normalize chat state once
         working-directory: .
         run: |
-          node scripts/finalize-ai.mjs
-          if ! git diff --quiet; then
+          node scripts/normalize-chat.mjs
+          if ! git diff --quiet -- learn-up/src/components/AIChatComponent.tsx; then
             git config user.name "learn-up-ci"
             git config user.email "actions@github.com"
-            git add learn-up/src
-            git commit -m "fix(ai): finalize production agent runtime"
+            git add learn-up/src/components/AIChatComponent.tsx
+            git commit -m "fix(chat): normalize attachment and failure flow"
             git push
           fi
 
