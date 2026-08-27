@@ -21,6 +21,21 @@ export interface AgentLoopResult {
 
 const MAX_TOOL_STEPS = 8;
 const MAX_PARALLEL_TOOLS = 4;
+const MAX_SYSTEM_PROMPT_CHARS = 9000;
+const MAX_HISTORY_MESSAGES = 10;
+const MAX_MESSAGE_CHARS = 6000;
+
+function compactSystemPrompt(prompt: string): string {
+  if (prompt.length <= MAX_SYSTEM_PROMPT_CHARS) return prompt;
+  const headSize = 5200;
+  const tailSize = MAX_SYSTEM_PROMPT_CHARS - headSize;
+  return `${prompt.slice(0, headSize)}\n\n[Catálogo de herramientas reducido para mantener la solicitud estable]\n\n${prompt.slice(-tailSize)}`;
+}
+
+function compactMessageContent(content: string | any[]): string | any[] {
+  if (typeof content !== "string" || content.length <= MAX_MESSAGE_CHARS) return content;
+  return `${content.slice(0, MAX_MESSAGE_CHARS)}\n...[mensaje truncado para estabilidad]...`;
+}
 
 function sanitizeAssistantText(text: string): string {
   return String(text || "")
@@ -44,7 +59,7 @@ function normalizeAction(action: ToolAction): ToolAction {
 function compactToolFeedback(toolResults: Array<{ action: ToolAction; success: boolean; message: string; data: unknown }>): string {
   return toolResults
     .map((result) => {
-      const safeMessage = String(result.message || (result.success ? "Completado" : "Error al ejecutar")).slice(0, 3000);
+      const safeMessage = String(result.message || (result.success ? "Completado" : "Error al ejecutar")).slice(0, 2500);
       return `[Resultado de herramienta: ${result.action.tool}] ${result.success ? "OK" : "ERROR"}\n${safeMessage}`;
     })
     .join("\n\n");
@@ -72,7 +87,7 @@ async function executeInBatches(actions: ToolAction[], maxParallel: number) {
             data: null,
           };
         }
-      })
+      }),
     );
     results.push(...batchResults);
   }
@@ -92,10 +107,14 @@ export async function runAgentLoop(
   const permissions = options.permissions ?? true;
   const executedActions: ToolAction[] = [];
 
+  const safeHistory = history
+    .slice(-MAX_HISTORY_MESSAGES)
+    .map((message) => ({ ...message, content: compactMessageContent(message.content) }));
+
   const currentMessages: { role: "user" | "assistant" | "system"; content: string | any[] }[] = [
-    { role: "system", content: systemPrompt },
-    ...history.slice(-15),
-    { role: "user", content: userMessage },
+    { role: "system", content: compactSystemPrompt(systemPrompt) },
+    ...safeHistory,
+    { role: "user", content: compactMessageContent(userMessage) },
   ];
 
   let lastCleanText = "";
