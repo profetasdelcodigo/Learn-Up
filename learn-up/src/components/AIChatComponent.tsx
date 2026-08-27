@@ -505,7 +505,11 @@ export default function AIChatComponent({
         }
       }
       if (!messagePersisted) {
+        if (!messagePersisted) {
         setMessages((prev) => prev.filter((m) => m.clientMessageId !== clientMessageId));
+      } else {
+        setMessages((prev) => prev.map((m) => m.clientMessageId === clientMessageId ? { ...m, status: "failed" } : m));
+      }
       } else {
         setMessages((prev) => prev.map((m) =>
           m.clientMessageId === clientMessageId ? { ...m, status: "failed" } : m
