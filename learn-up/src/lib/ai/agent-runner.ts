@@ -1,5 +1,5 @@
 import { getAICompletion } from "@/lib/ai";
-import { executeToolAction } from "@/lib/ai-tools";
+import { executeUnifiedTool } from "./tool-executor";
 import { parseToolCalls, type ParsedToolAction } from "./tool-parser";
 import { getToolDefinition, shouldExecuteTool, type ToolActionState } from "./tool-contract";
 
@@ -69,6 +69,7 @@ function sanitizeSystemPrompt(prompt: string): string {
     .replace(/\n?\s*Dentro de <thinking>[\s\S]*?NUNCA omitas el bloque <thinking>\.?/gi, "")
     .replace(/\n?\s*Antes de responder al usuario, DEBES incluir un bloque de pensamiento oculto[\s\S]*?NUNCA omitas el bloque <thinking>\.?/gi, "")
     .replace(/\n?\s*Siempre que exista una tool[\s\S]*?formato JSON/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
@@ -151,16 +152,12 @@ export async function runAgentLoop(
         const started = Date.now();
         try {
           console.log(`[TOOL] id=${action.tool}-${started} name=${action.tool} status=running`);
-          const raw = await executeToolAction(action.tool, { ...action.args, userId: options.userId });
+          const raw = await executeUnifiedTool(action.tool, { ...action.args }, options.userId || "", options.sessionId);
           const result = toToolResult(raw);
           console.log(`[TOOL] id=${action.tool}-${started} name=${action.tool} status=${result.success ? "success" : "error"}`);
           return { action, state: result.success ? "success" as const : "error" as const, result };
         } catch (error: any) {
-          const result: ToolResult = {
-            success: false,
-            displayMessage: "No se pudo completar la acción.",
-            error: error?.message || "Error de herramienta",
-          };
+          const result: ToolResult = { success: false, displayMessage: "No se pudo completar la acción.", error: error?.message || "Error de herramienta" };
           console.error(`[TOOL] id=${action.tool}-${started} name=${action.tool} status=error`);
           return { action, state: "error" as const, result };
         }
@@ -172,14 +169,10 @@ export async function runAgentLoop(
     currentMessages.push({ role: "assistant", content: cleanText || "He realizado parte de la tarea." });
     currentMessages.push({
       role: "user",
-      content:
-        allResults.map(({ action, result }) => toolResultForModel(action, result)).join("\n\n") +
+      content: allResults.map(({ action, result }) => toolResultForModel(action, result)).join("\n\n") +
         "\n\nContinúa la tarea con estos resultados. Usa más herramientas si son necesarias. No expongas nombres de funciones, JSON interno, IDs, stack traces ni protocolos de ejecución al usuario.",
     });
   }
 
-  return {
-    response: lastCleanText || "No pude completar la tarea dentro del límite de pasos.",
-    executedActions: executedActions.length ? executedActions : undefined,
-  };
+  return { response: lastCleanText || "No pude completar la tarea dentro del límite de pasos.", executedActions: executedActions.length ? executedActions : undefined };
 }
