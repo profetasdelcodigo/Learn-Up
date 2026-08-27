@@ -71,10 +71,10 @@ jobs:
         run: |
           if [ -f scripts/fix-critical-ai.mjs ]; then
             node scripts/fix-critical-ai.mjs
-            if ! git diff --quiet -- learn-up/src/components/AIChatComponent.tsx learn-up/src/components/JarvisGlobalWidget.tsx learn-up/src/actions/jarvis.ts learn-up/src/actions/ai-tutor.ts learn-up/src/lib/ai/agent-registry.ts learn-up/src/lib/ai/agent-runner.ts; then
+            if ! git diff --quiet -- learn-up/src/components/AIChatComponent.tsx learn-up/src/components/JarvisGlobalWidget.tsx learn-up/src/actions/jarvis.ts learn-up/src/actions/ai-tutor.ts learn-up/src/lib/ai/agent-registry.ts learn-up/src/lib/ai/agent-runner.ts learn-up/src/lib/ai/skill-pack-tools.ts; then
               git config user.name "learn-up-ci"
               git config user.email "actions@github.com"
-              git add learn-up/src/components/AIChatComponent.tsx learn-up/src/components/JarvisGlobalWidget.tsx learn-up/src/actions/jarvis.ts learn-up/src/actions/ai-tutor.ts learn-up/src/lib/ai/agent-registry.ts learn-up/src/lib/ai/agent-runner.ts
+              git add learn-up/src/components/AIChatComponent.tsx learn-up/src/components/JarvisGlobalWidget.tsx learn-up/src/actions/jarvis.ts learn-up/src/actions/ai-tutor.ts learn-up/src/lib/ai/agent-registry.ts learn-up/src/lib/ai/agent-runner.ts learn-up/src/lib/ai/skill-pack-tools.ts
               git commit -m "fix(ai): finalize tool routing, panel access and chat state"
               git push
             fi
@@ -89,6 +89,18 @@ jobs:
             git config user.email "actions@github.com"
             git add learn-up/src/app/legal/page.tsx learn-up/src/lib/ai-tools.ts
             git commit -m "fix(ci): repair lint blockers"
+            git push
+          fi
+
+      - name: Apply runtime AI fixes
+        working-directory: .
+        run: |
+          node scripts/fix-runtime-critical.mjs
+          if ! git diff --quiet -- learn-up/src/components/AIChatComponent.tsx learn-up/src/actions/ai-tutor.ts learn-up/src/lib/ai.ts; then
+            git config user.name "learn-up-ci"
+            git config user.email "actions@github.com"
+            git add learn-up/src/components/AIChatComponent.tsx learn-up/src/actions/ai-tutor.ts learn-up/src/lib/ai.ts
+            git commit -m "fix(ai): repair skill routing and attachment state"
             git push
           fi
 
