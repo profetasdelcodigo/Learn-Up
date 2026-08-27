@@ -1,164 +1,53 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Book, Heart, Smile, Frown, Meh, Save, Target, Sparkles, CheckCircle2, Circle, Wind } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { getAiEnvironment, updateAiEnvironment } from "@/actions/ai-environment";
+import { createClient } from "@/utils/supabase/client";
 
 const MOODS = [
-  { id: "happy", icon: Smile, color: "text-emerald-400", activeBg: "bg-emerald-400/20 border-emerald-400/50" },
-  { id: "neutral", icon: Meh, color: "text-amber-400", activeBg: "bg-amber-400/20 border-amber-400/50" },
-  { id: "sad", icon: Frown, color: "text-rose-400", activeBg: "bg-rose-400/20 border-rose-400/50" },
+  { id: "happy", icon: Smile, label: "Feliz", active: "text-emerald-400" },
+  { id: "neutral", icon: Meh, label: "Neutral", active: "text-amber-400" },
+  { id: "sad", icon: Frown, label: "Triste", active: "text-rose-400" },
+] as const;
+const DEFAULT_GOALS = [
+  { id: "water", text: "Beber 2L de agua", done: false },
+  { id: "meditate", text: "Meditar 10 mins", done: true },
+  { id: "essay", text: "Terminar el ensayo", done: false },
 ];
 
-interface JournalSidebarProps {
-  messages?: any[];
-  currentSessionId?: string | null;
-}
-
-export default function JournalSidebar({ messages = [] }: JournalSidebarProps) {
+export default function JournalSidebar({ currentSessionId }: { currentSessionId?: string | null }) {
+  const [goals, setGoals] = useState(DEFAULT_GOALS);
   const [mood, setMood] = useState<string | null>(null);
   const [note, setNote] = useState("");
-  const [goals, setGoals] = useState([
-    { id: 1, text: "Beber 2L de agua", done: false, color: "bg-pink-500/10 border-pink-500/20 hover:border-pink-500/40" },
-    { id: 2, text: "Meditar 10 mins", done: true, color: "bg-purple-500/10 border-purple-500/20 hover:border-purple-500/40" },
-    { id: 3, text: "Terminar el ensayo", done: false, color: "bg-blue-500/10 border-blue-500/20 hover:border-blue-500/40" },
-  ]);
-
+  const [ready, setReady] = useState(false);
   useEffect(() => {
-    const assistantMessages = messages.filter((m) => m.role === "assistant");
-    if (assistantMessages.length === 0) return;
-    const lastMessage = assistantMessages[assistantMessages.length - 1].content;
-
-    // Parse <goal> tags
-    const goalMatches = lastMessage.match(/<goal>(.*?)<\/goal>/g);
-    if (goalMatches) {
-      const newGoalsText = goalMatches.map((g: string) => g.replace(/<\/?goal>/g, "").trim());
-      setGoals(prev => {
-        const nextId = prev.length > 0 ? Math.max(...prev.map(p => p.id)) + 1 : 1;
-        const newGoals = newGoalsText.map((text: string, i: number) => ({
-          id: nextId + i,
-          text,
-          done: false,
-          color: "bg-emerald-500/10 border-emerald-500/20 hover:border-emerald-500/40"
-        }));
-        // Avoid duplicates by text
-        const filteredNew = newGoals.filter((ng: any) => !prev.some(p => p.text.toLowerCase() === ng.text.toLowerCase()));
-        return [...prev, ...filteredNew];
-      });
-    }
-  }, [messages]);
-
-  const toggleGoal = (id: number) => {
-    setGoals(goals.map(g => g.id === id ? { ...g, done: !g.done } : g));
-  };
-
-  return (
-    <div className="flex flex-col w-full h-full bg-[#050505] border-l border-white/5 font-sans text-[#e5e5e5]">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent shrink-0 pt-[calc(env(safe-area-inset-top)+1.25rem)]">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400">
-            <Heart className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="font-semibold text-lg tracking-tight text-white leading-none">Mi Espacio</h2>
-            <p className="text-xs text-gray-400 mt-1">Reflexión y metas</p>
-          </div>
-        </div>
-        <Wind className="w-5 h-5 text-gray-600 animate-pulse" />
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
-        {/* Muro de Metas (Post-its) */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold tracking-widest text-indigo-400 uppercase flex items-center gap-2">
-              <Target className="w-4 h-4" /> Objetivos de Hoy
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 gap-3">
-            <AnimatePresence>
-              {goals.map((goal) => (
-                <motion.div
-                  key={goal.id}
-                  layout
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => toggleGoal(goal.id)}
-                  className={`relative p-4 rounded-2xl border cursor-pointer transition-all duration-300 flex items-start gap-3 ${goal.color} ${goal.done ? 'opacity-50 grayscale' : ''}`}
-                >
-                  <div className="mt-0.5 flex-shrink-0">
-                    {goal.done ? (
-                      <CheckCircle2 className="w-5 h-5 text-white/70" />
-                    ) : (
-                      <Circle className="w-5 h-5 text-white/40" />
-                    )}
-                  </div>
-                  <p className={`text-sm font-medium ${goal.done ? 'line-through text-white/50' : 'text-white/90'}`}>
-                    {goal.text}
-                  </p>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
-        </section>
-
-        {/* Mood Tracker */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold tracking-widest text-emerald-400 uppercase flex items-center gap-2">
-              <Sparkles className="w-4 h-4" /> Tracker de Ánimo
-            </h3>
-          </div>
-          <div className="flex items-center gap-3 bg-surface-2 p-2 rounded-3xl border border-white/5">
-            {MOODS.map((m) => {
-              const Icon = m.icon;
-              const isActive = mood === m.id;
-              return (
-                <button
-                  key={m.id}
-                  onClick={() => setMood(m.id)}
-                  className={`flex-1 flex flex-col items-center justify-center p-3 rounded-2xl border transition-all duration-300 ${
-                    isActive 
-                      ? m.activeBg 
-                      : "border-transparent bg-transparent hover:bg-white/5 text-gray-500"
-                  }`}
-                >
-                  <Icon className={`w-6 h-6 mb-1 ${isActive ? m.color : ""}`} />
-                  <span className={`text-[10px] font-medium uppercase tracking-wider ${isActive ? m.color : "opacity-0"}`}>
-                    {m.id}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* Quick Note */}
-        <section className="space-y-4">
-          <h3 className="text-xs font-bold tracking-widest text-amber-400 uppercase flex items-center gap-2">
-            <Book className="w-4 h-4" /> Diario Emocional
-          </h3>
-          <div className="relative group">
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-3xl blur opacity-0 group-focus-within:opacity-100 transition duration-500"></div>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="¿Qué tienes en mente? Alma te escucha..."
-              className="relative w-full h-32 bg-black/50 backdrop-blur-sm border border-white/10 rounded-2xl p-4 text-sm resize-none focus:outline-none focus:border-amber-500/50 transition-colors font-serif placeholder:text-gray-600 shadow-inner"
-            />
-            <button
-              disabled={!note.trim()}
-              className="absolute bottom-4 right-4 flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 text-black text-xs font-bold uppercase tracking-wider rounded-xl hover:shadow-[0_0_15px_rgba(245,158,11,0.5)] transition-all disabled:opacity-0 disabled:translate-y-2 duration-300"
-            >
-              <Save className="w-4 h-4" />
-              Guardar
-            </button>
-          </div>
-        </section>
-      </div>
+    let mounted = true;
+    if (!currentSessionId) { setGoals(DEFAULT_GOALS); setMood(null); setNote(""); setReady(false); return; }
+    const load = async () => {
+      const state = await getAiEnvironment(currentSessionId);
+      if (!mounted) return;
+      if (Array.isArray(state?.counselorGoals)) setGoals(state.counselorGoals);
+      if (state?.counselorMood?.id) setMood(state.counselorMood.id);
+      if (Array.isArray(state?.counselorJournal) && state.counselorJournal.length) setNote(state.counselorJournal[state.counselorJournal.length - 1]?.text || "");
+      setReady(true);
+    };
+    load();
+    const supabase = createClient();
+    const channel = supabase.channel("counselor_panel_" + currentSessionId).on("postgres_changes", { event: "UPDATE", schema: "public", table: "ai_sessions", filter: "id=eq." + currentSessionId }, load).subscribe();
+    return () => { mounted = false; supabase.removeChannel(channel); };
+  }, [currentSessionId]);
+  const save = async (patch: any) => { if (!currentSessionId) return; const state = await getAiEnvironment(currentSessionId) || {}; await updateAiEnvironment(currentSessionId, { ...state, ...patch }); };
+  const toggleGoal = async (id: any) => { const next = goals.map(g => String(g.id) === String(id) ? { ...g, done: !g.done } : g); setGoals(next); await save({ counselorGoals: next }); };
+  const chooseMood = async (id: string) => { setMood(id); await save({ counselorMood: { id, note: "", updatedAt: new Date().toISOString() } }); };
+  const saveJournal = async () => { if (!currentSessionId || !note.trim()) return; const state = await getAiEnvironment(currentSessionId) || {}; const journal = Array.isArray(state.counselorJournal) ? state.counselorJournal : []; const next = [...journal, { id: String(Date.now()) + "-" + Math.random().toString(36).slice(2), text: note.trim(), createdAt: new Date().toISOString() }].slice(-100); await updateAiEnvironment(currentSessionId, { ...state, counselorJournal: next }); };
+  return <div className="flex flex-col w-full h-full bg-[#050505] border-l border-white/5 font-sans text-[#e5e5e5]">
+    <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent shrink-0"><div className="flex items-center gap-3"><div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400"><Heart className="w-5 h-5" /></div><div><h2 className="font-semibold text-lg tracking-tight text-white">Mi Espacio</h2><p className="text-xs text-gray-400 mt-1">Reflexión y metas</p></div></div><Wind className="w-5 h-5 text-gray-600 animate-pulse" /></div>
+    <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+      <section className="space-y-4"><h3 className="text-xs font-bold tracking-widest text-indigo-400 uppercase flex items-center gap-2"><Target className="w-4 h-4" /> Objetivos de Hoy</h3><div className="grid gap-3"><AnimatePresence>{goals.map(goal => <motion.button key={String(goal.id)} onClick={() => toggleGoal(goal.id)} layout whileTap={{ scale: 0.98 }} className={`p-4 rounded-2xl border flex items-start gap-3 text-left ${goal.done ? "opacity-50 bg-white/5 border-white/10" : "bg-indigo-500/5 border-indigo-500/20"}`}>{goal.done ? <CheckCircle2 className="w-5 h-5 mt-0.5 text-emerald-400" /> : <Circle className="w-5 h-5 mt-0.5 text-white/40" />}<span className={goal.done ? "line-through text-gray-500" : "text-white/90"}>{goal.text}</span></motion.button>)}</AnimatePresence></div></section>
+      <section className="space-y-4"><h3 className="text-xs font-bold tracking-widest text-emerald-400 uppercase flex items-center gap-2"><Sparkles className="w-4 h-4" /> Tracker de Ánimo</h3><div className="flex gap-3 bg-white/[0.03] p-2 rounded-3xl border border-white/5">{MOODS.map(m => { const Icon = m.icon; return <button key={m.id} onClick={() => chooseMood(m.id)} className={`flex-1 p-3 rounded-2xl border transition-all ${mood === m.id ? "bg-white/10 border-white/15" : "border-transparent hover:bg-white/5"}`}><Icon className={`w-6 h-6 mx-auto ${mood === m.id ? m.active : "text-gray-600"}`} /><span className="block text-[10px] mt-1 text-gray-500">{m.label}</span></button>; })}</div></section>
+      <section className="space-y-4"><h3 className="text-xs font-bold tracking-widest text-amber-400 uppercase flex items-center gap-2"><Book className="w-4 h-4" /> Diario Emocional</h3><div className="relative"><textarea value={note} onChange={e => setNote(e.target.value)} placeholder="¿Qué tienes en mente? Alma te escucha..." className="w-full h-32 bg-black/50 border border-white/10 rounded-2xl p-4 text-sm resize-none focus:outline-none focus:border-amber-500/50" /><button onClick={saveJournal} disabled={!ready || !note.trim()} className="absolute bottom-3 right-3 flex items-center gap-2 px-4 py-2 bg-amber-500 text-black text-xs font-bold rounded-xl disabled:opacity-30"><Save className="w-4 h-4" />Guardar</button></div></section>
     </div>
-  );
+  </div>;
 }

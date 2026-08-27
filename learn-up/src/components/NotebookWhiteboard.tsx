@@ -70,7 +70,7 @@ export default function NotebookWhiteboard({ currentSessionId }: NotebookWhitebo
         {
           event: "*",
           schema: "public",
-          table: "ai_environments",
+          table: "ai_sessions",
           filter: `session_id=eq.${currentSessionId}`,
         },
         () => {

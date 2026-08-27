@@ -240,6 +240,8 @@ interface Message {
   media_url?: string;
   media_type?: string;
   tool_calls?: ToolAction[];
+  clientMessageId?: string;
+  status?: "sending" | "streaming" | "tool_pending" | "tool_running" | "completed" | "failed";
 }
 
 interface AIChatProps {
@@ -301,6 +303,7 @@ export default function AIChatComponent({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
   const isCreatingSession = useRef(false);
+  const submitInFlight = useRef(false);
   const supabase = createClient();
   
   // Inicializar Web Speech API
@@ -415,25 +418,12 @@ export default function AIChatComponent({
   }, [messages, loading]);
 
   const loadSessionMessages = async (sessionId: string) => {
-    setMessages([]);
     setLoading(true);
     const msgs = await getAiMessages(sessionId);
     setMessages(msgs);
     setLoading(false);
   };
 
-  useEffect(() => {
-    if (currentSessionId) {
-      if (isCreatingSession.current) {
-        // Prevent clearing messages when a new session was created in the current active chat flow
-        isCreatingSession.current = false;
-        return;
-      }
-      loadSessionMessages(currentSessionId);
-    } else {
-      setMessages([]);
-    }
-  }, [currentSessionId]);
 
   const getMediaType = (file: File) => {
     if (file.type.startsWith("image/")) return "image";
@@ -450,7 +440,8 @@ export default function AIChatComponent({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!input.trim() && !file) || loading) return;
+    if ((!input.trim() && !file) || submitInFlight.current || uploadingMedia) return;
+    submitInFlight.current = true;
 
     const backupInput = input;
     const backupFile = file;
@@ -466,7 +457,13 @@ export default function AIChatComponent({
     if (!userMessage && !file) return;
 
     const mediaType = file ? getMediaType(file) : undefined;
+    const clientMessageId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : String(Date.now()) + "-" + Math.random().toString(36).slice(2);
     const clientSideUserMsg: Message = {
+      id: clientMessageId,
+      clientMessageId,
+      status: "sending",
       role: "user",
       content: userMessage,
       media_url: file ? URL.createObjectURL(file) : undefined,
@@ -490,7 +487,7 @@ export default function AIChatComponent({
           fileInputRef.current.value = "";
         }
       }
-      setMessages((prev) => prev.filter((m) => m !== clientSideUserMsg));
+      setMessages((prev) => prev.filter((m) => m.clientMessageId !== clientMessageId));
       setLoading(false);
       setUploadingMedia(false);
     };
@@ -567,7 +564,7 @@ export default function AIChatComponent({
         }
 
         setMessages((prev) => 
-          prev.map(m => m === clientSideUserMsg ? { ...m, media_url: mediaUrl } : m)
+          prev.map(m => m.clientMessageId === clientMessageId ? { ...m, media_url: mediaUrl } : m)
         );
       } catch (uploadErr: any) {
         handleFailure("Error al subir el archivo adjunto. Intenta de nuevo.");
@@ -577,14 +574,15 @@ export default function AIChatComponent({
     }
 
     try {
-      await addAiMessage(sessionId, "user", userMessage, mediaUrl, mediaType);
+      const savedUserMessage = await addAiMessage(sessionId, "user", userMessage, mediaUrl, mediaType, undefined, clientMessageId);
+      if (savedUserMessage?.error) throw new Error(savedUserMessage.error);
     } catch (msgErr: any) {
       handleFailure("Error al guardar tu mensaje en la base de datos.");
       return;
     }
 
     try {
-      const historyForGroq = messages.map((m) => ({
+      const historyForGroq = [...messages, clientSideUserMsg].map((m) => ({
         role: m.role,
         content: m.content,
       }));
@@ -605,11 +603,10 @@ export default function AIChatComponent({
       if (result.error) {
         handleFailure(result.error);
       } else if (result.response) {
-        await addAiMessage(sessionId, "assistant", result.response, undefined, undefined, result.executedActions);
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: result.response, tool_calls: result.executedActions },
-        ]);
+        await addAiMessage(sessionId, "assistant", result.response, undefined, undefined, result.executedActions, "assistant-" + clientMessageId);
+        setMessages((prev) => prev
+          .map((m) => m.clientMessageId === clientMessageId ? { ...m, status: "completed" } : m)
+          .concat({ id: "assistant-" + clientMessageId, role: "assistant", content: result.response, status: "completed", tool_calls: result.executedActions }));
 
         if (result.actions && result.actions.length > 0) {
           if (isAutonomous) {
@@ -625,6 +622,7 @@ export default function AIChatComponent({
       handleFailure("Ocurrió un error inesperado al procesar la IA.");
     } finally {
       setLoading(false);
+      submitInFlight.current = false;
     }
   };
 
@@ -653,7 +651,7 @@ export default function AIChatComponent({
           { role: "assistant", content: msg, tool_calls: [action] },
         ]);
       } else {
-        actionResult = await confirmAndExecuteTool(action.tool, action.args);
+        actionResult = await confirmAndExecuteTool(action.tool, action.args, currentSessionId);
         
         if (!actionResult.success && actionResult.data?.suggestions) {
             if (currentSessionId) await addAiMessage(currentSessionId, "assistant", actionResult.message);
