@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Heart } from "lucide-react";
 import NotebookLayout from "@/components/ai/NotebookLayout";
-import AIChatComponent from "@/components/AIChatComponent";
+import StableAIChatComponent from "@/components/StableAIChatComponent";
 import JournalSidebar from "@/components/JournalSidebar";
 import SourcesPanel from "@/components/ai/SourcesPanel";
 import { askCounselorStable } from "@/actions/stable-ai-agents";
@@ -21,7 +21,7 @@ export default function CounselorChatPage() {
         />
       }
       centerPanel={
-        <AIChatComponent
+        <StableAIChatComponent
           title="Alma (Consejera)"
           subtitle="Apoyo emocional y motivación diaria"
           icon={<Heart className="w-5 h-5 text-rose-500" />}
