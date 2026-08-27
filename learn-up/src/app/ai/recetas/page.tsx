@@ -14,10 +14,10 @@ export default function RecipesChatPage() {
   return (
     <NotebookLayout
       leftPanel={
-        <SourcesPanel 
-          aiType="recetas" 
-          currentSessionId={sessionId} 
-          onSessionChange={setSessionId} 
+        <SourcesPanel
+          aiType="recetas"
+          currentSessionId={sessionId}
+          onSessionChange={setSessionId}
         />
       }
       centerPanel={
@@ -29,7 +29,7 @@ export default function RecipesChatPage() {
           onSubmitAction={generateRecipe}
           currentSessionId={sessionId}
           onSessionChange={setSessionId}
-          defaultModel="groq/openai/gpt-oss-20b"
+          defaultModel="openrouter/openrouter/free"
         />
       }
       rightPanel={<RecipeSidebar currentSessionId={sessionId} />}
