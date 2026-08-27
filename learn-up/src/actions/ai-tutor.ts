@@ -272,6 +272,7 @@ export async function askProfessor(
   mediaType?: string,
   modelId?: string,
   sessionId?: string | null,
+  isAutonomous?: boolean,
 ): Promise<{ response: string; error?: string; actions?: ToolAction[]; executedActions?: ToolAction[] }> {
   try {
     const supabase = await createClient();
@@ -300,7 +301,15 @@ export async function askProfessor(
     }
 
     // Eliminamos el fast-path restrictivo porque comandos cortos como "Hola, abre spotify" pierden sus herramientas.
-    const selectedToolNames = resolveSkillPackTools(activeSkills);
+    const defaultPacksByAgent: Record<string, string[]> = {
+      profesor: ["library_pack", "learning_pack", "content_pack", "media_pack", "research_pack", "edu_pack"],
+      examenes: ["library_pack", "learning_pack", "content_pack", "media_pack", "research_pack", "edu_pack"],
+      consejero: ["calendar_pack", "learning_pack", "stats_pack", "profile_pack"],
+      nutrirecetas: ["calendar_pack", "content_pack", "media_pack", "stats_pack"],
+      jarvis: ["calendar_pack", "chat_pack", "library_pack", "learning_pack", "content_pack", "media_pack", "research_pack", "stats_pack", "profile_pack", "edu_pack"],
+    };
+    const effectiveSkillPacks = [...new Set([...(defaultPacksByAgent[aiType] || []), ...activeSkills])];
+    const selectedToolNames = resolveSkillPackTools(effectiveSkillPacks);
     const toolDefs = `\n${getToolDefinitions(selectedToolNames)}`;
 
     const systemPrompt = `${getTimeContext()}

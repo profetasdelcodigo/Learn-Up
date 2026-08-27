@@ -256,6 +256,7 @@ interface AIChatProps {
     mediaType?: string,
     modelId?: string,
     sessionId?: string | null,
+    isAutonomous?: boolean,
   ) => Promise<{ response: string; error?: string; actions?: ToolAction[]; executedActions?: ToolAction[] }>;
   className?: string;
   containerStyle?: React.CSSProperties;
@@ -704,14 +705,8 @@ export default function AIChatComponent({
           .map((m) => m.clientMessageId === clientMessageId ? { ...m, status: "completed" } : m)
           .concat({ id: "assistant-" + clientMessageId, role: "assistant", content: result.response, status: "completed", tool_calls: result.executedActions }));
 
-        if (result.actions && result.actions.length > 0) {
-          if (isAutonomous) {
-            result.actions.forEach(action => {
-               setTimeout(() => handleConfirmAction(action), 500);
-            });
-          } else {
-            setPendingActions(result.actions);
-          }
+        if (result.actions && result.actions.length > 0 && !isAutonomous) {
+          setPendingActions(result.actions);
         }
       }
     } catch (err) {
