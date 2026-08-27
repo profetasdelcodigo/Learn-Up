@@ -1,10 +1,14 @@
 import { getAICompletion } from "@/lib/ai";
 import { parseToolCall, executeToolAction, type ToolAction } from "@/lib/ai-tools";
+import { shouldExecuteTool, type ToolMode } from "./tool-contract";
 
 export interface AgentLoopOptions {
   maxSteps?: number;
+  maxParallelTools?: number;
   sessionId?: string | null;
   userId?: string | null;
+  mode?: ToolMode;
+  permissions?: boolean;
   onFormulaExtracted?: (formulas: string[]) => Promise<void>;
 }
 
@@ -15,9 +19,50 @@ export interface AgentLoopResult {
   error?: string;
 }
 
+const MAX_TOOL_STEPS = 8;
+const MAX_PARALLEL_TOOLS = 4;
+
+function compactToolFeedback(toolResults: Array<{ action: ToolAction; success: boolean; message: string; data: unknown }>): string {
+  return toolResults
+    .map((result) => {
+      const safeMessage = String(result.message || (result.success ? "Completado" : "Error al ejecutar")).slice(0, 4000);
+      return `[Tool: ${result.action.tool}] ${result.success ? "OK" : "ERROR"}\n${safeMessage}`;
+    })
+    .join("\n\n");
+}
+
+async function executeInBatches(actions: ToolAction[], maxParallel: number) {
+  const results: Array<{ action: ToolAction; success: boolean; message: string; data: unknown }> = [];
+  for (let i = 0; i < actions.length; i += maxParallel) {
+    const batch = actions.slice(i, i + maxParallel);
+    const batchResults = await Promise.all(
+      batch.map(async (action) => {
+        try {
+          const result = await executeToolAction(action.tool, action.args);
+          return {
+            action,
+            success: Boolean(result?.success),
+            message: String(result?.message || (result?.success ? "Completado" : "La herramienta no pudo completarse")),
+            data: result?.data ?? null,
+          };
+        } catch (error) {
+          return {
+            action,
+            success: false,
+            message: error instanceof Error ? error.message : "Error desconocido de herramienta",
+            data: null,
+          };
+        }
+      })
+    );
+    results.push(...batchResults);
+  }
+  return results;
+}
+
 /**
- * Runs a multi-step agent loop with automatic tool execution, concurrency, and confirmation gates.
- * MAX_TOOL_STEPS prevents infinite loops while allowing multi-tool synthesis.
+ * Agent loop for action-based agents. Manual mode returns pending actions to
+ * the UI; autopilot executes only tools allowed by the backend policy.
  */
 export async function runAgentLoop(
   systemPrompt: string,
@@ -26,98 +71,92 @@ export async function runAgentLoop(
   model: string,
   options: AgentLoopOptions = {}
 ): Promise<AgentLoopResult> {
-  const maxSteps = options.maxSteps ?? 5;
+  const maxSteps = Math.min(options.maxSteps ?? MAX_TOOL_STEPS, MAX_TOOL_STEPS);
+  const maxParallel = Math.min(options.maxParallelTools ?? MAX_PARALLEL_TOOLS, MAX_PARALLEL_TOOLS);
+  const mode: ToolMode = options.mode ?? "manual";
+  const permissions = options.permissions ?? true;
   const executedActions: ToolAction[] = [];
 
   const currentMessages: { role: "user" | "assistant" | "system"; content: string | any[] }[] = [
     { role: "system", content: systemPrompt },
-    ...history,
+    ...history.slice(-15),
     { role: "user", content: userMessage },
   ];
 
   let lastCleanText = "";
 
-  for (let step = 0; step < maxSteps; step++) {
+  for (let step = 0; step < maxSteps; step += 1) {
     const response = await getAICompletion(currentMessages, model);
     const rawContent = response.choices[0]?.message?.content || "";
-    
     let { cleanText, actions } = await parseToolCall(rawContent);
 
-    // Formula extraction hook (for Profesor IA)
     if (options.onFormulaExtracted) {
       const formulasMatch = cleanText.match(/<formula>(.*?)<\/formula>/g);
       if (formulasMatch) {
-        const formulas = formulasMatch.map(f => f.replace(/<\/?formula>/g, "").trim());
+        const formulas = formulasMatch.map((formula) => formula.replace(/<\/?formula>/g, "").trim());
         await options.onFormulaExtracted(formulas);
         cleanText = cleanText.replace(/<formula>.*?<\/formula>/g, "").trim();
       }
     }
 
     lastCleanText = cleanText;
-
-    // If no tools requested, we have our final text answer
-    if (!actions || actions.length === 0) {
+    if (!actions?.length) {
       return {
         response: cleanText,
-        executedActions: executedActions.length > 0 ? executedActions : undefined,
+        executedActions: executedActions.length ? executedActions : undefined,
       };
     }
 
-    const pendingConfirm = actions.filter((a) => a.requiresConfirm);
-    const autoExecute = actions.filter((a) => !a.requiresConfirm);
+    const executable: ToolAction[] = [];
+    const pending: ToolAction[] = [];
+    const denied: ToolAction[] = [];
 
-    // If there are actions that require user confirmation, stop and present them to the user
-    if (pendingConfirm.length > 0) {
+    for (const action of actions) {
+      const decision = shouldExecuteTool(action.tool, mode, permissions);
+      if (decision === "execute") executable.push(action);
+      else if (decision === "pending_confirmation") pending.push(action);
+      else denied.push(action);
+    }
+
+    if (pending.length > 0) {
       return {
         response: cleanText,
-        actions: pendingConfirm,
-        executedActions: executedActions.length > 0 ? executedActions : undefined,
+        actions: pending,
+        executedActions: executedActions.length ? executedActions : undefined,
       };
     }
 
-    // Execute auto-executable actions in parallel with error handling
-    if (autoExecute.length > 0) {
-      const toolResults = await Promise.all(
-        autoExecute.map(async (act) => {
-          try {
-            const res = await executeToolAction(act.tool, act.args);
-            return {
-              action: act,
-              success: res.success,
-              message: res.message,
-              data: res.data,
-            };
-          } catch (err: any) {
-            return {
-              action: act,
-              success: false,
-              message: `Error al ejecutar ${act.tool}: ${err.message || err}`,
-              data: null,
-            };
-          }
-        })
-      );
-
-      executedActions.push(...autoExecute);
-
-      const feedback = toolResults
-        .map((r) => `[Resultado de ${r.action.tool}]:\n${r.message}`)
-        .join("\n\n");
-
-      // Feed results back to model
-      currentMessages.push({
-        role: "assistant",
-        content: cleanText || `Ejecutando ${autoExecute.map(a => a.tool).join(", ")}...`,
-      });
-      currentMessages.push({
-        role: "user",
-        content: `Resultados de las herramientas:\n${feedback}\n\nPor favor continúa con la respuesta o ejecuta la siguiente acción si es necesario.`,
-      });
+    if (denied.length > 0 && executable.length === 0) {
+      return {
+        response: cleanText || "No puedo ejecutar esa acción con los permisos actuales.",
+        error: `Herramientas rechazadas: ${denied.map((action) => action.tool).join(", ")}`,
+        executedActions: executedActions.length ? executedActions : undefined,
+      };
     }
+
+    if (executable.length === 0) {
+      return {
+        response: cleanText,
+        executedActions: executedActions.length ? executedActions : undefined,
+      };
+    }
+
+    const toolResults = await executeInBatches(executable, maxParallel);
+    executedActions.push(...executable);
+
+    const feedback = compactToolFeedback(toolResults);
+    currentMessages.push({
+      role: "assistant",
+      content: cleanText || "He ejecutado las herramientas necesarias.",
+    });
+    currentMessages.push({
+      role: "user",
+      content: `Resultados reales de las herramientas. No inventes resultados.\n\n${feedback}\n\nContinúa la tarea con las herramientas disponibles si todavía queda trabajo pendiente. Cuando termines, responde al usuario de forma natural y no muestres JSON, nombres internos de tools ni código.`,
+    });
   }
 
   return {
-    response: lastCleanText,
-    executedActions: executedActions.length > 0 ? executedActions : undefined,
+    response: lastCleanText || "La tarea alcanzó el límite de pasos permitido. Puedes pedirme que continúe.",
+    executedActions: executedActions.length ? executedActions : undefined,
   };
 }
