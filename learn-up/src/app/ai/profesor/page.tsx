@@ -5,7 +5,7 @@ import { BookOpen } from "lucide-react";
 import NotebookLayout from "@/components/ai/NotebookLayout";
 import AIChatComponent from "@/components/AIChatComponent";
 import NotebookWhiteboard from "@/components/NotebookWhiteboard";
-import { askProfessor } from "@/actions/ai-tutor";
+import { askProfessorStable } from "@/actions/stable-ai-agents";
 import SourcesPanel from "@/components/ai/SourcesPanel";
 
 export default function ProfessorChatPage() {
@@ -26,7 +26,7 @@ export default function ProfessorChatPage() {
           subtitle="Tu tutor socrático personal"
           icon={<BookOpen className="w-5 h-5 text-brand-gold" />}
           aiType="profesor"
-          onSubmitAction={askProfessor}
+          onSubmitAction={askProfessorStable}
           currentSessionId={sessionId}
           onSessionChange={setSessionId}
           defaultModel="openrouter/openrouter/free"
