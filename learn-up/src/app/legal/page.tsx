@@ -53,11 +53,11 @@ export default function LegalPage() {
 
               // Headers
               if (trimmed.startsWith("### "))
-                return <h4 key={lIdx} className="mt-6 mb-2 text-base font-bold text-brand-gold">{trimmed.replace(/^###\s*/, "")}</h4>;
+                return <h4 key={lIdx} className="mt-6 mb-2 text-base font-bold text-brand-gold">{trimmed.replace(/^###\s*/, &quot;")}</h4>;
               if (trimmed.startsWith("## "))
-                return <h3 key={lIdx} className="mt-8 mb-3 text-lg font-bold text-[var(--foreground)]">{trimmed.replace(/^##\s*/, "")}</h3>;
+                return <h3 key={lIdx} className="mt-8 mb-3 text-lg font-bold text-[var(--foreground)]">{trimmed.replace(/^##\s*/, &quot;")}</h3>;
               if (trimmed.startsWith("# "))
-                return <h2 key={lIdx} className="mt-4 mb-6 text-2xl md:text-3xl font-display font-bold text-[var(--foreground)]">{trimmed.replace(/^#\s*/, "")}</h2>;
+                return <h2 key={lIdx} className="mt-4 mb-6 text-2xl md:text-3xl font-display font-bold text-[var(--foreground)]">{trimmed.replace(/^#\s*/, &quot;")}</h2>;
 
               // Bullet lists
               if (trimmed.startsWith("- ")) {
@@ -70,12 +70,12 @@ export default function LegalPage() {
                     </li>
                   );
                 }
-                return <li key={lIdx} className="my-2 ml-4 list-disc marker:text-brand-gold">{trimmed.replace(/^- /, "")}</li>;
+                return <li key={lIdx} className="my-2 ml-4 list-disc marker:text-brand-gold">{trimmed.replace(/^- /, &quot;")}</li>;
               }
 
               // Italic footers
               if (trimmed.startsWith("*") && trimmed.endsWith("*")) {
-                 return <p key={lIdx} className="mt-8 pt-6 border-t border-white/10 text-xs text-gray-500 italic text-center">{trimmed.replace(/\*/g, "")}</p>
+                 return <p key={lIdx} className="mt-8 pt-6 border-t border-white/10 text-xs text-gray-500 italic text-center">{trimmed.replace(/\*/g, &quot;")}</p>
               }
 
               // Dividers

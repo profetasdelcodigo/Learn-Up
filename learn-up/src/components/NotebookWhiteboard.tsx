@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Network, FileText, BrainCircuit, Maximize2, X, Calculator, ListTree, BookOpenCheck, Copy, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getAiEnvironment, updateAiEnvironment } from "@/actions/ai-environment";
+import { createClient } from "@/utils/supabase/client";
 
 type Tab = "graph" | "document" | "formulas" | "outline";
 
@@ -61,7 +62,6 @@ export default function NotebookWhiteboard({ currentSessionId }: NotebookWhitebo
     };
     fetchEnv();
 
-    const { createClient } = require("@/utils/supabase/client");
     const supabase = createClient();
     const channel = supabase
       .channel(`ai_env_${currentSessionId}`)
@@ -70,7 +70,7 @@ export default function NotebookWhiteboard({ currentSessionId }: NotebookWhitebo
         {
           event: "*",
           schema: "public",
-          table: "ai_environments",
+          table: "ai_sessions",
           filter: `session_id=eq.${currentSessionId}`,
         },
         () => {

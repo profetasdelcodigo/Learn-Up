@@ -970,10 +970,12 @@ INSTRUCCIONES DE CORRECCIÓN:
 export async function confirmAndExecuteTool(
   tool: string,
   args: Record<string, any>,
-): Promise<{ success: boolean; message: string; data?: any }> {
+  sessionId?: string | null,
+): Promise<{ success: boolean; message: string; data?: any; displayMessage?: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, message: "No autorizado. Por favor inicia sesión." };
-
-  return await executeToolAction(tool, args);
+  const { executeUnifiedTool } = await import("@/lib/ai/tool-executor");
+  const result = await executeUnifiedTool(tool, args, user.id, sessionId);
+  return { success: Boolean(result.success), message: result.displayMessage || result.message || "", data: result.data, displayMessage: result.displayMessage };
 }

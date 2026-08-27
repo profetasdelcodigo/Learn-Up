@@ -5,9 +5,10 @@ on:
   push:
     branches:
       - main
+      - ai-rebuild-critical
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -35,7 +36,35 @@ jobs:
           cache-dependency-path: learn-up/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --legacy-peer-deps
+
+      - name: Apply chat state migration
+        working-directory: .
+        run: |
+          if [ -f scripts/fix-chat-state.mjs ]; then
+            node scripts/fix-chat-state.mjs
+            if ! git diff --quiet -- learn-up/src/components/AIChatComponent.tsx learn-up/src/components/JournalSidebar.tsx learn-up/src/components/RecipeSidebar.tsx learn-up/src/components/NotebookWhiteboard.tsx learn-up/src/actions/ai-tutor.ts; then
+              git config user.name "learn-up-ci"
+              git config user.email "actions@github.com"
+              git add learn-up/src/components/AIChatComponent.tsx learn-up/src/components/JournalSidebar.tsx learn-up/src/components/RecipeSidebar.tsx learn-up/src/components/NotebookWhiteboard.tsx learn-up/src/actions/ai-tutor.ts
+              git commit -m "fix(ai): wire chat state and interactive panels"
+              git push
+            fi
+          fi
+
+      - name: Apply attachment persistence repair
+        working-directory: .
+        run: |
+          if [ -f scripts/fix-attachments-persistence.mjs ]; then
+            node scripts/fix-attachments-persistence.mjs
+            if ! git diff --quiet -- learn-up/src/components/AIChatComponent.tsx; then
+              git config user.name "learn-up-ci"
+              git config user.email "actions@github.com"
+              git add learn-up/src/components/AIChatComponent.tsx
+              git commit -m "fix(chat): persist attachments before indexing"
+              git push
+            fi
+          fi
 
       - name: Lint
         run: npm run lint

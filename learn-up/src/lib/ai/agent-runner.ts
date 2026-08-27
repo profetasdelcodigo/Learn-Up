@@ -1,6 +1,8 @@
 import { getAICompletion } from "@/lib/ai";
-import { executeToolAction } from "@/lib/ai-tools";
+import { executeUnifiedTool } from "./tool-executor";
 import { parseToolCalls, type ParsedToolAction } from "./tool-parser";
+import { getToolDefinition, shouldExecuteTool, type ToolActionState } from "./tool-contract";
+import { getPanelToolPrompt } from "./panel-tools";
 
 type ToolAction = ParsedToolAction;
 
@@ -10,7 +12,16 @@ export interface AgentLoopOptions {
   sessionId?: string | null;
   userId?: string | null;
   isAutonomous?: boolean;
+  permissions?: string[];
   onFormulaExtracted?: (formulas: string[]) => Promise<void>;
+}
+
+export interface ToolResult {
+  success: boolean;
+  data?: unknown;
+  displayMessage: string;
+  error?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface AgentLoopResult {
@@ -20,13 +31,52 @@ export interface AgentLoopResult {
   error?: string;
 }
 
-const MAX_TOOL_STEPS = 8;
-const MAX_PARALLEL_TOOLS = 4;
+export const MAX_TOOL_STEPS = 8;
+export const MAX_PARALLEL_TOOLS = 4;
 
 function chunk<T>(items: T[], size: number): T[][] {
   const result: T[][] = [];
   for (let i = 0; i < items.length; i += size) result.push(items.slice(i, i + size));
   return result;
+}
+
+function toToolResult(raw: any): ToolResult {
+  const success = Boolean(raw?.success);
+  return {
+    success,
+    data: raw?.data,
+    displayMessage: String(raw?.displayMessage || raw?.message || (success ? "Acción completada." : "No se pudo completar la acción.")),
+    error: raw?.error ? String(raw.error) : undefined,
+    metadata: raw?.metadata && typeof raw.metadata === "object" ? raw.metadata : undefined,
+  };
+}
+
+function toolResultForModel(action: ToolAction, result: ToolResult): string {
+  return JSON.stringify({
+    tool: action.tool,
+    success: result.success,
+    data: result.data,
+    displayMessage: result.displayMessage,
+    error: result.error,
+    metadata: result.metadata,
+  });
+}
+
+function sanitizeSystemPrompt(prompt: string): string {
+  return `${prompt}\n${getPanelToolPrompt()}`
+    .replace(/\n?\s*\d+\.\s*Si necesitas usar una herramienta \(tool\), DEBES responder EXCLUSIVAMENTE con un bloque tool \{\.\.\.\} tal como espera el sistema\.?/gi, "")
+    .replace(/\n?\s*La herramienta debe ser llamada en formato JSON\.?/gi, "")
+    .replace(/\n?\s*DEBES responder EXCLUSIVAMENTE con un bloque tool[^\n]*/gi, "")
+    .replace(/\n?\s*Dentro de <thinking>[\s\S]*?NUNCA omitas el bloque <thinking>\.?/gi, "")
+    .replace(/\n?\s*Antes de responder al usuario, DEBES incluir un bloque de pensamiento oculto[\s\S]*?NUNCA omitas el bloque <thinking>\.?/gi, "")
+    .replace(/\n?\s*Siempre que exista una tool[\s\S]*?formato JSON/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function pendingResponse(actions: ToolAction[]): string {
+  if (actions.length === 1) return `Preparé una acción para ti: ${actions[0].description}`;
+  return `Preparé ${actions.length} acciones para ti. Revisa y autoriza las que quieras ejecutar.`;
 }
 
 export async function runAgentLoop(
@@ -38,9 +88,10 @@ export async function runAgentLoop(
 ): Promise<AgentLoopResult> {
   const maxSteps = Math.min(options.maxSteps ?? MAX_TOOL_STEPS, MAX_TOOL_STEPS);
   const maxParallel = Math.min(options.maxParallelTools ?? MAX_PARALLEL_TOOLS, MAX_PARALLEL_TOOLS);
+  const permissions = options.permissions ?? ["ai.tools.execute"];
   const executedActions: ToolAction[] = [];
   const currentMessages: { role: "user" | "assistant" | "system"; content: string | any[] }[] = [
-    { role: "system", content: systemPrompt },
+    { role: "system", content: sanitizeSystemPrompt(systemPrompt) },
     ...history,
     { role: "user", content: userMessage },
   ];
@@ -66,43 +117,55 @@ export async function runAgentLoop(
       return { response: cleanText, executedActions: executedActions.length ? executedActions : undefined };
     }
 
-    const pending = options.isAutonomous ? [] : actions.filter(a => a.requiresConfirm);
+    const pending: ToolAction[] = [];
+    const executable: ToolAction[] = [];
+    for (const action of actions) {
+      const definition = getToolDefinition(action.tool);
+      if (!definition) continue;
+      const decision = shouldExecuteTool(
+        definition,
+        options.isAutonomous ? "autopilot" : "manual",
+        definition.risk,
+        permissions,
+      );
+      if (decision === "pending_confirmation") pending.push(action);
+      if (decision === "execute") executable.push(action);
+    }
+
     if (pending.length) {
-      return { response: cleanText, actions: pending, executedActions: executedActions.length ? executedActions : undefined };
+      return { response: cleanText || pendingResponse(pending), actions: pending, executedActions: executedActions.length ? executedActions : undefined };
     }
-
-    const executable = options.isAutonomous ? actions : actions.filter(a => !a.requiresConfirm);
     if (!executable.length) {
-      return { response: cleanText, actions, executedActions: executedActions.length ? executedActions : undefined };
+      return { response: cleanText || "No tengo autorización para realizar esa acción.", executedActions: executedActions.length ? executedActions : undefined };
     }
 
-    const allResults: Array<{ action: ToolAction; success: boolean; message: string; data?: any }> = [];
+    const allResults: Array<{ action: ToolAction; state: ToolActionState; result: ToolResult }> = [];
     for (const batch of chunk(executable, maxParallel)) {
       const results = await Promise.all(batch.map(async action => {
+        const started = Date.now();
         try {
-          const result = await executeToolAction(action.tool, { ...action.args, userId: options.userId });
-          return { action, success: result.success, message: result.message, data: result.data };
+          console.log(`[TOOL] id=${action.tool}-${started} name=${action.tool} status=running`);
+          const raw = await executeUnifiedTool(action.tool, { ...action.args }, options.userId || "", options.sessionId);
+          const result = toToolResult(raw);
+          console.log(`[TOOL] id=${action.tool}-${started} name=${action.tool} status=${result.success ? "success" : "error"}`);
+          return { action, state: result.success ? "success" as const : "error" as const, result };
         } catch (error: any) {
-          return { action, success: false, message: error?.message || `Error ejecutando ${action.tool}` };
+          const result: ToolResult = { success: false, displayMessage: "No se pudo completar la acción.", error: error?.message || "Error de herramienta" };
+          console.error(`[TOOL] id=${action.tool}-${started} name=${action.tool} status=error`);
+          return { action, state: "error" as const, result };
         }
       }));
       allResults.push(...results);
       executedActions.push(...batch);
     }
 
-    currentMessages.push({ role: "assistant", content: cleanText || "He ejecutado las acciones solicitadas." });
+    currentMessages.push({ role: "assistant", content: cleanText || "He realizado parte de la tarea." });
     currentMessages.push({
       role: "user",
-      content:
-        allResults.map(r =>
-          `[Resultado de herramienta: ${r.action.tool}]\nsuccess=${r.success}\nmessage=${r.message}\n${r.data !== undefined ? `data=${JSON.stringify(r.data)}` : ""}`,
-        ).join("\n\n") +
-        "\n\nContinúa la tarea usando estos resultados. Si necesitas otras herramientas, ejecútalas. No muestres llamadas, JSON interno ni código de herramientas al usuario.",
+      content: allResults.map(({ action, result }) => toolResultForModel(action, result)).join("\n\n") +
+        "\n\nContinúa la tarea con estos resultados. Usa más herramientas si son necesarias. No expongas nombres de funciones, JSON interno, IDs, stack traces ni protocolos de ejecución al usuario.",
     });
   }
 
-  return {
-    response: lastCleanText || "No pude completar la tarea dentro del límite de pasos.",
-    executedActions: executedActions.length ? executedActions : undefined,
-  };
+  return { response: lastCleanText || "No pude completar la tarea dentro del límite de pasos.", executedActions: executedActions.length ? executedActions : undefined };
 }
