@@ -38,17 +38,11 @@ jobs:
       - name: Apply final AI hardening once
         working-directory: .
         run: |
-          changed=0
-          for script in scripts/finalize-ai.mjs scripts/fix-lint-blockers.mjs scripts/fix-runtime-critical.mjs; do
-            if [ -f "$script" ]; then
-              node "$script"
-              changed=1
-            fi
-          done
-          if [ "$changed" = "1" ] && ! git diff --quiet; then
+          node scripts/finalize-ai.mjs
+          if ! git diff --quiet; then
             git config user.name "learn-up-ci"
             git config user.email "actions@github.com"
-            git add learn-up/src scripts
+            git add learn-up/src
             git commit -m "fix(ai): finalize production agent runtime"
             git push
           fi
