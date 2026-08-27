@@ -495,6 +495,7 @@ export default function AIChatComponent({
     setMessages((prev) => [...prev, clientSideUserMsg]);
     setInput("");
     setFile(null);
+    setHasFileAttached(Boolean(backupFile));
     if (fileInputRef.current) fileInputRef.current.value = "";
     
     setError("");
@@ -553,17 +554,7 @@ export default function AIChatComponent({
           .getPublicUrl(filePath);
         mediaUrl = data.publicUrl;
 
-        const indexResult = await indexAiDocumentFromUrl({
-          title: backupFile.name,
-          url: mediaUrl,
-          mimeType: backupFile.type,
-          sessionId,
-        });
-        if (!indexResult.success) {
-          console.warn("AI document indexing skipped:", indexResult.error);
-        }
-
-        setMessages((prev) => 
+        setMessages((prev) =>
           prev.map(m => m.clientMessageId === clientMessageId ? { ...m, media_url: mediaUrl } : m)
         );
       } catch (uploadErr: any) {
@@ -576,6 +567,24 @@ export default function AIChatComponent({
     try {
       const savedUserMessage = await addAiMessage(sessionId, "user", userMessage, mediaUrl, mediaType, undefined, clientMessageId);
       if (savedUserMessage?.error) throw new Error(savedUserMessage.error);
+
+      // Indexing is deliberately AFTER message persistence.
+      // Failure/latency here must never make the user's attachment disappear from chat.
+      if (backupFile && mediaUrl) {
+        try {
+          const indexResult = await indexAiDocumentFromUrl({
+            title: backupFile.name,
+            url: mediaUrl,
+            mimeType: backupFile.type,
+            sessionId,
+          });
+          if (!indexResult.success) {
+            console.warn("AI document indexing skipped:", indexResult.error);
+          }
+        } catch (indexError) {
+          console.warn("AI document indexing failed after message persistence:", indexError);
+        }
+      }
     } catch (msgErr: any) {
       handleFailure("Error al guardar tu mensaje en la base de datos.");
       return;
