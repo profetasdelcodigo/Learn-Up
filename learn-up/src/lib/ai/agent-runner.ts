@@ -61,6 +61,11 @@ function toolResultForModel(action: ToolAction, result: ToolResult): string {
   });
 }
 
+function pendingResponse(actions: ToolAction[]): string {
+  if (actions.length === 1) return `Preparé una acción para ti: ${actions[0].description}`;
+  return `Preparé ${actions.length} acciones para ti. Revisa y autoriza las que quieras ejecutar.`;
+}
+
 export async function runAgentLoop(
   systemPrompt: string,
   history: { role: "user" | "assistant" | "system"; content: string | any[] }[] = [],
@@ -95,7 +100,9 @@ export async function runAgentLoop(
     }
     lastCleanText = cleanText;
 
-    if (!actions.length) return { response: cleanText, executedActions: executedActions.length ? executedActions : undefined };
+    if (!actions.length) {
+      return { response: cleanText, executedActions: executedActions.length ? executedActions : undefined };
+    }
 
     const pending: ToolAction[] = [];
     const executable: ToolAction[] = [];
@@ -113,10 +120,18 @@ export async function runAgentLoop(
     }
 
     if (pending.length) {
-      return { response: cleanText, actions: pending, executedActions: executedActions.length ? executedActions : undefined };
+      return {
+        response: cleanText || pendingResponse(pending),
+        actions: pending,
+        executedActions: executedActions.length ? executedActions : undefined,
+      };
     }
+
     if (!executable.length) {
-      return { response: cleanText || "No tengo autorización para realizar esa acción.", executedActions: executedActions.length ? executedActions : undefined };
+      return {
+        response: cleanText || "No tengo autorización para realizar esa acción.",
+        executedActions: executedActions.length ? executedActions : undefined,
+      };
     }
 
     const allResults: Array<{ action: ToolAction; state: ToolActionState; result: ToolResult }> = [];
@@ -130,7 +145,11 @@ export async function runAgentLoop(
           console.log(`[TOOL] id=${action.tool}-${started} name=${action.tool} status=${result.success ? "success" : "error"}`);
           return { action, state: result.success ? "success" as const : "error" as const, result };
         } catch (error: any) {
-          const result: ToolResult = { success: false, displayMessage: "No se pudo completar la acción.", error: error?.message || "Error de herramienta" };
+          const result: ToolResult = {
+            success: false,
+            displayMessage: "No se pudo completar la acción.",
+            error: error?.message || "Error de herramienta",
+          };
           console.error(`[TOOL] id=${action.tool}-${started} name=${action.tool} status=error`);
           return { action, state: "error" as const, result };
         }
