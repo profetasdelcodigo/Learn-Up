@@ -3,6 +3,17 @@ import { AI_AGENT_REGISTRY } from "./agent-registry";
 
 export interface ParsedToolAction { tool: string; args: Record<string, any>; description: string; requiresConfirm: boolean; }
 
+const TOOL_ALIASES: Record<string, string> = {
+  create_calendar_event: "add_calendar_event",
+  create_group: "create_study_group",
+  edit_group: "edit_group_info",
+  react_to_message: "react_with_emoji",
+  delete_message: "delete_sent_message",
+  pin_message: "pin_important_message",
+  create_poll: "create_chat_poll",
+  schedule_break: "schedule_break",
+};
+
 const READ_ONLY_TOOLS = new Set([
   "search_web", "advanced_web_search", "browse_web_page", "fact_check", "search_wikipedia", "search_academic_paper", "deep_research",
   "search_library", "search_documents", "query_repositories", "view_own_library_items", "list_indexed_documents", "summarize_document",
@@ -36,9 +47,10 @@ const DESCRIPTION_OVERRIDES: Record<string, (args: Record<string, any>) => strin
 };
 
 function allRegisteredTools() { return Object.values(AI_AGENT_REGISTRY).flatMap(agent => agent.tools); }
+function canonicalToolName(name: string) { return TOOL_ALIASES[name] || name; }
 function isKnownTool(name: string) { return Boolean(ToolSchemas[name]); }
 function getRequiresConfirmation(name: string) {
-  const registered = allRegisteredTools().find(tool => tool.name === name);
+  const registered = allRegisteredTools().find(tool => canonicalToolName(tool.name) === name);
   return registered ? registered.requiresConfirmation : !READ_ONLY_TOOLS.has(name);
 }
 function describeTool(name: string, args: Record<string, any>) { return DESCRIPTION_OVERRIDES[name]?.(args) || `Ejecutar ${name.replace(/_/g, " ")}.`; }
@@ -94,7 +106,9 @@ export function parseToolCalls(response: string): { cleanText: string; actions: 
   const actions: ParsedToolAction[] = [];
   for (const candidate of candidateObjects(response)) {
     try {
-      const parsed = JSON.parse(candidate), toolName = toolNameFromJson(parsed);
+      const parsed = JSON.parse(candidate);
+      const rawName = toolNameFromJson(parsed);
+      const toolName = rawName ? canonicalToolName(rawName) : null;
       if (!toolName || !isKnownTool(toolName)) continue;
       const schema = ToolSchemas[toolName];
       const validation = schema.safeParse(normalizeArguments(parsed));
