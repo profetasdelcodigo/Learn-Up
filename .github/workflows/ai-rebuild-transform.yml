@@ -1,0 +1,49 @@
+name: AI Reconstruction Transform
+
+on:
+  push:
+    branches: [ai-rebuild-critical]
+
+permissions:
+  contents: write
+
+jobs:
+  transform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: learn-up/package-lock.json
+      - name: Install
+        working-directory: learn-up
+        run: npm ci
+      - name: Transform
+        run: node scripts/ai-rebuild-transform.mjs
+      - name: Verify
+        working-directory: learn-up
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+          NEXT_PUBLIC_SITE_URL: https://learn-up-qmgx.onrender.com
+          AI_PROVIDER: gemini
+        run: |
+          npm run lint
+          npx tsc --noEmit
+          npm test
+          npm run build
+      - name: Commit transformed files
+        run: |
+          rm -f scripts/ai-rebuild-transform.mjs .github/workflows/ai-rebuild-transform.yml
+          git config user.name "learn-up-ai-rebuild"
+          git config user.email "actions@github.com"
+          git add learn-up/src learn-up/supabase/migrations
+          git add -u scripts/ai-rebuild-transform.mjs .github/workflows/ai-rebuild-transform.yml || true
+          git diff --cached --quiet && exit 0
+          git commit -m "refactor(ai): stabilize chat state and canonical tool policy"
+          git push
