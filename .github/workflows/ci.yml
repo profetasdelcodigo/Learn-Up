@@ -84,10 +84,10 @@ jobs:
         working-directory: .
         run: |
           node scripts/fix-lint-blockers.mjs
-          if ! git diff --quiet -- learn-up/src/app/legal/page.tsx learn-up/src/lib/ai-tools.ts; then
+          if ! git diff --quiet -- learn-up/src/app/legal/page.tsx learn-up/src/components/LegalGate.tsx learn-up/src/lib/ai-tools.ts; then
             git config user.name "learn-up-ci"
             git config user.email "actions@github.com"
-            git add learn-up/src/app/legal/page.tsx learn-up/src/lib/ai-tools.ts
+            git add learn-up/src/app/legal/page.tsx learn-up/src/components/LegalGate.tsx learn-up/src/lib/ai-tools.ts
             git commit -m "fix(ci): repair lint blockers"
             git push
           fi
@@ -101,6 +101,18 @@ jobs:
             git config user.email "actions@github.com"
             git add learn-up/src/components/AIChatComponent.tsx learn-up/src/actions/ai-tutor.ts learn-up/src/lib/ai.ts
             git commit -m "fix(ai): repair skill routing and attachment state"
+            git push
+          fi
+
+      - name: Apply autopilot UI fix
+        working-directory: .
+        run: |
+          node scripts/fix-autopilot-ui.mjs
+          if ! git diff --quiet -- learn-up/src/components/AIChatComponent.tsx; then
+            git config user.name "learn-up-ci"
+            git config user.email "actions@github.com"
+            git add learn-up/src/components/AIChatComponent.tsx
+            git commit -m "fix(ai): prevent autopilot tool double execution"
             git push
           fi
 
