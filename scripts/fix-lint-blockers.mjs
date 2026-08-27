@@ -13,22 +13,15 @@ function update(file, transform) {
   return true;
 }
 
-update("learn-up/src/app/legal/page.tsx", (s) =>
-  s.replace(/trimmed\.replace\(\/\^###\\s\*\/, &quot;\)/g, 'trimmed.replace(/^###\\s*/, "")')
-   .replace(/trimmed\.replace\(\/\^##\\s\*\/, &quot;\)/g, 'trimmed.replace(/^##\\s*/, "")')
-   .replace(/trimmed\.replace\(\/\^#\\s\*\/, &quot;trimmed.replace(/^#\\s*/, "")')
-   .replace(/trimmed\.replace\(\/\^- \/, &quot;\)/g, 'trimmed.replace(/^- /, "")')
-);
-
 update("learn-up/src/components/LegalGate.tsx", (s) =>
   s.replace("Children's Online Privacy Protection Act", "Children&apos;s Online Privacy Protection Act")
-   .replace('("Jarvis")', '(&quot;Jarvis&quot;)')
+   .replace('(\"Jarvis\")', '(&quot;Jarvis&quot;)')
 );
 
 update("learn-up/src/lib/ai-tools.ts", (s) =>
   s.replace(
-    /let \{ title, description, date, start_time, end_time, recurrence_rule, reminder_minutes \} = args;/g,
-    'const { title, description, recurrence_rule, reminder_minutes } = args;\n        let { date } = args;'
+    /const \{ title, description, recurrence_rule, reminder_minutes \} = args;/g,
+    'const { title, description, start_time, end_time, recurrence_rule, reminder_minutes } = args;'
   )
 );
 
