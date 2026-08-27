@@ -506,17 +506,11 @@ export default function AIChatComponent({
       }
       if (!messagePersisted) {
         if (!messagePersisted) {
-        if (!messagePersisted) {
-        if (!messagePersisted) {
         setMessages((prev) => prev.filter((m) => m.clientMessageId !== clientMessageId));
       } else {
-        setMessages((prev) => prev.map((m) => m.clientMessageId === clientMessageId ? { ...m, status: "failed" } : m));
-      }
-      } else {
-        setMessages((prev) => prev.map((m) => m.clientMessageId === clientMessageId ? { ...m, status: "failed" } : m));
-      }
-      } else {
-        setMessages((prev) => prev.map((m) => m.clientMessageId === clientMessageId ? { ...m, status: "failed" } : m));
+        setMessages((prev) => prev.map((m) =>
+          m.clientMessageId === clientMessageId ? { ...m, status: "failed" } : m
+        ));
       }
       } else {
         setMessages((prev) => prev.map((m) => m.clientMessageId === clientMessageId ? { ...m, status: "failed" } : m));
@@ -564,8 +558,6 @@ export default function AIChatComponent({
     }
 
     let mediaUrl: string | undefined;
-    let mediaMessageSaved = false;
-    let mediaMessageSaved = false;
 
     if (backupFile) {
       setUploadingMedia(true);
@@ -601,7 +593,6 @@ export default function AIChatComponent({
           clientMessageId,
         );
         if (mediaMessage?.error) throw new Error(mediaMessage.error);
-        mediaMessageSaved = true;
         setMessages((prev) => prev.map((m) =>
           m.clientMessageId === clientMessageId ? { ...m, media_url: mediaUrl, status: "sending" } : m
         ));
@@ -618,7 +609,6 @@ export default function AIChatComponent({
           clientMessageId,
         );
         if (mediaMessage?.error) throw new Error(mediaMessage.error);
-        mediaMessageSaved = true;
         setMessages((prev) => prev.map((m) =>
           m.clientMessageId === clientMessageId ? { ...m, media_url: mediaUrl, status: "sending" } : m
         ));
@@ -636,7 +626,6 @@ export default function AIChatComponent({
     try {
       const savedUserMessage = await addAiMessage(sessionId, "user", userMessage, mediaUrl, mediaType, undefined, clientMessageId);
       if (savedUserMessage?.error) throw new Error(savedUserMessage.error);
-      mediaMessageSaved = true;
       messagePersisted = true;
 
       // Indexing is deliberately AFTER message persistence.

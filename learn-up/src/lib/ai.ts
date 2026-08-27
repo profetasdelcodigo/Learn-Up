@@ -13,7 +13,7 @@ const AI_MULTIMODAL_TIMEOUT_MS = 60000; // Un minuto entero para procesamiento m
 
 export const AI_MODELS = {
   groqFast: "openai/gpt-oss-20b",
-  openRouterFast: "meta-llama/llama-3.1-8b-instruct:free",
+  openRouterFast: process.env.OPENROUTER_MODEL || "openrouter/free",
   geminiFast: process.env.GEMINI_TEXT_MODEL || "gemini-3.6-flash",
   geminiMultimodal: process.env.GEMINI_MULTIMODAL_MODEL || "gemini-3.7-flash",
   nvidiaReasoning: "nvidia/nemotron-3-ultra-550b-a55b",

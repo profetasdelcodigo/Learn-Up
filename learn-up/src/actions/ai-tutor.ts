@@ -9,8 +9,8 @@ import { runAgentLoop } from "@/lib/ai/agent-runner";
 import { buildAgentSystemPrompt } from "@/lib/ai/agent-registry";
 import { resolveSkillPackTools } from "@/lib/ai/skill-pack-tools";
 
-const MODEL = "gemini-3.6-flash";
-const VISION_MODEL = "gemini-3.6-flash";
+const MODEL = process.env.GEMINI_TEXT_MODEL || "gemini-3.7-flash";
+const VISION_MODEL = process.env.GEMINI_MULTIMODAL_MODEL || "gemini-3.7-flash";
 
 async function extractOfficeText(buffer: Buffer, fileType: string): Promise<string> {
   const officeParser = await import("officeparser");
@@ -301,7 +301,7 @@ export async function askProfessor(
 
     // Eliminamos el fast-path restrictivo porque comandos cortos como "Hola, abre spotify" pierden sus herramientas.
     const selectedToolNames = resolveSkillPackTools(activeSkills);
-    const toolDefs = `\n\${getToolDefinitions(selectedToolNames)}`;
+    const toolDefs = `\n${getToolDefinitions(selectedToolNames)}`;
 
     const systemPrompt = `${getTimeContext()}
 
