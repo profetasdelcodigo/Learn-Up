@@ -505,11 +505,7 @@ export default function AIChatComponent({
         }
       }
       if (!messagePersisted) {
-        if (!messagePersisted) {
         setMessages((prev) => prev.filter((m) => m.clientMessageId !== clientMessageId));
-      } else {
-        setMessages((prev) => prev.map((m) => m.clientMessageId === clientMessageId ? { ...m, status: "failed" } : m));
-      }
       } else {
         setMessages((prev) => prev.map((m) =>
           m.clientMessageId === clientMessageId ? { ...m, status: "failed" } : m
@@ -582,23 +578,6 @@ export default function AIChatComponent({
           .from("ai_media")
           .getPublicUrl(filePath);
         mediaUrl = data.publicUrl;
-
-        // CRITICAL: persist the user's attachment immediately.
-        // Indexing/OCR/embeddings are secondary and must never make the chat message disappear.
-        const mediaMessage = await addAiMessage(
-          sessionId,
-          "user",
-          userMessage,
-          mediaUrl,
-          mediaType,
-          undefined,
-          clientMessageId,
-        );
-        if (mediaMessage?.error) throw new Error(mediaMessage.error);
-        mediaMessageSaved = true;
-        setMessages((prev) => prev.map((m) =>
-          m.clientMessageId === clientMessageId ? { ...m, media_url: mediaUrl, status: "sending" } : m
-        ));
 
         // Persist attachment metadata before any slow OCR/indexing work.
         const mediaMessage = await addAiMessage(
