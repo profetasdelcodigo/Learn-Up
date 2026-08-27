@@ -1,0 +1,32 @@
+name: One-time Quality Repair
+
+on:
+  push:
+    branches: [ai-rebuild-critical]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Apply repair script
+        run: node scripts/quality-repair.mjs
+      - name: Commit repaired source and remove one-time files
+        run: |
+          rm -f scripts/quality-repair.mjs .github/workflows/quality-repair.yml
+          git config user.name "learn-up-ci"
+          git config user.email "actions@github.com"
+          git add learn-up/src
+          git add -u scripts/quality-repair.mjs .github/workflows/quality-repair.yml
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "fix: clear lint blockers after AI rebuild"
+          git push
