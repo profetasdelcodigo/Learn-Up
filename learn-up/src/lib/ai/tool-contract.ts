@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ToolSchemas } from "@/lib/ai-tools";
+import { PanelToolSchemas, isPanelTool } from "./panel-tools";
 
 export type ToolCategory = "web" | "library" | "calendar" | "chat" | "learning" | "content" | "media" | "research" | "stats" | "profile" | "education" | "nutrition";
 export type ToolRisk = "low" | "medium" | "high";
@@ -29,8 +30,8 @@ const READ_ONLY = new Set([
   "read_unread_messages", "read_full_conversation", "view_group_members", "search_chat_history", "view_study_stats", "generate_weekly_report",
   "view_exam_history", "analyze_strengths_weaknesses", "view_habit_streaks", "detect_procrastination", "generate_academic_dashboard",
   "view_friends_list", "view_friend_profile", "view_recent_activity", "view_ai_sessions", "view_ai_personalities", "view_ai_memory",
-  "view_ai_token_usage", "view_daily_quests", "view_leaderboard", "view_global_ranking", "view_friends_ranking", "view_achievements",
-  "view_inventory", "view_shop", "view_shop_specials", "view_duel_history", "view_guild_stats", "view_pomodoro_stats", "view_mood_history",
+  "view_ai_token_usage", "view_daily_quests", "view_leaderboard", "view_global_ranking", "view_friends_ranking", "view_achievements", "view_inventory",
+  "view_shop", "view_shop_specials", "view_duel_history", "view_guild_stats", "view_pomodoro_stats", "view_mood_history",
   "view_screen_time", "view_water_stats", "view_sleep_stats", "get_ergonomic_advice", "view_report_status", "view_blocked_users",
   "view_appeal_status", "view_feature_roadmap", "view_bug_reports", "read_system_announcements", "search_image", "analyze_image",
   "describe_math_image", "generate_summary", "generate_presentation_outline", "generate_glossary", "generate_comparison_table", "generate_code",
@@ -38,11 +39,13 @@ const READ_ONLY = new Set([
   "generate_reading_sheet", "generate_rubric", "generate_research_report", "generate_syllabus", "generate_mermaid_diagram",
   "generate_podcast_script", "solve_math_problem", "analyze_literary_text", "conjugate_verb", "translate_with_explanation",
   "explain_with_analogy", "socratic_debate",
+  // Panel reads
+  "read_professor_panel", "read_counselor_panel", "read_nutrition_panel",
 ]);
 
 const HIGH_RISK = new Set(["delete_calendar_event", "delete_habit", "delete_shared_event", "delete_shared_message", "leave_shared_calendar", "trigger_webhook", "update_profile"]);
-const LOW_RISK_WRITES = new Set(["add_habit", "complete_habit_entry", "undo_habit_entry", "save_learned_concept"]);
-const PARALLEL_SAFE = new Set(["search_web", "advanced_web_search", "browse_web_page", "search_news", "search_academic_paper", "search_library", "search_documents", "search_image", "fact_check"]);
+const LOW_RISK_WRITES = new Set(["add_habit", "complete_habit_entry", "undo_habit_entry", "save_learned_concept", "add_professor_formula", "add_professor_outline_item", "set_professor_document", "add_counselor_goal", "toggle_counselor_goal", "set_counselor_mood", "save_counselor_journal", "set_nutrition_macros", "add_shopping_item", "schedule_meal", "set_recipe_panel"]);
+const PARALLEL_SAFE = new Set(["search_web", "advanced_web_search", "browse_web_page", "search_news", "search_academic_paper", "search_library", "search_documents", "search_image", "fact_check", "read_professor_panel", "read_counselor_panel", "read_nutrition_panel"]);
 
 function categoryFor(name: string): ToolCategory {
   if (name.includes("web") || name === "browse_web_page" || name === "open_url") return "web";
@@ -56,6 +59,8 @@ function categoryFor(name: string): ToolCategory {
   if (name.includes("profile") || name.includes("user")) return "profile";
   if (name.includes("exam") || name.includes("math") || name.includes("academic")) return "education";
   if (name.includes("recipe") || name.includes("nutrition") || name.includes("macro") || name.includes("shopping")) return "nutrition";
+  if (name.includes("professor")) return "education";
+  if (name.includes("counselor")) return "content";
   return "content";
 }
 
@@ -65,8 +70,12 @@ function riskFor(name: string): ToolRisk {
   return "medium";
 }
 
+export function getToolSchema(name: string): z.ZodType | null {
+  return ToolSchemas[name] || (isPanelTool(name) ? PanelToolSchemas[name] : null);
+}
+
 export function getToolDefinition(name: string): ToolDefinition | null {
-  const schema = ToolSchemas[name];
+  const schema = getToolSchema(name);
   if (!schema) return null;
   const readOnly = READ_ONLY.has(name);
   const risk = riskFor(name);
@@ -87,7 +96,9 @@ export function getToolDefinition(name: string): ToolDefinition | null {
 }
 
 export function getToolDefinitions(names?: string[]): ToolDefinition[] {
-  return (names ?? Object.keys(ToolSchemas)).map(getToolDefinition).filter((v): v is ToolDefinition => Boolean(v));
+  const allNames = [...Object.keys(ToolSchemas), ...Object.keys(PanelToolSchemas)];
+  const source = names ? names : [...new Set(allNames)];
+  return source.map(getToolDefinition).filter((v): v is ToolDefinition => Boolean(v));
 }
 
 export function shouldExecuteTool(tool: ToolDefinition, mode: ToolMode, risk: ToolRisk = tool.risk, permissions: string[] = []): ToolExecutionDecision {
