@@ -4,9 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 
 export async function getAiSessions(aiType: string) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
   const { data, error } = await supabase
@@ -51,9 +49,7 @@ export async function getAiMessages(sessionId: string) {
 
 export async function createAiSession(aiType: string, title: string) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Unauthorized" };
 
   const { data, error } = await supabase
@@ -72,7 +68,8 @@ export async function addAiMessage(
   content: string,
   mediaUrl?: string,
   mediaType?: string,
-  toolCalls?: any[]
+  toolCalls?: any[],
+  clientMessageId?: string,
 ) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -88,17 +85,26 @@ export async function addAiMessage(
     return { error: "Unauthorized or session not found" };
   }
 
-  const payload: any = {
-      session_id: sessionId,
-      role,
-      content,
-      media_url: mediaUrl || null,
-      media_type: mediaType || null,
-  };
-  
-  if (toolCalls && toolCalls.length > 0) {
-      payload.tool_calls = toolCalls;
+  if (clientMessageId) {
+    const { data: existing } = await supabase
+      .from("ai_messages")
+      .select("*")
+      .eq("session_id", sessionId)
+      .eq("client_message_id", clientMessageId)
+      .maybeSingle();
+    if (existing) return { message: existing };
   }
+
+  const payload: any = {
+    session_id: sessionId,
+    role,
+    content,
+    media_url: mediaUrl || null,
+    media_type: mediaType || null,
+    client_message_id: clientMessageId || null,
+  };
+
+  if (toolCalls && toolCalls.length > 0) payload.tool_calls = toolCalls;
 
   const { data, error } = await supabase
     .from("ai_messages")
@@ -106,9 +112,20 @@ export async function addAiMessage(
     .select()
     .single();
 
-  if (error) return { error: error.message };
+  if (error) {
+    // Unique-index race: another request won the insert; reconcile with it.
+    if (clientMessageId) {
+      const { data: existing } = await supabase
+        .from("ai_messages")
+        .select("*")
+        .eq("session_id", sessionId)
+        .eq("client_message_id", clientMessageId)
+        .maybeSingle();
+      if (existing) return { message: existing };
+    }
+    return { error: error.message };
+  }
 
-  // Update session updated_at
   await supabase
     .from("ai_sessions")
     .update({ updated_at: new Date().toISOString() })
