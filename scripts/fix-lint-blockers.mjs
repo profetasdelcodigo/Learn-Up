@@ -16,8 +16,13 @@ function update(file, transform) {
 update("learn-up/src/app/legal/page.tsx", (s) =>
   s.replace(/trimmed\.replace\(\/\^###\\s\*\/, &quot;\)/g, 'trimmed.replace(/^###\\s*/, "")')
    .replace(/trimmed\.replace\(\/\^##\\s\*\/, &quot;\)/g, 'trimmed.replace(/^##\\s*/, "")')
-   .replace(/trimmed\.replace\(\/\^#\\s\*\/, &quot;\)/g, 'trimmed.replace(/^#\\s*/, "")')
+   .replace(/trimmed\.replace\(\/\^#\\s\*\/, &quot;trimmed.replace(/^#\\s*/, "")')
    .replace(/trimmed\.replace\(\/\^- \/, &quot;\)/g, 'trimmed.replace(/^- /, "")')
+);
+
+update("learn-up/src/components/LegalGate.tsx", (s) =>
+  s.replace("Children's Online Privacy Protection Act", "Children&apos;s Online Privacy Protection Act")
+   .replace('("Jarvis")', '(&quot;Jarvis&quot;)')
 );
 
 update("learn-up/src/lib/ai-tools.ts", (s) =>
