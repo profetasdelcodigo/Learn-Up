@@ -560,6 +560,7 @@ export default function AIChatComponent({
     let mediaUrl: string | undefined;
     let mediaMessageSaved = false;
     let mediaMessageSaved = false;
+    let mediaMessageSaved = false;
 
     if (backupFile) {
       setUploadingMedia(true);
@@ -582,6 +583,23 @@ export default function AIChatComponent({
           .from("ai_media")
           .getPublicUrl(filePath);
         mediaUrl = data.publicUrl;
+
+        // CRITICAL: persist the user's attachment immediately.
+        // Indexing/OCR/embeddings are secondary and must never make the chat message disappear.
+        const mediaMessage = await addAiMessage(
+          sessionId,
+          "user",
+          userMessage,
+          mediaUrl,
+          mediaType,
+          undefined,
+          clientMessageId,
+        );
+        if (mediaMessage?.error) throw new Error(mediaMessage.error);
+        mediaMessageSaved = true;
+        setMessages((prev) => prev.map((m) =>
+          m.clientMessageId === clientMessageId ? { ...m, media_url: mediaUrl, status: "sending" } : m
+        ));
 
         // Persist attachment metadata before any slow OCR/indexing work.
         const mediaMessage = await addAiMessage(
