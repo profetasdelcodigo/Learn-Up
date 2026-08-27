@@ -470,6 +470,8 @@ export default function AIChatComponent({
       media_type: mediaType,
     };
 
+    let messagePersisted = false;
+
     const handleFailure = (errMessage: string) => {
       setError(errMessage);
       setInput(backupInput);
@@ -487,7 +489,11 @@ export default function AIChatComponent({
           fileInputRef.current.value = "";
         }
       }
-      setMessages((prev) => prev.filter((m) => m.clientMessageId !== clientMessageId));
+      if (!messagePersisted) {
+        setMessages((prev) => prev.filter((m) => m.clientMessageId !== clientMessageId));
+      } else {
+        setMessages((prev) => prev.map((m) => m.clientMessageId === clientMessageId ? { ...m, status: "failed" } : m));
+      }
       setLoading(false);
       setUploadingMedia(false);
     };
@@ -567,6 +573,7 @@ export default function AIChatComponent({
     try {
       const savedUserMessage = await addAiMessage(sessionId, "user", userMessage, mediaUrl, mediaType, undefined, clientMessageId);
       if (savedUserMessage?.error) throw new Error(savedUserMessage.error);
+      messagePersisted = true;
 
       // Indexing is deliberately AFTER message persistence.
       // Failure/latency here must never make the user's attachment disappear from chat.
