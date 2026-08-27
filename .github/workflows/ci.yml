@@ -52,6 +52,20 @@ jobs:
             fi
           fi
 
+      - name: Apply attachment persistence repair
+        working-directory: .
+        run: |
+          if [ -f scripts/fix-attachments-persistence.mjs ]; then
+            node scripts/fix-attachments-persistence.mjs
+            if ! git diff --quiet -- learn-up/src/components/AIChatComponent.tsx; then
+              git config user.name "learn-up-ci"
+              git config user.email "actions@github.com"
+              git add learn-up/src/components/AIChatComponent.tsx
+              git commit -m "fix(chat): persist attachments before indexing"
+              git push
+            fi
+          fi
+
       - name: Lint
         run: npm run lint
 
