@@ -1,0 +1,32 @@
+name: Repair Runtime Wiring
+
+on:
+  push:
+    branches: [ai-rebuild-critical]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Apply runtime repair
+        run: node scripts/fix-chat-state.mjs
+      - name: Commit runtime repair and remove one-time script
+        run: |
+          rm -f scripts/fix-chat-state.mjs .github/workflows/repair-runtime.yml
+          git config user.name "learn-up-ci"
+          git config user.email "actions@github.com"
+          git add learn-up/src .github/workflows/ci.yml
+          git add -u scripts/fix-chat-state.mjs .github/workflows/repair-runtime.yml || true
+          git diff --cached --quiet && exit 0
+          git commit -m "fix(ai): wire chat state and interactive agent panels"
+          git push
