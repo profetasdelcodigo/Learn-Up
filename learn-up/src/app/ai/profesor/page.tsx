@@ -14,10 +14,10 @@ export default function ProfessorChatPage() {
   return (
     <NotebookLayout
       leftPanel={
-        <SourcesPanel 
-          aiType="profesor" 
-          currentSessionId={sessionId} 
-          onSessionChange={setSessionId} 
+        <SourcesPanel
+          aiType="profesor"
+          currentSessionId={sessionId}
+          onSessionChange={setSessionId}
         />
       }
       centerPanel={
@@ -29,7 +29,7 @@ export default function ProfessorChatPage() {
           onSubmitAction={askProfessor}
           currentSessionId={sessionId}
           onSessionChange={setSessionId}
-          defaultModel="openrouter/dots-studio/dots-3-note-preview:free"
+          defaultModel="openrouter/openrouter/free"
         />
       }
       rightPanel={<NotebookWhiteboard currentSessionId={sessionId} />}
