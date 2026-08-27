@@ -1,0 +1,29 @@
+name: Apply Chat Repair
+
+on:
+  push:
+    branches: [ai-rebuild-critical]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply deterministic repair
+        run: node scripts/apply-chat-repair.mjs
+      - name: Commit repaired chat
+        run: |
+          rm -f scripts/apply-chat-repair.mjs .github/workflows/apply-chat-repair.yml scripts/_branch_probe.txt
+          git config user.name "learn-up-ci"
+          git config user.email "actions@github.com"
+          git add learn-up/src/components/AIChatComponent.tsx
+          git add -u scripts/apply-chat-repair.mjs .github/workflows/apply-chat-repair.yml scripts/_branch_probe.txt
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "fix(chat): stabilize optimistic state and tool approvals"
+          git push
