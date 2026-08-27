@@ -66,6 +66,20 @@ jobs:
             fi
           fi
 
+      - name: Apply critical AI finalization
+        working-directory: .
+        run: |
+          if [ -f scripts/fix-critical-ai.mjs ]; then
+            node scripts/fix-critical-ai.mjs
+            if ! git diff --quiet -- learn-up/src/components/AIChatComponent.tsx learn-up/src/components/JarvisGlobalWidget.tsx learn-up/src/actions/jarvis.ts learn-up/src/actions/ai-tutor.ts learn-up/src/lib/ai/agent-registry.ts learn-up/src/lib/ai/agent-runner.ts; then
+              git config user.name "learn-up-ci"
+              git config user.email "actions@github.com"
+              git add learn-up/src/components/AIChatComponent.tsx learn-up/src/components/JarvisGlobalWidget.tsx learn-up/src/actions/jarvis.ts learn-up/src/actions/ai-tutor.ts learn-up/src/lib/ai/agent-registry.ts learn-up/src/lib/ai/agent-runner.ts
+              git commit -m "fix(ai): finalize tool routing, panel access and chat state"
+              git push
+            fi
+          fi
+
       - name: Lint
         run: npm run lint
 
