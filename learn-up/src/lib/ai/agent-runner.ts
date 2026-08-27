@@ -61,6 +61,17 @@ function toolResultForModel(action: ToolAction, result: ToolResult): string {
   });
 }
 
+function sanitizeSystemPrompt(prompt: string): string {
+  return prompt
+    .replace(/\n?\s*\d+\.\s*Si necesitas usar una herramienta \(tool\), DEBES responder EXCLUSIVAMENTE con un bloque tool \{\.\.\.\} tal como espera el sistema\.?/gi, "")
+    .replace(/\n?\s*La herramienta debe ser llamada en formato JSON\.?/gi, "")
+    .replace(/\n?\s*DEBES responder EXCLUSIVAMENTE con un bloque tool[^\n]*/gi, "")
+    .replace(/\n?\s*Dentro de <thinking>[\s\S]*?NUNCA omitas el bloque <thinking>\.?/gi, "")
+    .replace(/\n?\s*Antes de responder al usuario, DEBES incluir un bloque de pensamiento oculto[\s\S]*?NUNCA omitas el bloque <thinking>\.?/gi, "")
+    .replace(/\n?\s*Siempre que exista una tool[\s\S]*?formato JSON/gi, "")
+    .trim();
+}
+
 function pendingResponse(actions: ToolAction[]): string {
   if (actions.length === 1) return `Preparé una acción para ti: ${actions[0].description}`;
   return `Preparé ${actions.length} acciones para ti. Revisa y autoriza las que quieras ejecutar.`;
@@ -78,7 +89,7 @@ export async function runAgentLoop(
   const permissions = options.permissions ?? ["ai.tools.execute"];
   const executedActions: ToolAction[] = [];
   const currentMessages: { role: "user" | "assistant" | "system"; content: string | any[] }[] = [
-    { role: "system", content: systemPrompt },
+    { role: "system", content: sanitizeSystemPrompt(systemPrompt) },
     ...history,
     { role: "user", content: userMessage },
   ];
