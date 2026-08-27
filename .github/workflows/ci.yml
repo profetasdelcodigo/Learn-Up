@@ -82,7 +82,15 @@ jobs:
 
       - name: Repair lint blockers
         working-directory: .
-        run: node scripts/fix-lint-blockers.mjs
+        run: |
+          node scripts/fix-lint-blockers.mjs
+          if ! git diff --quiet -- learn-up/src/app/legal/page.tsx learn-up/src/lib/ai-tools.ts; then
+            git config user.name "learn-up-ci"
+            git config user.email "actions@github.com"
+            git add learn-up/src/app/legal/page.tsx learn-up/src/lib/ai-tools.ts
+            git commit -m "fix(ci): repair lint blockers"
+            git push
+          fi
 
       - name: Lint
         run: npm run lint
