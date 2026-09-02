@@ -6,7 +6,7 @@
 -- We ensure the parameter is typed strictly as public.vector.
 
 CREATE OR REPLACE FUNCTION public.match_knowledge_nodes(
-  query_embedding public.vector(768),
+  query_embedding extensions.vector(768),
   match_threshold float DEFAULT 0.65,
   match_count int DEFAULT 5,
   p_user_id uuid DEFAULT NULL

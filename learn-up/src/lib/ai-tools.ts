@@ -1,3 +1,4 @@
+import { AI_AGENT_REGISTRY } from './ai/agent-registry';
 import { createClient } from "@/utils/supabase/server";
 import { readCalendarEvents, updateCalendarEvent, deleteCalendarEvent, readHabitTracker, completeHabitInTracker, undoHabitInTracker, deleteHabitFromTracker, addHabitToTracker } from "@/actions/calendar";
 import { ensurePrivateRoom, sendMessage } from "@/actions/chat";
@@ -10,7 +11,7 @@ import { generateFalImage, generateFalVideo } from "@/lib/fal";
 import { z } from "zod";
 
 // â”€â”€ Schemas Zod para validar argumentos del LLM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const ToolSchemas: Record<string, z.ZodType> = {
+export const ToolSchemas: Record<string, z.ZodType> = {
   open_url: z.object({
     url: z.url(),
     title: z.string().optional(),
@@ -1113,7 +1114,10 @@ function buildAction(toolJson: any): ToolAction | null {
     args = result.data;
   }
 
-  const needsConfirm = !AUTO_EXECUTE_TOOLS.includes(toolName);
+  const registryTool = require('./ai/agent-registry').AI_AGENT_REGISTRY.find((t: any) => t.name === toolName);
+  const needsConfirm = registryTool 
+    ? registryTool.requiresConfirmation 
+    : !AUTO_EXECUTE_TOOLS.includes(toolName);
 
   const descriptions: Record<string, string> = {
     open_url: `¿Quieres abrir ${args.title || args.url}?`,
@@ -1419,7 +1423,7 @@ function buildAction(toolJson: any): ToolAction | null {
 function stripToolLeaks(text: string): string {
   let clean = text;
   // Remove ```tool ... ``` blocks (any language hint)
-  clean = clean.replace(/```(?:tool|json|javascript|js)?\s*\n?\{[\s\S]*?\}\n?```/g, "");
+  clean = clean.replace(/```(?:tool|json|javascript|js|typescript)?\s*\n?\{[\s\S]*?\}\n?```/g, "");
   // Remove <tool_call>...</tool_call> XML-style tags
   clean = clean.replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, "");
   // Remove <function_call>...</function_call>
@@ -1427,42 +1431,48 @@ function stripToolLeaks(text: string): string {
   // Remove <thinking>...</thinking> blocks (Consejero uses these)
   clean = clean.replace(/<thinking>[\s\S]*?<\/thinking>/gi, "");
   // Remove standalone JSON blobs that look like tool calls: {"tool": "...", ...} on their own line
-  clean = clean.replace(/^\s*\{[^{}]*"tool"\s*:\s*"[^"]+?"[^{}]*\}\s*$/gm, "");
-  // Remove lines that are just raw JSON objects with "name"/"function" keys (some models)
-  clean = clean.replace(/^\s*\{[^{}]*"(?:name|function)"\s*:\s*"[^"]+?"[^{}]*\}\s*$/gm, "");
+  clean = clean.replace(/^\s*\{[^{}]*"tool"\s*:\s*"[^"]+?"[\s\S]*?\}\s*$/gm, "");
+  // Remove lines that are just raw JSON objects with "name"/"function"/"function_call" keys
+  clean = clean.replace(/^\s*\{[^{}]*"(?:name|function|function_call)"\s*:\s*"[^"]+?"[\s\S]*?\}\s*$/gm, "");
+  // Remove tool(...) style calls that some models emit
+  clean = clean.replace(/^\s*tool\s*\(\s*\{[\s\S]*?\}\s*\)\s*$/gm, "");
+  // Remove lines like: {"tool": "search_web", "args": {"query": "..."}}
+  clean = clean.replace(/\{"tool":\s*"[^"]+",\s*"args":\s*\{[^}]*\}\}/g, "");
   // Clean up excessive blank lines
   clean = clean.replace(/\n{3,}/g, "\n\n");
   return clean.trim();
 }
 
-export async function parseToolCall(response: string): Promise<{ cleanText: string; action: ToolAction | null }> {
+export async function parseToolCall(response: string): Promise<{ cleanText: string; action: ToolAction | null; actions: ToolAction[] }> {
   let cleanText = response;
   let action: ToolAction | null = null;
+  let actions: ToolAction[] = [];
 
   // Pattern 1: ```tool\n{...}\n``` or ```json\n{...}\n```
-  const toolBlockRegex = /```(?:tool|json)?\s*\n?(\{[\s\S]*?\})\n?```/;
+  const toolBlockRegex = /```(?:tool|json|javascript|js|typescript)?\s*\n?(\{[\s\S]*?\})\n?```/g;
   // Pattern 2: <tool_call>{...}</tool_call>
-  const xmlToolRegex = /<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/i;
+  const xmlToolRegex = /<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/gi;
   // Pattern 3: <function_call>{...}</function_call>
-  const xmlFnRegex = /<function_call>\s*([\s\S]*?)\s*<\/function_call>/i;
+  const xmlFnRegex = /<function_call>\s*([\s\S]*?)\s*<\/function_call>/gi;
   // Pattern 4: Standalone JSON on its own line like {"tool": "generate_image", "args": {...}}
-  const standaloneJsonRegex = /^\s*(\{"(?:tool|name|function)"\s*:\s*"[^"]+?"[\s\S]*?\})\s*$/m;
+  const standaloneJsonRegex = /^\s*(\{"(?:tool|name|function|function_call)"\s*:\s*"[^"]+?"[\s\S]*?\})\s*$/gm;
 
   const patterns = [toolBlockRegex, xmlToolRegex, xmlFnRegex, standaloneJsonRegex];
 
   for (const regex of patterns) {
-    const match = regex.exec(response);
-    if (match && match[1]) {
-      try {
-        const toolJson = JSON.parse(match[1].trim());
-        const builtAction = buildAction(toolJson);
-        if (builtAction) {
-          action = builtAction;
-          cleanText = response.replace(match[0], "").trim();
-          break;
+    let match;
+    while ((match = regex.exec(response)) !== null) {
+      if (match[1]) {
+        try {
+          const toolJson = JSON.parse(match[1].trim());
+          const builtAction = buildAction(toolJson);
+          if (builtAction) {
+            actions.push(builtAction);
+            cleanText = cleanText.replace(match[0], "").trim();
+          }
+        } catch {
+          // ignore parsing errors and continue
         }
-      } catch {
-        continue;
       }
     }
   }
@@ -1470,7 +1480,7 @@ export async function parseToolCall(response: string): Promise<{ cleanText: stri
   // Always strip any residual tool syntax from the visible text
   cleanText = stripToolLeaks(cleanText);
 
-  return { cleanText, action };
+  return { cleanText, action: actions.length > 0 ? actions[0] : null, actions };
 }
 
 // â”€â”€ Ejecutor de herramientas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

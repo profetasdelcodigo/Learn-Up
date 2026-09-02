@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { BookOpen } from "lucide-react";
 import NotebookLayout from "@/components/ai/NotebookLayout";
-import AIChatComponent from "@/components/AIChatComponent";
+import StableAIChatComponent from "@/components/StableAIChatComponent";
 import NotebookWhiteboard from "@/components/NotebookWhiteboard";
-import { askProfessor } from "@/actions/ai-tutor";
+import { askProfessorStable } from "@/actions/stable-ai-agents";
 import SourcesPanel from "@/components/ai/SourcesPanel";
 
 export default function ProfessorChatPage() {
@@ -14,22 +14,22 @@ export default function ProfessorChatPage() {
   return (
     <NotebookLayout
       leftPanel={
-        <SourcesPanel 
-          aiType="profesor" 
-          currentSessionId={sessionId} 
-          onSessionChange={setSessionId} 
+        <SourcesPanel
+          aiType="profesor"
+          currentSessionId={sessionId}
+          onSessionChange={setSessionId}
         />
       }
       centerPanel={
-        <AIChatComponent
+        <StableAIChatComponent
           title="Profesor Mente"
           subtitle="Tu tutor socrático personal"
           icon={<BookOpen className="w-5 h-5 text-brand-gold" />}
           aiType="profesor"
-          onSubmitAction={askProfessor}
+          onSubmitAction={askProfessorStable}
           currentSessionId={sessionId}
           onSessionChange={setSessionId}
-          defaultModel="openrouter/dots-studio/dots-3-note-preview:free"
+          defaultModel="openrouter/openrouter/free"
         />
       }
       rightPanel={<NotebookWhiteboard currentSessionId={sessionId} />}

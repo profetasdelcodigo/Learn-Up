@@ -1,7 +1,7 @@
 -- MIGRATION: Fix pgvector RPC signature for document chunks
 
 CREATE OR REPLACE FUNCTION public.match_document_chunks (
-  query_embedding public.vector(768),
+  query_embedding extensions.vector(768),
   match_threshold float,
   match_count int,
   p_user_id uuid DEFAULT NULL

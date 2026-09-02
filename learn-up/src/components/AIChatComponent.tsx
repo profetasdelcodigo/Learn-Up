@@ -424,6 +424,11 @@ export default function AIChatComponent({
 
   useEffect(() => {
     if (currentSessionId) {
+      if (isCreatingSession.current) {
+        // Prevent clearing messages when a new session was created in the current active chat flow
+        isCreatingSession.current = false;
+        return;
+      }
       loadSessionMessages(currentSessionId);
     } else {
       setMessages([]);
@@ -503,6 +508,7 @@ export default function AIChatComponent({
     let newSession = false;
 
     if (!sessionId) {
+      isCreatingSession.current = true;
       try {
         const { session, error: sErr } = await createAiSession(
           aiType,
@@ -515,6 +521,7 @@ export default function AIChatComponent({
           newSession = true;
         }
       } catch (err: any) {
+        isCreatingSession.current = false;
         handleFailure("Error al iniciar sesión de IA. Verifica tu conexión.");
         return;
       }

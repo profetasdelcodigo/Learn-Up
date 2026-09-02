@@ -5,6 +5,7 @@ import { getTimeContext } from "@/lib/ai/time-context";
 import { createClient } from "@/utils/supabase/server";
 import { generateFalImage } from "@/lib/fal";
 import { getToolDefinitions, parseToolCall, executeToolAction, type ToolAction } from "@/lib/ai-tools";
+import { runAgentLoop } from "@/lib/ai/agent-runner";
 import { buildAgentSystemPrompt } from "@/lib/ai/agent-registry";
 
 const MODEL = "gemini-3.6-flash";
@@ -328,61 +329,25 @@ ${toolDefs}`;
 
     const truncatedHistory = history.slice(-15);
 
-    const response = await getAICompletion(
-      [
-        { role: "system", content: systemPrompt },
-        ...truncatedHistory,
-        { role: "user", content: finalMessageContent },
-      ],
-      modelId || "openrouter/nvidia/nemotron-3.5-lightning:free",
+    const result = await runAgentLoop(
+      systemPrompt,
+      truncatedHistory,
+      finalMessageContent,
+      finalModel || modelId || "openrouter/nvidia/nemotron-3.5-lightning:free",
+      {
+        sessionId,
+        userId: user.id,
+        onFormulaExtracted: async (formulas) => {
+          if (sessionId && formulas.length > 0) {
+            const { getAiEnvironment, updateAiEnvironment } = await import("./ai-environment");
+            const env = await getAiEnvironment(sessionId);
+            await updateAiEnvironment(sessionId, { formulas: [...(env?.formulas || []), ...formulas] });
+          }
+        }
+      }
     );
 
-    const rawContent = response.choices[0]?.message?.content || "";
-    let { cleanText, action } = await parseToolCall(rawContent);
-
-    const formulasMatch = cleanText.match(/<formula>(.*?)<\/formula>/g);
-    
-    if (formulasMatch && sessionId) {
-      const { getAiEnvironment, updateAiEnvironment } = await import("./ai-environment");
-      const env = await getAiEnvironment(sessionId);
-      const newFormulas = formulasMatch.map(f => f.replace(/<\/?formula>/g, "").trim());
-      await updateAiEnvironment(sessionId, { formulas: [...(env?.formulas || []), ...newFormulas] });
-      
-      // Eliminar los tags del texto final para que no ensucien el chat
-      cleanText = cleanText.replace(/<formula>.*?<\/formula>/g, "").trim();
-    }
-
-    if (action) {
-      if (!action.requiresConfirm) {
-        const result = await executeToolAction(action.tool, action.args);
-        
-        // Si es una búsqueda web o de biblioteca, retroalimentamos al modelo para que dé una respuesta natural
-        if (action.tool === "search_web" || action.tool === "search_library") {
-          const followUpPrompt = `Resultados de la herramienta ${action.tool}:\n${result.message}\n\nPor favor, usa esta información para responder a la pregunta original del usuario de forma natural.`;
-          
-          const followUpResponse = await getAICompletion(
-            [
-              { role: "system", content: systemPrompt },
-              ...truncatedHistory,
-              { role: "user", content: finalMessageContent },
-              { role: "assistant", content: cleanText },
-              { role: "user", content: followUpPrompt },
-            ],
-            finalModel
-          );
-          
-          return { response: followUpResponse.choices[0]?.message?.content || cleanText + "\n" + result.message, executedActions: [action] };
-        }
-        
-        const finalResponse = cleanText + "\n\n" + result.message;
-        return { response: finalResponse, executedActions: [action] };
-      } else {
-        // Requiere confirmación del usuario, devolvemos el texto y la acción por separado
-        return { response: cleanText, actions: [action] };
-      }
-    }
-
-    return { response: cleanText };
+    return result;
   } catch (error: any) {
     console.error(
       "Error en askProfessor:",
@@ -475,47 +440,17 @@ HERRAMIENTAS:
 
     const truncatedHistory = history.slice(-15);
 
-    const response = await getAICompletion(
-      [
-        { role: "system", content: finalSystemPrompt },
-        ...truncatedHistory,
-        { role: "user", content: finalMessageContent },
-      ],
-      modelId || "openrouter/google/gemini-2.5-flash:free",
+    const result = await runAgentLoop(
+      finalSystemPrompt,
+      truncatedHistory,
+      finalMessageContent,
+      finalModel || modelId || "openrouter/google/gemini-2.5-flash:free",
+      {
+        userId: user.id,
+      }
     );
 
-    const rawContent = response.choices[0]?.message?.content || "";
-    const { cleanText, action } = await parseToolCall(rawContent);
-
-    if (action) {
-      if (!action.requiresConfirm) {
-        const result = await executeToolAction(action.tool, action.args);
-        
-        // Si es una búsqueda web o de biblioteca, retroalimentamos al modelo para que dé una respuesta natural
-        if (action.tool === "search_web" || action.tool === "search_library") {
-          const followUpPrompt = `Resultados de la herramienta ${action.tool}:\n${result.message}\n\nPor favor, usa esta información para responder a la preocupación del usuario de forma natural.`;
-          
-          const followUpResponse = await getAICompletion(
-            [
-              { role: "system", content: finalSystemPrompt },
-              ...truncatedHistory,
-              { role: "user", content: finalMessageContent },
-              { role: "assistant", content: cleanText },
-              { role: "user", content: followUpPrompt },
-            ],
-            modelId || "openrouter/google/gemini-2.5-flash:free"
-          );
-          
-          return { response: followUpResponse.choices[0]?.message?.content || cleanText + "\n" + result.message, executedActions: [action] };
-        }
-
-        return { response: cleanText + "\n\n" + result.message, executedActions: [action] };
-      } else {
-        return { response: cleanText, actions: [action] };
-      }
-    }
-
-    return { response: cleanText };
+    return result;
   } catch (error: any) {
     console.error("Error en askCounselor:", error);
     return {
