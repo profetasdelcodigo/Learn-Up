@@ -143,7 +143,7 @@ export const deepSummaryTool: ToolDefinition = {
   id: "deep_summary",
   category: "research",
   description: "Estructura y resume un texto largo en puntos clave, conclusiones y entidades principales.",
-  risk: "low",
+  risk: "read",
   requiresConfirmation: false,
   supportsAutopilot: true,
   schema: z.object({
@@ -165,7 +165,7 @@ export const extractMetadataTool: ToolDefinition = {
   id: "extract_metadata",
   category: "research",
   description: "Extrae metadatos estructurados (título, autor, fecha, keywords) de un texto o documento.",
-  risk: "low",
+  risk: "read",
   requiresConfirmation: false,
   supportsAutopilot: true,
   schema: z.object({

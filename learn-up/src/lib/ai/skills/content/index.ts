@@ -98,7 +98,7 @@ Incluye: portada, índice, introducción, desarrollo con subsecciones, conclusi�
 Formato: Markdown con títulos, negritas, listas y bloques de cita.
 Extensión: 1500-3000 palabras.`;
 
-      const content = await getAICompletion(prompt, "gemini-2.0-flash");
+      const content = await getAICompletion([{ role: "user", content: prompt }], "gemini-2.0-flash");
       return {
         success: true,
         message: `Documento "${args.title}" generado exitosamente. Descárgalo abajo.`,
@@ -135,7 +135,7 @@ const createExamTool: ToolDefinition = {
 
 Formato: Markdown estructurado con ## para secciones.`;
 
-      const content = await getAICompletion(prompt, "gemini-2.0-flash");
+      const content = await getAICompletion([{ role: "user", content: prompt }], "gemini-2.0-flash");
       return {
         success: true,
         message: `Examen de "${args.topic}" generado. Descárgalo abajo.`,
@@ -165,7 +165,7 @@ const generateFlashcardsTool: ToolDefinition = {
 Formato JSON array: [{"front": "pregunta", "back": "respuesta"}, ...]
 Solo devuelve el JSON, sin texto adicional.`;
 
-      const content = await getAICompletion(prompt, "gemini-2.0-flash");
+      const content = await getAICompletion([{ role: "user", content: prompt }], "gemini-2.0-flash");
       return {
         success: true,
         message: `${args.count || 20} flashcards generadas sobre "${args.topic}".`,

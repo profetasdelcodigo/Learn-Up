@@ -6,11 +6,18 @@ import { AiToolDefinition } from "./agent-registry"; // legacy import
 export function buildToolsForAgent(
   agentTools: AiToolDefinition[],
   isAutonomous: boolean,
-  userId: string
+  userId: string,
+  agentId?: string
 ): Record<string, any> {
   const vercelTools: Record<string, any> = {};
 
-  for (const def of agentTools) {
+  // Si es Jarvis, le damos TODAS las herramientas del nuevo registro. 
+  // Si no, usamos las específicas de agentTools.
+  const toolsToProcess = agentId === "jarvis" 
+    ? aiRegistry.getAllTools().map(t => ({ name: t.id, description: t.description, requiresConfirmation: t.requiresConfirmation, externalEffect: t.risk !== "read" }))
+    : agentTools;
+
+  for (const def of toolsToProcess) {
     // Find the tool in our new modular registry
     const registeredTool = aiRegistry.getTool(def.name);
     

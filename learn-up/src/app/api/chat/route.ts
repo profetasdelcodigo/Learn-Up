@@ -45,7 +45,7 @@ REGLAS DE TOOLS:
 - En modo piloto automático, ejecuta únicamente las herramientas permitidas por la política del servidor.
 - Puedes realizar varias llamadas de herramientas en el mismo turno cuando sean necesarias.`;
 
-    const tools = buildToolsForAgent(agentConfig.tools, isAutonomous === true, user.id);
+    const tools = buildToolsForAgent(agentConfig.tools, isAutonomous === true, user.id, agentId);
 
     const result = streamText({
       model: openrouter("openrouter/free"),
