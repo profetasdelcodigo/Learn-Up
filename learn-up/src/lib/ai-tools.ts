@@ -13,7 +13,7 @@ import { z } from "zod";
 // â”€â”€ Schemas Zod para validar argumentos del LLM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const ToolSchemas: Record<string, z.ZodType> = {
   open_url: z.object({
-    url: z.url(),
+    url: z.string().url(),
     title: z.string().optional(),
   }),
   add_calendar_event: z.object({
@@ -1114,7 +1114,16 @@ function buildAction(toolJson: any): ToolAction | null {
     args = result.data;
   }
 
-  const registryTool = require('./ai/agent-registry').AI_AGENT_REGISTRY.find((t: any) => t.name === toolName);
+  const allAgents = Object.values(AI_AGENT_REGISTRY) as any[];
+  let registryTool = null;
+  for (const agent of allAgents) {
+    const found = agent.tools.find((t: any) => t.name === toolName);
+    if (found) {
+      registryTool = found;
+      break;
+    }
+  }
+
   const needsConfirm = registryTool 
     ? registryTool.requiresConfirmation 
     : !AUTO_EXECUTE_TOOLS.includes(toolName);

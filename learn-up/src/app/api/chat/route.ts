@@ -1,7 +1,6 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { google } from "@ai-sdk/google";
-import { streamText } from "ai";
-import { z } from "zod";
+import { streamText, stepCountIs } from "ai";
 import { createClient } from "@/utils/supabase/server";
 import { AI_AGENT_REGISTRY, AiAgentId } from "@/lib/ai/agent-registry";
 import { buildToolsForAgent } from "@/lib/ai/tool-definitions";
@@ -54,17 +53,18 @@ ${agentConfig.safety.map(r => "- " + r).join("\n")}
     // 5. Build native Vercel AI SDK Tools
     const tools = buildToolsForAgent(agentConfig.tools, isAutonomous === true, user.id);
 
-    // 6. Execute streamText
-    const result = (streamText as any)({
+    // 6. Execute streamText with AI SDK v6 API
+    const result = streamText({
       model,
       messages: messages as any[],
       system: systemPrompt,
-      tools: tools,
-      // Habilitar loops automáticos para que el LLM pueda llamar varias herramientas
-      maxSteps: isAutonomous ? 8 : 1,
+      tools: tools as any,
+      // AI SDK v6: use stopWhen with stepCountIs for multi-step tool loops
+      stopWhen: stepCountIs(isAutonomous ? 8 : 1),
     });
 
-    return (result as any).toDataStreamResponse?.() ?? (result as any).toAIStreamResponse?.() ?? (result as any).toTextStreamResponse();
+    // AI SDK v6: toUIMessageStreamResponse includes tool invocation data
+    return result.toUIMessageStreamResponse();
   } catch (error: any) {
     console.error("Error en API de Chat:", error);
     return new Response("Internal Error", { status: 500 });

@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { executeToolAction, ToolSchemas } from "@/lib/ai-tools";
-import { AiToolDefinition } from "./agent-registry";
+import { aiRegistry } from "./skills"; // from our new registry
+import { AiToolDefinition } from "./agent-registry"; // legacy import
 
 export function buildToolsForAgent(
   agentTools: AiToolDefinition[],
@@ -11,36 +11,62 @@ export function buildToolsForAgent(
   const vercelTools: Record<string, any> = {};
 
   for (const def of agentTools) {
-    const schema = ToolSchemas[def.name] || z.object({});
+    // Find the tool in our new modular registry
+    const registeredTool = aiRegistry.getTool(def.name);
     
-    // Determine if we should auto-execute this tool on the server
-    const shouldAutoExecute = isAutonomous 
-      ? true // In autopilot, we auto-execute everything (or based on policy)
-      : !def.requiresConfirmation; // In manual, we only auto-execute if no confirmation is needed
+    if (registeredTool) {
+      const shouldAutoExecute = isAutonomous 
+        ? registeredTool.supportsAutopilot
+        : !registeredTool.requiresConfirmation;
 
-    if (shouldAutoExecute) {
-      vercelTools[def.name] = (tool as any)({
-        description: def.description,
-        inputSchema: schema,
-        parameters: schema,
-        execute: async (args: any) => {
-          console.log(`[TOOL] Ejecutando automáticamente: ${def.name}`);
-          try {
-            const result = await executeToolAction(def.name, { ...args, userId });
-            return result;
-          } catch (error: any) {
-            console.error(`[TOOL] Error ejecutando ${def.name}:`, error);
-            return { success: false, error: error.message };
-          }
-        },
-      });
+      if (shouldAutoExecute && registeredTool.execute) {
+        vercelTools[registeredTool.id] = (tool as any)({
+          description: registeredTool.description,
+          parameters: registeredTool.schema,
+          execute: async (args: any) => {
+            console.log(`[TOOL] Ejecutando: ${registeredTool.id}`);
+            try {
+              return await registeredTool.execute!(args, { userId });
+            } catch (error: any) {
+              console.error(`[TOOL] Error ejecutando ${registeredTool.id}:`, error);
+              return { success: false, error: error.message };
+            }
+          },
+        });
+      } else {
+        // If it requires confirmation, or we are manual, or it has no execute, don't provide execute
+        vercelTools[registeredTool.id] = (tool as any)({
+          description: registeredTool.description,
+          parameters: registeredTool.schema,
+        });
+      }
     } else {
-      // If it requires confirmation, DO NOT provide an execute function.
-      vercelTools[def.name] = (tool as any)({
-        description: def.description,
-        inputSchema: schema,
-        parameters: schema,
-      });
+      // Fallback: wrap the legacy executeToolAction so no tools are dropped
+      const shouldAutoExecute = isAutonomous
+        ? !def.requiresConfirmation
+        : !def.requiresConfirmation && !def.externalEffect;
+
+      if (shouldAutoExecute) {
+        vercelTools[def.name] = (tool as any)({
+          description: def.description,
+          parameters: z.record(z.any()).describe("Arguments for the tool"),
+          execute: async (args: any) => {
+            console.log(`[TOOL-LEGACY] Ejecutando: ${def.name}`);
+            try {
+              const { confirmAndExecuteTool } = await import("@/actions/ai-tutor");
+              return await confirmAndExecuteTool(def.name, args);
+            } catch (error: any) {
+              console.error(`[TOOL-LEGACY] Error ejecutando ${def.name}:`, error);
+              return { success: false, error: error.message };
+            }
+          },
+        });
+      } else {
+        vercelTools[def.name] = (tool as any)({
+          description: def.description,
+          parameters: z.record(z.any()).describe("Arguments for the tool"),
+        });
+      }
     }
   }
 

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import { useChat } from "@ai-sdk/react";
@@ -292,33 +292,12 @@ export default function AIChatComponent({
 }: AIChatProps) {
   const router = useRouter();
 
-  // ── State declarations (must come before useChat which references them) ──
-  const [loading, setLoading] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState("");
-  const [error, setError] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [uploadingMedia, setUploadingMedia] = useState(false);
-  const [pendingActions, setPendingActions] = useState<ToolAction[]>([]);
-  const [executingAction, setExecutingAction] = useState(false);
-  const [isAutonomous, setIsAutonomous] = useState(false);
-  const [showAttachMenu, setShowAttachMenu] = useState(false);
-  const [showModelMenu, setShowModelMenu] = useState(false);
-  const [selectedModel, setSelectedModel] = useState(defaultModel || "groq/llama-3.3-70b-versatile");
-  const [activeSkill, setActiveSkill] = useState("");
-  const [hasFileAttached, setHasFileAttached] = useState(false);
-
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const isCreatingSession = useRef(false);
-  const supabase = createClient();
-
-  // ── useChat (Vercel AI SDK v6) ──
   const currentSessionIdRef = useRef(currentSessionId);
   useEffect(() => { currentSessionIdRef.current = currentSessionId; }, [currentSessionId]);
 
   const { messages: aiMessages, input, handleInputChange, setInput, append, isLoading: aiLoading, setMessages: setAiMessages } = useChat({
     api: "/api/chat",
-    body: { aiType, isAutonomous, activeSkill },
+    body: { aiType, isAutonomous },
     onFinish: async (msg) => {
       if (currentSessionIdRef.current) {
         await addAiMessage(currentSessionIdRef.current, "assistant", msg.content, undefined, undefined, msg.toolInvocations as any);
@@ -329,32 +308,43 @@ export default function AIChatComponent({
   const messages = aiMessages as any[];
   const setMessages = setAiMessages as any;
 
-  // Sync initial messages from DB when session changes
+
+  useEffect(() => {
+    if (onMessagesChange) onMessagesChange(messages);
+  }, [messages, onMessagesChange]);
+
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const [file, setFile] = useState<File | null>(null);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [pendingActions, setPendingActions] = useState<ToolAction[]>([]);
+  const [executingAction, setExecutingAction] = useState(false);
+  const [isAutonomous, setIsAutonomous] = useState(false);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const isCreatingSession = useRef(false);
+  const supabase = createClient();
+  
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [showModelMenu, setShowModelMenu] = useState(false);
+  const [selectedModel, setSelectedModel] = useState(defaultModel || "groq/llama-3.3-70b-versatile");
+  const [activeSkill, setActiveSkill] = useState("");
+
   useEffect(() => {
     if (currentSessionId) {
       if (isCreatingSession.current) {
         isCreatingSession.current = false;
         return;
       }
-      getAiMessages(currentSessionId).then(msgs => {
-        const adapted = msgs.map(m => ({
-          id: m.id || Math.random().toString(),
-          role: m.role,
-          content: m.content,
-          toolInvocations: m.tool_calls as any,
-          media_url: m.media_url,
-          media_type: m.media_type,
-        }));
-        setAiMessages(adapted as any);
-      });
+      loadSessionMessages(currentSessionId);
     } else {
-      setAiMessages([]);
+      setMessages([]);
     }
-  }, [currentSessionId, setAiMessages]);
-
-  useEffect(() => {
-    if (onMessagesChange) onMessagesChange(messages);
-  }, [messages, onMessagesChange]);
+  }, [currentSessionId]);
 
   useEffect(() => {
     const handleTriggerJarvis = (e: CustomEvent) => {
@@ -375,7 +365,8 @@ export default function AIChatComponent({
     return () => window.removeEventListener("triggerJarvis" as any, handleTriggerJarvis);
   }, []);
 
-  // Mini-mensajes dinámicos durante la carga (contextuales)
+  // Mini-mensajes din├ímicos durante la carga (contextuales)
+  const [hasFileAttached, setHasFileAttached] = useState(false);
 
   useEffect(() => {
     if (!loading) {
@@ -442,9 +433,14 @@ export default function AIChatComponent({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!(input || "").trim() && !file) || loading || aiLoading) return;
+    if ((!input.trim() && !file) || loading) return;
 
-    let userMessage = (input || "").trim();
+    // Respaldar estados locales por si falla el env├¡o
+    const backupInput = input;
+    const backupFile = file;
+
+    // Auto-generar mensaje si solo hay archivo sin texto
+    let userMessage = input.trim();
     if (!userMessage && file) {
       const mType = getMediaType(file);
       if (mType === "image") userMessage = "Analiza esta imagen.";
@@ -452,34 +448,172 @@ export default function AIChatComponent({
       else if (mType === "video") userMessage = "Analiza este video.";
       else userMessage = "Analiza este documento.";
     }
+    if (!userMessage && !file) return;
 
+    const mediaType = file ? getMediaType(file) : undefined;
+    const clientSideUserMsg: Message = {
+      role: "user",
+      content: userMessage,
+      media_url: file ? URL.createObjectURL(file) : undefined,
+      media_type: mediaType,
+    };
+
+    const handleFailure = (errMessage: string) => {
+      setError(errMessage);
+      setInput(backupInput);
+      setFile(backupFile);
+      if (fileInputRef.current) {
+        try {
+          if (backupFile) {
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(backupFile);
+            fileInputRef.current.files = dataTransfer.files;
+          } else {
+            fileInputRef.current.value = "";
+          }
+        } catch (e) {
+          fileInputRef.current.value = "";
+        }
+      }
+      setMessages((prev) => prev.filter((m) => m !== clientSideUserMsg));
+      setLoading(false);
+      setUploadingMedia(false);
+    };
+
+    setMessages((prev) => [...prev, clientSideUserMsg]);
+    setInput("");
     setFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+    
     setError("");
-    setHasFileAttached(false);
+    setHasFileAttached(!!file);
     setLoading(true);
 
     let sessionId = currentSessionId;
+    let newSession = false;
+
     if (!sessionId) {
       try {
-        const { session } = await createAiSession(aiType, userMessage.substring(0, 30) || "Nueva Sesión");
+        const { session, error: sErr } = await createAiSession(
+          aiType,
+          userMessage.substring(0, 30) || "Nueva Sesi├│n",
+        );
+        if (sErr) throw new Error(sErr);
         if (session) {
           sessionId = session.id;
           onSessionChange(session.id);
+          newSession = true;
         }
-      } catch (err) {}
+      } catch (err: any) {
+        handleFailure("Error al iniciar sesi├│n de IA. Verifica tu conexi├│n.");
+        return;
+      }
     }
 
-    if (sessionId) {
-      await addAiMessage(sessionId, "user", userMessage, undefined, file ? getMediaType(file) : undefined);
+    if (!sessionId) {
+      handleFailure("Error al crear sesi├│n.");
+      return;
     }
-    
-    append({ role: "user", content: userMessage });
-    setInput("");
-    setLoading(false);
+
+    let mediaUrl: string | undefined;
+
+    if (backupFile) {
+      setUploadingMedia(true);
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new Error("No autenticado");
+
+        const safeFileName = backupFile.name
+          .replace(/[^a-zA-Z0-9._-]/g, "_")
+          .slice(-120);
+        const filePath = `${user.id}/${Date.now()}_${safeFileName}`;
+        const { error: uploadErr } = await supabase.storage
+          .from("ai_media")
+          .upload(filePath, backupFile);
+        if (uploadErr) throw uploadErr;
+
+        const { data } = supabase.storage
+          .from("ai_media")
+          .getPublicUrl(filePath);
+        mediaUrl = data.publicUrl;
+
+        const indexResult = await indexAiDocumentFromUrl({
+          title: backupFile.name,
+          url: mediaUrl,
+          mimeType: backupFile.type,
+          sessionId,
+        });
+        if (!indexResult.success) {
+          console.warn("AI document indexing skipped:", indexResult.error);
+        }
+
+        setMessages((prev) => 
+          prev.map(m => m === clientSideUserMsg ? { ...m, media_url: mediaUrl } : m)
+        );
+      } catch (uploadErr: any) {
+        handleFailure("Error al subir el archivo adjunto. Intenta de nuevo.");
+        return;
+      }
+      setUploadingMedia(false);
+    }
+
+    try {
+      await addAiMessage(sessionId, "user", userMessage, mediaUrl, mediaType);
+    } catch (msgErr: any) {
+      handleFailure("Error al guardar tu mensaje en la base de datos.");
+      return;
+    }
+
+    try {
+      const historyForGroq = messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      const finalUserMessage = activeSkill 
+        ? `[Skill Activa: ${activeSkill}]\n\n${userMessage}` 
+        : userMessage;
+
+      const result = await onSubmitAction(
+        finalUserMessage,
+        historyForGroq,
+        mediaUrl,
+        mediaType,
+        selectedModel
+
+      );
+
+      if (result.error) {
+        handleFailure(result.error);
+      } else if (result.response) {
+        await addAiMessage(sessionId, "assistant", result.response, undefined, undefined, result.executedActions);
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: result.response, tool_calls: result.executedActions },
+        ]);
+
+        if (result.actions && result.actions.length > 0) {
+          if (isAutonomous) {
+            // Auto-execute if in Pilot mode
+            result.actions.forEach(action => {
+               // Fire and forget or handle properly
+               setTimeout(() => handleConfirmAction(action), 500);
+            });
+          } else {
+            setPendingActions(result.actions);
+          }
+        }
+      }
+    } catch (err) {
+      handleFailure("Ocurri├│ un error inesperado al procesar la IA.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // ── Manejar confirmación/rechazo de acciones de IA ──
+  // ÔöÇÔöÇ Manejar confirmaci├│n/rechazo de acciones de IA ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
   const handleConfirmAction = async (action: ToolAction) => {
     setExecutingAction(true);
     let actionResult: any = null;
@@ -1306,7 +1440,7 @@ export default function AIChatComponent({
                     </button>
                     <button
                       type="submit"
-                      disabled={loading || uploadingMedia || (!(input || "").trim() && !file)}
+                      disabled={loading || uploadingMedia || (!input.trim() && !file)}
                       className="p-1.5 ml-1 bg-white text-black rounded-lg hover:bg-gray-200 transition-all disabled:opacity-50 disabled:bg-gray-600 disabled:text-gray-400"
                     >
                       {loading || uploadingMedia ? (
