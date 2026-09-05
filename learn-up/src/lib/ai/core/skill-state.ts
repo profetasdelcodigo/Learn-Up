@@ -1,55 +1,78 @@
 import { createClient } from "@/utils/supabase/server";
 
+function cleanIds(skillIds: unknown): string[] {
+  if (!Array.isArray(skillIds)) return [];
+  return [...new Set(skillIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0))];
+}
+
 export async function getPersistedSkillPacks(sessionId?: string | null): Promise<string[]> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
-  const query = supabase
+  const globalResult = await supabase
     .from("ai_skill_state")
-    .select("skill_ids,session_id")
-    .eq("user_id", user.id);
+    .select("skill_ids")
+    .eq("user_id", user.id)
+    .is("session_id", null)
+    .maybeSingle();
 
-  const { data, error } = sessionId
-    ? await query.in("session_id", [sessionId, "00000000-0000-0000-0000-000000000000"])
-    : await query.is("session_id", null).maybeSingle();
+  const sessionResult = sessionId
+    ? await supabase
+        .from("ai_skill_state")
+        .select("skill_ids")
+        .eq("user_id", user.id)
+        .eq("session_id", sessionId)
+        .maybeSingle()
+    : { data: null } as any;
 
-  if (error || !data) return [];
-  const rows = Array.isArray(data) ? data : [data];
-  const ordered: string[] = [];
-  for (const row of rows) {
-    const ids = Array.isArray(row.skill_ids) ? row.skill_ids : [];
-    for (const id of ids) if (typeof id === "string" && id.trim() && !ordered.includes(id)) ordered.push(id);
-  }
-  return ordered;
+  const merged = [...cleanIds(globalResult.data?.skill_ids), ...cleanIds(sessionResult.data?.skill_ids)];
+  return [...new Set(merged)];
 }
 
 export async function saveSkillPacks(skillIds: string[], sessionId?: string | null) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("No autorizado");
-  const clean = [...new Set(skillIds.filter((id) => typeof id === "string" && id.trim()))];
-  const normalizedSession = sessionId || null;
 
-  const { error } = await supabase
-    .from("ai_skill_state")
-    .upsert({
+  const clean = cleanIds(skillIds);
+  const now = new Date().toISOString();
+
+  if (sessionId) {
+    const { error } = await supabase.from("ai_skill_state").upsert({
       user_id: user.id,
-      session_id: normalizedSession,
+      session_id: sessionId,
       skill_ids: clean,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: normalizedSession ? "user_id,session_id" : "user_id" });
-
-  // Postgres partial unique index does not participate in ON CONFLICT(user_id), so handle global state explicitly.
-  if (error && normalizedSession === null) {
-    const existing = await supabase.from("ai_skill_state").select("id").eq("user_id", user.id).is("session_id", null).maybeSingle();
-    if (existing.data?.id) {
-      const update = await supabase.from("ai_skill_state").update({ skill_ids: clean, updated_at: new Date().toISOString() }).eq("id", existing.data.id).eq("user_id", user.id);
-      if (update.error) throw update.error;
-      return clean;
-    }
-    throw error;
+      updated_at: now,
+    }, { onConflict: "user_id,session_id" });
+    if (error) throw error;
+    return clean;
   }
+
+  const existing = await supabase
+    .from("ai_skill_state")
+    .select("id")
+    .eq("user_id", user.id)
+    .is("session_id", null)
+    .maybeSingle();
+
+  if (existing.error) throw existing.error;
+  if (existing.data?.id) {
+    const { error } = await supabase
+      .from("ai_skill_state")
+      .update({ skill_ids: clean, updated_at: now })
+      .eq("id", existing.data.id)
+      .eq("user_id", user.id);
+    if (error) throw error;
+    return clean;
+  }
+
+  const { error } = await supabase.from("ai_skill_state").insert({
+    user_id: user.id,
+    session_id: null,
+    skill_ids: clean,
+    updated_at: now,
+  });
   if (error) throw error;
   return clean;
 }
