@@ -1,275 +1,42 @@
 import { z } from "zod";
 import { Skill, ToolDefinition } from "../../core/types";
+import { createClient } from "@/utils/supabase/server";
 
-// Helper: Many operations would go to the db, but we mock responses to maintain safety
-// without needing all server actions implemented.
+async function ctx(){const supabase=await createClient();const {data:{user}}=await supabase.auth.getUser();if(!user)throw new Error("No autorizado");return {supabase,user};}
+async function profile(userId:string){const {supabase}=await ctx();const {data,error}=await supabase.from("profiles").select("id,username,full_name,avatar_url,bio,school,grade,description,role,country,social_links,socials,created_at,updated_at").eq("id",userId).single();if(error)throw error;return data;}
 
-// 159. update_profile
-export const updateProfileTool: ToolDefinition = {
-  id: "update_profile",
-  category: "social",
-  description: "Editar bio, escuela o grado del perfil.",
-  risk: "write",
-  requiresConfirmation: true,
-  supportsAutopilot: false,
-  schema: z.object({
-    field: z.enum(["bio", "school", "grade"]),
-    value: z.string().max(500),
-  }),
-  execute: async (args) => {
-    return { success: true, message: `Perfil actualizado exitosamente (${args.field}).` };
-  },
-};
+export const updateProfileTool: ToolDefinition={id:"update_profile",category:"social",description:"Actualizar bio, escuela o grado en el perfil real.",risk:"write",requiresConfirmation:true,supportsAutopilot:false,schema:z.object({field:z.enum(["bio","school","grade"]),value:z.string().max(500)}),execute:async({field,value})=>{const {supabase,user}=await ctx();const {error}=await supabase.from("profiles").update({[field]:value,updated_at:new Date().toISOString()}).eq("id",user.id);if(error)throw error;return{success:true,message:`Perfil actualizado: ${field}.`,data:{field,value}};}};
 
-// 160. update_avatar
-export const updateAvatarTool: ToolDefinition = {
-  id: "update_avatar",
-  category: "social",
-  description: "Cambiar foto de perfil.",
-  risk: "write",
-  requiresConfirmation: true,
-  supportsAutopilot: false,
-  schema: z.object({ image_url: z.string().url() }),
-  execute: async () => {
-    return { success: true, message: "Avatar actualizado exitosamente." };
-  },
-};
+export const updateAvatarTool: ToolDefinition={id:"update_avatar",category:"social",description:"Actualizar la foto de perfil real usando Supabase Storage y profile.",risk:"write",requiresConfirmation:true,supportsAutopilot:false,schema:z.object({image_url:z.string().url()}),execute:async({image_url})=>{const {supabase,user}=await ctx();const {error}=await supabase.from("profiles").update({avatar_url:image_url,updated_at:new Date().toISOString()}).eq("id",user.id);if(error)throw error;return{success:true,message:"Foto de perfil actualizada.",data:{avatar_url:image_url}};}};
 
-// 161. send_friend_request
-export const sendFriendRequestTool: ToolDefinition = {
-  id: "send_friend_request",
-  category: "social",
-  description: "Enviar solicitud de amistad a otro usuario.",
-  risk: "write",
-  requiresConfirmation: true,
-  supportsAutopilot: false,
-  schema: z.object({ user_id: z.string() }),
-  execute: async () => {
-    return { success: true, message: "Solicitud de amistad enviada." };
-  },
-};
+export const sendFriendRequestTool: ToolDefinition={id:"send_friend_request",category:"social",description:"Enviar una solicitud real de amistad.",risk:"write",requiresConfirmation:true,supportsAutopilot:false,schema:z.object({user_id:z.string().uuid()}),execute:async({user_id})=>{const {supabase,user}=await ctx();if(user.id===user_id)throw new Error("No puedes enviarte una solicitud a ti mismo.");const {data,error}=await supabase.from("friendships").upsert({requester_id:user.id,addressee_id:user_id,status:"pending"},{onConflict:"requester_id,addressee_id"}).select().single();if(error)throw error;return{success:true,message:"Solicitud de amistad enviada.",data};}};
 
-// 162. accept_friend_request
-export const acceptFriendRequestTool: ToolDefinition = {
-  id: "accept_friend_request",
-  category: "social",
-  description: "Aceptar solicitud de amistad pendiente.",
-  risk: "write",
-  requiresConfirmation: true,
-  supportsAutopilot: false,
-  schema: z.object({ user_id: z.string() }),
-  execute: async () => {
-    return { success: true, message: "Solicitud de amistad aceptada. Ahora son amigos." };
-  },
-};
+export const acceptFriendRequestTool: ToolDefinition={id:"accept_friend_request",category:"social",description:"Aceptar una solicitud pendiente real.",risk:"write",requiresConfirmation:true,supportsAutopilot:false,schema:z.object({user_id:z.string().uuid()}),execute:async({user_id})=>{const {supabase,user}=await ctx();const {data,error}=await supabase.from("friendships").update({status:"accepted"}).eq("requester_id",user_id).eq("addressee_id",user.id).eq("status","pending").select().single();if(error||!data)throw error||new Error("No existe una solicitud pendiente de ese usuario.");return{success:true,message:"Solicitud aceptada.",data};}};
 
-// 163. decline_friend_request
-export const declineFriendRequestTool: ToolDefinition = {
-  id: "decline_friend_request",
-  category: "social",
-  description: "Rechazar solicitud de amistad.",
-  risk: "write",
-  requiresConfirmation: true,
-  supportsAutopilot: false,
-  schema: z.object({ user_id: z.string() }),
-  execute: async () => {
-    return { success: true, message: "Solicitud rechazada." };
-  },
-};
+export const declineFriendRequestTool: ToolDefinition={id:"decline_friend_request",category:"social",description:"Rechazar una solicitud real pendiente.",risk:"write",requiresConfirmation:true,supportsAutopilot:false,schema:z.object({user_id:z.string().uuid()}),execute:async({user_id})=>{const {supabase,user}=await ctx();const {data,error}=await supabase.from("friendships").delete().eq("requester_id",user_id).eq("addressee_id",user.id).eq("status","pending").select().single();if(error||!data)throw error||new Error("No existe esa solicitud pendiente.");return{success:true,message:"Solicitud rechazada.",data};}};
 
-// 164. remove_friend
-export const removeFriendTool: ToolDefinition = {
-  id: "remove_friend",
-  category: "social",
-  description: "Eliminar amigo.",
-  risk: "write",
-  requiresConfirmation: true,
-  supportsAutopilot: false,
-  schema: z.object({ user_id: z.string() }),
-  execute: async () => {
-    return { success: true, message: "Amigo eliminado de la lista." };
-  },
-};
+export const removeFriendTool: ToolDefinition={id:"remove_friend",category:"social",description:"Eliminar amistad real sin borrar conversaciones.",risk:"destructive",requiresConfirmation:true,supportsAutopilot:false,schema:z.object({user_id:z.string().uuid()}),execute:async({user_id})=>{const {supabase,user}=await ctx();const {error}=await supabase.from("friendships").delete().or(`and(requester_id.eq.${user.id},addressee_id.eq.${user_id}),and(requester_id.eq.${user_id},addressee_id.eq.${user.id})`).eq("status","accepted");if(error)throw error;return{success:true,message:"Amistad eliminada.",data:{user_id}};}};
 
-// 165. view_friends_list
-export const viewFriendsListTool: ToolDefinition = {
-  id: "view_friends_list",
-  category: "social",
-  description: "Ver todos los amigos.",
-  risk: "read",
-  requiresConfirmation: false,
-  supportsAutopilot: true,
-  schema: z.object({}),
-  execute: async () => {
-    const mockFriends = [
-      { id: "1", name: "Ana P", status: "online", bio: "Estudiante de ciencias" },
-      { id: "2", name: "Carlos M", status: "offline", bio: "Me gusta la historia" }
-    ];
-    return { success: true, message: `Tienes ${mockFriends.length} amigos.`, data: mockFriends };
-  },
-};
+export const viewFriendsListTool: ToolDefinition={id:"view_friends_list",category:"social",description:"Listar amigos reales del usuario.",risk:"read",requiresConfirmation:false,supportsAutopilot:true,schema:z.object({}),execute:async()=>{const {supabase,user}=await ctx();const {data:rows,error}=await supabase.from("friendships").select("id,requester_id,addressee_id,status,created_at").eq("status","accepted").or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);if(error)throw error;const ids=(rows||[]).map(r=>r.requester_id===user.id?r.addressee_id:r.requester_id);if(!ids.length)return{success:true,message:"No tienes amigos registrados.",data:{friends:[]}};const {data:friends,error:pError}=await supabase.from("profiles").select("id,username,full_name,avatar_url,school,grade,bio").in("id",ids);if(pError)throw pError;return{success:true,message:`Encontré ${friends?.length||0} amigos.`,data:{friends:friends||[]}};}};
 
-// 166. search_users
-export const searchUsersTool: ToolDefinition = {
-  id: "search_users",
-  category: "social",
-  description: "Buscar usuarios globales por nombre.",
-  risk: "read",
-  requiresConfirmation: false,
-  supportsAutopilot: true,
-  schema: z.object({ query: z.string() }),
-  execute: async (args) => {
-    return { success: true, message: `Usuarios encontrados para: ${args.query}`, data: [{ id: "3", name: `${args.query} (Simulado)` }] };
-  },
-};
+export const searchUsersTool: ToolDefinition={id:"search_users",category:"social",description:"Buscar usuarios reales por nombre o usuario.",risk:"read",requiresConfirmation:false,supportsAutopilot:true,schema:z.object({query:z.string().min(1)}),execute:async({query})=>{const {supabase,user}=await ctx();const q=query.replace(/[%,]/g,"");const {data,error}=await supabase.from("profiles").select("id,username,full_name,avatar_url,school,grade,bio").neq("id",user.id).or(`full_name.ilike.%${q}%,username.ilike.%${q}%`).limit(20);if(error)throw error;return{success:true,message:`Encontré ${data?.length||0} usuarios.`,data:{users:data||[]}};}};
 
-// 167. view_user_profile
-export const viewUserProfileTool: ToolDefinition = {
-  id: "view_user_profile",
-  category: "social",
-  description: "Ver perfil completo de otro usuario.",
-  risk: "read",
-  requiresConfirmation: false,
-  supportsAutopilot: true,
-  schema: z.object({ user_id: z.string() }),
-  execute: async (args) => {
-    return { success: true, message: `Perfil del usuario ${args.user_id}.`, data: { name: "Usuario Ejemplo", school: "Preparatoria 1", bio: "Hola mundo" } };
-  },
-};
+export const viewUserProfileTool: ToolDefinition={id:"view_user_profile",category:"social",description:"Ver perfil real respetando privacidad.",risk:"read",requiresConfirmation:false,supportsAutopilot:true,schema:z.object({user_id:z.string().uuid()}),execute:async({user_id})=>{const {supabase,user}=await ctx();const p=await profile(user_id);if(user.id===user_id)return{success:true,message:"Tu perfil.",data:p};const {data:privacy}=await supabase.from("profile_privacy").select("is_public,public_bio,public_school,public_stats").eq("user_id",user_id).maybeSingle();if(privacy&&!privacy.is_public)return{success:true,message:"El perfil está configurado como privado.",data:{id:user_id,private:true}};return{success:true,message:"Perfil recuperado.",data:{...p,bio:privacy?.public_bio===false?null:p.bio,school:privacy?.public_school===false?null:p.school}};}};
 
-// 168. block_user
-export const blockUserTool: ToolDefinition = {
-  id: "block_user",
-  category: "social",
-  description: "Bloquear usuario.",
-  risk: "write",
-  requiresConfirmation: true,
-  supportsAutopilot: false,
-  schema: z.object({ user_id: z.string() }),
-  execute: async () => {
-    return { success: true, message: "Usuario bloqueado exitosamente." };
-  },
-};
+export const blockUserTool: ToolDefinition={id:"block_user",category:"social",description:"Bloquear usuario y persistir el bloqueo.",risk:"destructive",requiresConfirmation:true,supportsAutopilot:false,schema:z.object({user_id:z.string().uuid()}),execute:async({user_id})=>{const {supabase,user}=await ctx();const {error}=await supabase.from("user_blocks").upsert({user_id:user.id,blocked_user_id:user_id},{onConflict:"user_id,blocked_user_id"});if(error)throw error;return{success:true,message:"Usuario bloqueado.",data:{user_id}};}};
 
-// 169. unblock_user
-export const unblockUserTool: ToolDefinition = {
-  id: "unblock_user",
-  category: "social",
-  description: "Desbloquear usuario.",
-  risk: "write",
-  requiresConfirmation: true,
-  supportsAutopilot: false,
-  schema: z.object({ user_id: z.string() }),
-  execute: async () => {
-    return { success: true, message: "Usuario desbloqueado exitosamente." };
-  },
-};
+export const unblockUserTool: ToolDefinition={id:"unblock_user",category:"social",description:"Desbloquear usuario real.",risk:"write",requiresConfirmation:true,supportsAutopilot:false,schema:z.object({user_id:z.string().uuid()}),execute:async({user_id})=>{const {supabase,user}=await ctx();const {error}=await supabase.from("user_blocks").delete().eq("user_id",user.id).eq("blocked_user_id",user_id);if(error)throw error;return{success:true,message:"Usuario desbloqueado.",data:{user_id}};}};
 
-// 170. set_status_message
-export const setStatusMessageTool: ToolDefinition = {
-  id: "set_status_message",
-  category: "social",
-  description: "Establecer estado (Disponible, Ocupado, Ausente).",
-  risk: "write",
-  requiresConfirmation: true,
-  supportsAutopilot: false,
-  schema: z.object({ status: z.enum(["disponible", "ocupado", "ausente"]) }),
-  execute: async (args) => {
-    return { success: true, message: `Estado actualizado a: ${args.status}.` };
-  },
-};
+export const setStatusMessageTool: ToolDefinition={id:"set_status_message",category:"social",description:"Actualizar estado personal real.",risk:"write",requiresConfirmation:true,supportsAutopilot:false,schema:z.object({status:z.enum(["disponible","ocupado","ausente"])}),execute:async({status})=>{const {supabase,user}=await ctx();const {error}=await supabase.from("user_statuses").upsert({user_id:user.id,status,updated_at:new Date().toISOString()},{onConflict:"user_id"});if(error)throw error;return{success:true,message:`Estado actualizado a ${status}.`,data:{status}};}};
 
-// 171. toggle_privacy_mode
-export const togglePrivacyModeTool: ToolDefinition = {
-  id: "toggle_privacy_mode",
-  category: "social",
-  description: "Cambiar perfil entre público y privado.",
-  risk: "write",
-  requiresConfirmation: true,
-  supportsAutopilot: false,
-  schema: z.object({}),
-  execute: async () => {
-    return { success: true, message: "Modo de privacidad cambiado exitosamente." };
-  },
-};
+export const togglePrivacyModeTool: ToolDefinition={id:"toggle_privacy_mode",category:"social",description:"Configurar privacidad del perfil real.",risk:"write",requiresConfirmation:true,supportsAutopilot:false,schema:z.object({is_public:z.boolean(),public_bio:z.boolean().optional(),public_school:z.boolean().optional(),public_stats:z.boolean().optional()}),execute:async(args)=>{const {supabase,user}=await ctx();const {error}=await supabase.from("profile_privacy").upsert({user_id:user.id,is_public:args.is_public,public_bio:args.public_bio??true,public_school:args.public_school??true,public_stats:args.public_stats??false,updated_at:new Date().toISOString()},{onConflict:"user_id"});if(error)throw error;return{success:true,message:"Privacidad actualizada.",data:args};}};
 
-// 172. generate_shareable_profile_card
-export const generateShareableProfileCardTool: ToolDefinition = {
-  id: "generate_shareable_profile_card",
-  category: "social",
-  description: "Crear tarjeta visual para compartir.",
-  risk: "read",
-  requiresConfirmation: false,
-  supportsAutopilot: true,
-  schema: z.object({}),
-  execute: async () => {
-    const markdownCard = `
-# 🎓 Mi Perfil Académico
-**Nombre:** Estudiante
-**Grado:** 3er Año
-**Fortalezas:** Ciencias, Historia
-> *"¡Aprender es descubrir!"*
-`;
-    return { success: true, message: "Tarjeta de perfil generada.", data: markdownCard };
-  },
-};
+export const generateShareableProfileCardTool: ToolDefinition={id:"generate_shareable_profile_card",category:"social",description:"Generar tarjeta de perfil con datos reales del usuario.",risk:"read",requiresConfirmation:false,supportsAutopilot:true,schema:z.object({}),execute:async()=>{const {user}=await ctx();const p=await profile(user.id);return{success:true,message:"Tarjeta de perfil preparada.",data:{profile:p,html:`<article><h1>${p.full_name||p.username||"Estudiante"}</h1><p>${p.school||""}${p.grade?` · ${p.grade}`:""}</p><p>${p.bio||""}</p></article>`}};}};
 
-// 173. view_badges_and_achievements
-export const viewBadgesAndAchievementsTool: ToolDefinition = {
-  id: "view_badges_and_achievements",
-  category: "social",
-  description: "Ver insignias obtenidas y próximas.",
-  risk: "read",
-  requiresConfirmation: false,
-  supportsAutopilot: true,
-  schema: z.object({}),
-  execute: async () => {
-    const badges = [
-      { id: "b1", name: "Lector Frecuente", unlocked: true },
-      { id: "b2", name: "Experto en Mates", unlocked: false }
-    ];
-    return { success: true, message: "Insignias recuperadas.", data: badges };
-  },
-};
+export const viewBadgesAndAchievementsTool: ToolDefinition={id:"view_badges_and_achievements",category:"social",description:"Consultar logros reales registrados.",risk:"read",requiresConfirmation:false,supportsAutopilot:true,schema:z.object({}),execute:async()=>{const {supabase,user}=await ctx();const {data:all,error:a}=await supabase.from("achievements").select("id,name,description").order("name");if(a)throw a;const {data:owned,error:o}=await supabase.from("user_achievements").select("achievement_id,unlocked_at").eq("user_id",user.id);if(o)throw o;const set=new Set((owned||[]).map(x=>x.achievement_id));return{success:true,message:`${owned?.length||0} logros desbloqueados.`,data:{achievements:(all||[]).map(a=>({...a,unlocked:set.has(a.id),unlockedAt:owned?.find(x=>x.achievement_id===a.id)?.unlocked_at||null}))}};}};
 
-// 174. pin_achievement_to_profile
-export const pinAchievementToProfileTool: ToolDefinition = {
-  id: "pin_achievement_to_profile",
-  category: "social",
-  description: "Destacar insignia en perfil.",
-  risk: "write",
-  requiresConfirmation: true,
-  supportsAutopilot: false,
-  schema: z.object({ achievement_id: z.string() }),
-  execute: async (args) => {
-    return { success: true, message: `Insignia destacada en tu perfil.` };
-  },
-};
+export const pinAchievementToProfileTool: ToolDefinition={id:"pin_achievement_to_profile",category:"social",description:"Destacar un logro real en el perfil.",risk:"write",requiresConfirmation:true,supportsAutopilot:false,schema:z.object({achievement_id:z.string().uuid()}),execute:async({achievement_id})=>{const {supabase,user}=await ctx();const {data}=await supabase.from("user_achievements").select("achievement_id").eq("user_id",user.id).eq("achievement_id",achievement_id).maybeSingle();if(!data)throw new Error("No has desbloqueado ese logro.");const {error}=await supabase.from("profile_achievement_pins").upsert({user_id:user.id,achievement_id},{onConflict:"user_id"});if(error)throw error;return{success:true,message:"Logro destacado.",data:{achievement_id}};}};
 
-// 175. link_social_account
-export const linkSocialAccountTool: ToolDefinition = {
-  id: "link_social_account",
-  category: "social",
-  description: "Vincular cuenta externa.",
-  risk: "write",
-  requiresConfirmation: true,
-  supportsAutopilot: false,
-  schema: z.object({ platform: z.enum(["github", "google", "twitter"]) }),
-  execute: async (args) => {
-    return { success: true, message: `Redirigiendo a autenticación con ${args.platform}...` };
-  },
-};
+export const linkSocialAccountTool: ToolDefinition={id:"link_social_account",category:"social",description:"Registrar un enlace social real asociado al perfil.",risk:"write",requiresConfirmation:true,supportsAutopilot:false,schema:z.object({platform:z.enum(["github","google","twitter"]),external_url:z.string().url()}),execute:async({platform,external_url})=>{const {supabase,user}=await ctx();const {error}=await supabase.from("social_account_links").upsert({user_id:user.id,platform,external_url},{onConflict:"user_id,platform"});if(error)throw error;return{success:true,message:`Cuenta ${platform} vinculada como enlace.`,data:{platform,external_url}};}};
 
-export const profileSocialSkill: Skill = {
-  id: "social",
-  name: "Perfil y Social",
-  category: "social",
-  description: "Gestión de perfil, amigos, privacidad y logros.",
-  tools: [
-    updateProfileTool, updateAvatarTool, sendFriendRequestTool, acceptFriendRequestTool,
-    declineFriendRequestTool, removeFriendTool, viewFriendsListTool, searchUsersTool,
-    viewUserProfileTool, blockUserTool, unblockUserTool, setStatusMessageTool,
-    togglePrivacyModeTool, generateShareableProfileCardTool, viewBadgesAndAchievementsTool,
-    pinAchievementToProfileTool, linkSocialAccountTool
-  ]
-};
+export const profileSocialSkill: Skill={id:"social",name:"Perfil y Social",category:"social",description:"Gestión de perfil, amigos, privacidad y logros con datos reales.",tools:[updateProfileTool,updateAvatarTool,sendFriendRequestTool,acceptFriendRequestTool,declineFriendRequestTool,removeFriendTool,viewFriendsListTool,searchUsersTool,viewUserProfileTool,blockUserTool,unblockUserTool,setStatusMessageTool,togglePrivacyModeTool,generateShareableProfileCardTool,viewBadgesAndAchievementsTool,pinAchievementToProfileTool,linkSocialAccountTool]};
