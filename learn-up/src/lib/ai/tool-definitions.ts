@@ -16,7 +16,6 @@ const PACK_TO_SKILL: Record<string, string> = {
   profile_pack: "social",
   edu_pack: "education",
 };
-
 const ALL_PACKS = Object.keys(PACK_TO_SKILL);
 
 function selectedRegistryTools(activeSkills: string[] = []) {
@@ -37,34 +36,24 @@ export function buildToolsForAgent(
   const registryTools = selectedRegistryTools(activeSkills);
   const toolDefs = new Map<string, any>();
 
-  for (const registeredTool of registryTools) {
-    toolDefs.set(registeredTool.id, { kind: "registry", definition: registeredTool });
-  }
-  for (const def of agentTools) {
-    if (!toolDefs.has(def.name)) toolDefs.set(def.name, { kind: "legacy", definition: def });
-  }
+  for (const registeredTool of registryTools) toolDefs.set(registeredTool.id, { kind: "registry", definition: registeredTool });
+  for (const def of agentTools) if (!toolDefs.has(def.name)) toolDefs.set(def.name, { kind: "legacy", definition: def });
 
   for (const [toolId, entry] of toolDefs.entries()) {
     if (entry.kind === "registry") {
       const registeredTool = entry.definition;
       const shouldAutoExecute = isAutonomous ? registeredTool.supportsAutopilot : !registeredTool.requiresConfirmation;
-
       const execute = async (args: any) => {
         console.log(`[TOOL] Ejecutando: ${registeredTool.id}`);
         try {
           const raw = await registeredTool.execute!(args, { userId, referer: undefined } as any);
-          return await materializeToolResult(raw);
+          return await materializeToolResult(raw, registeredTool.id, args);
         } catch (error: any) {
           console.error(`[TOOL] Error ejecutando ${registeredTool.id}:`, error);
           return { success: false, error: error?.message || "Tool execution failed" };
         }
       };
-
-      vercelTools[toolId] = (tool as any)({
-        description: registeredTool.description,
-        parameters: registeredTool.schema,
-        ...(shouldAutoExecute && registeredTool.execute ? { execute } : {}),
-      });
+      vercelTools[toolId] = (tool as any)({ description: registeredTool.description, parameters: registeredTool.schema, ...(shouldAutoExecute && registeredTool.execute ? { execute } : {}) });
       continue;
     }
 
@@ -73,22 +62,18 @@ export function buildToolsForAgent(
     vercelTools[toolId] = (tool as any)({
       description: def.description,
       parameters: z.record(z.any()).describe("Arguments for the tool"),
-      ...(shouldAutoExecute
-        ? {
-            execute: async (args: any) => {
-              console.log(`[TOOL-LEGACY] Ejecutando: ${def.name}`);
-              try {
-                return await materializeToolResult(await (async () => {
-                  const { confirmAndExecuteTool } = await import("@/actions/ai-tutor");
-                  return confirmAndExecuteTool(def.name, args);
-                })());
-              } catch (error: any) {
-                console.error(`[TOOL-LEGACY] Error ejecutando ${def.name}:`, error);
-                return { success: false, error: error?.message || "Tool execution failed" };
-              }
-            },
+      ...(shouldAutoExecute ? {
+        execute: async (args: any) => {
+          console.log(`[TOOL-LEGACY] Ejecutando: ${def.name}`);
+          try {
+            const { confirmAndExecuteTool } = await import("@/actions/ai-tutor");
+            return await materializeToolResult(await confirmAndExecuteTool(def.name, args), def.name, args);
+          } catch (error: any) {
+            console.error(`[TOOL-LEGACY] Error ejecutando ${def.name}:`, error);
+            return { success: false, error: error?.message || "Tool execution failed" };
           }
-        : {}),
+        },
+      } : {}),
     });
   }
 
@@ -99,9 +84,9 @@ export function buildToolsForAgent(
       vercelTools[registeredTool.id] = (tool as any)({
         description: registeredTool.description,
         parameters: registeredTool.schema,
-        ...(shouldAutoExecute && registeredTool.execute
-          ? { execute: async (args: any) => materializeToolResult(await registeredTool.execute!(args, { userId } as any)) }
-          : {}),
+        ...(shouldAutoExecute && registeredTool.execute ? {
+          execute: async (args: any) => materializeToolResult(await registeredTool.execute!(args, { userId } as any), registeredTool.id, args),
+        } : {}),
       });
     }
   }
