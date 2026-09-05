@@ -9,7 +9,7 @@ import { getPersistedSkillPacks } from "@/lib/ai/core/skill-state";
 import { runWorkflowAgent, resumeWorkflow, cancelWorkflow } from "@/lib/ai/workflow-agent";
 import { aiRegistry } from "@/lib/ai/skills";
 
-const TEXT_MODEL = "openrouter/openai/gpt-oss-120b:free";
+const TEXT_MODEL = "openrouter/openrouter/free";
 const MULTIMODAL_MODEL = "gemini/gemini-3.8-flash";
 
 function extractSkills(message: string, defaults: string[]) {
@@ -28,13 +28,25 @@ function extractMode(modelId?: string): { mode: ToolMode; model: string } {
 function normalizeTextModel(modelId?: string): string {
   const { model } = extractMode(modelId);
   if (!model) return TEXT_MODEL;
-  if (model === "openrouter/openrouter/free" || model === "openrouter/free") return TEXT_MODEL;
-  if (model.includes("dots-studio/dots-3-note-preview") || model.includes("llama-3.1-8b-instruct:free") || model.includes("nemotron-3.5-lightning:free")) return TEXT_MODEL;
-  if (model.includes("llama-3.3-70b-versatile") || model.includes("llama-3.3-70b-specdec")) return TEXT_MODEL;
-  if (model === "openrouter/openrouter/openai/gpt-oss-20b:free") return "openrouter/openai/gpt-oss-20b:free";
-  if (model === "openrouter/openai/gpt-oss-20b:free" || model === "openai/gpt-oss-20b:free") return "openrouter/openai/gpt-oss-20b:free";
-  if (model === "openai/gpt-oss-120b:free") return "openrouter/openai/gpt-oss-120b:free";
-  return model;
+
+  // Legacy aliases are normalized, but an explicit provider selection is never
+  // silently redirected to another provider. The backend validates/handles
+  // the selected provider in getAICompletion.
+  if (model === "openrouter/free") return TEXT_MODEL;
+  if (model === "openrouter/openrouter/free") return TEXT_MODEL;
+  if (model === "openrouter/openai/gpt-oss-120b:free" || model === "openai/gpt-oss-120b:free") {
+    return "openrouter/openai/gpt-oss-120b:free";
+  }
+  if (model === "openrouter/openai/gpt-oss-20b:free" || model === "openai/gpt-oss-20b:free") {
+    return "openrouter/openai/gpt-oss-20b:free";
+  }
+  if (model.startsWith("openrouter/") || model.startsWith("groq/") || model.startsWith("gemini/") || model.startsWith("nvidia/")) {
+    return model;
+  }
+
+  // Model ids without an explicit provider are treated as OpenRouter ids for
+  // backwards compatibility, rather than being guessed as Groq/Gemini/NVIDIA.
+  return `openrouter/${model}`;
 }
 
 async function getUserId() {
