@@ -21,6 +21,17 @@ const TOOL_ALIASES: Record<string, string> = {
   create_calendar_event: "add_calendar_event",
   create_group: "create_study_group",
   create_event: "add_calendar_event",
+  read_calendar: "read_calendar",
+  compare_multiple_sources: "compare_sources_multiple",
+  deep_research: "deep_research_multi_source",
+  find_statistics: "search_statistics_data",
+  search_github_repos: "search_github_code",
+  search_oer_resources: "search_open_education",
+  analyze_seo_url: "analyze_seo",
+  fetch_citation_metadata: "search_doi_isbn",
+  deep_multi_source_research: "deep_research_multi_source",
+  search_creative_commons_images: "search_scientific_images",
+  auto_fact_check: "fact_check",
 };
 
 export function normalizeToolName(name: string): string {
@@ -28,9 +39,9 @@ export function normalizeToolName(name: string): string {
 }
 
 const READ_ONLY = new Set([
-  "open_url", "search_web", "advanced_web_search", "browse_web_page", "fact_check", "search_wikipedia", "compare_multiple_sources", "deep_research", "search_academic_paper",
+  "open_url", "search_web", "advanced_web_search", "browse_web_page", "fact_check", "search_wikipedia", "compare_sources_multiple", "deep_research_multi_source", "search_academic_paper",
   "search_library", "search_documents", "query_repositories", "view_own_library_items", "list_indexed_documents", "summarize_document", "extract_questions_from_doc", "cite_source", "analyze_source_credibility",
-  "search_knowledge_graph", "view_related_concepts", "view_progress_by_subject", "calculate_mastery_score", "read_calendar_events", "search_calendar_events", "read_habit_tracker", "view_habit_stats",
+  "search_knowledge_graph", "view_related_concepts", "view_progress_by_subject", "calculate_mastery_score", "read_calendar", "read_calendar_events", "search_calendar_events", "read_habit_tracker", "view_habit_stats",
   "read_shared_events", "read_shared_chat", "view_shared_members", "read_unread_messages", "read_full_conversation", "view_group_members", "search_user_by_name", "search_chat_history",
   "view_study_stats", "generate_weekly_report", "view_exam_history", "analyze_strengths_weaknesses", "view_habit_streaks", "detect_procrastination", "generate_academic_dashboard", "view_friends_list",
   "view_friend_profile", "view_recent_activity", "view_ai_sessions", "view_ai_personalities", "view_ai_memory", "view_ai_token_usage", "view_daily_quests", "view_leaderboard", "view_global_ranking",
@@ -84,7 +95,6 @@ export function getToolDefinition(rawName: string): ToolDefinition {
       uiType: categoryFor(name),
     };
   }
-
   const readOnly = READ_ONLY.has(name);
   const externalEffect = EXTERNAL.has(name);
   const highRisk = HIGH_RISK.has(name);
