@@ -10,22 +10,18 @@ import { analyticsSkill } from "./analytics";
 import { profileSocialSkill } from "./social";
 import { educationSkill } from "./education";
 
-// Register all skills
 export function registerAllSkills() {
   aiRegistry.registerSkill(researchSkill);
   aiRegistry.registerSkill(calendarSkill);
   aiRegistry.registerSkill(knowledgeGraphSkill);
   aiRegistry.registerSkill(chatSkill);
-  aiRegistry.registerSkill(librarySkill);
+  aiRegistry.registerSkill({ ...librarySkill, tools: librarySkill.tools.filter((tool) => tool.id !== "query_repositories") });
+  aiRegistry.registerSkill({ ...contentSkill, id: "content_generation" });
   aiRegistry.registerSkill(multimediaSkill);
-  aiRegistry.registerSkill(contentSkill);
   aiRegistry.registerSkill(analyticsSkill);
   aiRegistry.registerSkill(profileSocialSkill);
   aiRegistry.registerSkill(educationSkill);
-  // Future skills will be imported and registered here
 }
 
-// Automatically register them upon module load
 registerAllSkills();
-
 export { aiRegistry } from "../core/registry";
