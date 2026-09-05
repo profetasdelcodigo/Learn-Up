@@ -8,33 +8,67 @@ import { getPersistedSkillPacks, saveSkillPacks } from "@/lib/ai/core/skill-stat
 
 const iconMap: Record<string, any> = { Calendar, MessageSquare, BookOpen, BrainCircuit, PenLine, ImageIcon, Search, BarChart3, User, GraduationCap };
 
-interface SkillsDirectoryModalProps { isOpen: boolean; onClose: () => void; activeSkills: string[]; onToggleSkill: (skillId: string) => void; }
+interface SkillsDirectoryModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  activeSkills: string[];
+  onToggleSkill: (skillId: string) => void;
+}
 
 export default function SkillsDirectoryModal({ isOpen, onClose, activeSkills, onToggleSkill }: SkillsDirectoryModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"skills" | "connectors" | "plugins">("skills");
+  const [localActiveSkills, setLocalActiveSkills] = useState<string[]>(activeSkills);
+
+  useEffect(() => {
+    setLocalActiveSkills(activeSkills);
+  }, [activeSkills]);
 
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
     void getPersistedSkillPacks().then((persisted) => {
-      if (cancelled) return;
-      for (const skillId of persisted) {
-        if (!activeSkills.includes(skillId)) onToggleSkill(skillId);
-      }
+      if (cancelled || !Array.isArray(persisted)) return;
+      setLocalActiveSkills((current) => {
+        const next = [...new Set([...current, ...persisted])];
+        for (const skillId of persisted) {
+          if (!activeSkills.includes(skillId)) onToggleSkill(skillId);
+        }
+        return next;
+      });
     }).catch(() => undefined);
     return () => { cancelled = true; };
   }, [isOpen]);
 
   const toggle = async (skillId: string) => {
-    const next = activeSkills.includes(skillId)
-      ? activeSkills.filter((id) => id !== skillId)
-      : [...activeSkills, skillId];
+    // Compute from the local optimistic state, not the parent prop. This prevents
+    // rapid clicks on multiple packs from overwriting one another before React
+    // finishes the parent re-render.
+    const next = localActiveSkills.includes(skillId)
+      ? localActiveSkills.filter((id) => id !== skillId)
+      : [...localActiveSkills, skillId];
+
+    setLocalActiveSkills(next);
     onToggleSkill(skillId);
-    try { await saveSkillPacks(next); } catch (error) { console.error("[SKILLS] No se pudo persistir la selección:", error); }
+
+    try {
+      await saveSkillPacks(next);
+    } catch (error) {
+      // Re-read the server state instead of silently leaving the UI inconsistent.
+      console.error("[SKILLS] No se pudo persistir la selección:", error);
+      try {
+        const persisted = await getPersistedSkillPacks();
+        setLocalActiveSkills(persisted);
+      } catch {
+        // Keep the optimistic UI if the recovery read also fails.
+      }
+    }
   };
 
-  const filteredSkills = SKILL_CATEGORIES.filter((s: SkillCategory) => s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.description.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredSkills = SKILL_CATEGORIES.filter((s: SkillCategory) =>
+    s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.description.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <AnimatePresence>
@@ -52,7 +86,7 @@ export default function SkillsDirectoryModal({ isOpen, onClose, activeSkills, on
                   <div className="flex items-center gap-3 text-sm font-medium"><span className="text-white px-3 py-1.5 rounded-md bg-white/5">Learn Up</span><button className="flex items-center gap-2 text-gray-300 hover:text-white bg-[#242424] border border-white/10 rounded-xl px-4 py-2.5 transition-colors">Filtrar por <ChevronDown className="w-4 h-4" /></button><button className="flex items-center gap-2 text-gray-300 hover:text-white bg-[#242424] border border-white/10 rounded-xl px-4 py-2.5 transition-colors">Ordenar por <ChevronDown className="w-4 h-4" /></button></div>
                 </div>
                 <div className="flex-1 overflow-y-auto p-6 pt-4">
-                  {activeTab === "skills" && <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">{filteredSkills.map((skill) => { const IconComponent = iconMap[skill.icon] || BookOpen; const isActive = activeSkills.includes(skill.id); return <div key={skill.id} className={`group relative bg-[#242424] border rounded-2xl p-5 flex flex-col transition-all hover:bg-[#2a2a2a] ${isActive ? 'border-brand-gold/50 shadow-[0_0_15px_rgba(255,215,0,0.1)]' : 'border-white/5'}`}><div className="flex items-start justify-between mb-3"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-xl flex items-center justify-center ${skill.color} bg-opacity-10 text-white`}><IconComponent className="w-5 h-5" /></div><div><h3 className="text-white font-medium text-[15px]">/{skill.id}</h3><div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5"><span>Learn Up</span><span>•</span><span className="flex items-center gap-1"><BookOpen className="w-3 h-3" /> {skill.skillCount} tools</span></div></div></div><button onClick={() => void toggle(skill.id)} className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isActive ? 'bg-brand-gold text-black hover:bg-yellow-400' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}>{isActive ? <CheckCircle2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}</button></div><p className="text-gray-400 text-sm leading-relaxed line-clamp-3">{skill.description}</p></div>; })}</div>}
+                  {activeTab === "skills" && <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">{filteredSkills.map((skill) => { const IconComponent = iconMap[skill.icon] || BookOpen; const isActive = localActiveSkills.includes(skill.id); return <div key={skill.id} className={`group relative bg-[#242424] border rounded-2xl p-5 flex flex-col transition-all hover:bg-[#2a2a2a] ${isActive ? 'border-brand-gold/50 shadow-[0_0_15px_rgba(255,215,0,0.1)]' : 'border-white/5'}`}><div className="flex items-start justify-between mb-3"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-xl flex items-center justify-center ${skill.color} bg-opacity-10 text-white`}><IconComponent className="w-5 h-5" /></div><div><h3 className="text-white font-medium text-[15px]">/{skill.id}</h3><div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5"><span>Learn Up</span><span>•</span><span className="flex items-center gap-1"><BookOpen className="w-3 h-3" /> {skill.skillCount} tools</span></div></div></div><button onClick={() => void toggle(skill.id)} className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isActive ? 'bg-brand-gold text-black hover:bg-yellow-400' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}>{isActive ? <CheckCircle2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}</button></div><p className="text-gray-400 text-sm leading-relaxed line-clamp-3">{skill.description}</p></div>; })}</div>}
                   {activeTab !== "skills" && <div className="flex flex-col items-center justify-center h-full text-gray-500 gap-4"><SlidersHorizontal className="w-12 h-12 opacity-20" /><p>Próximamente disponible</p></div>}
                 </div>
               </div>
