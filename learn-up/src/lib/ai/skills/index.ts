@@ -11,8 +11,8 @@ import { profileSocialSkill } from "./social";
 import { educationSkill } from "./education";
 import { withRealSkillOverrides } from "./real-overrides";
 
-export function registerAllSkills(){
-  aiRegistry.registerSkill(researchSkill);
+export function registerAllSkills() {
+  aiRegistry.registerSkill(withRealSkillOverrides(researchSkill));
   aiRegistry.registerSkill(calendarSkill);
   aiRegistry.registerSkill(knowledgeGraphSkill);
   aiRegistry.registerSkill(withRealSkillOverrides(chatSkill));
