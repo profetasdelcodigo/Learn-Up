@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Heart } from "lucide-react";
 import NotebookLayout from "@/components/ai/NotebookLayout";
-import StableAIChatComponent from "@/components/StableAIChatComponent";
+import AIChatComponent from "@/components/AIChatComponent";
 import JournalSidebar from "@/components/JournalSidebar";
 import SourcesPanel from "@/components/ai/SourcesPanel";
 import { askCounselorStable } from "@/actions/stable-ai-agents";
@@ -21,7 +21,7 @@ export default function CounselorChatPage() {
         />
       }
       centerPanel={
-        <StableAIChatComponent
+        <AIChatComponent
           title="Alma (Consejera)"
           subtitle="Apoyo emocional y motivación diaria"
           icon={<Heart className="w-5 h-5 text-rose-500" />}
@@ -30,7 +30,7 @@ export default function CounselorChatPage() {
           className="font-serif"
           currentSessionId={sessionId}
           onSessionChange={setSessionId}
-          defaultModel="openrouter/openrouter/free"
+          defaultModel="openrouter/openai/gpt-oss-120b:free"
         />
       }
       rightPanel={<JournalSidebar currentSessionId={sessionId} />}
