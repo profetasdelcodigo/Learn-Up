@@ -16,14 +16,13 @@ const PACK_TO_SKILL: Record<string, string> = {
   stats_pack: "analytics",
   profile_pack: "social",
   edu_pack: "education",
-  // Legacy UI aliases kept for compatibility with previous chat sessions.
   web_search: "research",
   education_pack: "education",
   social_pack: "social",
   content_generation_pack: "content_generation",
 };
 
-const ALL_PACKS = Object.keys(PACK_TO_SKILL).filter((id) => id.endsWith("_pack") && !(id in { web_search: true }));
+const ALL_PACKS = [...new Set(Object.keys(PACK_TO_SKILL).filter((id) => id.endsWith("_pack")))];
 
 export function normalizeSkillPackIds(activeSkills: string[] = []): string[] {
   const ids = activeSkills
@@ -68,7 +67,7 @@ export function buildToolsForAgent(
     if (entry.kind === "registry") {
       const registeredTool = entry.definition;
       const shouldAutoExecute = isAutonomous
-        ? registeredTool.supportsAutopilot && !registeredTool.requiresConfirmation
+        ? registeredTool.supportsAutopilot
         : !registeredTool.requiresConfirmation;
       const execute = async (args: any) => {
         try {
@@ -93,8 +92,11 @@ export function buildToolsForAgent(
       });
     } else if (entry.kind === "panel") {
       const panel = entry.definition;
+      // Manual mode respects the explicit confirmation flag.
+      // Autopilot mode respects supportsAutopilot, allowing approved low-risk writes
+      // (such as advisor/nutrition panel updates) to execute automatically.
       const shouldAutoExecute = isAutonomous
-        ? !panel.requiresConfirmation && panel.supportsAutopilot !== false
+        ? panel.supportsAutopilot !== false
         : !panel.requiresConfirmation;
       vercelTools[toolId] = (tool as any)({
         description: panel.description,
