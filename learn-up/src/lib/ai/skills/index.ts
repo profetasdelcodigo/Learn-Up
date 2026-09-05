@@ -10,18 +10,23 @@ import { analyticsSkill } from "./analytics";
 import { profileSocialSkill } from "./social";
 import { educationSkill } from "./education";
 import { withRealSkillOverrides } from "./real-overrides";
+import { withExecutableGenerativeTools } from "./execute-generative-result";
+
+function registerSkill(skill: Parameters<typeof aiRegistry.registerSkill>[0]) {
+  aiRegistry.registerSkill(withExecutableGenerativeTools(skill));
+}
 
 export function registerAllSkills() {
-  aiRegistry.registerSkill(withRealSkillOverrides(researchSkill));
-  aiRegistry.registerSkill(calendarSkill);
-  aiRegistry.registerSkill(knowledgeGraphSkill);
-  aiRegistry.registerSkill(withRealSkillOverrides(chatSkill));
-  aiRegistry.registerSkill(withRealSkillOverrides(librarySkill));
-  aiRegistry.registerSkill({ ...withRealSkillOverrides(contentSkill), id: "content_generation" });
-  aiRegistry.registerSkill(multimediaSkill);
-  aiRegistry.registerSkill(analyticsSkill);
-  aiRegistry.registerSkill(profileSocialSkill);
-  aiRegistry.registerSkill(educationSkill);
+  registerSkill(withRealSkillOverrides(researchSkill));
+  registerSkill(calendarSkill);
+  registerSkill(knowledgeGraphSkill);
+  registerSkill(withRealSkillOverrides(chatSkill));
+  registerSkill(withRealSkillOverrides(librarySkill));
+  registerSkill({ ...withRealSkillOverrides(contentSkill), id: "content_generation" });
+  registerSkill(multimediaSkill);
+  registerSkill(analyticsSkill);
+  registerSkill(profileSocialSkill);
+  registerSkill(educationSkill);
 }
 
 registerAllSkills();
