@@ -63,7 +63,7 @@ function wrapTool(tool: ToolDefinition): ToolDefinition {
 
       const completion = await getAICompletion(
         [{ role: "user", content: prompt }],
-        process.env.GEMINI_TEXT_MODEL || "gemini-3-flash-preview",
+        "gemini/gemini-3.8-flash",
       );
       const content = completion?.choices?.[0]?.message?.content;
       if (typeof content !== "string" || !content.trim()) {
