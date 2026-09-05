@@ -14,6 +14,13 @@ const PACK_TO_SKILL: Record<string, string> = {
 };
 
 const ALL_PACKS = Object.keys(PACK_TO_SKILL);
+const VALID_ROUTES = [
+  "/chat",
+  "/ai/profesor",
+  "/ai/practica",
+  "/ai/consejero",
+  "/ai/recetas",
+];
 
 function schemaKeys(schema: any): string[] {
   try {
@@ -31,16 +38,19 @@ export function getRegistryToolCatalog(activeSkills: string[] = []): string {
     .filter((skill) => skillIds.has(skill.id))
     .flatMap((skill) => skill.tools);
 
-  return tools.map((tool) => {
+  const skillCatalog = tools.map((tool) => {
     const keys = schemaKeys(tool.schema);
     const risk = tool.risk;
     const confirmation = tool.requiresConfirmation ? "requiere confirmación del usuario" : "no requiere confirmación";
     const autopilot = tool.supportsAutopilot ? "permitida en piloto automático" : "no permitida automáticamente";
     return `- ${tool.id}: ${tool.description}. Parámetros: ${keys.length ? keys.join(", ") : "objeto según schema"}. Riesgo: ${risk}; ${confirmation}; ${autopilot}.`;
   }).join("\n");
+
+  return `${skillCatalog}\n- open_url: navegación interna o enlace externo validado. Parámetros: url, title. Solo usa rutas internas pertenecientes a la lista válida o URLs https reales.\nRUTAS INTERNAS VÁLIDAS:\n${VALID_ROUTES.map((route) => `- ${route}`).join("\n")}`;
 }
 
 export function normalizeSkillPacks(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return [...new Set(value.filter((x): x is string => typeof x === "string" && x.trim().length > 0))];
+  if (Array.isArray(value)) return [...new Set(value.filter((x): x is string => typeof x === "string" && x.trim().length > 0))];
+  if (typeof value === "string") return [...new Set(value.split(",").map((x) => x.trim()).filter(Boolean))];
+  return [];
 }
