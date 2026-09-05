@@ -4,7 +4,8 @@ import { calendarSkill } from "./calendar";
 import { knowledgeGraphSkill } from "./knowledge-graph";
 import { chatSkill } from "./chat";
 import { librarySkill } from "./library";
-import { multimediaSkill, contentSkill } from "./content";
+import { contentSkill } from "./content";
+import { multimediaSkill } from "./multimedia";
 
 // Register all skills
 export function registerAllSkills() {

@@ -1,194 +1,303 @@
 import { z } from "zod";
 import { Skill, ToolDefinition } from "../../core/types";
-import { generateFalImage } from "@/lib/fal";
+// The getAICompletion uses the exact schema it expects: [{role:"user", content: string}], model
+// The actual import is dynamically used in the tool functions to avoid circular deps
 
-const generateImageTool: ToolDefinition = {
-  id: "generate_image",
-  category: "multimedia",
-  description: "Genera una imagen con IA usando Fal.ai. Puede ser fotorrealista, ilustración o diagrama.",
+// ═══════════════════════════════════════════════════════════════════════════
+// CONTENT GENERATION TOOLS (90-111)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Helper to standardise generation 
+async function generateContentWithAI(prompt: string, title: string) {
+  const { getAICompletion } = await import("@/lib/ai");
+  const content = await getAICompletion([{ role: "user", content: prompt }], "gemini-2.0-flash");
+  return {
+    success: true,
+    message: `${title} generado exitosamente.`,
+    data: { title, content }
+  };
+}
+
+export const generateDocumentTool: ToolDefinition = {
+  id: "generate_document",
+  category: "content",
+  description: "Crear documento markdown completo y descargable.",
   risk: "write",
   requiresConfirmation: true,
   supportsAutopilot: false,
-  schema: z.object({
-    prompt: z.string().min(1).describe("Descripción de la imagen a generar"),
-    purpose: z.string().optional().describe("Propósito: receta, estudio, presentación"),
-  }),
-  execute: async (args, _context) => {
-    try {
-      const imageUrl = await generateFalImage(args.prompt);
-      return { success: true, message: `Imagen generada: ${args.prompt}`, data: { url: imageUrl } };
-    } catch (e: any) {
-      return { success: false, error: e.message };
-    }
-  },
+  schema: z.object({ title: z.string(), outline: z.string().optional() }),
+  execute: async (args) => generateContentWithAI(
+    `Genera un documento académico Markdown sobre: "${args.title}"\nEsquema: ${args.outline || "Sin esquema"}\nIncluye introducción, desarrollo, conclusión.`, 
+    args.title
+  )
 };
 
-const searchImageTool: ToolDefinition = {
-  id: "search_image",
-  category: "multimedia",
-  description: "Busca una foto en Unsplash por término de búsqueda.",
+export const generateSummaryTool: ToolDefinition = {
+  id: "generate_summary",
+  category: "content",
+  description: "Condensar texto en 200-500 palabras con puntos clave.",
   risk: "read",
   requiresConfirmation: false,
   supportsAutopilot: true,
-  schema: z.object({
-    query: z.string().min(1).describe("Término de búsqueda para Unsplash"),
-  }),
-  execute: async (args, _context) => {
-    try {
-      const UNSPLASH_KEY = process.env.UNSPLASH_ACCESS_KEY;
-      if (!UNSPLASH_KEY) throw new Error("Unsplash API key no configurada");
-      const resp = await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(args.query)}&per_page=3`, {
-        headers: { Authorization: `Client-ID ${UNSPLASH_KEY}` },
-      });
-      if (!resp.ok) throw new Error(`Unsplash error: ${resp.status}`);
-      const data = await resp.json();
-      const photos = data.results?.map((p: any) => ({
-        url: p.urls?.regular,
-        alt: p.alt_description,
-        credit: p.user?.name,
-      })) || [];
-      return { success: true, message: `Encontré ${photos.length} imágenes.`, data: photos };
-    } catch (e: any) {
-      return { success: false, error: e.message };
-    }
-  },
+  schema: z.object({ text: z.string() }),
+  execute: async (args) => generateContentWithAI(`Resume el siguiente texto en puntos clave, máximo 500 palabras:\n\n${args.text}`, "Resumen")
 };
 
-const generateVideoTool: ToolDefinition = {
-  id: "generate_video",
-  category: "multimedia",
-  description: "Genera un video corto con IA usando Fal.ai.",
-  risk: "write",
-  requiresConfirmation: true,
-  supportsAutopilot: false,
-  schema: z.object({
-    prompt: z.string().min(1).describe("Descripción del video a generar"),
-    purpose: z.string().optional(),
-  }),
-  execute: async (args, _context) => {
-    try {
-      // Uses the same fal infrastructure but with video model
-      const { generateFalVideo } = await import("@/lib/fal");
-      const videoUrl = await generateFalVideo(args.prompt);
-      return { success: true, message: `Video generado.`, data: { url: videoUrl } };
-    } catch (e: any) {
-      return { success: false, error: e.message || "Error al generar video" };
-    }
-  },
-};
-
-const generateDocumentTool: ToolDefinition = {
-  id: "generate_document",
+export const createStudyPlanTool: ToolDefinition = {
+  id: "create_study_plan",
   category: "content",
-  description: "Genera un documento markdown completo y descargable sobre un tema.",
-  risk: "write",
-  requiresConfirmation: true,
-  supportsAutopilot: false,
-  schema: z.object({
-    title: z.string().min(1).describe("Título del documento"),
-    outline: z.string().optional().describe("Esquema o guía del contenido"),
-    topic: z.string().optional().describe("Tema del documento"),
-  }),
-  execute: async (args, context) => {
-    try {
-      const { getAICompletion } = await import("@/lib/ai");
-      const prompt = `Genera un documento académico completo en Markdown sobre: "${args.title}"${args.outline ? `\nEsquema: ${args.outline}` : ""}${args.topic ? `\nTema: ${args.topic}` : ""}
-      
-Incluye: portada, índice, introducción, desarrollo con subsecciones, conclusión, y bibliografía.
-Formato: Markdown con títulos, negritas, listas y bloques de cita.
-Extensión: 1500-3000 palabras.`;
-
-      const content = await getAICompletion([{ role: "user", content: prompt }], "gemini-2.0-flash");
-      return {
-        success: true,
-        message: `Documento "${args.title}" generado exitosamente. Descárgalo abajo.`,
-        data: { title: args.title, content },
-      };
-    } catch (e: any) {
-      return { success: false, error: e.message };
-    }
-  },
+  description: "Cronograma semanal con temas y actividades.",
+  risk: "read",
+  requiresConfirmation: false,
+  supportsAutopilot: true,
+  schema: z.object({ subject: z.string(), exam_date: z.string().optional(), hours_per_day: z.number().optional() }),
+  execute: async (args) => generateContentWithAI(
+    `Genera un plan de estudio en Markdown para la materia "${args.subject}". ` +
+    `Fecha límite: ${args.exam_date || "1 mes"}. Horas/día: ${args.hours_per_day || 2}. Incluye cronograma por semana y actividades específicas.`,
+    `Plan de Estudio: ${args.subject}`
+  )
 };
 
-const createExamTool: ToolDefinition = {
-  id: "create_exam",
+export const generatePresentationOutlineTool: ToolDefinition = {
+  id: "generate_presentation_outline",
   category: "content",
-  description: "Crea un examen interactivo con rúbrica, puntajes y respuestas.",
+  description: "Estructura de diapositivas con puntos por slide.",
+  risk: "read",
+  requiresConfirmation: false,
+  supportsAutopilot: true,
+  schema: z.object({ topic: z.string() }),
+  execute: async (args) => generateContentWithAI(`Diseña una presentación (Slide 1, Slide 2...) sobre "${args.topic}". Para cada slide indica: Título, Puntos clave a mencionar, y sugerencia visual.`, `Presentación: ${args.topic}`)
+};
+
+export const generateEssayTool: ToolDefinition = {
+  id: "generate_essay",
+  category: "content",
+  description: "Ensayo académico con intro, desarrollo, conclusión, bibliografía.",
   risk: "write",
   requiresConfirmation: true,
   supportsAutopilot: false,
-  schema: z.object({
-    topic: z.string().min(1).describe("Tema del examen"),
-    difficulty: z.string().optional().default("intermedio"),
-    question_count: z.number().optional().default(10),
-  }),
-  execute: async (args, _context) => {
-    try {
-      const { getAICompletion } = await import("@/lib/ai");
-      const prompt = `Crea un examen completo sobre "${args.topic}" con:
-- ${args.question_count || 10} preguntas
-- Dificultad: ${args.difficulty || "intermedio"}
-- Mezcla de tipos: opción múltiple, verdadero/falso, desarrollo
-- Cada pregunta con puntaje (total = 100 puntos)
-- Incluye rúbrica de evaluación
-- Incluye las respuestas correctas al final
-
-Formato: Markdown estructurado con ## para secciones.`;
-
-      const content = await getAICompletion([{ role: "user", content: prompt }], "gemini-2.0-flash");
-      return {
-        success: true,
-        message: `Examen de "${args.topic}" generado. Descárgalo abajo.`,
-        data: { title: `Examen: ${args.topic}`, content },
-      };
-    } catch (e: any) {
-      return { success: false, error: e.message };
-    }
-  },
+  schema: z.object({ topic: z.string(), format: z.enum(["APA", "MLA"]).optional() }),
+  execute: async (args) => generateContentWithAI(`Escribe un ensayo académico sobre "${args.topic}" con formato de referencias ${args.format || "APA"}. Incluye introducción, desarrollo argumentativo, y conclusión.`, `Ensayo: ${args.topic}`)
 };
 
-const generateFlashcardsTool: ToolDefinition = {
+export const generateGlossaryTool: ToolDefinition = {
+  id: "generate_glossary",
+  category: "content",
+  description: "Glosario alfabético con definiciones claras y ejemplos.",
+  risk: "read",
+  requiresConfirmation: false,
+  supportsAutopilot: true,
+  schema: z.object({ topic: z.string() }),
+  execute: async (args) => generateContentWithAI(`Crea un glosario con los 15-20 términos más importantes sobre "${args.topic}", en orden alfabético, cada uno con definición clara y un ejemplo.`, `Glosario: ${args.topic}`)
+};
+
+export const generateComparisonTableTool: ToolDefinition = {
+  id: "generate_comparison_table",
+  category: "content",
+  description: "Tabla comparativa de elementos en múltiples dimensiones.",
+  risk: "read",
+  requiresConfirmation: false,
+  supportsAutopilot: true,
+  schema: z.object({ items: z.array(z.string()), dimensions: z.array(z.string()).optional() }),
+  execute: async (args) => generateContentWithAI(
+    `Crea una tabla comparativa Markdown detallada comparando los siguientes elementos: ${args.items.join(", ")}. ` +
+    (args.dimensions ? `Utiliza estas dimensiones para comparar: ${args.dimensions.join(", ")}` : "Compara dimensiones lógicas automáticamente."), 
+    `Tabla Comparativa`
+  )
+};
+
+export const generateCodeTool: ToolDefinition = {
+  id: "generate_code",
+  category: "content",
+  description: "Código funcional en el lenguaje indicado con comentarios y tests.",
+  risk: "write",
+  requiresConfirmation: true,
+  supportsAutopilot: false,
+  schema: z.object({ language: z.string(), description: z.string() }),
+  execute: async (args) => generateContentWithAI(`Escribe código de calidad en ${args.language} para lo siguiente: ${args.description}. Incluye comentarios detallados y al menos un test unitario/ejemplo de uso.`, `Código: ${args.language}`)
+};
+
+export const generatePracticeQuestionsTool: ToolDefinition = {
+  id: "generate_practice_questions",
+  category: "content",
+  description: "Crear 5-20 preguntas con respuestas detalladas.",
+  risk: "read",
+  requiresConfirmation: false,
+  supportsAutopilot: true,
+  schema: z.object({ topic: z.string(), count: z.number().optional().default(10), difficulty: z.string().optional() }),
+  execute: async (args) => generateContentWithAI(`Genera ${args.count || 10} preguntas de práctica (con respuestas al final) sobre "${args.topic}". Nivel: ${args.difficulty || "intermedio"}.`, `Práctica: ${args.topic}`)
+};
+
+export const generateMindMapTool: ToolDefinition = {
+  id: "generate_mind_map",
+  category: "content",
+  description: "Mapa mental en Mermaid.js renderizable en la UI.",
+  risk: "read",
+  requiresConfirmation: false,
+  supportsAutopilot: true,
+  schema: z.object({ topic: z.string() }),
+  execute: async (args) => generateContentWithAI(`Crea un mapa mental sobre "${args.topic}" usando la sintaxis de Mermaid.js (usa graph TD o mindmap). Solo devuelve el bloque de código Mermaid sin texto adicional.`, `Mapa Mental: ${args.topic}`)
+};
+
+export const generateBibliographyTool: ToolDefinition = {
+  id: "generate_bibliography",
+  category: "content",
+  description: "Bibliografía formateada (APA 7, MLA 9, Chicago, IEEE).",
+  risk: "read",
+  requiresConfirmation: false,
+  supportsAutopilot: true,
+  schema: z.object({ sources: z.array(z.any()), format: z.string().optional().default("APA") }),
+  execute: async (args) => generateContentWithAI(`Formatea las siguientes fuentes en bibliografía estilo ${args.format || "APA"}:\n\n${JSON.stringify(args.sources, null, 2)}`, "Bibliografía")
+};
+
+export const generateProjectTemplateTool: ToolDefinition = {
+  id: "generate_project_template",
+  category: "content",
+  description: "Plantilla completa: portada, índice, marco teórico, etc.",
+  risk: "write",
+  requiresConfirmation: true,
+  supportsAutopilot: false,
+  schema: z.object({ topic: z.string() }),
+  execute: async (args) => generateContentWithAI(`Genera una estructura de documento maestro (Plantilla de Proyecto Final/Tesis) para el tema: "${args.topic}". Incluye todas las secciones metodológicas desde la Introducción hasta Bibliografía, explicando qué va en cada una.`, `Plantilla de Proyecto: ${args.topic}`)
+};
+
+export const generateTimelineTool: ToolDefinition = {
+  id: "generate_timeline",
+  category: "content",
+  description: "Línea de tiempo con fechas y eventos.",
+  risk: "read",
+  requiresConfirmation: false,
+  supportsAutopilot: true,
+  schema: z.object({ topic: z.string(), period: z.string().optional() }),
+  execute: async (args) => generateContentWithAI(`Genera una línea de tiempo cronológica detallada sobre "${args.topic}" ${args.period ? `durante el periodo ${args.period}` : ""}.`, `Línea de Tiempo: ${args.topic}`)
+};
+
+export const generateFormalLetterTool: ToolDefinition = {
+  id: "generate_formal_letter",
+  category: "content",
+  description: "Carta formal/informal adaptada al destinatario.",
+  risk: "read",
+  requiresConfirmation: false,
+  supportsAutopilot: true,
+  schema: z.object({ purpose: z.string(), recipient: z.string(), tone: z.string().optional().default("formal") }),
+  execute: async (args) => generateContentWithAI(`Redacta una carta de tono ${args.tone || "formal"} dirigida a ${args.recipient}. Propósito: ${args.purpose}.`, `Carta: ${args.recipient}`)
+};
+
+export const generateReadingSheetTool: ToolDefinition = {
+  id: "generate_reading_sheet",
+  category: "content",
+  description: "Ficha de lectura: autor, tesis, argumentos, citas, valoración.",
+  risk: "read",
+  requiresConfirmation: false,
+  supportsAutopilot: true,
+  schema: z.object({ title: z.string(), author: z.string() }),
+  execute: async (args) => generateContentWithAI(`Genera una ficha de lectura analítica del libro/obra "${args.title}" por "${args.author}". Incluye: Resumen de la trama/tesis, personajes/argumentos clave, temas principales, y valoración crítica.`, `Ficha de Lectura: ${args.title}`)
+};
+
+export const generateRubricTool: ToolDefinition = {
+  id: "generate_rubric",
+  category: "content",
+  description: "Rúbrica de evaluación con niveles de desempeño.",
+  risk: "read",
+  requiresConfirmation: false,
+  supportsAutopilot: true,
+  schema: z.object({ activity: z.string() }),
+  execute: async (args) => generateContentWithAI(`Crea una rúbrica de evaluación detallada en formato tabla para la siguiente actividad: "${args.activity}". Incluye 4 niveles de desempeño (Ej. Excelente, Bueno, Regular, Deficiente) y al menos 4 criterios de evaluación.`, `Rúbrica: ${args.activity}`)
+};
+
+export const generateResearchReportTool: ToolDefinition = {
+  id: "generate_research_report",
+  category: "content",
+  description: "Reporte con fuentes web citadas.",
+  risk: "write",
+  requiresConfirmation: true,
+  supportsAutopilot: false,
+  schema: z.object({ topic: z.string() }),
+  execute: async (args) => generateContentWithAI(`Escribe un reporte de investigación formal sobre "${args.topic}". Divide el contenido lógicamente e incluye referencias simuladas o citas textuales como ejemplos de fuentes fiables.`, `Reporte: ${args.topic}`)
+};
+
+export const generateSyllabusTool: ToolDefinition = {
+  id: "generate_syllabus",
+  category: "content",
+  description: "Programa de curso por semanas con objetivos y evaluaciones.",
+  risk: "read",
+  requiresConfirmation: false,
+  supportsAutopilot: true,
+  schema: z.object({ subject: z.string(), weeks: z.number().optional().default(16) }),
+  execute: async (args) => generateContentWithAI(`Crea un syllabus/programa universitario completo para un curso de "${args.subject}" que dura ${args.weeks || 16} semanas. Incluye objetivos del curso, método de evaluación, y los temas exactos a cubrir semana por semana.`, `Syllabus: ${args.subject}`)
+};
+
+export const generateFlashcardsTool: ToolDefinition = {
   id: "generate_flashcards",
   category: "content",
-  description: "Genera tarjetas de repaso (flashcards) con frente y reverso sobre un tema.",
+  description: "Tarjetas front/back para repaso activo.",
   risk: "write",
   requiresConfirmation: true,
   supportsAutopilot: false,
-  schema: z.object({
-    topic: z.string().min(1).describe("Tema de las flashcards"),
-    count: z.number().optional().default(20),
-  }),
-  execute: async (args, _context) => {
-    try {
-      const { getAICompletion } = await import("@/lib/ai");
-      const prompt = `Genera ${args.count || 20} flashcards sobre "${args.topic}".
-Formato JSON array: [{"front": "pregunta", "back": "respuesta"}, ...]
-Solo devuelve el JSON, sin texto adicional.`;
-
-      const content = await getAICompletion([{ role: "user", content: prompt }], "gemini-2.0-flash");
-      return {
-        success: true,
-        message: `${args.count || 20} flashcards generadas sobre "${args.topic}".`,
-        data: { title: `Flashcards: ${args.topic}`, content },
-      };
-    } catch (e: any) {
-      return { success: false, error: e.message };
-    }
-  },
+  schema: z.object({ topic: z.string(), count: z.number().optional().default(20) }),
+  execute: async (args) => generateContentWithAI(`Genera ${args.count || 20} flashcards sobre "${args.topic}".\nFormato JSON array: [{"front": "pregunta", "back": "respuesta"}, ...]\nSolo devuelve el JSON, sin texto adicional.`, `Flashcards: ${args.topic}`)
 };
 
-export const multimediaSkill: Skill = {
-  id: "multimedia",
-  name: "Multimedia",
+export const createExamTool: ToolDefinition = {
+  id: "create_exam",
   category: "content",
-  description: "Generación de imágenes, videos y búsqueda visual.",
-  tools: [generateImageTool, searchImageTool, generateVideoTool],
+  description: "Examen interactivo con rúbrica y puntajes.",
+  risk: "write",
+  requiresConfirmation: true,
+  supportsAutopilot: false,
+  schema: z.object({ topic: z.string(), difficulty: z.string().optional().default("intermedio"), question_count: z.number().optional().default(10) }),
+  execute: async (args) => generateContentWithAI(`Crea un examen sobre "${args.topic}".\n- ${args.question_count || 10} preguntas\n- Dificultad: ${args.difficulty || "intermedio"}\n- Cada pregunta con puntaje (total 100)\n- Respuestas al final.`, `Examen: ${args.topic}`)
+};
+
+export const generateCreativeStoryTool: ToolDefinition = {
+  id: "generate_creative_story",
+  category: "content",
+  description: "Cuento o historia creativa.",
+  risk: "read",
+  requiresConfirmation: false,
+  supportsAutopilot: true,
+  schema: z.object({ topic: z.string(), genre: z.string().optional() }),
+  execute: async (args) => generateContentWithAI(`Escribe una historia creativa o cuento corto sobre "${args.topic}" en el género de ${args.genre || "ficción general"}.`, `Cuento: ${args.topic}`)
+};
+
+export const generateDebateArgumentsTool: ToolDefinition = {
+  id: "generate_debate_arguments",
+  category: "content",
+  description: "Argumentos pro y contra sobre un tema.",
+  risk: "read",
+  requiresConfirmation: false,
+  supportsAutopilot: true,
+  schema: z.object({ topic: z.string() }),
+  execute: async (args) => generateContentWithAI(`Genera 5 argumentos fuertes A FAVOR y 5 argumentos fuertes EN CONTRA del siguiente tema de debate: "${args.topic}". Explica brevemente la lógica de cada uno.`, `Debate: ${args.topic}`)
 };
 
 export const contentSkill: Skill = {
   id: "content_generation",
   name: "Generación de Contenido",
   category: "content",
-  description: "Documentos, exámenes, flashcards y material educativo.",
-  tools: [generateDocumentTool, createExamTool, generateFlashcardsTool],
+  description: "Documentos, exámenes, rúbricas, ensayos, tablas y material educativo completo.",
+  tools: [
+    generateDocumentTool,
+    generateSummaryTool,
+    createStudyPlanTool,
+    generatePresentationOutlineTool,
+    generateEssayTool,
+    generateGlossaryTool,
+    generateComparisonTableTool,
+    generateCodeTool,
+    generatePracticeQuestionsTool,
+    generateMindMapTool,
+    generateBibliographyTool,
+    generateProjectTemplateTool,
+    generateTimelineTool,
+    generateFormalLetterTool,
+    generateReadingSheetTool,
+    generateRubricTool,
+    generateResearchReportTool,
+    generateSyllabusTool,
+    generateFlashcardsTool,
+    createExamTool,
+    generateCreativeStoryTool,
+    generateDebateArgumentsTool
+  ],
 };
