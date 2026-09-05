@@ -3,6 +3,7 @@ import { parseToolCall, executeToolAction, type ToolAction } from "@/lib/ai-tool
 import { aiRegistry } from "./skills";
 import { normalizeToolName, shouldExecuteTool, type ToolMode } from "./tool-contract";
 import { createClient } from "@/utils/supabase/server";
+import { materializeToolResult } from "./core/materialize-result";
 
 export interface AgentLoopOptions {
   maxSteps?: number;
@@ -76,11 +77,7 @@ function extractSources(data: any): Array<{ title?: string; url?: string; provid
   const candidates = [data.sources, data.results, data.pages];
   const sourceLists = candidates.filter(Array.isArray).flat();
   return sourceLists
-    .map((item: any) => ({
-      title: item?.title || item?.name,
-      url: item?.url || item?.sourceUrl || item?.link,
-      provider: item?.provider,
-    }))
+    .map((item: any) => ({ title: item?.title || item?.name, url: item?.url || item?.sourceUrl || item?.link, provider: item?.provider }))
     .filter((item) => typeof item.url === "string" && /^https?:\/\//i.test(item.url));
 }
 
@@ -111,7 +108,7 @@ async function auditToolEvent(params: {
       user_id: params.userId,
       session_id: params.sessionId || null,
       step: params.step,
-      skill_id: registered?.id?.split(":")[0] || registered?.category || null,
+      skill_id: registered?.category || null,
       tool_name: params.action.tool,
       status: params.status,
       risk: registered?.risk || null,
@@ -130,36 +127,27 @@ async function executeOne(action: ToolAction, userId?: string | null, sessionId?
   await auditToolEvent({ userId, sessionId, step, action, status: "running" });
   const registered = aiRegistry.getTool(action.tool);
   try {
+    let rawResult: any;
     if (registered?.execute) {
-      const result = await registered.execute(action.args, {
-        userId: userId || undefined,
-        sessionId: sessionId || undefined,
-        roomId: undefined,
-        referer: undefined,
-      } as any);
-      const normalized = {
-        action,
-        success: Boolean(result?.success),
-        message: String(result?.message || (result?.success ? "Completado" : result?.error || "La herramienta no pudo completarse")),
-        data: result?.data ?? null,
-      };
-      await auditToolEvent({ userId, sessionId, step, action, status: normalized.success ? "success" : "error", output: normalized.data, error: normalized.success ? undefined : normalized.message });
-      return normalized;
+      rawResult = await registered.execute(action.args, { userId: userId || undefined, sessionId: sessionId || undefined, roomId: undefined, referer: undefined } as any);
+      rawResult = await materializeToolResult(rawResult);
+    } else {
+      rawResult = await executeToolAction(action.tool, action.args);
+      rawResult = await materializeToolResult(rawResult);
     }
 
-    const legacy = await executeToolAction(action.tool, action.args);
     const normalized = {
       action,
-      success: Boolean(legacy?.success),
-      message: String(legacy?.message || (legacy?.success ? "Completado" : "La herramienta no pudo completarse")),
-      data: legacy?.data ?? null,
+      success: Boolean(rawResult?.success),
+      message: String(rawResult?.message || (rawResult?.success ? "Completado" : rawResult?.error || "La herramienta no pudo completarse")),
+      data: rawResult?.data ?? null,
     };
     await auditToolEvent({ userId, sessionId, step, action, status: normalized.success ? "success" : "error", output: normalized.data, error: normalized.success ? undefined : normalized.message });
     return normalized;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error desconocido de herramienta";
     await auditToolEvent({ userId, sessionId, step, action, status: "error", error: message });
-    throw error;
+    return { action, success: false, message, data: null };
   }
 }
 
@@ -167,18 +155,7 @@ async function executeInBatches(actions: ToolAction[], maxParallel: number, user
   const results: Array<{ action: ToolAction; success: boolean; message: string; data: unknown }> = [];
   for (let i = 0; i < actions.length; i += maxParallel) {
     const batch = actions.slice(i, i + maxParallel);
-    const batchResults = await Promise.all(batch.map(async (action) => {
-      try {
-        return await executeOne(action, userId, sessionId, step);
-      } catch (error) {
-        return {
-          action,
-          success: false,
-          message: error instanceof Error ? error.message : "Error desconocido de herramienta",
-          data: null,
-        };
-      }
-    }));
+    const batchResults = await Promise.all(batch.map((action) => executeOne(action, userId, sessionId, step)));
     results.push(...batchResults);
   }
   return results;
@@ -228,7 +205,6 @@ export async function runAgentLoop(
     const executable: ToolAction[] = [];
     const pending: ToolAction[] = [];
     const denied: ToolAction[] = [];
-
     for (const action of actions) {
       const decision = shouldExecuteTool(action.tool, mode, permissions);
       if (decision === "execute") executable.push(action);
