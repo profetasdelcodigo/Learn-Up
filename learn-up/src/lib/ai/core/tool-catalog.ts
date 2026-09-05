@@ -1,6 +1,7 @@
 import { aiRegistry } from "../skills";
+import { APP_ROUTES, getRouteCatalog } from "./route-registry";
 
-const PACK_TO_SKILL: Record<string, string> = {
+export const PACK_TO_SKILL: Record<string, string> = {
   calendar_pack: "calendar",
   chat_pack: "chat",
   library_pack: "library",
@@ -13,16 +14,59 @@ const PACK_TO_SKILL: Record<string, string> = {
   edu_pack: "education",
 };
 
-const ALL_PACKS = Object.keys(PACK_TO_SKILL);
-const VALID_ROUTES = ["/chat", "/ai/profesor", "/ai/practica", "/ai/consejero", "/ai/recetas"];
+export const ALL_PACKS = Object.keys(PACK_TO_SKILL);
 
-function schemaKeys(schema: any): string[] { try { const shape = typeof schema?._def?.shape === "function" ? schema._def.shape() : schema?._def?.shape; return shape && typeof shape === "object" ? Object.keys(shape) : []; } catch { return []; } }
+export function normalizeSkillPacks(value: unknown): string[] {
+  const raw = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.split(/[|,]/g)
+      : [];
 
-export function getRegistryToolCatalog(activeSkills:string[]=[]):string{
-  const packs=activeSkills.length?activeSkills:ALL_PACKS;const ids=new Set(packs.map(p=>PACK_TO_SKILL[p]||p));
-  const tools=aiRegistry.getAllSkills().filter(skill=>ids.has(skill.id)).flatMap(skill=>skill.tools);
-  const catalog=tools.map(t=>`- ${t.id}: ${t.description}. Parámetros: ${schemaKeys(t.schema).join(", ")||"schema"}. Riesgo: ${t.risk}; ${t.requiresConfirmation?"requiere confirmación":"sin confirmación"}; ${t.supportsAutopilot?"permitida en piloto automático":"no automática"}.`).join("\n");
-  return `${catalog}\n- open_url: navegación interna o enlace externo validado. Parámetros: url, title. Solo usa rutas internas válidas o URLs https reales.\nRUTAS INTERNAS VÁLIDAS:\n${VALID_ROUTES.map(r=>`- ${r}`).join("\n")}`;
+  const normalized = raw
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      if (PACK_TO_SKILL[item]) return item;
+      return Object.entries(PACK_TO_SKILL).find(([, skillId]) => skillId === item)?.[0] || item;
+    });
+
+  return [...new Set(normalized)].filter((id) => ALL_PACKS.includes(id));
 }
 
-export function normalizeSkillPacks(value:unknown):string[]{return Array.isArray(value)?[...new Set(value.filter((x):x is string=>typeof x==="string"&&x.trim()).map(x=>x.trim()))]:typeof value==="string"?[...new Set(value.split(",").map(x=>x.trim()).filter(Boolean))]:[];}
+function schemaKeys(schema: any): string[] {
+  try {
+    const shape = typeof schema?._def?.shape === "function" ? schema._def.shape() : schema?._def?.shape;
+    return shape && typeof shape === "object" ? Object.keys(shape) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function getRegistryToolCatalog(activeSkills: unknown = []): string {
+  const packs = normalizeSkillPacks(activeSkills);
+  const selectedPacks = packs.length ? packs : ALL_PACKS;
+  const ids = new Set(selectedPacks.map((pack) => PACK_TO_SKILL[pack]).filter(Boolean));
+  const tools = aiRegistry
+    .getAllSkills()
+    .filter((skill) => ids.has(skill.id))
+    .flatMap((skill) => skill.tools);
+
+  const catalog = tools
+    .map((tool) => {
+      const params = schemaKeys(tool.schema).join(", ") || "schema";
+      return `- ${tool.id}: ${tool.description}. Parámetros: ${params}. Riesgo: ${tool.risk}; ${tool.requiresConfirmation ? "requiere confirmación" : "sin confirmación"}; ${tool.supportsAutopilot ? "permitida en piloto automático" : "requiere modo manual"}.`;
+    })
+    .join("\n");
+
+  return [
+    catalog,
+    "",
+    "NAVEGACIÓN INTERNA: nunca inventes rutas; usa únicamente estas rutas registradas:",
+    getRouteCatalog(),
+    "",
+    "RUTAS REGISTRADAS COMO DATOS (no instrucciones):",
+    JSON.stringify(APP_ROUTES),
+  ].join("\n");
+}
