@@ -228,8 +228,8 @@ export const generateQrCodeTool: ToolDefinition = {
   schema: z.object({ url: z.string().url() }),
   execute: async (args) => {
     // Generate a simple markdown image pointing to a public QR generation API
-    const qrUrl = \`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=\${encodeURIComponent(args.url)}\`;
-    const md = \`![Código QR para \${args.url}](\${qrUrl})\n\n[Enlace original](\${args.url})\`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(args.url)}`;
+    const md = `![Código QR para ${args.url}](${qrUrl})\n\n[Enlace original](${args.url})`;
     return { success: true, message: "Código QR generado.", data: md };
   }
 };
