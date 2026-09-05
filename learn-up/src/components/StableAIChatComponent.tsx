@@ -7,12 +7,14 @@ import { createClient } from "@/utils/supabase/client";
 import { addAiMessage, createAiSession, getAiMessages } from "@/actions/ai-history";
 import { approveStableToolAction } from "@/actions/stable-ai-agents";
 import { indexAiDocumentFromUrl } from "@/actions/ai-tutor";
+import { getPersistedSkillPacks } from "@/lib/ai/core/skill-state";
 
 interface ToolAction {
   tool: string;
   args: Record<string, any>;
   description: string;
   requiresConfirm: boolean;
+  workflowId?: string;
 }
 
 interface ChatMessage {
@@ -64,6 +66,20 @@ function toolLabel(tool: string) {
   return toolNames[tool] || tool.replaceAll("_", " ").replace(/^./, (c) => c.toUpperCase());
 }
 
+function cleanDisplayedText(text: string) {
+  return String(text || "")
+    .replace(/<thinking>[\s\S]*?<\/thinking>/gi, "")
+    .replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, "")
+    .replace(/<function_call>[\s\S]*?<\/function_call>/gi, "")
+    .replace(/```(?:markdown|md)?\s*([\s\S]*?)```/gi, "$1")
+    .replace(/^\s*#{1,6}\s+/gm, "")
+    .replace(/^\s*[-*]\s+/gm, "• ")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
+    .replace(/~~([^~]+)~~/g, "$1")
+    .trim();
+}
+
 function mediaKind(file: File) {
   if (file.type.startsWith("image/")) return "image";
   if (file.type.startsWith("video/")) return "video";
@@ -89,11 +105,22 @@ export default function StableAIChatComponent({
   const [sending, setSending] = useState(false);
   const [autopilot, setAutopilot] = useState(false);
   const [model, setModel] = useState(defaultModel);
+  const [activeSkills, setActiveSkills] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const loadedSession = useRef<string | null>(null);
 
   useEffect(() => setSessionId(currentSessionId || null), [currentSessionId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getPersistedSkillPacks(sessionId).then((skills) => {
+      if (!cancelled) setActiveSkills(skills);
+    }).catch(() => {
+      if (!cancelled) setActiveSkills([]);
+    });
+    return () => { cancelled = true; };
+  }, [sessionId]);
 
   const loadMessages = useCallback(async (id: string) => {
     const rows = await getAiMessages(id);
@@ -147,6 +174,32 @@ export default function StableAIChatComponent({
     return supabase.storage.from("ai_media").getPublicUrl(path).data.publicUrl;
   }, []);
 
+  const appendAssistantResult = useCallback(async (id: string, result: { response?: string; error?: string; actions?: ToolAction[] }) => {
+    if (result.actions?.length) {
+      const actionMessage: ChatMessage = {
+        id: `actions-${crypto.randomUUID()}`,
+        role: "assistant",
+        content: cleanDisplayedText(result.response || "Necesito tu autorización para continuar:") || "Necesito tu autorización para continuar:",
+        status: "completed",
+        actions: result.actions,
+        actionStates: Object.fromEntries(result.actions.map((action) => [action.tool, "pending"])),
+      };
+      setMessages((prev) => [...prev, actionMessage]);
+      await addAiMessage(id, "assistant", actionMessage.content, undefined, undefined, result.actions.map((action) => ({ tool: action.tool, args: action.args, workflowId: action.workflowId })));
+      return;
+    }
+    if (result.response || result.error) {
+      const responseText = cleanDisplayedText(result.response || `No pude completar la solicitud: ${result.error}`);
+      setMessages((prev) => [...prev, {
+        id: `assistant-${crypto.randomUUID()}`,
+        role: "assistant",
+        content: responseText,
+        status: result.error ? "failed" : "completed",
+      }]);
+      await addAiMessage(id, "assistant", responseText);
+    }
+  }, []);
+
   const send = useCallback(async () => {
     if ((!input.trim() && !file) || sending) return;
     setSending(true);
@@ -186,31 +239,11 @@ export default function StableAIChatComponent({
       }
 
       const effectiveModel = autopilot ? `${model}::autopilot` : model;
-      const result = await onSubmitAction(text || "Analiza el archivo adjunto.", history, mediaUrl, mediaType, effectiveModel, id);
+      const skillPrefix = activeSkills.length > 0 ? `[Skills Activas: ${activeSkills.join(",")}]\n\n` : "";
+      const result = await onSubmitAction(skillPrefix + (text || "Analiza el archivo adjunto."), history, mediaUrl, mediaType, effectiveModel, id);
 
       setMessages((prev) => prev.map((item) => item.id === userMessage.id ? { ...item, status: "completed" } : item));
-
-      if (result.actions?.length) {
-        const actionMessage: ChatMessage = {
-          id: `actions-${crypto.randomUUID()}`,
-          role: "assistant",
-          content: result.response || "Necesito tu autorización para continuar:",
-          status: "completed",
-          actions: result.actions,
-          actionStates: Object.fromEntries(result.actions.map((action) => [action.tool, "pending"])),
-        };
-        setMessages((prev) => [...prev, actionMessage]);
-        void addAiMessage(id, "assistant", actionMessage.content, undefined, undefined, result.actions.map((action) => ({ tool: action.tool, args: action.args })));
-      } else if (result.response || result.error) {
-        const responseText = result.response || `No pude completar la solicitud: ${result.error}`;
-        setMessages((prev) => [...prev, {
-          id: `assistant-${crypto.randomUUID()}`,
-          role: "assistant",
-          content: responseText,
-          status: result.error ? "failed" : "completed",
-        }]);
-        void addAiMessage(id, "assistant", responseText);
-      }
+      await appendAssistantResult(id, result);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Error inesperado";
       setMessages((prev) => [...prev, {
@@ -222,7 +255,7 @@ export default function StableAIChatComponent({
     } finally {
       setSending(false);
     }
-  }, [autopilot, ensureSession, file, history, input, model, onSubmitAction, sending, uploadFile]);
+  }, [activeSkills, appendAssistantResult, autopilot, ensureSession, file, history, input, model, onSubmitAction, sending, uploadFile]);
 
   const approve = useCallback(async (messageId: string, action: ToolAction) => {
     setMessages((prev) => prev.map((message) => message.id === messageId ? {
@@ -231,18 +264,20 @@ export default function StableAIChatComponent({
     } : message));
     try {
       const result = await approveStableToolAction(action.tool, action.args);
-      const state = result?.success ? "success" : "error";
+      const state = result?.error ? "error" : "success";
       setMessages((prev) => prev.map((message) => message.id === messageId ? {
         ...message,
         actionStates: { ...(message.actionStates || {}), [action.tool]: state },
       } : message));
-    } catch {
-      setMessages((prev) => prev.map((message) => message.id === messageId ? {
-        ...message,
-        actionStates: { ...(message.actionStates || {}), [action.tool]: "error" },
-      } : message));
+      if (result?.response || result?.actions?.length || result?.error) {
+        const id = await ensureSession();
+        await appendAssistantResult(id, result);
+      }
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "No se pudo ejecutar la acción";
+      setMessages((prev) => [...prev, { id: `error-${crypto.randomUUID()}`, role: "assistant", content: detail, status: "failed" }]);
     }
-  }, []);
+  }, [appendAssistantResult, ensureSession]);
 
   const cancel = useCallback((messageId: string, tool: string) => {
     setMessages((prev) => prev.map((message) => message.id === messageId ? {
@@ -280,7 +315,7 @@ export default function StableAIChatComponent({
             {messages.map((message) => (
               <motion.div key={message.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-[88%] rounded-2xl border px-4 py-3 ${message.role === "user" ? "border-brand-gold/20 bg-brand-gold/10 text-white" : "border-border-subtle bg-surface-2 text-gray-100"}`}>
-                  <div className="whitespace-pre-wrap text-sm leading-6">{message.content}</div>
+                  <div className="whitespace-pre-wrap text-sm leading-6">{cleanDisplayedText(message.content)}</div>
                   {message.media_url && <div className="mt-3 rounded-xl border border-border-subtle bg-surface-3 p-2"><a href={message.media_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-brand-gold hover:underline"><FileText className="h-4 w-4" />Ver archivo adjunto</a></div>}
                   {message.actions?.map((action) => {
                     const state = message.actionStates?.[action.tool] || "pending";
