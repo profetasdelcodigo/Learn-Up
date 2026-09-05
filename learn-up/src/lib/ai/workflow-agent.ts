@@ -15,6 +15,7 @@ export interface WorkflowRunOptions {
   aiType?: string | null;
   maxSteps?: number;
   maxParallelTools?: number;
+  workflowId?: string | null;
 }
 
 export interface WorkflowRunResult {
@@ -161,10 +162,11 @@ async function runCore(currentMessages: any[], model: string, options: WorkflowR
     }
 
     if (pending.length) {
+      const actionsWithWorkflow = pending.map((action) => ({ ...action, workflowId: workflowId || undefined } as any));
       if (workflowId) {
         await Promise.all(pending.map((action) => audit(options.userId, options.sessionId, step, action, "waiting_for_user")));
-        await updateWorkflow(workflowId, { messages: currentMessages, pending_actions: pending, executed_results: results, step, status: "waiting_for_user" });
-        return { response: text, actions: pending, executedActions: executedActions.length ? executedActions : undefined };
+        await updateWorkflow(workflowId, { messages: currentMessages, pending_actions: actionsWithWorkflow, executed_results: results, step, status: "waiting_for_user" });
+        return { response: text, actions: actionsWithWorkflow, executedActions: executedActions.length ? executedActions : undefined };
       }
 
       const created = await createPendingWorkflow({
@@ -179,11 +181,8 @@ async function runCore(currentMessages: any[], model: string, options: WorkflowR
         executedResults: results,
       });
       await Promise.all(pending.map((action) => audit(options.userId, options.sessionId, step, action, "waiting_for_user")));
-      return {
-        response: text,
-        actions: pending.map((action) => ({ ...action, workflowId: created.id } as any)),
-        executedActions: executedActions.length ? executedActions : undefined,
-      };
+      const withWorkflow = pending.map((action) => ({ ...action, workflowId: created.id } as any));
+      return { response: text, actions: withWorkflow, executedActions: executedActions.length ? executedActions : undefined };
     }
 
     if (denied.length && !executable.length) {
@@ -202,12 +201,18 @@ async function runCore(currentMessages: any[], model: string, options: WorkflowR
 }
 
 export async function runWorkflowAgent(systemPrompt: string, history: any[], userMessage: string | any[], model: string, options: WorkflowRunOptions) {
-  const currentMessages = [
-    { role: "system", content: systemPrompt },
-    ...history.slice(-10),
-    { role: "user", content: userMessage },
-  ];
-  return runCore(currentMessages, model, options);
+  const currentMessages = options.workflowId
+    ? (Array.isArray(options.workflowMessages) ? options.workflowMessages : [
+        { role: "system", content: systemPrompt },
+        ...history.slice(-10),
+        { role: "user", content: userMessage },
+      ])
+    : [
+        { role: "system", content: systemPrompt },
+        ...history.slice(-10),
+        { role: "user", content: userMessage },
+      ];
+  return runCore(currentMessages, model, options, options.workflowId || null);
 }
 
 export async function resumeWorkflow(workflowId: string, tool: string, args: Record<string, any>) {
@@ -222,8 +227,9 @@ export async function resumeWorkflow(workflowId: string, tool: string, args: Rec
     userId: workflow.user_id,
     sessionId: workflow.session_id,
     aiType: workflow.ai_type,
-    maxSteps: Math.max(1, MAX_STEPS - Number(workflow.step || 0)),
+    maxSteps: MAX_STEPS,
     maxParallelTools: MAX_PARALLEL,
+    workflowId,
   };
 
   await updateWorkflow(workflowId, { status: "running", pending_actions: [] });
@@ -238,11 +244,7 @@ export async function resumeWorkflow(workflowId: string, tool: string, args: Rec
   const history = originalMessages.slice(1, -1);
   const originalRequest = originalMessages[originalMessages.length - 1]?.content || "";
   const continuation = `Solicitud original del estudiante:\n${typeof originalRequest === "string" ? originalRequest : serialize(originalRequest)}\n\nLa herramienta ${normalizedTool} fue autorizada y ya se ejecutó correctamente. Resultado real:\n${serialize(approved.data)}\n\nContinúa exactamente desde aquí. No vuelvas a ejecutar ${normalizedTool} con los mismos argumentos. Usa cualquier otra herramienta necesaria y termina la tarea. No inventes resultados ni fuentes.`;
-  return runWorkflowAgent(systemPrompt, history, continuation, workflow.model, optionsWithWorkflow(options, workflowId));
-}
-
-function optionsWithWorkflow(options: WorkflowRunOptions, workflowId: string): WorkflowRunOptions & { workflowId?: string } {
-  return { ...options, workflowId } as any;
+  return runWorkflowAgent(systemPrompt, history, continuation, workflow.model, { ...options, workflowMessages: originalMessages } as any);
 }
 
 export async function cancelWorkflow(workflowId: string) {
