@@ -80,39 +80,17 @@ function providerOf(model: string): "openrouter" | "groq" | "gemini" | "nvidia" 
   return "openrouter";
 }
 
-function openRouterModelId(model: string) {
-  return model.replace(/^openrouter\//, "");
-}
-
-function groqModelId(model: string) {
-  return model.replace(/^groq\//, "");
-}
-
-function geminiModelId(model: string) {
-  return model.replace(/^gemini\//, "");
-}
-
-function nvidiaModelId(model: string) {
-  return model.replace(/^nvidia\//, "");
-}
+function openRouterModelId(model: string) { return model.replace(/^openrouter\//, ""); }
+function groqModelId(model: string) { return model.replace(/^groq\//, ""); }
+function geminiModelId(model: string) { return model.replace(/^gemini\//, ""); }
+function nvidiaModelId(model: string) { return model.replace(/^nvidia\//, ""); }
 
 async function openRouterCompletion(messages: any[], model: string, jsonMode = false) {
   if (!openRouterApiKey) throw new Error("OPENROUTER_API_KEY no configurada.");
   const request = await fetchWithTimeout("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${openRouterApiKey}`,
-      "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "https://learn-up-qmgx.onrender.com",
-      "X-Title": "Learn Up",
-    },
-    body: JSON.stringify({
-      model: openRouterModelId(model),
-      messages: trimMessages(messages),
-      max_tokens: Number(process.env.AI_MAX_OUTPUT_TOKENS || 4096),
-      temperature: 0.2,
-      ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
-    }),
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${openRouterApiKey}`, "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "https://learn-up-qmgx.onrender.com", "X-Title": "Learn Up" },
+    body: JSON.stringify({ model: openRouterModelId(model), messages: trimMessages(messages), max_tokens: Number(process.env.AI_MAX_OUTPUT_TOKENS || 4096), temperature: 0.2, ...(jsonMode ? { response_format: { type: "json_object" } } : {}) }),
   });
   const body = await request.text();
   if (!request.ok) throw new Error(`OpenRouter ${request.status}: ${body}`);
@@ -126,13 +104,7 @@ async function groqCompletion(messages: any[], model: string, jsonMode = false) 
   const request = await fetchWithTimeout("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqApiKey}` },
-    body: JSON.stringify({
-      model: groqModelId(model),
-      messages: toTextOnlyMessages(messages),
-      max_completion_tokens: Number(process.env.AI_MAX_OUTPUT_TOKENS || 4096),
-      temperature: 0.2,
-      ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
-    }),
+    body: JSON.stringify({ model: groqModelId(model), messages: toTextOnlyMessages(messages), max_completion_tokens: Number(process.env.AI_MAX_OUTPUT_TOKENS || 4096), temperature: 0.2, ...(jsonMode ? { response_format: { type: "json_object" } } : {}) }),
   });
   const body = await request.text();
   if (!request.ok) throw new Error(`Groq ${request.status}: ${body}`);
@@ -144,13 +116,7 @@ async function nvidiaCompletion(messages: any[], model: string, jsonMode = false
   const request = await fetchWithTimeout("https://integrate.api.nvidia.com/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${nvidiaApiKey}` },
-    body: JSON.stringify({
-      model: nvidiaModelId(model),
-      messages: toTextOnlyMessages(messages),
-      max_tokens: Number(process.env.AI_MAX_OUTPUT_TOKENS || 4096),
-      temperature: 0.2,
-      ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
-    }),
+    body: JSON.stringify({ model: nvidiaModelId(model), messages: toTextOnlyMessages(messages), max_tokens: Number(process.env.AI_MAX_OUTPUT_TOKENS || 4096), temperature: 0.2, ...(jsonMode ? { response_format: { type: "json_object" } } : {}) }),
   });
   const body = await request.text();
   if (!request.ok) throw new Error(`NVIDIA ${request.status}: ${body}`);
@@ -161,9 +127,7 @@ async function fetchRemoteMediaBuffer(rawUrl: string): Promise<{ buffer: Buffer;
   const url = new URL(rawUrl);
   if (url.protocol !== "https:") throw new Error("Solo se permiten archivos HTTPS para análisis multimodal.");
   const configured = process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname : null;
-  if (configured && url.hostname !== configured && !url.hostname.endsWith(".supabase.co") && !url.hostname.endsWith(".supabase.in")) {
-    throw new Error("La URL del archivo no pertenece a un almacenamiento permitido.");
-  }
+  if (configured && url.hostname !== configured && !url.hostname.endsWith(".supabase.co") && !url.hostname.endsWith(".supabase.in")) throw new Error("La URL del archivo no pertenece a un almacenamiento permitido.");
   const response = await fetchWithTimeout(rawUrl, { cache: "no-store" }, MULTIMODAL_TIMEOUT_MS);
   if (!response.ok) throw new Error(`No se pudo descargar el archivo (${response.status}).`);
   const length = Number(response.headers.get("content-length") || "0");
@@ -195,7 +159,6 @@ async function geminiCompletion(messages: any[], model: string, jsonMode = false
   const system = trimMessages(messages).find((m) => m.role === "system");
   const other = trimMessages(messages).filter((m) => m.role !== "system");
   const generative = genAI.getGenerativeModel({ model: modelId, systemInstruction: typeof system?.content === "string" ? system.content : undefined });
-
   const contents = await Promise.all(other.map(async (message) => {
     const parts = Array.isArray(message.content)
       ? await Promise.all(message.content.map(async (part: any) => {
@@ -204,9 +167,7 @@ async function geminiCompletion(messages: any[], model: string, jsonMode = false
             const url = part.type === "image_url" ? part.image_url?.url : part.file_url?.url;
             if (!url) return { text: "" };
             const { buffer, mimeType, urlLower } = await fetchRemoteMediaBuffer(url);
-            if (mimeType.startsWith("image/") || mimeType === "application/pdf" || /\.(jpg|jpeg|png|webp|gif|pdf)$/i.test(urlLower)) {
-              return { inlineData: { data: buffer.toString("base64"), mimeType: mimeType === "application/octet-stream" ? "image/jpeg" : mimeType } };
-            }
+            if (mimeType.startsWith("image/") || mimeType === "application/pdf" || /\.(jpg|jpeg|png|webp|gif|pdf)$/i.test(urlLower)) return { inlineData: { data: buffer.toString("base64"), mimeType: mimeType === "application/octet-stream" ? "image/jpeg" : mimeType } };
             const text = await extractDocumentText(buffer, urlLower, mimeType);
             return { text: `[Contenido del archivo adjunto]\n${text}` };
           }
@@ -215,38 +176,25 @@ async function geminiCompletion(messages: any[], model: string, jsonMode = false
       : [{ text: String(message.content || "") }];
     return { role: message.role === "assistant" ? "model" : "user", parts };
   }));
-
-  const result = await withTimeout(generative.generateContent({
-    contents,
-    generationConfig: {
-      responseMimeType: jsonMode ? "application/json" : "text/plain",
-      temperature: 0.7,
-      maxOutputTokens: Number(process.env.AI_MAX_OUTPUT_TOKENS || 4096),
-    },
-  }), MULTIMODAL_TIMEOUT_MS);
-
+  const result = await withTimeout(generative.generateContent({ contents, generationConfig: { responseMimeType: jsonMode ? "application/json" : "text/plain", temperature: 0.7, maxOutputTokens: Number(process.env.AI_MAX_OUTPUT_TOKENS || 4096) } }), MULTIMODAL_TIMEOUT_MS);
   return { choices: [{ message: { content: result.response.text() } }] };
 }
 
-export async function getAICompletion(messages: any[], modelName = AI_MODELS.openRouterFree, jsonMode = false) {
+export async function getAICompletion(messages: any[], modelName: string = AI_MODELS.openRouterFree, jsonMode = false) {
   const model = normalizeModel(modelName);
   const provider = providerOf(model);
-
   if (provider === "openrouter") return openRouterCompletion(messages, model, jsonMode);
   if (provider === "groq") return groqCompletion(messages, model, jsonMode);
   if (provider === "gemini") return geminiCompletion(messages, model, jsonMode);
   return nvidiaCompletion(messages, model, jsonMode);
 }
 
-export async function getNvidiaNIMCompletion(messages: any[], modelName = AI_MODELS.nvidiaReasoning, jsonMode = false) {
+export async function getNvidiaNIMCompletion(messages: any[], modelName: string = AI_MODELS.nvidiaReasoning, jsonMode = false) {
   return nvidiaCompletion(messages, normalizeModel(modelName), jsonMode);
 }
 
-export const getGroqCompletion = async (messages: any[], modelName = AI_MODELS.groqFast, jsonMode = false) =>
-  groqCompletion(messages, normalizeModel(modelName), jsonMode);
-
-export const getGeminiCompletion = async (messages: any[], modelName = AI_MODELS.geminiFast, jsonMode = false) =>
-  geminiCompletion(messages, normalizeModel(modelName), jsonMode);
+export const getGroqCompletion = async (messages: any[], modelName: string = AI_MODELS.groqFast, jsonMode = false) => groqCompletion(messages, normalizeModel(modelName), jsonMode);
+export const getGeminiCompletion = async (messages: any[], modelName: string = AI_MODELS.geminiFast, jsonMode = false) => geminiCompletion(messages, normalizeModel(modelName), jsonMode);
 
 export async function getAIEmbedding(text: string): Promise<number[]> {
   if (!genAI) throw new Error("Gemini AI no está configurado para embeddings.");
@@ -255,10 +203,7 @@ export async function getAIEmbedding(text: string): Promise<number[]> {
   return result.embedding.values;
 }
 
-export async function fetchRemoteMediaBufferForAI(rawUrl: string) {
-  return fetchRemoteMediaBuffer(rawUrl);
-}
-
-export async function extractDocumentTextForAI(buffer: Buffer, urlLower: string, mimeType: string) {
-  return extractDocumentText(buffer, urlLower, mimeType);
-}
+export const fetchRemoteMediaBufferForAI = fetchRemoteMediaBuffer;
+export const extractDocumentTextForAI = extractDocumentText;
+// Backward-compatible exports for existing callers/tests.
+export { fetchRemoteMediaBuffer, extractDocumentText };
