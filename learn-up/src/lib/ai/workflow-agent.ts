@@ -36,6 +36,10 @@ function cleanText(text: string): string {
     .replace(/<function_call>[\s\S]*?<\/function_call>/gi, "")
     .replace(/```(?:tool|function_call|json)\s*[\s\S]*?```/gi, "")
     .replace(/^\s*\{\s*"(?:tool|function|function_call)"[\s\S]*?\}\s*$/gim, "")
+    .replace(/^\s*#{1,6}\s+/gm, "")
+    .replace(/^\s*(?:\*\s*\*\s*\*|-\s*-\s*-|_\s*_\s*_)[ \t]*$/gm, "")
+    .replace(/^\s*[-*+][ \t]+/gm, "• ")
+    .replace(/^\s*(\d+)\.[ \t]+/gm, "$1. ")
     .trim();
 }
 
@@ -60,11 +64,25 @@ function serialize(value: unknown): string {
 
 function extractSources(data: any) {
   if (!data) return [];
-  return [data.sources, data.results, data.pages]
+  const raw = [data.sources, data.results, data.pages, data.evidence]
     .filter(Array.isArray)
     .flat()
-    .map((item: any) => ({ title: item?.title || item?.name, url: item?.url || item?.sourceUrl || item?.link, provider: item?.provider }))
+    .map((item: any) => ({
+      title: item?.title || item?.name || item?.url,
+      url: item?.url || item?.sourceUrl || item?.link,
+      provider: item?.provider,
+    }))
     .filter((item: any) => typeof item.url === "string" && /^https?:\/\//i.test(item.url));
+  return [...new Map(raw.map((source: any) => [source.url, source])).values()];
+}
+
+function appendUsedSources(text: string, sources: Array<{ title?: string; url: string; provider?: string }>) {
+  const unique = [...new Map(sources.map((source) => [source.url, source])).values()];
+  if (!unique.length) return text;
+  const alreadyHasSources = /(^|\n)\s*(fuentes|fuentes consultadas|sources)\s*:?\s*$/im.test(text);
+  if (alreadyHasSources) return text;
+  const lines = unique.slice(0, 12).map((source) => `• ${source.title || source.url} — ${source.url}`);
+  return `${text.trim()}\n\nFuentes consultadas:\n${lines.join("\n")}`.trim();
 }
 
 async function audit(userId: string, sessionId: string | null | undefined, step: number, action: ToolAction, status: string, output?: unknown, error?: string) {
@@ -125,6 +143,7 @@ async function executeParallel(actions: ToolAction[], options: WorkflowRunOption
 
 async function runCore(currentMessages: any[], model: string, options: WorkflowRunOptions, workflowId: string | null = null, startStep = 0): Promise<WorkflowRunResult> {
   const executedActions: ToolAction[] = [];
+  const usedSources: Array<{ title?: string; url: string; provider?: string }> = [];
   let lastText = "";
   const maxSteps = Math.max(1, Math.min(options.maxSteps ?? MAX_STEPS, MAX_STEPS));
 
@@ -137,8 +156,9 @@ async function runCore(currentMessages: any[], model: string, options: WorkflowR
     lastText = text;
 
     if (!actions.length) {
-      if (workflowId) await finishWorkflow(workflowId, "completed", { messages: currentMessages, pending_actions: [], executed_results: executedActions });
-      return { response: text, executedActions: executedActions.length ? executedActions : undefined };
+      const finalText = appendUsedSources(lastText, usedSources);
+      if (workflowId) await finishWorkflow(workflowId, "completed", { messages: currentMessages, pending_actions: [], executed_results: executedActions, sources: usedSources });
+      return { response: finalText, executedActions: executedActions.length ? executedActions : undefined };
     }
 
     const executable: ToolAction[] = [];
@@ -155,6 +175,7 @@ async function runCore(currentMessages: any[], model: string, options: WorkflowR
     if (executable.length) {
       results = await executeParallel(executable, options, step);
       executedActions.push(...results.filter((r) => r.success).map((r) => r.action));
+      for (const result of results) usedSources.push(...extractSources(result.data));
       currentMessages.push({ role: "assistant", content: text || "Continuaré con la tarea." });
       currentMessages.push({
         role: "user",
@@ -167,7 +188,7 @@ async function runCore(currentMessages: any[], model: string, options: WorkflowR
       if (workflowId) {
         await Promise.all(pending.map((action) => audit(options.userId, options.sessionId, step, action, "waiting_for_user")));
         await updateWorkflow(workflowId, { messages: currentMessages, pending_actions: actionsWithWorkflow, executed_results: results, step, status: "waiting_for_user" });
-        return { response: text, actions: actionsWithWorkflow, executedActions: executedActions.length ? executedActions : undefined };
+        return { response: appendUsedSources(text, usedSources), actions: actionsWithWorkflow, executedActions: executedActions.length ? executedActions : undefined };
       }
 
       const created = await createPendingWorkflow({
@@ -183,22 +204,24 @@ async function runCore(currentMessages: any[], model: string, options: WorkflowR
       });
       await Promise.all(pending.map((action) => audit(options.userId, options.sessionId, step, action, "waiting_for_user")));
       const withWorkflow = pending.map((action) => ({ ...action, workflowId: created.id } as any));
-      return { response: text, actions: withWorkflow, executedActions: executedActions.length ? executedActions : undefined };
+      return { response: appendUsedSources(text, usedSources), actions: withWorkflow, executedActions: executedActions.length ? executedActions : undefined };
     }
 
     if (denied.length && !executable.length) {
-      if (workflowId) await finishWorkflow(workflowId, "error", { messages: currentMessages, pending_actions: [], error: denied.map((x) => x.tool).join(", ") });
-      return { response: text || "No puedo ejecutar esa acción.", error: `No se pudieron ejecutar: ${denied.map((x) => x.tool).join(", ")}`, executedActions: executedActions.length ? executedActions : undefined };
+      const error = `No se pudieron ejecutar: ${denied.map((x) => x.tool).join(", ")}`;
+      if (workflowId) await finishWorkflow(workflowId, "error", { messages: currentMessages, pending_actions: [], error });
+      return { response: appendUsedSources(text || "No puedo ejecutar esa acción.", usedSources), error, executedActions: executedActions.length ? executedActions : undefined };
     }
 
     if (!executable.length) {
-      if (workflowId) await finishWorkflow(workflowId, "completed", { messages: currentMessages, pending_actions: [] });
-      return { response: text, executedActions: executedActions.length ? executedActions : undefined };
+      if (workflowId) await finishWorkflow(workflowId, "completed", { messages: currentMessages, pending_actions: [], sources: usedSources });
+      return { response: appendUsedSources(text, usedSources), executedActions: executedActions.length ? executedActions : undefined };
     }
   }
 
-  if (workflowId) await finishWorkflow(workflowId, "error", { messages: currentMessages, pending_actions: [], error: "Límite de pasos alcanzado" });
-  return { response: lastText || "La tarea alcanzó el límite seguro de pasos.", executedActions: executedActions.length ? executedActions : undefined };
+  const limited = appendUsedSources(lastText || "La tarea alcanzó el límite seguro de pasos.", usedSources);
+  if (workflowId) await finishWorkflow(workflowId, "error", { messages: currentMessages, pending_actions: [], error: "Límite de pasos alcanzado", sources: usedSources });
+  return { response: limited, executedActions: executedActions.length ? executedActions : undefined };
 }
 
 export async function runWorkflowAgent(systemPrompt: string, history: any[], userMessage: string | any[], model: string, options: WorkflowRunOptions) {
