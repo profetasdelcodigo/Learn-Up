@@ -6,7 +6,7 @@ import { buildAgentSystemPrompt } from "@/lib/ai/agent-registry";
 import { getToolDefinitions, executeToolAction, type ToolAction } from "@/lib/ai-tools";
 import type { ToolMode } from "@/lib/ai/tool-contract";
 import { getPersistedSkillPacks } from "@/lib/ai/core/skill-state";
-import { runWorkflowAgent, resumeWorkflow } from "@/lib/ai/workflow-agent";
+import { runWorkflowAgent, resumeWorkflow, cancelWorkflow } from "@/lib/ai/workflow-agent";
 import { aiRegistry } from "@/lib/ai/skills";
 
 const TEXT_MODEL = "openrouter/openai/gpt-oss-120b:free";
@@ -31,7 +31,9 @@ function normalizeTextModel(modelId?: string): string {
   if (model === "openrouter/openrouter/free" || model === "openrouter/free") return TEXT_MODEL;
   if (model.includes("dots-studio/dots-3-note-preview") || model.includes("llama-3.1-8b-instruct:free") || model.includes("nemotron-3.5-lightning:free")) return TEXT_MODEL;
   if (model.includes("llama-3.3-70b-versatile") || model.includes("llama-3.3-70b-specdec")) return TEXT_MODEL;
+  if (model === "openrouter/openrouter/openai/gpt-oss-20b:free") return "openrouter/openai/gpt-oss-20b:free";
   if (model === "openrouter/openai/gpt-oss-20b:free" || model === "openai/gpt-oss-20b:free") return "openrouter/openai/gpt-oss-20b:free";
+  if (model === "openai/gpt-oss-120b:free") return "openrouter/openai/gpt-oss-120b:free";
   return model;
 }
 
@@ -51,7 +53,7 @@ export async function approveStableToolAction(tool: string, args: Record<string,
     .eq("user_id", userId)
     .eq("status", "waiting_for_user")
     .order("updated_at", { ascending: false })
-    .limit(10);
+    .limit(20);
 
   const match = (waiting || []).find((workflow: any) =>
     (workflow.pending_actions || []).some((action: any) =>
@@ -68,12 +70,23 @@ export async function approveStableToolAction(tool: string, args: Record<string,
   if (registryTool?.execute) {
     const parsed = registryTool.schema?.safeParse ? registryTool.schema.safeParse(args) : { success: true, data: args };
     if (!parsed.success) return { success: false, message: "Argumentos inválidos para la herramienta." };
-    const result = await registryTool.execute(parsed.data, { userId } as any);
-    return result;
+    return registryTool.execute(parsed.data, { userId } as any);
   }
-
-  console.log(`[TOOL] approved legacy name=${tool}`);
   return executeToolAction(tool, { ...args, user_id: userId });
+}
+
+export async function cancelStableToolAction(tool: string, args: Record<string, unknown>) {
+  const userId = await getUserId();
+  const supabase = await createClient();
+  const { data: waiting } = await supabase.from("ai_workflows").select("id,pending_actions")
+    .eq("user_id", userId).eq("status", "waiting_for_user").order("updated_at", { ascending: false }).limit(20);
+  const match = (waiting || []).find((workflow: any) => (workflow.pending_actions || []).some((action: any) =>
+    action.tool === tool && JSON.stringify(action.args || {}) === JSON.stringify(args || {})
+  ));
+  if (!match) return { success: true, status: "not_found" };
+  await cancelWorkflow(match.id);
+  console.log(`[TOOL] cancelled workflow=${match.id} name=${tool}`);
+  return { success: true, status: "cancelled", workflowId: match.id };
 }
 
 async function runStableAgent(
@@ -116,12 +129,7 @@ RUTA Y HERRAMIENTAS:
 
 ${getToolDefinitions(skills)}`;
 
-  let content: string | any[] = text;
-  if (isMultimedia) {
-    const built = await buildUserMessage(text, mediaUrl, mediaType);
-    content = built.content;
-  }
-
+  const { content } = await buildUserMessage(text, mediaUrl, mediaType);
   return runWorkflowAgent(systemPrompt, history.slice(-10), content, model, {
     sessionId,
     aiType: agentId,
