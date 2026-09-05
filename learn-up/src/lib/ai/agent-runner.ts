@@ -1,5 +1,6 @@
 import { getAICompletion } from "@/lib/ai";
 import { parseToolCall, executeToolAction, type ToolAction } from "@/lib/ai-tools";
+import { aiRegistry } from "./skills";
 import { normalizeToolName, shouldExecuteTool, type ToolMode } from "./tool-contract";
 
 export interface AgentLoopOptions {
@@ -29,7 +30,7 @@ function compactSystemPrompt(prompt: string): string {
   if (prompt.length <= MAX_SYSTEM_PROMPT_CHARS) return prompt;
   const headSize = 5200;
   const tailSize = MAX_SYSTEM_PROMPT_CHARS - headSize;
-  return `${prompt.slice(0, headSize)}\n\n[Catálogo de herramientas reducido para mantener la solicitud estable]\n\n${prompt.slice(-tailSize)}`;
+  return `${prompt.slice(0, headSize)}\n\n[Catálogo de herramientas reducido para mantener estabilidad]\n\n${prompt.slice(-tailSize)}`;
 }
 
 function compactMessageContent(content: string | any[]): string | any[] {
@@ -49,46 +50,76 @@ function sanitizeAssistantText(text: string): string {
 
 function normalizeAction(action: ToolAction): ToolAction {
   const tool = normalizeToolName(action.tool);
+  const registered = aiRegistry.getTool(tool);
   return {
     ...action,
     tool,
-    description: action.description || `Preparando ${tool}`,
+    description: action.description || registered?.description || `Preparando ${tool}`,
+    requiresConfirm: registered?.requiresConfirmation ?? action.requiresConfirm,
   };
 }
 
-function compactToolFeedback(toolResults: Array<{ action: ToolAction; success: boolean; message: string; data: unknown }>): string {
-  return toolResults
-    .map((result) => {
-      const safeMessage = String(result.message || (result.success ? "Completado" : "Error al ejecutar")).slice(0, 2500);
-      return `[Resultado de herramienta: ${result.action.tool}] ${result.success ? "OK" : "ERROR"}\n${safeMessage}`;
-    })
-    .join("\n\n");
+function serializeToolResult(data: unknown): string {
+  try {
+    return JSON.stringify(data, (_key, value) => {
+      if (typeof value === "string" && value.length > 8000) return `${value.slice(0, 8000)}...[truncado]`;
+      return value;
+    });
+  } catch {
+    return String(data ?? "");
+  }
 }
 
-async function executeInBatches(actions: ToolAction[], maxParallel: number) {
+function compactToolFeedback(toolResults: Array<{ action: ToolAction; success: boolean; message: string; data: unknown }>): string {
+  return toolResults.map((result) => {
+    const evidence = serializeToolResult(result.data);
+    const safeMessage = String(result.message || (result.success ? "Completado" : "Error al ejecutar")).slice(0, 2500);
+    return `[Resultado de herramienta: ${result.action.tool}] ${result.success ? "OK" : "ERROR"}\n${safeMessage}${evidence !== "null" ? `\nDatos: ${evidence}` : ""}`;
+  }).join("\n\n");
+}
+
+async function executeOne(action: ToolAction, userId?: string | null) {
+  const registered = aiRegistry.getTool(action.tool);
+  if (registered?.execute) {
+    const result = await registered.execute(action.args, {
+      userId: userId || undefined,
+      sessionId: undefined,
+      roomId: undefined,
+      referer: undefined,
+    } as any);
+    return {
+      action,
+      success: Boolean(result?.success),
+      message: String(result?.message || (result?.success ? "Completado" : result?.error || "La herramienta no pudo completarse")),
+      data: result?.data ?? null,
+    };
+  }
+
+  const legacy = await executeToolAction(action.tool, action.args);
+  return {
+    action,
+    success: Boolean(legacy?.success),
+    message: String(legacy?.message || (legacy?.success ? "Completado" : "La herramienta no pudo completarse")),
+    data: legacy?.data ?? null,
+  };
+}
+
+async function executeInBatches(actions: ToolAction[], maxParallel: number, userId?: string | null) {
   const results: Array<{ action: ToolAction; success: boolean; message: string; data: unknown }> = [];
   for (let i = 0; i < actions.length; i += maxParallel) {
     const batch = actions.slice(i, i + maxParallel);
-    const batchResults = await Promise.all(
-      batch.map(async (action) => {
-        try {
-          const result = await executeToolAction(action.tool, action.args);
-          return {
-            action,
-            success: Boolean(result?.success),
-            message: String(result?.message || (result?.success ? "Completado" : "La herramienta no pudo completarse")),
-            data: result?.data ?? null,
-          };
-        } catch (error) {
-          return {
-            action,
-            success: false,
-            message: error instanceof Error ? error.message : "Error desconocido de herramienta",
-            data: null,
-          };
-        }
-      }),
-    );
+    const batchResults = await Promise.all(batch.map(async (action) => {
+      try {
+        return await executeOne(action, userId);
+      } catch (error) {
+        return {
+          action,
+          success: false,
+          message: error instanceof Error ? error.message : "Error desconocido de herramienta",
+          data: null,
+        };
+      }
+    }));
     results.push(...batchResults);
   }
   return results;
@@ -107,9 +138,10 @@ export async function runAgentLoop(
   const permissions = options.permissions ?? true;
   const executedActions: ToolAction[] = [];
 
-  const safeHistory = history
-    .slice(-MAX_HISTORY_MESSAGES)
-    .map((message) => ({ ...message, content: compactMessageContent(message.content) }));
+  const safeHistory = history.slice(-MAX_HISTORY_MESSAGES).map((message) => ({
+    ...message,
+    content: compactMessageContent(message.content),
+  }));
 
   const currentMessages: { role: "user" | "assistant" | "system"; content: string | any[] }[] = [
     { role: "system", content: compactSystemPrompt(systemPrompt) },
@@ -137,10 +169,7 @@ export async function runAgentLoop(
 
     lastCleanText = cleanText;
     if (!actions.length) {
-      return {
-        response: cleanText,
-        executedActions: executedActions.length ? executedActions : undefined,
-      };
+      return { response: cleanText, executedActions: executedActions.length ? executedActions : undefined };
     }
 
     const executable: ToolAction[] = [];
@@ -171,13 +200,10 @@ export async function runAgentLoop(
     }
 
     if (!executable.length) {
-      return {
-        response: cleanText,
-        executedActions: executedActions.length ? executedActions : undefined,
-      };
+      return { response: cleanText, executedActions: executedActions.length ? executedActions : undefined };
     }
 
-    const toolResults = await executeInBatches(executable, maxParallel);
+    const toolResults = await executeInBatches(executable, maxParallel, options.userId);
     executedActions.push(...toolResults.map((item) => item.action));
 
     const feedback = compactToolFeedback(toolResults);
@@ -187,12 +213,12 @@ export async function runAgentLoop(
     });
     currentMessages.push({
       role: "user",
-      content: `Resultados estructurados de las herramientas. Úsalos como hechos.\n\n${feedback}\n\nContinúa con otras herramientas necesarias. No escribas sintaxis interna de tools, JSON de ejecución ni bloques de pensamiento. Cuando termines, responde naturalmente al estudiante.`,
+      content: `Resultados estructurados de herramientas. Trátalos como evidencia real.\n\n${feedback}\n\nContinúa con las herramientas necesarias hasta terminar la solicitud. No inventes datos. No inventes fuentes. No escribas JSON de ejecución ni sintaxis interna de herramientas. Responde naturalmente cuando termines.`,
     });
   }
 
   return {
-    response: lastCleanText || "La tarea alcanzó el límite de pasos permitido. Puedes pedirme que continúe.",
+    response: lastCleanText || "La tarea alcanzó el límite seguro de pasos.",
     executedActions: executedActions.length ? executedActions : undefined,
   };
 }
