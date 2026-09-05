@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChefHat } from "lucide-react";
 import NotebookLayout from "@/components/ai/NotebookLayout";
-import StableAIChatComponent from "@/components/StableAIChatComponent";
+import AIChatComponent from "@/components/AIChatComponent";
 import RecipeSidebar from "@/components/RecipeSidebar";
 import SourcesPanel from "@/components/ai/SourcesPanel";
 import { generateRecipeStable } from "@/actions/stable-ai-agents";
@@ -21,7 +21,7 @@ export default function RecipesChatPage() {
         />
       }
       centerPanel={
-        <StableAIChatComponent
+        <AIChatComponent
           title="Chef IA"
           subtitle="Tus Nutrirecetas saludables"
           icon={<ChefHat className="w-5 h-5 text-orange-400" />}
@@ -29,7 +29,7 @@ export default function RecipesChatPage() {
           onSubmitAction={generateRecipeStable}
           currentSessionId={sessionId}
           onSessionChange={setSessionId}
-          defaultModel="openrouter/openrouter/free"
+          defaultModel="openrouter/openai/gpt-oss-120b:free"
         />
       }
       rightPanel={<RecipeSidebar currentSessionId={sessionId} />}
