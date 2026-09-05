@@ -1,262 +1,108 @@
 import { z } from "zod";
 import { Skill, ToolDefinition } from "../../core/types";
-import { generateFalImage } from "@/lib/fal";
+import { generateFalImage, generateFalVideo } from "@/lib/fal";
+import { searchTavily } from "@/lib/web-search";
+import { createClient } from "@/utils/supabase/server";
 
-// Helper for pure text generation tools
-async function generateContentWithAI(prompt: string, title: string) {
-  const { getAICompletion } = await import("@/lib/ai");
-  const content = await getAICompletion([{ role: "user", content: prompt }], "gemini-2.0-flash");
-  return { success: true, message: `${title} generado exitosamente.`, data: { title, content } };
+async function requireUser() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("No autorizado");
+  return { supabase, user };
 }
 
-// 112. generate_image
+async function aiText(prompt: string) {
+  const { getAICompletion } = await import("@/lib/ai");
+  const result = await getAICompletion([{ role: "user", content: prompt }], "gemini-2.0-flash");
+  return result?.choices?.[0]?.message?.content || "";
+}
+
+async function publicUpload(data: ArrayBuffer, mime: string, prefix: string, extension: string) {
+  const { supabase, user } = await requireUser();
+  const path = `${user.id}/ai/${prefix}-${crypto.randomUUID()}.${extension}`;
+  const { error } = await supabase.storage.from("ai_media").upload(path, data, { contentType: mime, upsert: false });
+  if (error) throw error;
+  const { data: publicData } = supabase.storage.from("ai_media").getPublicUrl(path);
+  return publicData.publicUrl;
+}
+
+async function callGeminiVision(url: string, prompt: string, mimeFallback = "image/jpeg") {
+  const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+  if (!key) throw new Error("Falta GEMINI_API_KEY o GOOGLE_GENERATIVE_AI_API_KEY para análisis multimodal.");
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`No se pudo descargar el recurso (${response.status}).`);
+  const mime = response.headers.get("content-type") || mimeFallback;
+  const bytes = Buffer.from(await response.arrayBuffer());
+  const api = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(key)}`, { method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({contents:[{parts:[{text:prompt},{inline_data:{mime_type:mime,data:bytes.toString("base64")}}]}]})});
+  if (!api.ok) throw new Error(`Gemini multimodal ${api.status}: ${await api.text()}`);
+  const data = await api.json();
+  return data.candidates?.[0]?.content?.parts?.map((p:any)=>p.text||"").join("\n") || "";
+}
+
 export const generateImageTool: ToolDefinition = {
-  id: "generate_image",
-  category: "multimedia",
-  description: "Genera una imagen con IA usando Fal.ai. Puede ser fotorrealista, ilustración o diagrama.",
-  risk: "write",
-  requiresConfirmation: true,
-  supportsAutopilot: false,
-  schema: z.object({
-    prompt: z.string().min(1).describe("Descripción de la imagen a generar"),
-    purpose: z.string().optional().describe("Propósito: receta, estudio, presentación"),
-  }),
-  execute: async (args, _context) => {
-    try {
-      const imageUrl = await generateFalImage(args.prompt);
-      return { success: true, message: `Imagen generada: ${args.prompt}`, data: { url: imageUrl } };
-    } catch (e: any) { return { success: false, error: e.message }; }
-  },
+  id:"generate_image",category:"multimedia",description:"Generar una imagen real con Fal.ai.",risk:"write",requiresConfirmation:true,supportsAutopilot:false,
+  schema:z.object({prompt:z.string().min(1),purpose:z.string().optional()}),execute:async({prompt})=>{const url=await generateFalImage(prompt);return{success:true,message:"Imagen generada con Fal.ai.",data:{url,provider:"fal.ai"}};}
 };
 
-// 113. search_image
 export const searchImageTool: ToolDefinition = {
-  id: "search_image",
-  category: "multimedia",
-  description: "Busca una foto en Unsplash por término de búsqueda.",
-  risk: "read",
-  requiresConfirmation: false,
-  supportsAutopilot: true,
-  schema: z.object({ query: z.string().min(1) }),
-  execute: async (args, _context) => {
-    try {
-      const UNSPLASH_KEY = process.env.UNSPLASH_ACCESS_KEY;
-      if (!UNSPLASH_KEY) throw new Error("Unsplash API key no configurada");
-      const resp = await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(args.query)}&per_page=3`, {
-        headers: { Authorization: `Client-ID ${UNSPLASH_KEY}` },
-      });
-      if (!resp.ok) throw new Error(`Unsplash error: ${resp.status}`);
-      const data = await resp.json();
-      const photos = data.results?.map((p: any) => ({ url: p.urls?.regular, alt: p.alt_description, credit: p.user?.name })) || [];
-      return { success: true, message: `Encontré ${photos.length} imágenes.`, data: photos };
-    } catch (e: any) { return { success: false, error: e.message }; }
-  },
+  id:"search_image",category:"multimedia",description:"Buscar imágenes reales en Unsplash.",risk:"read",requiresConfirmation:false,supportsAutopilot:true,
+  schema:z.object({query:z.string().min(1),orientation:z.enum(["landscape","portrait","squarish"]).optional()}),execute:async({query,orientation})=>{const key=process.env.UNSPLASH_ACCESS_KEY;if(!key)return{success:false,error:"Falta UNSPLASH_ACCESS_KEY."};const p=new URLSearchParams({query,per_page:"8"});if(orientation)p.set("orientation",orientation);const r=await fetch(`https://api.unsplash.com/search/photos?${p}`,{headers:{Authorization:`Client-ID ${key}`}});if(!r.ok)return{success:false,error:`Unsplash ${r.status}`};const d=await r.json();const photos=(d.results||[]).map((x:any)=>({url:x.urls?.regular,thumb:x.urls?.small,alt:x.alt_description,author:x.user?.name,authorUrl:x.user?.links?.html,sourceUrl:x.links?.html}));return{success:true,message:`Encontré ${photos.length} imágenes reales.`,data:{photos,sources:photos.map((p:any)=>({title:p.author||"Unsplash",url:p.sourceUrl||p.url}))}};}
 };
 
-// 114. generate_video
 export const generateVideoTool: ToolDefinition = {
-  id: "generate_video",
-  category: "multimedia",
-  description: "Genera un video corto con IA usando Fal.ai.",
-  risk: "write",
-  requiresConfirmation: true,
-  supportsAutopilot: false,
-  schema: z.object({ prompt: z.string().min(1), purpose: z.string().optional() }),
-  execute: async (args, _context) => {
-    try {
-      const { generateFalVideo } = await import("@/lib/fal");
-      const videoUrl = await generateFalVideo(args.prompt);
-      return { success: true, message: `Video generado.`, data: { url: videoUrl } };
-    } catch (e: any) { return { success: false, error: e.message }; }
-  },
+  id:"generate_video",category:"multimedia",description:"Generar vídeo real con Fal.ai.",risk:"write",requiresConfirmation:true,supportsAutopilot:false,
+  schema:z.object({prompt:z.string().min(1),purpose:z.string().optional()}),execute:async({prompt})=>{const url=await generateFalVideo(prompt);return{success:true,message:"Vídeo generado con Fal.ai.",data:{url,provider:"fal.ai"}};}
 };
 
-// 115. analyze_image
 export const analyzeImageTool: ToolDefinition = {
-  id: "analyze_image",
-  category: "multimedia",
-  description: "Describir imagen subida: contenido, OCR, Q&A visual.",
-  risk: "read",
-  requiresConfirmation: false,
-  supportsAutopilot: true,
-  schema: z.object({ image_description: z.string().describe("Contexto sobre la imagen que se quiere analizar") }),
-  execute: async (args) => {
-    return { success: true, message: "Enviando directiva de análisis visual al agente principal.", data: { instruction: `Analiza detalladamente la imagen que el usuario adjuntó basándote en este contexto: ${args.image_description}` } };
-  }
+  id:"analyze_image",category:"multimedia",description:"Analizar una imagen real con Gemini Vision, incluyendo OCR y preguntas sobre la imagen.",risk:"read",requiresConfirmation:false,supportsAutopilot:true,
+  schema:z.object({image_url:z.string().url(),question:z.string().optional().default("Describe y analiza la imagen con detalle; extrae texto si lo contiene.")}),execute:async({image_url,question})=>{const text=await callGeminiVision(image_url,question);return{success:true,message:"Imagen analizada con Gemini Vision.",data:{text,source:{url:image_url}}};}
 };
 
-// 116. generate_mermaid_diagram
 export const generateMermaidDiagramTool: ToolDefinition = {
-  id: "generate_mermaid_diagram",
-  category: "multimedia",
-  description: "Diagrama de flujo, secuencia, clases, Gantt, ER.",
-  risk: "read",
-  requiresConfirmation: false,
-  supportsAutopilot: true,
-  schema: z.object({ type: z.string().default("flowchart"), description: z.string() }),
-  execute: async (args) => generateContentWithAI(`Crea un diagrama de tipo '${args.type}' usando sintaxis Mermaid.js para representar: ${args.description}. Solo devuelve el bloque de código Mermaid.`, `Diagrama: ${args.type}`)
+  id:"generate_mermaid_diagram",category:"multimedia",description:"Generar un diagrama Mermaid renderizable.",risk:"read",requiresConfirmation:false,supportsAutopilot:true,
+  schema:z.object({type:z.string().default("flowchart"),description:z.string().min(1)}),execute:async({type,description})=>{const content=await aiText(`Genera un diagrama Mermaid ${type} para: ${description}. Devuelve solamente sintaxis Mermaid válida, sin cercas de código.`);return{success:true,message:"Diagrama Mermaid generado.",data:{mermaid:content}};}
 };
 
-// 117. generate_podcast_script
 export const generatePodcastScriptTool: ToolDefinition = {
-  id: "generate_podcast_script",
-  category: "multimedia",
-  description: "Guión de podcast en formato diálogo.",
-  risk: "read",
-  requiresConfirmation: false,
-  supportsAutopilot: true,
-  schema: z.object({ topic: z.string() }),
-  execute: async (args) => generateContentWithAI(`Escribe un guión de podcast educativo dinámico sobre "${args.topic}". Debe ser un diálogo entre dos anfitriones (Ej. Host 1 y Host 2). Incluye intro, desarrollo del tema, datos curiosos y conclusión.`, `Guión Podcast: ${args.topic}`)
+  id:"generate_podcast_script",category:"multimedia",description:"Crear guion de podcast educativo.",risk:"read",requiresConfirmation:false,supportsAutopilot:true,
+  schema:z.object({topic:z.string().min(1)}),execute:async({topic})=>{const content=await aiText(`Crea un guion de podcast educativo sobre ${topic} en diálogo entre dos voces. No inventes fuentes ni datos: limita las afirmaciones a conocimiento general verificable y señala qué debe verificarse.`);return{success:true,message:"Guion de podcast generado.",data:{content}};}
 };
 
-// 118. describe_math_image
 export const describeMathImageTool: ToolDefinition = {
-  id: "describe_math_image",
-  category: "multimedia",
-  description: "Extraer ecuación de foto y resolverla paso a paso.",
-  risk: "read",
-  requiresConfirmation: false,
-  supportsAutopilot: true,
-  schema: z.object({ problem_description: z.string() }),
-  execute: async (args) => {
-    return { success: true, message: "Enviando directiva de matemáticas al agente principal.", data: { instruction: `El usuario quiere que resuelvas el problema matemático visible en la imagen adjunta. Contexto: ${args.problem_description}. Muestra el paso a paso detallado utilizando formato matemático (LaTeX/Markdown).` } };
-  }
+  id:"describe_math_image",category:"multimedia",description:"Leer y resolver una imagen matemática con Gemini Vision.",risk:"read",requiresConfirmation:false,supportsAutopilot:true,
+  schema:z.object({image_url:z.string().url(),problem_description:z.string().optional()}),execute:async({image_url,problem_description})=>{const content=await callGeminiVision(image_url,`Extrae exactamente el problema matemático de la imagen y resuélvelo paso a paso. Contexto adicional: ${problem_description||"ninguno"}.`);return{success:true,message:"Problema matemático extraído y resuelto con Gemini Vision.",data:{content,source:{url:image_url}}};}
 };
 
-// 119. text_to_speech
 export const textToSpeechTool: ToolDefinition = {
-  id: "text_to_speech",
-  category: "multimedia",
-  description: "Convertir texto a audio MP3 (Simulado/Instrucción).",
-  risk: "read",
-  requiresConfirmation: false,
-  supportsAutopilot: true,
-  schema: z.object({ text: z.string() }),
-  execute: async () => {
-    return { success: true, message: "La función TTS estará disponible en una próxima actualización del navegador de Learn Up. Por ahora, pídele al usuario que use la lectura en voz alta nativa." };
-  }
+  id:"text_to_speech",category:"multimedia",description:"Convertir texto a audio mediante OpenAI TTS y guardar el resultado en Supabase Storage.",risk:"write",requiresConfirmation:true,supportsAutopilot:false,
+  schema:z.object({text:z.string().min(1),voice:z.string().default("alloy"),model:z.string().default("tts-1")}),execute:async({text,voice,model})=>{const key=process.env.OPENAI_API_KEY;if(!key)return{success:false,error:"Falta OPENAI_API_KEY para TTS."};const r=await fetch("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{Authorization:`Bearer ${key}`,"content-type":"application/json"},body:JSON.stringify({model,input:text,voice,response_format:"mp3"})});if(!r.ok)return{success:false,error:`OpenAI TTS ${r.status}: ${await r.text()}`};const url=await publicUpload(await r.arrayBuffer(),"audio/mpeg","tts","mp3");return{success:true,message:"Audio TTS generado y guardado.",data:{url,provider:"openai"}};}
 };
 
-// 120. transcribe_audio
 export const transcribeAudioTool: ToolDefinition = {
-  id: "transcribe_audio",
-  category: "multimedia",
-  description: "Transcribir nota de voz/audio a texto.",
-  risk: "read",
-  requiresConfirmation: false,
-  supportsAutopilot: true,
-  schema: z.object({ audio_url: z.string() }),
-  execute: async () => {
-    return { success: true, message: "La transcripción automática se maneja a nivel del cliente de chat con Whisper. Indica al usuario que envíe un mensaje de voz directamente en la interfaz." };
-  }
+  id:"transcribe_audio",category:"multimedia",description:"Transcribir audio real mediante OpenAI Whisper.",risk:"read",requiresConfirmation:false,supportsAutopilot:true,
+  schema:z.object({audio_url:z.string().url()}),execute:async({audio_url})=>{const key=process.env.OPENAI_API_KEY;if(!key)return{success:false,error:"Falta OPENAI_API_KEY para STT."};const audio=await fetch(audio_url);if(!audio.ok)return{success:false,error:`No se pudo descargar el audio (${audio.status}).`};const form=new FormData();form.append("file",new Blob([await audio.arrayBuffer()],{type:audio.headers.get("content-type")||"audio/mpeg"}),"audio.mp3");form.append("model","whisper-1");form.append("response_format","verbose_json");form.append("timestamp_granularities[]","segment");const r=await fetch("https://api.openai.com/v1/audio/transcriptions",{method:"POST",headers:{Authorization:`Bearer ${key}`},body:form});if(!r.ok)return{success:false,error:`OpenAI STT ${r.status}: ${await r.text()}`};const d=await r.json();return{success:true,message:"Audio transcrito con Whisper.",data:{text:d.text,segments:d.segments||[],provider:"openai"}};}
 };
 
-// 121. generate_infographic_layout
 export const generateInfographicLayoutTool: ToolDefinition = {
-  id: "generate_infographic_layout",
-  category: "multimedia",
-  description: "Estructura visual de infografía en Markdown.",
-  risk: "read",
-  requiresConfirmation: false,
-  supportsAutopilot: true,
-  schema: z.object({ topic: z.string() }),
-  execute: async (args) => generateContentWithAI(`Diseña la estructura de una infografía sobre "${args.topic}". Divide en secciones (Encabezado, Dato curioso, Gráfico 1, Cita central, Conclusión) y describe qué elemento visual y qué texto exacto iría en cada una.`, `Estructura de Infografía: ${args.topic}`)
+  id:"generate_infographic_layout",category:"multimedia",description:"Generar estructura de infografía.",risk:"read",requiresConfirmation:false,supportsAutopilot:true,
+  schema:z.object({topic:z.string().min(1)}),execute:async({topic})=>{const content=await aiText(`Diseña una estructura de infografía educativa sobre ${topic}. Devuelve JSON válido con title, sections, key_statements y visual_suggestions. No inventes estadísticas: marca como "requiere fuente" cualquier cifra no proporcionada.`);return{success:true,message:"Estructura de infografía generada.",data:{content}};}
 };
 
-// 122. generate_color_palette
 export const generateColorPaletteTool: ToolDefinition = {
-  id: "generate_color_palette",
-  category: "multimedia",
-  description: "Paleta de colores Hex para diseños.",
-  risk: "read",
-  requiresConfirmation: false,
-  supportsAutopilot: true,
-  schema: z.object({ theme: z.string() }),
-  execute: async (args) => generateContentWithAI(`Genera una paleta de 5 colores profesionales basada en el tema "${args.theme}". Para cada color proporciona el código HEX, RGB, y una breve descripción de para qué elemento de UI debería usarse (ej. fondo principal, acento, texto).`, `Paleta de Colores: ${args.theme}`)
+  id:"generate_color_palette",category:"multimedia",description:"Generar una paleta para un contenido visual.",risk:"read",requiresConfirmation:false,supportsAutopilot:true,
+  schema:z.object({theme:z.string().min(1)}),execute:async({theme})=>{const content=await aiText(`Genera una paleta de cinco colores para el tema ${theme}. Devuelve JSON con nombre y HEX de cada color.`);return{success:true,message:"Paleta generada.",data:{content}};}
 };
 
-// 123. extract_colors_from_image
 export const extractColorsFromImageTool: ToolDefinition = {
-  id: "extract_colors_from_image",
-  category: "multimedia",
-  description: "Detectar colores dominantes de imagen.",
-  risk: "read",
-  requiresConfirmation: false,
-  supportsAutopilot: true,
-  schema: z.object({ image_url: z.string().optional() }),
-  execute: async () => {
-    return { success: true, message: "Delegando a agente visual.", data: { instruction: "Si el usuario subió una imagen, enumera los 5 colores predominantes que observas en ella con su código HEX aproximado." } };
-  }
+  id:"extract_colors_from_image",category:"multimedia",description:"Extraer colores dominantes de una imagen usando análisis visual real.",risk:"read",requiresConfirmation:false,supportsAutopilot:true,
+  schema:z.object({image_url:z.string().url()}),execute:async({image_url})=>{const content=await callGeminiVision(image_url,"Identifica aproximadamente los cinco colores dominantes de la imagen y entrega nombre, HEX aproximado y porcentaje estimado. Indica que son aproximaciones visuales.");return{success:true,message:"Colores extraídos por análisis visual.",data:{content,source:{url:image_url}}};}
 };
 
-// 124. resize_image
-export const resizeImageTool: ToolDefinition = {
-  id: "resize_image",
-  category: "multimedia",
-  description: "Redimensionar imagen (Instrucción de uso).",
-  risk: "read",
-  requiresConfirmation: false,
-  supportsAutopilot: true,
-  schema: z.object({ width: z.number().optional() }),
-  execute: async () => {
-    return { success: true, message: "Indica al usuario que actualmente las ediciones de imagen se deben realizar en un software de terceros, pero podemos generar una nueva con el prompt deseado." };
-  }
-};
+export const resizeImageTool: ToolDefinition = { id:"resize_image",category:"multimedia",description:"Validar una operación de redimensionado; requiere un procesador de imágenes configurado.",risk:"write",requiresConfirmation:true,supportsAutopilot:false,schema:z.object({image_url:z.string().url(),width:z.number().int().positive().max(10000),height:z.number().int().positive().max(10000)}),execute:async()=>({success:false,error:"No hay un procesador de imágenes de redimensionado configurado en el backend. No se simula la operación."}) };
 
-// 125. compress_image
-export const compressImageTool: ToolDefinition = {
-  id: "compress_image",
-  category: "multimedia",
-  description: "Comprimir imagen (Instrucción de uso).",
-  risk: "read",
-  requiresConfirmation: false,
-  supportsAutopilot: true,
-  schema: z.object({}),
-  execute: async () => {
-    return { success: true, message: "Indica al usuario que la plataforma comprime automáticamente las imágenes al subirlas al chat." };
-  }
-};
+export const compressImageTool: ToolDefinition = { id:"compress_image",category:"multimedia",description:"Validar una operación de compresión; requiere un procesador de imágenes configurado.",risk:"write",requiresConfirmation:true,supportsAutopilot:false,schema:z.object({image_url:z.string().url(),quality:z.number().int().min(1).max(100).default(80)}),execute:async()=>({success:false,error:"No hay un procesador de imágenes de compresión configurado en el backend. No se simula la operación."}) };
 
-// 126. generate_qr_code
-export const generateQrCodeTool: ToolDefinition = {
-  id: "generate_qr_code",
-  category: "multimedia",
-  description: "Crear código QR desde URL.",
-  risk: "read",
-  requiresConfirmation: false,
-  supportsAutopilot: true,
-  schema: z.object({ url: z.string().url() }),
-  execute: async (args) => {
-    // Generate a simple markdown image pointing to a public QR generation API
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(args.url)}`;
-    const md = `![Código QR para ${args.url}](${qrUrl})\n\n[Enlace original](${args.url})`;
-    return { success: true, message: "Código QR generado.", data: md };
-  }
-};
+export const generateQrCodeTool: ToolDefinition = { id:"generate_qr_code",category:"multimedia",description:"Generar un QR mediante un servicio externo real.",risk:"write",requiresConfirmation:false,supportsAutopilot:true,schema:z.object({url:z.string().url()}),execute:async({url})=>({success:true,message:"Código QR generado.",data:{url:`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`,target:url,provider:"qrserver"}})};
 
-// ═══════════════════════════════════════════════════════════════════════════
-// SKILL REGISTRATION
-// ═══════════════════════════════════════════════════════════════════════════
-export const multimediaSkill: Skill = {
-  id: "multimedia",
-  name: "Multimedia",
-  category: "content",
-  description: "Generación de imágenes, videos y herramientas visuales y de audio.",
-  tools: [
-    generateImageTool,
-    searchImageTool,
-    generateVideoTool,
-    analyzeImageTool,
-    generateMermaidDiagramTool,
-    generatePodcastScriptTool,
-    describeMathImageTool,
-    textToSpeechTool,
-    transcribeAudioTool,
-    generateInfographicLayoutTool,
-    generateColorPaletteTool,
-    extractColorsFromImageTool,
-    resizeImageTool,
-    compressImageTool,
-    generateQrCodeTool
-  ],
-};
+export const multimediaSkill: Skill = { id:"multimedia",name:"Multimedia",category:"multimedia",description:"Imagen, vídeo, audio, OCR, diagramas y generación multimedia con proveedores reales.",tools:[generateImageTool,searchImageTool,generateVideoTool,analyzeImageTool,generateMermaidDiagramTool,generatePodcastScriptTool,describeMathImageTool,textToSpeechTool,transcribeAudioTool,generateInfographicLayoutTool,generateColorPaletteTool,extractColorsFromImageTool,resizeImageTool,compressImageTool,generateQrCodeTool] };
