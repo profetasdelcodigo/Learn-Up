@@ -11,12 +11,6 @@ const RESEARCH_TOOLS = new Set([
   "analyze_search_trends", "search_legislation", "create_bibliography_from_search",
 ]);
 
-/**
- * Tool results must contain evidence/data, not instructions for another model.
- * This helper deliberately refuses to turn delegated or simulated tool output into
- * a fabricated success. The only special case is generate_research_report, whose
- * implementation below performs the actual multi-source retrieval itself.
- */
 function looksDelegatedOrFake(result: any): boolean {
   const message = String(result?.message || "").toLowerCase();
   const data = result?.data;
@@ -47,17 +41,9 @@ async function materializeResearchReport(args: Record<string, unknown>) {
         provider: "tavily",
       }));
 
-    if (!sources.length) {
-      return {
-        success: false,
-        error: "No se encontraron fuentes web verificables para generar el reporte.",
-      };
-    }
+    if (!sources.length) return { success: false, error: "No se encontraron fuentes web verificables para generar el reporte." };
 
-    const pages = await Promise.allSettled(
-      sources.map((source: any) => browseWebPage(source.url)),
-    );
-
+    const pages = await Promise.allSettled(sources.map((source: any) => browseWebPage(source.url)));
     const evidence = pages
       .map((page: any, index: number) => {
         if (page.status !== "fulfilled" || !page.value?.success) return null;
@@ -69,59 +55,26 @@ async function materializeResearchReport(args: Record<string, unknown>) {
       })
       .filter(Boolean);
 
-    if (!evidence.length) {
-      return {
-        success: false,
-        error:
-          "Se encontraron resultados de búsqueda, pero ninguna fuente pudo ser extraída de forma verificable.",
-        data: { sources },
-      };
-    }
+    if (!evidence.length) return { success: false, error: "Se encontraron resultados, pero ninguna fuente pudo ser extraída de forma verificable.", data: { sources } };
 
-    const prompt = `Redacta un reporte de investigación sobre "${topic}" usando exclusivamente la evidencia proporcionada. No inventes fuentes, autores, cifras ni afirmaciones. Cuando una afirmación no esté respaldada por la evidencia, indícalo. Incluye una sección de fuentes con las URLs exactas proporcionadas.\n\nEVIDENCIA:\n${JSON.stringify(evidence)}`;
-    const completion = await getAICompletion(
-      [{ role: "user", content: prompt }],
-      process.env.GEMINI_TEXT_MODEL || "gemini-3-flash-preview",
-    );
+    const prompt = `Redacta un reporte de investigación sobre "${topic}" usando exclusivamente la evidencia proporcionada. No inventes fuentes, autores, cifras ni afirmaciones. Cuando algo no esté respaldado, indícalo.\n\nEVIDENCIA:\n${JSON.stringify(evidence)}`;
+    const completion = await getAICompletion([{ role: "user", content: prompt }], "gemini/gemini-3.8-flash");
     const content = completion?.choices?.[0]?.message?.content;
-
-    if (typeof content !== "string" || !content.trim()) {
-      return {
-        success: false,
-        error: "No se pudo generar el reporte a partir de la evidencia recuperada.",
-      };
-    }
+    if (typeof content !== "string" || !content.trim()) return { success: false, error: "No se pudo generar el reporte a partir de la evidencia recuperada." };
 
     return {
       success: true,
       message: `Reporte generado con ${evidence.length} fuentes extraídas.`,
-      data: {
-        content,
-        sources: evidence.map((item: any) => ({ title: item.title, url: item.url })),
-        evidenceCount: evidence.length,
-      },
+      data: { content, sources: evidence.map((item: any) => ({ title: item.title, url: item.url })), evidenceCount: evidence.length },
     };
   } catch (error: any) {
-    return {
-      success: false,
-      error: error?.message || "Error en la investigación del reporte.",
-    };
+    return { success: false, error: error?.message || "Error en la investigación del reporte." };
   }
 }
 
-export async function materializeToolResult(
-  result: any,
-  toolName?: string,
-  args?: Record<string, unknown>,
-) {
+export async function materializeToolResult(result: any, toolName?: string, args?: Record<string, unknown>) {
   if (!result?.success) return result;
-
-  if (toolName === "generate_research_report" && args) {
-    return materializeResearchReport(args);
-  }
-
-  // A real tool result must never be converted into another LLM prompt merely
-  // because it returned an `instruction`. That hides missing implementations.
+  if (toolName === "generate_research_report" && args) return materializeResearchReport(args);
   if (looksDelegatedOrFake(result)) {
     const isResearchTool = Boolean(toolName && RESEARCH_TOOLS.has(toolName));
     return {
@@ -131,6 +84,5 @@ export async function materializeToolResult(
         : `La herramienta ${toolName || "solicitada"} devolvió una instrucción en lugar de un resultado ejecutado.`,
     };
   }
-
   return result;
 }
