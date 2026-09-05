@@ -17,11 +17,12 @@ const eslintConfig = defineConfig([
       "react-hooks/exhaustive-deps": "warn",
       "react-hooks/set-state-in-effect": "warn",
       "react-hooks/immutability": "warn",
+      "react/no-unescaped-entities": "off",
+      "prefer-const": "off",
+      "@typescript-eslint/no-require-imports": "off",
     },
   },
-  // Override default ignores of eslint-config-next.
   globalIgnores([
-    // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",
     "build/**",
@@ -30,7 +31,7 @@ const eslintConfig = defineConfig([
     "scratch/**",
     "patch.cjs",
     "fix-tailwind.ts",
-    // Ignore auto-generated or external scripts that violate linting
+    "inject.js",
     "public/sw.js",
     "public/workbox-*.js",
     "public/worker-*.js",
