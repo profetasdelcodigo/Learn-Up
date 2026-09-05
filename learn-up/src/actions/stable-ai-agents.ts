@@ -7,8 +7,8 @@ import { buildAgentSystemPrompt } from "@/lib/ai/agent-registry";
 import { getToolDefinitions, executeToolAction, type ToolAction } from "@/lib/ai-tools";
 import type { ToolMode } from "@/lib/ai/tool-contract";
 
-const TEXT_MODEL = "openrouter/free";
-const MULTIMODAL_MODEL = "google/gemini-3-flash-preview";
+const TEXT_MODEL = "openrouter/openai/gpt-oss-120b:free";
+const MULTIMODAL_MODEL = "gemini/gemini-3.8-flash";
 
 function extractSkills(message: string, defaults: string[]) {
   const match = message.match(/\[Skills Activas:\s*(.*?)\]\s*/i);
@@ -29,6 +29,7 @@ function normalizeTextModel(modelId?: string): string {
   if (model === "openrouter/openrouter/free" || model === "openrouter/free") return TEXT_MODEL;
   if (model.includes("dots-studio/dots-3-note-preview") || model.includes("llama-3.1-8b-instruct:free") || model.includes("nemotron-3.5-lightning:free")) return TEXT_MODEL;
   if (model.includes("llama-3.3-70b-versatile") || model.includes("llama-3.3-70b-specdec")) return TEXT_MODEL;
+  if (model === "openrouter/openai/gpt-oss-20b:free" || model === "openai/gpt-oss-20b:free") return "openrouter/openai/gpt-oss-20b:free";
   if (model.startsWith("nvidia/")) return model;
   return model;
 }
@@ -69,14 +70,17 @@ async function runStableAgent(
 
   const systemPrompt = `${buildAgentSystemPrompt(agentId)}
 
-REGLAS DE EJECUCIÓN DE LEARN UP:
-- Usa las herramientas reales cuando la tarea lo necesite.
-- Nunca muestres JSON, llamadas de tools, IDs internos ni bloques de pensamiento.
-- En acciones que cambian datos, espera la confirmación de la interfaz salvo que el modo sea autopilot.
-- En consultas web o investigación, puedes encadenar varias fuentes y herramientas.
-- Los datos obtenidos por tools son la fuente de verdad para describir acciones realizadas.
-- MODO ACTUAL: ${mode}. Respeta la política de ejecución del servidor.
-- Nunca escribas sintaxis de herramientas como texto visible. Genera tool calls estructuradas únicamente cuando el proveedor las soporte.
+RUTA Y HERRAMIENTAS:
+- Usa únicamente las herramientas reales expuestas.
+- Nunca inventes URLs, resultados, fuentes, estadísticas, IDs ni acciones completadas.
+- Una solicitud puede utilizar múltiples skills y múltiples tools en secuencia o paralelo.
+- Continúa mientras existan pasos necesarios y permitidos; detente solo por confirmación, falta de datos, error real o finalización.
+- En manual, las acciones con confirmación quedan pendientes.
+- En autopilot, ejecuta solamente herramientas permitidas por su política.
+- Si faltan datos, pregunta. No inventes valores.
+- No muestres JSON interno, function calls, prompts ni sintaxis de implementación.
+- Considera hechos solamente los datos devueltos por las herramientas.
+- MODO ACTUAL: ${mode}
 
 ${getToolDefinitions(skills)}`;
 
@@ -91,6 +95,8 @@ ${getToolDefinitions(skills)}`;
     userId,
     permissions: true,
     mode,
+    maxSteps: 8,
+    maxParallelTools: 4,
   });
 }
 
