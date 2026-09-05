@@ -6,6 +6,9 @@ import { chatSkill } from "./chat";
 import { librarySkill } from "./library";
 import { contentSkill } from "./content";
 import { multimediaSkill } from "./multimedia";
+import { analyticsSkill } from "./analytics";
+import { profileSocialSkill } from "./social";
+import { educationSkill } from "./education";
 
 // Register all skills
 export function registerAllSkills() {
@@ -16,6 +19,9 @@ export function registerAllSkills() {
   aiRegistry.registerSkill(librarySkill);
   aiRegistry.registerSkill(multimediaSkill);
   aiRegistry.registerSkill(contentSkill);
+  aiRegistry.registerSkill(analyticsSkill);
+  aiRegistry.registerSkill(profileSocialSkill);
+  aiRegistry.registerSkill(educationSkill);
   // Future skills will be imported and registered here
 }
 
