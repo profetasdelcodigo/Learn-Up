@@ -16,6 +16,7 @@ export interface WorkflowRunOptions {
   maxSteps?: number;
   maxParallelTools?: number;
   workflowId?: string | null;
+  workflowMessages?: any[];
 }
 
 export interface WorkflowRunResult {
@@ -201,12 +202,8 @@ async function runCore(currentMessages: any[], model: string, options: WorkflowR
 }
 
 export async function runWorkflowAgent(systemPrompt: string, history: any[], userMessage: string | any[], model: string, options: WorkflowRunOptions) {
-  const currentMessages = options.workflowId
-    ? (Array.isArray(options.workflowMessages) ? options.workflowMessages : [
-        { role: "system", content: systemPrompt },
-        ...history.slice(-10),
-        { role: "user", content: userMessage },
-      ])
+  const currentMessages = Array.isArray(options.workflowMessages)
+    ? [...options.workflowMessages, { role: "user", content: userMessage }]
     : [
         { role: "system", content: systemPrompt },
         ...history.slice(-10),
@@ -230,6 +227,7 @@ export async function resumeWorkflow(workflowId: string, tool: string, args: Rec
     maxSteps: MAX_STEPS,
     maxParallelTools: MAX_PARALLEL,
     workflowId,
+    workflowMessages: Array.isArray(workflow.messages) ? workflow.messages : [],
   };
 
   await updateWorkflow(workflowId, { status: "running", pending_actions: [] });
@@ -244,7 +242,7 @@ export async function resumeWorkflow(workflowId: string, tool: string, args: Rec
   const history = originalMessages.slice(1, -1);
   const originalRequest = originalMessages[originalMessages.length - 1]?.content || "";
   const continuation = `Solicitud original del estudiante:\n${typeof originalRequest === "string" ? originalRequest : serialize(originalRequest)}\n\nLa herramienta ${normalizedTool} fue autorizada y ya se ejecutó correctamente. Resultado real:\n${serialize(approved.data)}\n\nContinúa exactamente desde aquí. No vuelvas a ejecutar ${normalizedTool} con los mismos argumentos. Usa cualquier otra herramienta necesaria y termina la tarea. No inventes resultados ni fuentes.`;
-  return runWorkflowAgent(systemPrompt, history, continuation, workflow.model, { ...options, workflowMessages: originalMessages } as any);
+  return runWorkflowAgent(systemPrompt, history, continuation, workflow.model, options);
 }
 
 export async function cancelWorkflow(workflowId: string) {
