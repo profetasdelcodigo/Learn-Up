@@ -1,3 +1,5 @@
+import { aiRegistry } from "./skills";
+
 export type ToolMode = "manual" | "autopilot";
 export type ToolRisk = "read" | "write" | "external" | "high";
 export type ToolDecision = "execute" | "pending_confirmation" | "deny";
@@ -41,25 +43,25 @@ const READ_ONLY = new Set([
   "view_ai_token_usage", "view_daily_quests", "view_leaderboard", "view_global_ranking",
   "view_friends_ranking", "view_achievements", "view_inventory", "view_shop", "view_shop_specials",
   "view_duel_history", "view_guild_stats", "view_pomodoro_stats", "view_mood_history",
-  "view_screen_time", "get_screen_time_warning", "view_water_stats", "view_sleep_stats",
-  "get_ergonomic_advice", "view_report_status", "view_blocked_users", "view_appeal_status",
-  "view_feature_roadmap", "view_bug_reports", "read_system_announcements", "search_image",
-  "search_youtube_video", "search_scientific_image", "search_creative_commons_images", "search_statistics",
-  "analyze_image", "describe_math_image", "generate_summary", "generate_presentation_outline",
-  "generate_glossary", "generate_comparison_table", "generate_code", "generate_practice_questions",
-  "generate_mind_map", "generate_bibliography", "generate_project_template", "generate_timeline",
-  "generate_formal_letter", "generate_reading_sheet", "generate_rubric", "generate_research_report",
-  "generate_syllabus", "generate_mermaid_diagram", "generate_podcast_script", "generate_concept_map",
-  "solve_math_problem", "analyze_literary_text", "conjugate_verb", "translate_with_explanation",
-  "explain_with_analogy", "socratic_debate", "practice_language_vocabulary", "analyze_statistical_data",
-  "prepare_standardized_test", "analyze_artwork", "explain_scientific_phenomenon", "language_speaking_practice"
+  "view_screen_time", "get_screen_time_warning", "get_ergonomic_advice", "view_report_status",
+  "view_blocked_users", "view_appeal_status", "view_feature_roadmap", "view_bug_reports",
+  "read_system_announcements", "search_image", "search_youtube_video", "search_scientific_image",
+  "search_creative_commons_images", "search_statistics", "analyze_image", "describe_math_image",
+  "generate_summary", "generate_presentation_outline", "generate_glossary", "generate_comparison_table",
+  "generate_code", "generate_practice_questions", "generate_mind_map", "generate_bibliography",
+  "generate_project_template", "generate_timeline", "generate_formal_letter", "generate_reading_sheet",
+  "generate_rubric", "generate_research_report", "generate_syllabus", "generate_mermaid_diagram",
+  "generate_podcast_script", "generate_concept_map", "solve_math_problem", "analyze_literary_text",
+  "conjugate_verb", "translate_with_explanation", "explain_with_analogy", "socratic_debate",
+  "practice_language_vocabulary", "analyze_statistical_data", "prepare_standardized_test", "analyze_artwork",
+  "explain_scientific_phenomenon", "language_speaking_practice"
 ]);
 
 const EXTERNAL = new Set([
-  "open_url", "generate_image", "generate_video", "send_message", "broadcast_message",
-  "trigger_webhook", "sync_google_drive", "export_to_google_drive", "sync_notion", "export_to_notion",
-  "sync_github", "create_github_repo", "connect_zoom", "create_zoom_meeting", "connect_slack",
-  "send_slack_message", "send_discord_webhook"
+  "open_url", "generate_image", "generate_video", "send_message", "broadcast_message", "trigger_webhook",
+  "sync_google_drive", "export_to_google_drive", "sync_notion", "export_to_notion", "sync_github",
+  "create_github_repo", "connect_zoom", "create_zoom_meeting", "connect_slack", "send_slack_message",
+  "send_discord_webhook"
 ]);
 
 const HIGH_RISK = new Set([
@@ -68,7 +70,7 @@ const HIGH_RISK = new Set([
   "leave_group", "remove_friend", "block_user", "unblock_user", "delete_account", "pause_account"
 ]);
 
-function categoryFor(name: string): string {
+function categoryFor(name: string): ToolDefinition["uiType"] {
   if (name.includes("calendar") || name.includes("habit")) return "calendar";
   if (name.includes("message") || name.includes("chat") || name.includes("group")) return "chat";
   if (name.includes("document") || name.includes("library") || name.includes("source")) return "document";
@@ -82,6 +84,24 @@ function categoryFor(name: string): string {
 
 export function getToolDefinition(rawName: string): ToolDefinition {
   const name = normalizeToolName(rawName);
+  const registered = aiRegistry.getTool(name);
+
+  if (registered) {
+    const readOnly = registered.risk === "read";
+    return {
+      id: registered.id,
+      name: registered.id,
+      category: registered.category,
+      schema: registered.schema,
+      requiresConfirmation: registered.requiresConfirmation,
+      externalEffect: registered.risk !== "read",
+      readOnly,
+      supportsAutopilot: registered.supportsAutopilot,
+      supportsParallel: readOnly && ["browse_web_page", "search_web", "advanced_web_search", "search_image", "search_news", "search_academic_paper", "compare_sources_multiple", "deep_research_multi_source"].includes(name),
+      uiType: categoryFor(name),
+    };
+  }
+
   const readOnly = READ_ONLY.has(name);
   const externalEffect = EXTERNAL.has(name);
   const highRisk = HIGH_RISK.has(name);
@@ -94,15 +114,11 @@ export function getToolDefinition(rawName: string): ToolDefinition {
     readOnly,
     supportsAutopilot: readOnly && !highRisk,
     supportsParallel: readOnly && ["browse_web_page", "search_web", "advanced_web_search", "search_image", "search_news", "search_academic_paper"].includes(name),
-    uiType: name.includes("browse") || name === "open_url" ? "navigation" : readOnly && name.includes("search") ? "search" : readOnly ? "generic" : name.includes("calendar") ? "calendar" : name.includes("document") ? "document" : name.includes("image") || name.includes("video") ? "media" : "generic"
+    uiType: categoryFor(name),
   };
 }
 
-export function shouldExecuteTool(
-  rawName: string,
-  mode: ToolMode,
-  permissions = true,
-): ToolDecision {
+export function shouldExecuteTool(rawName: string, mode: ToolMode, permissions = true): ToolDecision {
   if (!permissions) return "deny";
   const tool = getToolDefinition(rawName);
   if (mode === "autopilot" && tool.supportsAutopilot) return "execute";
@@ -110,5 +126,5 @@ export function shouldExecuteTool(
 }
 
 export function isReadOnlyTool(rawName: string): boolean {
-  return READ_ONLY.has(normalizeToolName(rawName));
+  return getToolDefinition(rawName).readOnly;
 }
