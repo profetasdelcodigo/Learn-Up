@@ -6,7 +6,7 @@ const EXPECTED: Record<string, number> = {
   chat: 25,
   library: 22,
   "knowledge-graph": 15,
-  content: 22,
+  content_generation: 22,
   multimedia: 15,
   research: 18,
   analytics: 14,
