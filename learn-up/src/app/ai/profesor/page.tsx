@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { BookOpen } from "lucide-react";
 import NotebookLayout from "@/components/ai/NotebookLayout";
-import StableAIChatComponent from "@/components/StableAIChatComponent";
+import AIChatComponent from "@/components/AIChatComponent";
 import NotebookWhiteboard from "@/components/NotebookWhiteboard";
 import { askProfessorStable } from "@/actions/stable-ai-agents";
 import SourcesPanel from "@/components/ai/SourcesPanel";
@@ -21,7 +21,7 @@ export default function ProfessorChatPage() {
         />
       }
       centerPanel={
-        <StableAIChatComponent
+        <AIChatComponent
           title="Profesor Mente"
           subtitle="Tu tutor socrático personal"
           icon={<BookOpen className="w-5 h-5 text-brand-gold" />}
@@ -29,7 +29,7 @@ export default function ProfessorChatPage() {
           onSubmitAction={askProfessorStable}
           currentSessionId={sessionId}
           onSessionChange={setSessionId}
-          defaultModel="openrouter/openrouter/free"
+          defaultModel="openrouter/openai/gpt-oss-120b:free"
         />
       }
       rightPanel={<NotebookWhiteboard currentSessionId={sessionId} />}
