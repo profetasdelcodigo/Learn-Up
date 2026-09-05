@@ -9,14 +9,15 @@ import { multimediaSkill } from "./multimedia";
 import { analyticsSkill } from "./analytics";
 import { profileSocialSkill } from "./social";
 import { educationSkill } from "./education";
+import { withRealSkillOverrides } from "./real-overrides";
 
-export function registerAllSkills() {
+export function registerAllSkills(){
   aiRegistry.registerSkill(researchSkill);
   aiRegistry.registerSkill(calendarSkill);
   aiRegistry.registerSkill(knowledgeGraphSkill);
-  aiRegistry.registerSkill(chatSkill);
-  aiRegistry.registerSkill({ ...librarySkill, tools: librarySkill.tools.filter((tool) => tool.id !== "query_repositories") });
-  aiRegistry.registerSkill({ ...contentSkill, id: "content_generation" });
+  aiRegistry.registerSkill(withRealSkillOverrides(chatSkill));
+  aiRegistry.registerSkill(withRealSkillOverrides(librarySkill));
+  aiRegistry.registerSkill({ ...withRealSkillOverrides(contentSkill), id: "content_generation" });
   aiRegistry.registerSkill(multimediaSkill);
   aiRegistry.registerSkill(analyticsSkill);
   aiRegistry.registerSkill(profileSocialSkill);
