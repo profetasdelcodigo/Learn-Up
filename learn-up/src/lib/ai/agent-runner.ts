@@ -2,6 +2,7 @@ import { getAICompletion } from "@/lib/ai";
 import { parseToolCall, executeToolAction, type ToolAction } from "@/lib/ai-tools";
 import { aiRegistry } from "./skills";
 import { normalizeToolName, shouldExecuteTool, type ToolMode } from "./tool-contract";
+import { createClient } from "@/utils/supabase/server";
 
 export interface AgentLoopOptions {
   maxSteps?: number;
@@ -70,6 +71,19 @@ function serializeToolResult(data: unknown): string {
   }
 }
 
+function extractSources(data: any): Array<{ title?: string; url?: string; provider?: string }> {
+  if (!data) return [];
+  const candidates = [data.sources, data.results, data.pages];
+  const sourceLists = candidates.filter(Array.isArray).flat();
+  return sourceLists
+    .map((item: any) => ({
+      title: item?.title || item?.name,
+      url: item?.url || item?.sourceUrl || item?.link,
+      provider: item?.provider,
+    }))
+    .filter((item) => typeof item.url === "string" && /^https?:\/\//i.test(item.url));
+}
+
 function compactToolFeedback(toolResults: Array<{ action: ToolAction; success: boolean; message: string; data: unknown }>): string {
   return toolResults.map((result) => {
     const evidence = serializeToolResult(result.data);
@@ -78,39 +92,84 @@ function compactToolFeedback(toolResults: Array<{ action: ToolAction; success: b
   }).join("\n\n");
 }
 
-async function executeOne(action: ToolAction, userId?: string | null) {
-  const registered = aiRegistry.getTool(action.tool);
-  if (registered?.execute) {
-    const result = await registered.execute(action.args, {
-      userId: userId || undefined,
-      sessionId: undefined,
-      roomId: undefined,
-      referer: undefined,
-    } as any);
-    return {
-      action,
-      success: Boolean(result?.success),
-      message: String(result?.message || (result?.success ? "Completado" : result?.error || "La herramienta no pudo completarse")),
-      data: result?.data ?? null,
-    };
+async function auditToolEvent(params: {
+  userId?: string | null;
+  sessionId?: string | null;
+  step: number;
+  action: ToolAction;
+  status: "pending" | "running" | "success" | "error" | "cancelled" | "waiting_for_user";
+  output?: unknown;
+  error?: string;
+}) {
+  if (!params.userId) return;
+  try {
+    const supabase = await createClient();
+    const registered = aiRegistry.getTool(params.action.tool);
+    const output = params.output as any;
+    const sources = extractSources(output);
+    await supabase.from("ai_tool_events").insert({
+      user_id: params.userId,
+      session_id: params.sessionId || null,
+      step: params.step,
+      skill_id: registered?.id?.split(":")[0] || registered?.category || null,
+      tool_name: params.action.tool,
+      status: params.status,
+      risk: registered?.risk || null,
+      input: params.action.args || {},
+      output: output ?? null,
+      sources,
+      error: params.error || null,
+      updated_at: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("[AI-AUDIT] No se pudo guardar ai_tool_events:", error);
   }
-
-  const legacy = await executeToolAction(action.tool, action.args);
-  return {
-    action,
-    success: Boolean(legacy?.success),
-    message: String(legacy?.message || (legacy?.success ? "Completado" : "La herramienta no pudo completarse")),
-    data: legacy?.data ?? null,
-  };
 }
 
-async function executeInBatches(actions: ToolAction[], maxParallel: number, userId?: string | null) {
+async function executeOne(action: ToolAction, userId?: string | null, sessionId?: string | null, step = 0) {
+  await auditToolEvent({ userId, sessionId, step, action, status: "running" });
+  const registered = aiRegistry.getTool(action.tool);
+  try {
+    if (registered?.execute) {
+      const result = await registered.execute(action.args, {
+        userId: userId || undefined,
+        sessionId: sessionId || undefined,
+        roomId: undefined,
+        referer: undefined,
+      } as any);
+      const normalized = {
+        action,
+        success: Boolean(result?.success),
+        message: String(result?.message || (result?.success ? "Completado" : result?.error || "La herramienta no pudo completarse")),
+        data: result?.data ?? null,
+      };
+      await auditToolEvent({ userId, sessionId, step, action, status: normalized.success ? "success" : "error", output: normalized.data, error: normalized.success ? undefined : normalized.message });
+      return normalized;
+    }
+
+    const legacy = await executeToolAction(action.tool, action.args);
+    const normalized = {
+      action,
+      success: Boolean(legacy?.success),
+      message: String(legacy?.message || (legacy?.success ? "Completado" : "La herramienta no pudo completarse")),
+      data: legacy?.data ?? null,
+    };
+    await auditToolEvent({ userId, sessionId, step, action, status: normalized.success ? "success" : "error", output: normalized.data, error: normalized.success ? undefined : normalized.message });
+    return normalized;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Error desconocido de herramienta";
+    await auditToolEvent({ userId, sessionId, step, action, status: "error", error: message });
+    throw error;
+  }
+}
+
+async function executeInBatches(actions: ToolAction[], maxParallel: number, userId?: string | null, sessionId?: string | null, step = 0) {
   const results: Array<{ action: ToolAction; success: boolean; message: string; data: unknown }> = [];
   for (let i = 0; i < actions.length; i += maxParallel) {
     const batch = actions.slice(i, i + maxParallel);
     const batchResults = await Promise.all(batch.map(async (action) => {
       try {
-        return await executeOne(action, userId);
+        return await executeOne(action, userId, sessionId, step);
       } catch (error) {
         return {
           action,
@@ -138,11 +197,7 @@ export async function runAgentLoop(
   const permissions = options.permissions ?? true;
   const executedActions: ToolAction[] = [];
 
-  const safeHistory = history.slice(-MAX_HISTORY_MESSAGES).map((message) => ({
-    ...message,
-    content: compactMessageContent(message.content),
-  }));
-
+  const safeHistory = history.slice(-MAX_HISTORY_MESSAGES).map((message) => ({ ...message, content: compactMessageContent(message.content) }));
   const currentMessages: { role: "user" | "assistant" | "system"; content: string | any[] }[] = [
     { role: "system", content: compactSystemPrompt(systemPrompt) },
     ...safeHistory,
@@ -168,9 +223,7 @@ export async function runAgentLoop(
     }
 
     lastCleanText = cleanText;
-    if (!actions.length) {
-      return { response: cleanText, executedActions: executedActions.length ? executedActions : undefined };
-    }
+    if (!actions.length) return { response: cleanText, executedActions: executedActions.length ? executedActions : undefined };
 
     const executable: ToolAction[] = [];
     const pending: ToolAction[] = [];
@@ -184,41 +237,22 @@ export async function runAgentLoop(
     }
 
     if (pending.length > 0) {
-      return {
-        response: cleanText,
-        actions: pending,
-        executedActions: executedActions.length ? executedActions : undefined,
-      };
+      await Promise.all(pending.map((action) => auditToolEvent({ userId: options.userId, sessionId: options.sessionId, step, action, status: "waiting_for_user" })));
+      return { response: cleanText, actions: pending, executedActions: executedActions.length ? executedActions : undefined };
     }
 
     if (denied.length > 0 && executable.length === 0) {
-      return {
-        response: cleanText || "No puedo ejecutar esa acción con los permisos actuales.",
-        error: `No se pudieron ejecutar: ${denied.map((action) => action.tool).join(", ")}`,
-        executedActions: executedActions.length ? executedActions : undefined,
-      };
+      return { response: cleanText || "No puedo ejecutar esa acción con los permisos actuales.", error: `No se pudieron ejecutar: ${denied.map((action) => action.tool).join(", ")}`, executedActions: executedActions.length ? executedActions : undefined };
     }
 
-    if (!executable.length) {
-      return { response: cleanText, executedActions: executedActions.length ? executedActions : undefined };
-    }
+    if (!executable.length) return { response: cleanText, executedActions: executedActions.length ? executedActions : undefined };
 
-    const toolResults = await executeInBatches(executable, maxParallel, options.userId);
-    executedActions.push(...toolResults.map((item) => item.action));
+    const toolResults = await executeInBatches(executable, maxParallel, options.userId, options.sessionId, step);
+    executedActions.push(...toolResults.filter((item) => item.success).map((item) => item.action));
 
-    const feedback = compactToolFeedback(toolResults);
-    currentMessages.push({
-      role: "assistant",
-      content: cleanText || "He completado parte de la tarea y continuaré con lo necesario.",
-    });
-    currentMessages.push({
-      role: "user",
-      content: `Resultados estructurados de herramientas. Trátalos como evidencia real.\n\n${feedback}\n\nContinúa con las herramientas necesarias hasta terminar la solicitud. No inventes datos. No inventes fuentes. No escribas JSON de ejecución ni sintaxis interna de herramientas. Responde naturalmente cuando termines.`,
-    });
+    currentMessages.push({ role: "assistant", content: cleanText || "He completado parte de la tarea y continuaré con lo necesario." });
+    currentMessages.push({ role: "user", content: `Resultados estructurados de herramientas. Trátalos como evidencia real.\n\n${compactToolFeedback(toolResults)}\n\nContinúa con las herramientas necesarias hasta terminar la solicitud. No inventes datos ni fuentes. No escribas JSON de ejecución ni sintaxis interna. Responde naturalmente cuando termines.` });
   }
 
-  return {
-    response: lastCleanText || "La tarea alcanzó el límite seguro de pasos.",
-    executedActions: executedActions.length ? executedActions : undefined,
-  };
+  return { response: lastCleanText || "La tarea alcanzó el límite seguro de pasos.", executedActions: executedActions.length ? executedActions : undefined };
 }
