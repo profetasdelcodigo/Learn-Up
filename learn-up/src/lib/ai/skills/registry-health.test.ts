@@ -31,6 +31,12 @@ describe("Learn Up skill registry", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  it("has a callable execute implementation for every registered tool", () => {
+    for (const tool of aiRegistry.getAllTools()) {
+      expect(typeof tool.execute, `Tool ${tool.id} has no execute implementation`).toBe("function");
+    }
+  });
+
   it("marks destructive actions for confirmation and never autopilots them", () => {
     for (const tool of aiRegistry.getAllTools()) {
       if (tool.risk === "destructive") {
