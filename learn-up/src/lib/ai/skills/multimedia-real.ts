@@ -12,19 +12,18 @@ async function fetchBinary(url: string) {
   return { buffer, mime };
 }
 
+const GEMINI_VISION_MODEL = AI_MODELS.geminiAgentic.id.replace(/^gemini\//, "");
+
 async function geminiVision(url: string, prompt: string) {
   const key = process.env.GEMINI_API_KEY || process.env.AI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY/AI_API_KEY no configurada para visión.");
   const { buffer, mime } = await fetchBinary(url);
   if (!mime.startsWith("image/")) throw new Error(`El recurso no es una imagen (${mime}).`);
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODELS.geminiMultimodal}:generateContent`;
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_VISION_MODEL}:generateContent`;
   const response = await fetch(endpoint, {
     method: "POST",
     headers: { "content-type": "application/json", "x-goog-api-key": key },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mime, data: buffer.toString("base64") } }] }],
-      generationConfig: { responseMimeType: "text/plain" },
-    }),
+    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mime, data: buffer.toString("base64") } }] }], generationConfig: { responseMimeType: "text/plain" } }),
   });
   if (!response.ok) throw new Error(`Gemini Vision ${response.status}: ${await response.text()}`);
   const data = await response.json();
@@ -36,19 +35,19 @@ async function geminiVision(url: string, prompt: string) {
 export const analyzeImageReal: ToolDefinition = {
   id: "analyze_image", category: "multimedia", description: "Analiza una imagen real mediante Gemini Vision.", risk: "read", requiresConfirmation: false, supportsAutopilot: true,
   schema: z.object({ image_url: z.string().url(), question: z.string().optional() }),
-  execute: async ({ image_url, question }) => ({ success: true, message: "Imagen analizada con Gemini Vision.", data: { analysis: await geminiVision(image_url, question || "Describe con detalle lo que aparece en la imagen, distinguiendo texto visible, objetos, estructura y cualquier incertidumbre.") , sources: [{ title: "Imagen analizada", url: image_url }], provider: AI_MODELS.geminiMultimodal } }),
+  execute: async ({ image_url, question }) => ({ success: true, message: "Imagen analizada con Gemini Vision.", data: { analysis: await geminiVision(image_url, question || "Describe con detalle lo que aparece en la imagen, distinguiendo texto visible, objetos, estructura y cualquier incertidumbre."), sources: [{ title: "Imagen analizada", url: image_url }], provider: GEMINI_VISION_MODEL } }),
 };
 
 export const describeMathImageReal: ToolDefinition = {
   id: "describe_math_image", category: "multimedia", description: "Extrae y explica un problema matemático visible en una imagen mediante Gemini Vision.", risk: "read", requiresConfirmation: false, supportsAutopilot: true,
   schema: z.object({ image_url: z.string().url(), problem_description: z.string().optional() }),
-  execute: async ({ image_url, problem_description }) => ({ success: true, message: "Problema matemático extraído de la imagen.", data: { solution_context: await geminiVision(image_url, `Extrae exactamente el problema matemático visible y resuélvelo paso a paso. ${problem_description || "No hay contexto adicional."} No inventes símbolos que no sean visibles.`), sources: [{ title: "Imagen matemática", url: image_url }], provider: AI_MODELS.geminiMultimodal } }),
+  execute: async ({ image_url, problem_description }) => ({ success: true, message: "Problema matemático extraído de la imagen.", data: { solution_context: await geminiVision(image_url, `Extrae exactamente el problema matemático visible y resuélvelo paso a paso. ${problem_description || "No hay contexto adicional."} No inventes símbolos que no sean visibles.`), sources: [{ title: "Imagen matemática", url: image_url }], provider: GEMINI_VISION_MODEL } }),
 };
 
 export const extractColorsReal: ToolDefinition = {
   id: "extract_colors_from_image", category: "multimedia", description: "Identifica colores dominantes de una imagen real mediante visión.", risk: "read", requiresConfirmation: false, supportsAutopilot: true,
   schema: z.object({ image_url: z.string().url() }),
-  execute: async ({ image_url }) => ({ success: true, message: "Colores extraídos de la imagen.", data: { colors: await geminiVision(image_url, "Identifica hasta 8 colores dominantes. Devuelve para cada uno nombre descriptivo y HEX aproximado. No inventes elementos ausentes."), sources: [{ title: "Imagen analizada", url: image_url }], provider: AI_MODELS.geminiMultimodal } }),
+  execute: async ({ image_url }) => ({ success: true, message: "Colores extraídos de la imagen.", data: { colors: await geminiVision(image_url, "Identifica hasta 8 colores dominantes. Devuelve para cada uno nombre descriptivo y HEX aproximado. No inventes elementos ausentes."), sources: [{ title: "Imagen analizada", url: image_url }], provider: GEMINI_VISION_MODEL } }),
 };
 
 export const textToSpeechReal: ToolDefinition = {
@@ -57,11 +56,7 @@ export const textToSpeechReal: ToolDefinition = {
   execute: async ({ text, voice, model }) => {
     const key = process.env.OPENAI_API_KEY;
     if (!key) return { success: false, error: "OPENAI_API_KEY no está configurada; no se fingirá generación TTS." };
-    const response = await fetch("https://api.openai.com/v1/audio/speech", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "content-type": "application/json" },
-      body: JSON.stringify({ model, voice, input: text, format: "mp3" }),
-    });
+    const response = await fetch("https://api.openai.com/v1/audio/speech", { method: "POST", headers: { Authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify({ model, voice, input: text, response_format: "mp3" }) });
     if (!response.ok) throw new Error(`OpenAI TTS ${response.status}: ${await response.text()}`);
     const buffer = Buffer.from(await response.arrayBuffer());
     return { success: true, message: "Audio MP3 generado por OpenAI.", data: { base64: buffer.toString("base64"), mimeType: "audio/mpeg", provider: "openai" } };
@@ -100,15 +95,7 @@ export const generateVideoReal: ToolDefinition = {
   execute: async ({ prompt }) => { const url = await generateFalVideo(prompt); return { success: true, message: "Vídeo generado con Fal.ai.", data: { url, provider: "fal.ai" } }; },
 };
 
-const overrides: Record<string, ToolDefinition> = {
-  analyze_image: analyzeImageReal,
-  describe_math_image: describeMathImageReal,
-  extract_colors_from_image: extractColorsReal,
-  text_to_speech: textToSpeechReal,
-  transcribe_audio: transcribeAudioReal,
-  generate_image: generateImageReal,
-  generate_video: generateVideoReal,
-};
+const overrides: Record<string, ToolDefinition> = { analyze_image: analyzeImageReal, describe_math_image: describeMathImageReal, extract_colors_from_image: extractColorsReal, text_to_speech: textToSpeechReal, transcribe_audio: transcribeAudioReal, generate_image: generateImageReal, generate_video: generateVideoReal };
 
 export function withRealMultimediaOverrides(skill: Skill): Skill {
   return { ...skill, tools: skill.tools.map((tool) => overrides[tool.id] || tool) };
