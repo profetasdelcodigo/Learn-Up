@@ -29,7 +29,7 @@ export default function RecipesChatPage() {
           onSubmitAction={generateRecipeStable}
           currentSessionId={sessionId}
           onSessionChange={setSessionId}
-          defaultModel="openrouter/openai/gpt-oss-120b:free"
+          defaultModel="groq/openai/gpt-oss-20b"
         />
       }
       rightPanel={<RecipeSidebar currentSessionId={sessionId} />}
