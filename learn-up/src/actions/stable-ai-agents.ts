@@ -3,7 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { buildUserMessage } from "./ai-tutor";
 import { buildAgentSystemPrompt } from "@/lib/ai/agent-registry";
-import { executeToolAction, type ToolAction } from "@/lib/ai-tools";
+import { type ToolAction } from "@/lib/ai-tools";
 import { getRegistryToolCatalog, normalizeSkillPacks } from "@/lib/ai/core/tool-catalog";
 import type { ToolMode } from "@/lib/ai/tool-contract";
 import { getPersistedSkillPacks, saveSkillPacks } from "@/lib/ai/core/skill-state";
@@ -64,12 +64,10 @@ export async function approveStableToolAction(tool: string, args: Record<string,
   const match = (waiting || []).find((workflow: any) => (workflow.pending_actions || []).some((action: any) => action.tool === tool && JSON.stringify(action.args || {}) === JSON.stringify(args || {})));
   if (match) return resumeWorkflow(match.id, tool, args);
   const registryTool = aiRegistry.getTool(tool);
-  if (registryTool?.execute) {
-    const parsed = registryTool.schema?.safeParse ? registryTool.schema.safeParse(args) : { success: true, data: args };
-    if (!parsed.success) return { success: false, message: "Argumentos inválidos para la herramienta." };
-    return registryTool.execute(parsed.data, { userId } as any);
-  }
-  return executeToolAction(tool, { ...args, user_id: userId });
+  if (!registryTool?.execute) return { success: false, message: `La herramienta ${tool} no pertenece a las 10 skills oficiales activas.` };
+  const parsed = registryTool.schema?.safeParse ? registryTool.schema.safeParse(args) : { success: true, data: args };
+  if (!parsed.success) return { success: false, message: "Argumentos inválidos para la herramienta." };
+  return registryTool.execute(parsed.data, { userId } as any);
 }
 
 export async function cancelStableToolAction(tool: string, args: Record<string, unknown>) {
@@ -82,15 +80,7 @@ export async function cancelStableToolAction(tool: string, args: Record<string, 
   return { success: true, status: "cancelled", workflowId: match.id };
 }
 
-async function runStableAgent(
-  agentId: "profesor" | "consejero" | "nutrirecetas",
-  message: string,
-  history: { role: "user" | "assistant"; content: string | any[] }[],
-  mediaUrl?: string,
-  mediaType?: string,
-  modelId?: string,
-  sessionId?: string | null,
-): Promise<{ response: string; error?: string; actions?: ToolAction[]; executedActions?: ToolAction[] }> {
+async function runStableAgent(agentId: "profesor" | "consejero" | "nutrirecetas", message: string, history: { role: "user" | "assistant"; content: string | any[] }[], mediaUrl?: string, mediaType?: string, modelId?: string, sessionId?: string | null): Promise<{ response: string; error?: string; actions?: ToolAction[]; executedActions?: ToolAction[] }> {
   const userId = await getUserId();
   const defaults = agentId === "profesor"
     ? ["library_pack", "learning_pack", "content_pack", "research_pack", "edu_pack", "media_pack"]
@@ -106,30 +96,12 @@ async function runStableAgent(
   const { mode } = extractMode(modelId);
   const isMultimedia = Boolean(mediaUrl);
   const model = isMultimedia ? MULTIMODAL_MODEL : normalizeTextModel(modelId);
-
   const systemPrompt = `${buildAgentSystemPrompt(agentId)}\n\nCONTEXTO DE EJECUCIÓN:\n- Solo existen las 10 skills oficiales: calendar_pack, chat_pack, library_pack, learning_pack, content_pack, media_pack, research_pack, stats_pack, profile_pack, edu_pack.\n- Usa solamente herramientas reales registradas.\n- Una solicitud puede combinar múltiples skills y múltiples tools.\n- Continúa el workflow hasta finalizar, pedir un dato, encontrar un error real o requerir confirmación.\n- Manual: solo las acciones sin confirmación se ejecutan automáticamente; las demás quedan pendientes.\n- Autopilot: solo herramientas permitidas por la política se ejecutan automáticamente.\n- Nunca inventes fuentes, URLs, estadísticas, IDs, rutas ni acciones terminadas.\n- Si una API no está configurada o falla, informa el error real.\n- No muestres JSON, function calls ni instrucciones internas al estudiante.\n- MODO: ${mode}\n- SKILLS ACTIVAS: ${skills.join(", ") || "ninguna"}\n\nCATÁLOGO DE HERRAMIENTAS:\n${getRegistryToolCatalog(skills)}`;
 
   const { content } = await buildUserMessage(text, mediaUrl, mediaType);
-  return runWorkflowAgent(systemPrompt, history.slice(-10), content, model, {
-    sessionId,
-    aiType: agentId,
-    userId,
-    mode,
-    maxSteps: 8,
-    maxParallelTools: 4,
-    mediaUrl,
-    mediaType,
-  });
+  return runWorkflowAgent(systemPrompt, history.slice(-10), content, model, { sessionId, aiType: agentId, userId, mode, maxSteps: 8, maxParallelTools: 4, mediaUrl, mediaType });
 }
 
-export async function askProfessorStable(message: string, history: { role: "user" | "assistant"; content: string | any[] }[] = [], mediaUrl?: string, mediaType?: string, modelId?: string, sessionId?: string | null) {
-  return runStableAgent("profesor", message, history, mediaUrl, mediaType, modelId, sessionId);
-}
-
-export async function askCounselorStable(problem: string, history: { role: "user" | "assistant"; content: string | any[] }[] = [], mediaUrl?: string, mediaType?: string, modelId?: string, sessionId?: string | null) {
-  return runStableAgent("consejero", problem, history, mediaUrl, mediaType, modelId, sessionId);
-}
-
-export async function generateRecipeStable(ingredients: string, history: { role: "user" | "assistant"; content: string | any[] }[] = [], mediaUrl?: string, mediaType?: string, modelId?: string, sessionId?: string | null) {
-  return runStableAgent("nutrirecetas", ingredients, history, mediaUrl, mediaType, modelId, sessionId);
-}
+export async function askProfessorStable(message: string, history: { role: "user" | "assistant"; content: string | any[] }[] = [], mediaUrl?: string, mediaType?: string, modelId?: string, sessionId?: string | null) { return runStableAgent("profesor", message, history, mediaUrl, mediaType, modelId, sessionId); }
+export async function askCounselorStable(problem: string, history: { role: "user" | "assistant"; content: string | any[] }[] = [], mediaUrl?: string, mediaType?: string, modelId?: string, sessionId?: string | null) { return runStableAgent("consejero", problem, history, mediaUrl, mediaType, modelId, sessionId); }
+export async function generateRecipeStable(ingredients: string, history: { role: "user" | "assistant"; content: string | any[] }[] = [], mediaUrl?: string, mediaType?: string, modelId?: string, sessionId?: string | null) { return runStableAgent("nutrirecetas", ingredients, history, mediaUrl, mediaType, modelId, sessionId); }
