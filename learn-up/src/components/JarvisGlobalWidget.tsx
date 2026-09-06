@@ -32,7 +32,7 @@ export default function JarvisGlobalWidget() {
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [autoTTS, setAutoTTS] = useState(true);
-  const [selectedModel, setSelectedModel] = useState("openrouter/dots-studio/dots-3-note-preview:free");
+  const [selectedModel, setSelectedModel] = useState("groq/openai/gpt-oss-20b");
   const [autopilot, setAutopilot] = useState(false);
   const [showModelMenu, setShowModelMenu] = useState(false);
   
@@ -355,11 +355,11 @@ export default function JarvisGlobalWidget() {
                   onClick={() => setShowModelMenu(!showModelMenu)}
                   className="flex items-center gap-1 text-[10px] text-brand-gold/80 hover:text-brand-gold transition-colors"
                 >
-                  {selectedModel.includes("dots-3") ? "Dots 3" :
-                   selectedModel.includes("nemotron-3.5") ? "Nem 3.5" :
-                   selectedModel.includes("gpt-oss-20b") ? "OSS 20B" :
-                   selectedModel.includes("glm") ? "GLM-5.2" :
-                   selectedModel.includes("nemotron-3-ultra") ? "Nem 550B" :
+                  {selectedModel.includes("gpt-oss-120b") ? "GPT OSS 120B" :
+                   selectedModel.includes("gpt-oss-20b") ? "GPT OSS 20B" :
+                   selectedModel.includes("gemini-3.8") ? "Gemini 3.8 Flash" :
+                   selectedModel.includes("glm") ? "Gemini 3.6 Flash" :
+                   selectedModel.includes("nemotron-3-super") ? "Nemotron Super 120B" :
                    "Modelo"}
                   <ChevronDown className="w-3 h-3" />
                 </button>
@@ -451,8 +451,8 @@ export default function JarvisGlobalWidget() {
             <div className="absolute top-14 left-3 right-3 bg-black/95 border border-brand-gold/20 rounded-xl p-2 z-50 shadow-2xl max-h-64 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
               <div className="text-[9px] font-semibold text-gray-500 mb-1 px-2 uppercase">OpenRouter</div>
               {[
-                { id: "openrouter/dots-studio/dots-3-note-preview:free", name: "Dots 3 Note", icon: <Brain className="w-3 h-3 text-purple-400" /> },
-                { id: "openrouter/nvidia/nemotron-3.5-lightning:free", name: "Nemotron 3.5 Lightning", icon: <Zap className="w-3 h-3 text-emerald-400" /> },
+                { id: "openrouter/openai/gpt-oss-120b:free", name: "GPT OSS 120B", icon: <Brain className="w-3 h-3 text-purple-400" /> },
+                { id: "nvidia/nemotron-3-super-120b-a12b", name: "Nemotron 3 Super 120B", icon: <Zap className="w-3 h-3 text-emerald-400" /> },
                 { id: "openrouter/openai/gpt-oss-20b:free", name: "GPT OSS 20B", icon: <Sparkles className="w-3 h-3 text-gray-200" /> },
               ].map(m => (
                 <button
@@ -465,8 +465,8 @@ export default function JarvisGlobalWidget() {
               ))}
               <div className="text-[9px] font-semibold text-gray-500 mt-2 mb-1 px-2 uppercase">NVIDIA NIM</div>
               {[
-                { id: "nvidia/z-ai/glm-5.2", name: "GLM-5.2", icon: <Bot className="w-3 h-3 text-emerald-400" /> },
-                { id: "nvidia/nemotron-3-ultra-550b-a55b", name: "Nemotron 550B", icon: <Zap className="w-3 h-3 text-emerald-500" /> },
+                { id: "gemini/gemini-3.6-flash", name: "Gemini 3.6 Flash", icon: <Bot className="w-3 h-3 text-emerald-400" /> },
+                { id: "nvidia/nemotron-3-super-120b-a12b", name: "Nemotron 3 Super 120B", icon: <Zap className="w-3 h-3 text-emerald-500" /> },
               ].map(m => (
                 <button
                   key={m.id}

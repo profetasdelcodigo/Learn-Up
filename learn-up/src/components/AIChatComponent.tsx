@@ -82,6 +82,7 @@ import {
   deleteAiSession,
 } from "@/actions/ai-history";
 import { confirmAndExecuteTool, indexAiDocumentFromUrl } from "@/actions/ai-tutor";
+import { approveStableToolAction, cancelStableToolAction } from "@/actions/stable-ai-agents";
 import SkillsDirectoryModal from "./ai/SkillsDirectoryModal";
 import ThinkingBlock from "./ai/ThinkingBlock";
 
@@ -90,6 +91,8 @@ interface ToolAction {
   args: Record<string, any>;
   description: string;
   requiresConfirm: boolean;
+  workflowId?: string;
+  client_message_id?: string;
 }
 
 function getSafeExternalUrl(rawUrl: unknown): string | null {
@@ -340,7 +343,7 @@ export default function AIChatComponent({
   
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [showModelMenu, setShowModelMenu] = useState(false);
-  const [selectedModel, setSelectedModel] = useState(defaultModel || "groq/llama-3.3-70b-versatile");
+  const [selectedModel, setSelectedModel] = useState(defaultModel || "groq/openai/gpt-oss-20b");
   const [activeSkills, setActiveSkills] = useState<string[]>([]);
   const [isSkillsModalOpen, setIsSkillsModalOpen] = useState(false);
   const [hasFileAttached, setHasFileAttached] = useState(false);
@@ -415,25 +418,19 @@ export default function AIChatComponent({
   }, [messages, loading]);
 
   const loadSessionMessages = async (sessionId: string) => {
-    setMessages([]);
     setLoading(true);
-    const msgs = await getAiMessages(sessionId);
-    setMessages(msgs);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    if (currentSessionId) {
-      if (isCreatingSession.current) {
-        // Prevent clearing messages when a new session was created in the current active chat flow
-        isCreatingSession.current = false;
-        return;
-      }
-      loadSessionMessages(currentSessionId);
-    } else {
-      setMessages([]);
+    try {
+      const msgs = await getAiMessages(sessionId) as Message[];
+      setMessages((prev) => {
+        const persistedIds = new Set(msgs.map((m) => m.id).filter(Boolean));
+        const persistedClientIds = new Set(msgs.map((m) => m.client_message_id).filter(Boolean));
+        const optimistic = prev.filter((m) => !m.id || (!persistedIds.has(m.id) && !(m.client_message_id && persistedClientIds.has(m.client_message_id))));
+        return [...msgs, ...optimistic];
+      });
+    } finally {
+      setLoading(false);
     }
-  }, [currentSessionId]);
+  };
 
   const getMediaType = (file: File) => {
     if (file.type.startsWith("image/")) return "image";
@@ -467,10 +464,13 @@ export default function AIChatComponent({
 
     const mediaType = file ? getMediaType(file) : undefined;
     const clientSideUserMsg: Message = {
+      client_message_id: crypto.randomUUID(),
+      id: crypto.randomUUID(),
       role: "user",
       content: userMessage,
       media_url: file ? URL.createObjectURL(file) : undefined,
       media_type: mediaType,
+
     };
 
     const handleFailure = (errMessage: string) => {
@@ -490,7 +490,7 @@ export default function AIChatComponent({
           fileInputRef.current.value = "";
         }
       }
-      setMessages((prev) => prev.filter((m) => m !== clientSideUserMsg));
+      setMessages((prev) => prev.filter((m) => m.id !== clientSideUserMsg.id));
       setLoading(false);
       setUploadingMedia(false);
     };
@@ -577,14 +577,15 @@ export default function AIChatComponent({
     }
 
     try {
-      await addAiMessage(sessionId, "user", userMessage, mediaUrl, mediaType);
+      const savedUser = await addAiMessage(sessionId, "user", userMessage, mediaUrl, mediaType, undefined, clientSideUserMsg.client_message_id);
+      if (savedUser?.message?.id) setMessages((prev) => prev.map((m) => m.id === clientSideUserMsg.id ? { ...m, id: savedUser.message.id, client_message_id: clientSideUserMsg.client_message_id, media_url: mediaUrl, media_type: mediaType } : m));
     } catch (msgErr: any) {
       handleFailure("Error al guardar tu mensaje en la base de datos.");
       return;
     }
 
     try {
-      const historyForGroq = messages.map((m) => ({
+      const historyForGroq = [...messages, clientSideUserMsg].map((m) => ({
         role: m.role,
         content: m.content,
       }));
@@ -653,9 +654,15 @@ export default function AIChatComponent({
           { role: "assistant", content: msg, tool_calls: [action] },
         ]);
       } else {
-        actionResult = await confirmAndExecuteTool(action.tool, action.args);
+        actionResult = (action as any).workflowId ? await approveStableToolAction(action.tool, action.args) : await confirmAndExecuteTool(action.tool, action.args);
         
-        if (!actionResult.success && actionResult.data?.suggestions) {
+        if (actionResult?.response || Array.isArray(actionResult?.actions)) {
+            if (actionResult.response) {
+              if (currentSessionId) await addAiMessage(currentSessionId, "assistant", actionResult.response, undefined, undefined, actionResult.executedActions);
+              setMessages((prev) => [...prev, { role: "assistant", content: actionResult.response, tool_calls: actionResult.executedActions }]);
+            }
+            setPendingActions(actionResult.actions?.length ? actionResult.actions : []);
+        } else if (!actionResult.success && actionResult.data?.suggestions) {
             if (currentSessionId) await addAiMessage(currentSessionId, "assistant", actionResult.message);
             setMessages((prev) => [
                 ...prev,
@@ -703,7 +710,8 @@ export default function AIChatComponent({
     }
   };
 
-  const handleRejectAction = async () => {
+  const handleRejectAction = async (rejectedAction?: ToolAction) => {
+    if (rejectedAction) await cancelStableToolAction(rejectedAction.tool, rejectedAction.args);
     const msg = "Entendido, no realicé la acción. ¿Necesitas algo más?";
     if (currentSessionId) await addAiMessage(currentSessionId, "assistant", msg);
     setMessages((prev) => [
@@ -1074,7 +1082,7 @@ export default function AIChatComponent({
                           )}
                         </button>
                         <button
-                          onClick={handleRejectAction}
+                          onClick={() => handleRejectAction(action)}
                           disabled={executingAction}
                           className="flex-1 py-2 px-3 bg-surface-2 text-gray-300 rounded-xl font-semibold text-sm hover:bg-gray-700 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
                         >
@@ -1119,16 +1127,16 @@ export default function AIChatComponent({
                     {
                       category: "OPENROUTER",
                       models: [
-                        { id: "openrouter/dots-studio/dots-3-note-preview:free", name: "Dots 3 Note", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "Preview" },
-                        { id: "openrouter/nvidia/nemotron-3.5-lightning:free", name: "Nemotron 3.5 Lightning", icon: <Zap className="w-4 h-4 text-emerald-400" />, tag: "Gratis" },
+                        { id: "openrouter/openai/gpt-oss-120b:free", name: "GPT OSS 120B", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "Preview" },
+                        { id: "nvidia/nemotron-3-super-120b-a12b", name: "Nemotron 3 Super 120B", icon: <Zap className="w-4 h-4 text-emerald-400" />, tag: "Gratis" },
                         { id: "openrouter/openai/gpt-oss-20b:free", name: "GPT OSS 20B", icon: <Sparkles className="w-4 h-4 text-gray-200" />, tag: "Gratis" },
                       ]
                     },
                     {
                       category: "NVIDIA NIM",
                       models: [
-                        { id: "nvidia/z-ai/glm-5.2", name: "GLM-5.2", icon: <Bot className="w-4 h-4 text-emerald-400" />, tag: "Gratis" },
-                        { id: "nvidia/nemotron-3-ultra-550b-a55b", name: "Nemotron 550B", icon: <Zap className="w-4 h-4 text-emerald-400" />, tag: "Gratis" },
+                        { id: "gemini/gemini-3.6-flash", name: "Gemini 3.6 Flash", icon: <Bot className="w-4 h-4 text-emerald-400" />, tag: "Gratis" },
+                        { id: "nvidia/nemotron-3-super-120b-a12b", name: "Nemotron 3 Super 120B", icon: <Zap className="w-4 h-4 text-emerald-400" />, tag: "Gratis" },
                       ]
                     }
                   ].map(cat => (
@@ -1253,11 +1261,11 @@ export default function AIChatComponent({
                     >
                       <Sparkles className="w-4 h-4" />
                       {(() => {
-                        if (selectedModel.includes("dots-3")) return "Dots 3 Note";
+                        if (selectedModel.includes("dots-3")) return "GPT OSS 120B";
                         if (selectedModel.includes("nemotron-3.5-lightning")) return "Nemotron 3.5";
                         if (selectedModel.includes("gpt-oss-20b")) return "OSS 20B";
                         if (selectedModel.includes("glm-5.2")) return "GLM 5.2";
-                        if (selectedModel.includes("nemotron-3-ultra")) return "Nemotron 550B";
+                        if (selectedModel.includes("nemotron-3-ultra")) return "Nemotron 3 Super 120B";
                         if (selectedModel.includes("deepseek-r1")) return "R1";
                         if (selectedModel.includes("qwen3-coder")) return "Qwen Coder";
                         if (selectedModel.includes("groq/compound")) return "Compound";
