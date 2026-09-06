@@ -28,10 +28,7 @@ jobs:
             'openrouter/nvidia/nemotron-3.5-lightning:free',
             'nvidia/z-ai/glm-5.2',
             'nvidia/nemotron-3-ultra-550b-a55b',
-            'Dots 3 Note',
-            'Nemotron 3.5 Lightning',
-            'GLM-5.2',
-            'Nemotron 550B',
+            'Dots 3 Note', 'Nemotron 3.5 Lightning', 'GLM-5.2', 'Nemotron 550B'
           ]
           for x in stale:
             assert x not in ai, f'stale model in AIChatComponent: {x}'
@@ -45,12 +42,12 @@ jobs:
           assert 'cancelStableToolAction' in ai
           print('final AI client validation passed')
           PY
-      - name: Commit and remove repair tooling
+      - name: Commit repaired files and cleanup
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           rm -f .github/workflows/final-ai-client-repair.yml scripts/final-ai-client-repair.py scripts/.ai-client-maintenance-trigger .github/workflows/one-shot-ai-client-logic.yml scripts/fix-ai-client-logic.py
-          git add learn-up/src/components/AIChatComponent.tsx learn-up/src/components/JarvisGlobalWidget.tsx .github/workflows/final-ai-client-repair.yml scripts/final-ai-client-repair.py scripts/.ai-client-maintenance-trigger .github/workflows/one-shot-ai-client-logic.yml scripts/fix-ai-client-logic.py
+          git add -A
           if ! git diff --cached --quiet; then
             git commit -m 'fix(ai): repair skill persistence, message reconciliation, and model selector'
             git push origin main
