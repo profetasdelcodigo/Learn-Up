@@ -45,8 +45,6 @@ function normalizeModel(value: unknown): { provider: "openrouter" | "groq" | "nv
     }
   }
 
-  // Plain Google/Gemini model IDs are routed to Google; all other plain IDs are
-  // treated as OpenRouter IDs so existing model selectors remain compatible.
   if (raw.startsWith("gemini-")) return { provider: "google", model: raw };
   return { provider: "openrouter", model: raw };
 }
@@ -132,6 +130,7 @@ ${agentConfig.safety.map((r) => `- ${r}`).join("\n")}`;
       user.id,
       agentId,
       persistedSkills,
+      { sessionId, currentRoute },
     );
 
     const result = streamText({
