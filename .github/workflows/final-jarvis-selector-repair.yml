@@ -1,0 +1,43 @@
+name: final-jarvis-selector-repair
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  repair:
+    if: contains(github.event.head_commit.message, '[final-jarvis-selector]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Apply repair
+        run: python scripts/final-jarvis-selector-repair.py
+      - name: Validate
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('learn-up/src/components/JarvisGlobalWidget.tsx').read_text(encoding='utf-8')
+          for x in ['Dots 3','Nemotron 3.5 Lightning','GLM-5.2','Nemotron 550B','openrouter/dots-studio/dots-3-note-preview:free','nvidia/z-ai/glm-5.2','nvidia/nemotron-3-ultra-550b-a55b']:
+              assert x not in s, x
+          assert 'Groq · GPT OSS 20B' in s
+          assert 'Groq · GPT OSS 120B' in s
+          assert 'OpenRouter · GPT OSS 120B' in s
+          assert 'Gemini · 3.8 Flash' in s
+          assert 'NVIDIA · Nemotron 3 Super 120B' in s
+          print('Jarvis selector validation passed')
+          PY
+      - name: Commit and cleanup
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          rm -f .github/workflows/final-jarvis-selector-repair.yml scripts/final-jarvis-selector-repair.py scripts/.jarvis-selector-trigger
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m 'fix(jarvis): repair model selector and tool card execution'
+            git push origin main
+          fi
