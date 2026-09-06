@@ -19,6 +19,9 @@ export interface ToolContext {
   userId?: string;
   roomId?: string;
   referer?: string;
+  currentRoute?: string;
+  mediaUrl?: string | null;
+  mediaType?: string | null;
 }
 
 export interface ToolResult {
