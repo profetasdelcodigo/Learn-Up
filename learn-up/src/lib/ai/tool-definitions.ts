@@ -4,6 +4,7 @@ import { aiRegistry } from "./skills";
 import { AiToolDefinition } from "./agent-registry";
 import { materializeToolResult } from "./core/materialize-result";
 import { panelTools } from "./core/panel-tools";
+import { extractSources, finishToolEvent, startToolEvent } from "./core/tool-event-log";
 
 const PACK_TO_SKILL: Record<string, string> = {
   calendar_pack: "calendar",
@@ -42,12 +43,18 @@ function selectedRegistryTools(activeSkills: string[] = []) {
     .flatMap((skill) => skill.tools);
 }
 
+function packForTool(toolCategory: string, activeSkills: string[]) {
+  const normalized = normalizeSkillPackIds(activeSkills);
+  return normalized.find((pack) => PACK_TO_SKILL[pack] === toolCategory) || null;
+}
+
 export function buildToolsForAgent(
   agentTools: AiToolDefinition[],
   isAutonomous: boolean,
   userId: string,
   agentId?: string,
   activeSkills: string[] = [],
+  runtime?: { sessionId?: string | null; currentRoute?: string | null },
 ): Record<string, any> {
   const vercelTools: Record<string, any> = {};
   const registryTools = selectedRegistryTools(activeSkills);
@@ -70,19 +77,47 @@ export function buildToolsForAgent(
         ? registeredTool.supportsAutopilot
         : !registeredTool.requiresConfirmation;
       const execute = async (args: any) => {
+        const invocationId = crypto.randomUUID();
+        await startToolEvent({
+          userId,
+          sessionId: runtime?.sessionId,
+          invocationId,
+          toolName: registeredTool.id,
+          skillPack: packForTool(registeredTool.category, activeSkills),
+          aiType: agentId,
+          mode: isAutonomous ? "autopilot" : "manual",
+          risk: registeredTool.risk,
+          arguments: args,
+          currentRoute: runtime?.currentRoute,
+        });
         try {
           const parsed = registeredTool.schema?.safeParse
             ? registeredTool.schema.safeParse(args)
             : { success: true, data: args };
-          if (!parsed.success) return { success: false, error: `Argumentos inválidos para ${registeredTool.id}.` };
-          return await materializeToolResult(
+          if (!parsed.success) {
+            const message = `Argumentos inválidos para ${registeredTool.id}.`;
+            await finishToolEvent({ userId, invocationId, success: false, error: message });
+            return { success: false, error: message };
+          }
+          const result = await materializeToolResult(
             await registeredTool.execute!(parsed.data, { userId } as any),
             registeredTool.id,
             args,
           );
+          await finishToolEvent({
+            userId,
+            invocationId,
+            success: Boolean(result?.success),
+            result,
+            error: result?.success ? null : String(result?.error || result?.message || "Error de herramienta"),
+            sources: extractSources(result),
+          });
+          return result;
         } catch (error: any) {
+          const message = error?.message || "Tool execution failed";
+          await finishToolEvent({ userId, invocationId, success: false, error: message });
           console.error(`[TOOL] ${registeredTool.id}`, error);
-          return { success: false, error: error?.message || "Tool execution failed" };
+          return { success: false, error: message };
         }
       };
       vercelTools[toolId] = (tool as any)({
@@ -92,9 +127,6 @@ export function buildToolsForAgent(
       });
     } else if (entry.kind === "panel") {
       const panel = entry.definition;
-      // Manual mode respects the explicit confirmation flag.
-      // Autopilot mode respects supportsAutopilot, allowing approved low-risk writes
-      // (such as advisor/nutrition panel updates) to execute automatically.
       const shouldAutoExecute = isAutonomous
         ? panel.supportsAutopilot !== false
         : !panel.requiresConfirmation;
@@ -102,7 +134,21 @@ export function buildToolsForAgent(
         description: panel.description,
         parameters: panel.schema,
         ...(shouldAutoExecute
-          ? { execute: async (args: any) => panel.execute(args) }
+          ? {
+              execute: async (args: any) => {
+                const invocationId = crypto.randomUUID();
+                await startToolEvent({ userId, sessionId: runtime?.sessionId, invocationId, toolName: panel.name, skillPack: null, aiType: agentId, mode: isAutonomous ? "autopilot" : "manual", risk: "write", arguments: args, currentRoute: runtime?.currentRoute });
+                try {
+                  const result = await panel.execute(args);
+                  await finishToolEvent({ userId, invocationId, success: Boolean(result?.success), result, error: result?.success ? null : String(result?.error || result?.message || "Error de herramienta"), sources: extractSources(result) });
+                  return result;
+                } catch (error: any) {
+                  const message = error?.message || "Panel tool execution failed";
+                  await finishToolEvent({ userId, invocationId, success: false, error: message });
+                  return { success: false, error: message };
+                }
+              },
+            }
           : {}),
       });
     } else {
@@ -116,15 +162,17 @@ export function buildToolsForAgent(
         ...(shouldAutoExecute
           ? {
               execute: async (args: any) => {
+                const invocationId = crypto.randomUUID();
+                await startToolEvent({ userId, sessionId: runtime?.sessionId, invocationId, toolName: def.name, skillPack: null, aiType: agentId, mode: isAutonomous ? "autopilot" : "manual", risk: def.externalEffect ? "external" : "read", arguments: args, currentRoute: runtime?.currentRoute });
                 try {
                   const { confirmAndExecuteTool } = await import("@/actions/ai-tutor");
-                  return await materializeToolResult(
-                    await confirmAndExecuteTool(def.name, args),
-                    def.name,
-                    args,
-                  );
+                  const result = await materializeToolResult(await confirmAndExecuteTool(def.name, args), def.name, args);
+                  await finishToolEvent({ userId, invocationId, success: Boolean(result?.success), result, error: result?.success ? null : String(result?.error || result?.message || "Error de herramienta"), sources: extractSources(result) });
+                  return result;
                 } catch (error: any) {
-                  return { success: false, error: error?.message || "Tool execution failed" };
+                  const message = error?.message || "Tool execution failed";
+                  await finishToolEvent({ userId, invocationId, success: false, error: message });
+                  return { success: false, error: message };
                 }
               },
             }
