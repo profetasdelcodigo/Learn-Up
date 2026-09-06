@@ -5,7 +5,7 @@ import { buildUserMessage } from "./ai-tutor";
 import { buildAgentSystemPrompt } from "@/lib/ai/agent-registry";
 import { getToolDefinitions, executeToolAction, type ToolAction } from "@/lib/ai-tools";
 import type { ToolMode } from "@/lib/ai/tool-contract";
-import { getPersistedSkillPacks } from "@/lib/ai/core/skill-state";
+import { getPersistedSkillPacks, saveSkillPacks } from "@/lib/ai/core/skill-state";
 import { runWorkflowAgent, resumeWorkflow, cancelWorkflow } from "@/lib/ai/workflow-agent";
 import { aiRegistry } from "@/lib/ai/skills";
 
@@ -14,9 +14,9 @@ const MULTIMODAL_MODEL = "gemini/gemini-3.8-flash";
 
 function extractSkills(message: string, defaults: string[]) {
   const match = message.match(/\[Skills Activas:\s*(.*?)\]\s*/i);
-  if (!match) return { skills: defaults, text: message };
+  if (!match) return { skills: defaults, text: message, explicit: false };
   const skills = match[1].split(",").map((item) => item.trim()).filter(Boolean);
-  return { skills: skills.length ? skills : defaults, text: message.replace(match[0], "") };
+  return { skills: skills.length ? skills : defaults, text: message.replace(match[0], ""), explicit: true };
 }
 
 function extractMode(modelId?: string): { mode: ToolMode; model: string } {
@@ -28,24 +28,10 @@ function extractMode(modelId?: string): { mode: ToolMode; model: string } {
 function normalizeTextModel(modelId?: string): string {
   const { model } = extractMode(modelId);
   if (!model) return TEXT_MODEL;
-
-  // Legacy aliases are normalized, but an explicit provider selection is never
-  // silently redirected to another provider. The backend validates/handles
-  // the selected provider in getAICompletion.
-  if (model === "openrouter/free") return TEXT_MODEL;
-  if (model === "openrouter/openrouter/free") return TEXT_MODEL;
-  if (model === "openrouter/openai/gpt-oss-120b:free" || model === "openai/gpt-oss-120b:free") {
-    return "openrouter/openai/gpt-oss-120b:free";
-  }
-  if (model === "openrouter/openai/gpt-oss-20b:free" || model === "openai/gpt-oss-20b:free") {
-    return "openrouter/openai/gpt-oss-20b:free";
-  }
-  if (model.startsWith("openrouter/") || model.startsWith("groq/") || model.startsWith("gemini/") || model.startsWith("nvidia/")) {
-    return model;
-  }
-
-  // Model ids without an explicit provider are treated as OpenRouter ids for
-  // backwards compatibility, rather than being guessed as Groq/Gemini/NVIDIA.
+  if (model === "openrouter/free" || model === "openrouter/openrouter/free") return TEXT_MODEL;
+  if (model === "openrouter/openai/gpt-oss-120b:free" || model === "openai/gpt-oss-120b:free") return "openrouter/openai/gpt-oss-120b:free";
+  if (model === "openrouter/openai/gpt-oss-20b:free" || model === "openai/gpt-oss-20b:free") return "openrouter/openai/gpt-oss-20b:free";
+  if (model.startsWith("openrouter/") || model.startsWith("groq/") || model.startsWith("gemini/") || model.startsWith("nvidia/")) return model;
   return `openrouter/${model}`;
 }
 
@@ -68,9 +54,7 @@ export async function approveStableToolAction(tool: string, args: Record<string,
     .limit(20);
 
   const match = (waiting || []).find((workflow: any) =>
-    (workflow.pending_actions || []).some((action: any) =>
-      action.tool === tool && JSON.stringify(action.args || {}) === JSON.stringify(args || {})
-    )
+    (workflow.pending_actions || []).some((action: any) => action.tool === tool && JSON.stringify(action.args || {}) === JSON.stringify(args || {})),
   );
 
   if (match) {
@@ -118,8 +102,12 @@ async function runStableAgent(
       : ["content_pack", "media_pack", "research_pack"];
 
   const persisted = await getPersistedSkillPacks(sessionId);
-  const { skills: explicitSkills, text } = extractSkills(message, []);
+  const { skills: explicitSkills, text, explicit } = extractSkills(message, []);
   const skills = explicitSkills.length ? explicitSkills : (persisted.length ? persisted : defaults);
+  if (explicit) {
+    await Promise.allSettled([saveSkillPacks(skills, sessionId), saveSkillPacks(skills)]);
+  }
+
   const { mode } = extractMode(modelId);
   const isMultimedia = Boolean(mediaUrl);
   const model = isMultimedia ? MULTIMODAL_MODEL : normalizeTextModel(modelId);
@@ -149,6 +137,8 @@ ${getToolDefinitions(skills)}`;
     mode,
     maxSteps: 8,
     maxParallelTools: 4,
+    mediaUrl,
+    mediaType,
   });
 }
 
