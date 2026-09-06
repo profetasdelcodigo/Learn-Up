@@ -1,10 +1,10 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { ALL_PACKS, normalizeSkillPacks } from "./tool-catalog";
 
 function cleanIds(skillIds: unknown): string[] {
-  if (!Array.isArray(skillIds)) return [];
-  return [...new Set(skillIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0))];
+  return normalizeSkillPacks(skillIds).filter((id) => ALL_PACKS.includes(id));
 }
 
 export async function getPersistedSkillPacks(sessionId?: string | null): Promise<string[]> {
@@ -15,8 +15,7 @@ export async function getPersistedSkillPacks(sessionId?: string | null): Promise
   const sessionResult = sessionId
     ? await supabase.from("ai_skill_state").select("skill_ids").eq("user_id", user.id).eq("session_id", sessionId).maybeSingle()
     : { data: null } as any;
-  const merged = [...cleanIds(globalResult.data?.skill_ids), ...cleanIds(sessionResult.data?.skill_ids)];
-  return [...new Set(merged)];
+  return [...new Set([...cleanIds(globalResult.data?.skill_ids), ...cleanIds(sessionResult.data?.skill_ids)])];
 }
 
 export async function saveSkillPacks(skillIds: string[], sessionId?: string | null) {
