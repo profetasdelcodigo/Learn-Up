@@ -491,19 +491,6 @@ export default function JarvisGlobalWidget() {
                 { id: "gemini/gemini-3.7-flash", name: "Gemini · 3.7 Flash", icon: <Sparkles className="w-3 h-3 text-blue-400" /> },
                 { id: "gemini/gemini-3.6-flash", name: "Gemini · 3.6 Flash", icon: <Sparkles className="w-3 h-3 text-blue-400" /> },
                 { id: "nvidia/nemotron-3-super-120b-a12b", name: "NVIDIA · Nemotron 3 Super 120B", icon: <Zap className="w-3 h-3 text-emerald-400" /> },
-                            ].map(m => (
-                <button
-                  key={m.id}
-                  onClick={() => { setSelectedModel(m.id); setShowModelMenu(false); }}
-                  className={`w-full text-left px-2 py-1.5 text-xs rounded-lg hover:bg-white/5 flex items-center gap-2 transition-colors ${selectedModel === m.id ? "bg-white/10 text-white font-medium" : "text-gray-400"}`}
-                >
-                  {m.icon} {m.name}
-                </button>
-              ))}
-              <div className="text-[9px] font-semibold text-gray-500 mt-2 mb-1 px-2 uppercase">NVIDIA NIM</div>
-              {[
-                { id: "gemini/gemini-3.6-flash", name: "Gemini 3.6 Flash", icon: <Bot className="w-3 h-3 text-emerald-400" /> },
-                { id: "nvidia/nemotron-3-super-120b-a12b", name: "Nemotron 3 Super 120B", icon: <Zap className="w-3 h-3 text-emerald-500" /> },
               ].map(m => (
                 <button
                   key={m.id}
