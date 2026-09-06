@@ -11,6 +11,7 @@ import { profileSocialSkill } from "./social";
 import { educationSkill } from "./education";
 import { withRealSkillOverrides } from "./real-overrides";
 import { withRealResearchOverrides } from "./research-real";
+import { withRealMultimediaOverrides } from "./multimedia-real";
 import { withRealAnalyticsOverrides } from "./analytics-real";
 import { withExecutableGenerativeTools } from "./execute-generative-result";
 
@@ -25,7 +26,7 @@ export function registerAllSkills() {
   registerSkill(withRealSkillOverrides(chatSkill));
   registerSkill(withRealSkillOverrides(librarySkill));
   registerSkill({ ...withRealSkillOverrides(contentSkill), id: "content_generation" });
-  registerSkill(multimediaSkill);
+  registerSkill(withRealMultimediaOverrides(multimediaSkill));
   registerSkill(withRealAnalyticsOverrides(analyticsSkill));
   registerSkill(profileSocialSkill);
   registerSkill(educationSkill);
