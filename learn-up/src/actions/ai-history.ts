@@ -25,7 +25,28 @@ async function backfillGenericTitles(supabase:any,userId:string,sessions:any[]){
 
 export async function getAiSessions(aiType:string){const supabase=await createClient();const{data:{user}}=await supabase.auth.getUser();if(!user)return[];const{data,error}=await supabase.from("ai_sessions").select("*").eq("user_id",user.id).eq("ai_type",aiType).order("updated_at",{ascending:false});if(error){console.error(`[getAiSessions] Error fetching ${aiType} sessions:`,error);return[];}return backfillGenericTitles(supabase,user.id,data||[]);}
 
-export async function getAiMessages(sessionId:string){const supabase=await createClient();const{data:{user}}=await supabase.auth.getUser();if(!user)return[];const{data:session}=await supabase.from("ai_sessions").select("user_id").eq("id",sessionId).single();if(!session||session.user_id!==user.id)return[];const{data,error}=await supabase.from("ai_messages").select("*").eq("session_id",sessionId).order("created_at",{ascending:true});if(error){console.error("[getAiMessages] Error fetching messages:",error);return[];}return data||[];}
+export async function getAiMessages(sessionId:string){
+  const supabase=await createClient();
+  const{data:{user}}=await supabase.auth.getUser();
+  if(!user)return[];
+  const{data:session}=await supabase.from("ai_sessions").select("user_id,created_at").eq("id",sessionId).single();
+  if(!session||session.user_id!==user.id)return[];
+  const fetchMessages=async()=>supabase.from("ai_messages").select("*").eq("session_id",sessionId).order("created_at",{ascending:true});
+  const first=await fetchMessages();
+  if(first.error){console.error("[getAiMessages] Error fetching messages:",first.error);return[];}
+  if((first.data||[]).length>0)return first.data||[];
+  const createdAt=Date.parse(session.created_at||"");
+  const isFresh=Number.isFinite(createdAt)&&(Date.now()-createdAt<12000);
+  if(isFresh){
+    for(const delay of [150,300,500,800]){
+      await new Promise(resolve=>setTimeout(resolve,delay));
+      const retry=await fetchMessages();
+      if(retry.error){console.error("[getAiMessages] Retry error:",retry.error);break;}
+      if((retry.data||[]).length>0)return retry.data||[];
+    }
+  }
+  return[];
+}
 
 export async function createAiSession(aiType:string,title:string){const supabase=await createClient();const{data:{user}}=await supabase.auth.getUser();if(!user)return{error:"Unauthorized"};const safeTitle=isGenericTitle(title)?"Nueva Sesión":title.trim().slice(0,120);const{data,error}=await supabase.from("ai_sessions").insert({user_id:user.id,ai_type:aiType,title:safeTitle||"Nueva Sesión"}).select().single();if(error)return{error:error.message};return{session:data};}
 
