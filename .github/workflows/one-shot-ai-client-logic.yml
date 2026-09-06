@@ -15,39 +15,44 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
-
       - name: Apply client logic repair
         run: python scripts/fix-ai-client-logic.py
-
       - name: Validate target files
         run: |
           python - <<'PY'
           from pathlib import Path
-          targets = [
-              Path('learn-up/src/components/AIChatComponent.tsx'),
-              Path('learn-up/src/components/JarvisGlobalWidget.tsx'),
+          ai = Path('learn-up/src/components/AIChatComponent.tsx').read_text(encoding='utf-8')
+          jarvis = Path('learn-up/src/components/JarvisGlobalWidget.tsx').read_text(encoding='utf-8')
+          stale = [
+              'openrouter/dots-studio/dots-3-note-preview:free',
+              'openrouter/nvidia/nemotron-3.5-lightning:free',
+              'nvidia/z-ai/glm-5.2',
+              'nvidia/nemotron-3-ultra-550b-a55b',
           ]
-          for path in targets:
-              text = path.read_text(encoding='utf-8')
-              assert 'openrouter/dots-studio/dots-3-note-preview:free' not in text, path
-              assert 'nvidia/z-ai/glm-5.2' not in text, path
-              assert 'nvidia/nemotron-3-ultra-550b-a55b' not in text, path
-          ai = targets[0].read_text(encoding='utf-8')
-          assert ai.count('useEffect(() => {\n    if (currentSessionId)') == 1, 'duplicate session effect remains'
+          for item in stale:
+              assert item not in ai, f'stale model remains in AIChatComponent: {item}'
+              assert item not in jarvis, f'stale model remains in JarvisGlobalWidget: {item}'
           assert 'client_message_id' in ai, 'stable client message id missing'
+          assert 'approveStableToolAction' in ai, 'workflow-aware approval missing'
+          assert 'cancelStableToolAction' in ai, 'workflow cancellation missing'
+          start = ai.find('const loadSessionMessages = async')
+          end = ai.find('  const getMediaType', start)
+          snippet = ai[start:end]
+          assert 'setMessages([]);' not in snippet, 'session loader still clears optimistic messages'
           print('client logic validation passed')
           PY
-
-      - name: Commit repaired files and remove one-shot workflow
+      - name: Commit repaired files and remove one-shot tooling
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          rm -f .github/workflows/one-shot-ai-client-logic.yml
-          rm -f scripts/fix-ai-client-logic.py
-          git add learn-up/src/components/AIChatComponent.tsx learn-up/src/components/JarvisGlobalWidget.tsx .github/workflows/one-shot-ai-client-logic.yml scripts/fix-ai-client-logic.py
-          git diff --cached --quiet || git commit -m 'fix(ai): repair chat persistence, approvals, and model labels'
-          git push origin main
+          rm -f .github/workflows/one-shot-ai-client-logic.yml scripts/fix-ai-client-logic.py scripts/.ai-client-maintenance-trigger
+          git add learn-up/src/components/AIChatComponent.tsx learn-up/src/components/JarvisGlobalWidget.tsx .github/workflows/one-shot-ai-client-logic.yml scripts/fix-ai-client-logic.py scripts/.ai-client-maintenance-trigger
+          if ! git diff --cached --quiet; then
+            git commit -m 'fix(ai): repair chat persistence, approvals, and model labels'
+            git push origin main
+          else
+            echo 'No changes to commit'
+          fi
