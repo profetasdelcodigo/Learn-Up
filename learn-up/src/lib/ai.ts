@@ -8,8 +8,8 @@ const nvidiaApiKey = process.env.NVIDIA_API_KEY;
 
 export const AI_MODELS = {
   openRouterFree: "openrouter/free",
-  openRouterFast: "openrouter/openai/gpt-oss-20b:free",
-  openRouterReasoning: "openrouter/openai/gpt-oss-120b:free",
+  openRouterFast: "openrouter/free",
+  openRouterReasoning: "openrouter/free",
   groqFast: "groq/openai/gpt-oss-20b",
   groqReasoning: "groq/openai/gpt-oss-120b",
   geminiFast: process.env.GEMINI_TEXT_MODEL || "gemini-3.8-flash",
@@ -66,9 +66,18 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = TIME
   }
 }
 
+const STALE_FREE_ALIASES = new Set([
+  "openrouter/openai/gpt-oss-120b:free",
+  "openrouter/openai/gpt-oss-20b:free",
+  "openrouter/meta-llama/llama-3.1-8b-instruct:free",
+  "openai/gpt-oss-120b:free",
+  "openai/gpt-oss-20b:free",
+  "meta-llama/llama-3.1-8b-instruct:free",
+]);
+
 function normalizeModel(model: string): string {
   const raw = String(model || AI_MODELS.openRouterFree).replace(/::autopilot$/i, "").trim();
-  if (!raw || raw === "openrouter/openrouter/free" || raw === "openrouter/free") return AI_MODELS.openRouterFree;
+  if (!raw || raw === "openrouter/openrouter/free" || raw === "openrouter/free" || STALE_FREE_ALIASES.has(raw)) return AI_MODELS.openRouterFree;
   if (raw.startsWith("openrouter/") || raw.startsWith("groq/") || raw.startsWith("gemini/") || raw.startsWith("nvidia/")) return raw;
   return `openrouter/${raw}`;
 }
@@ -205,5 +214,4 @@ export async function getAIEmbedding(text: string): Promise<number[]> {
 
 export const fetchRemoteMediaBufferForAI = fetchRemoteMediaBuffer;
 export const extractDocumentTextForAI = extractDocumentText;
-// Backward-compatible exports for existing callers/tests.
 export { fetchRemoteMediaBuffer, extractDocumentText };
