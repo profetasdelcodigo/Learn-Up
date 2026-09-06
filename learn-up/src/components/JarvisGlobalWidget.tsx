@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion, useDragControls } from "framer-motion";
 import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2, ExternalLink, CalendarPlus, Search, FileText, Mic, Volume2, VolumeX, ChevronDown, Brain, Zap, Activity, Code, BrainCircuit, Globe, Plus, Paperclip, Command, Link as LinkIcon, ImageIcon } from "lucide-react";
 
 import { askJarvis } from "@/actions/jarvis";
+import { approveStableToolAction, cancelStableToolAction } from "@/actions/stable-ai-agents";
+import { getPersistedSkillPacks, saveSkillPacks } from "@/lib/ai/core/skill-state";
 import dynamic from "next/dynamic";
 import ThinkingBlock from "./ai/ThinkingBlock";
 import SkillsDirectoryModal from "./ai/SkillsDirectoryModal";
@@ -47,6 +49,7 @@ export default function JarvisGlobalWidget() {
   const recognitionRef = useRef<any>(null);
   const dragControls = useDragControls();
   const pathname = usePathname();
+  const router = useRouter();
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -131,6 +134,12 @@ export default function JarvisGlobalWidget() {
     window.addEventListener("triggerJarvis", handleTrigger);
     return () => window.removeEventListener("triggerJarvis", handleTrigger);
   }, [autoTTS, speakText]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getPersistedSkillPacks().then((skills) => { if (!cancelled && skills.length) setActiveSkills(skills); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   const toggleWidget = () => {
     setIsOpen(!isOpen);
@@ -232,6 +241,26 @@ export default function JarvisGlobalWidget() {
     }
   };
 
+  const executeClientAction = async (action: any) => {
+    if (action.tool === "navigate_app" && action.args?.route) {
+      const route = String(action.args.route);
+      router.push(route);
+      return;
+    }
+    if (action.tool === "open_url" && action.args?.url) {
+      try {
+        const url = new URL(String(action.args.url), window.location.origin);
+        if (url.origin === window.location.origin) router.push(`${url.pathname}${url.search}${url.hash}`);
+        else window.open(url.toString(), "_blank", "noopener,noreferrer");
+      } catch { /* ignored: backend already validates safe URLs */ }
+      return;
+    }
+    if (action.workflowId) {
+      const result = await approveStableToolAction(action.tool, action.args || {});
+      if (result?.response) setMessages((prev) => [...prev, { role: "assistant", content: result.response, actions: result.actions }]);
+    }
+  };
+
   const renderToolCard = (action: any) => {
     switch (action.tool) {
       case "open_url":
@@ -243,7 +272,7 @@ export default function JarvisGlobalWidget() {
             </div>
             <p className="text-sm text-gray-300">{action.args.title || action.args.url}</p>
             <button 
-              onClick={() => window.open(action.args.url, "_blank")}
+              onClick={() => void executeClientAction(action)}
               className="mt-1 w-full py-2 bg-cyan-500/20 text-cyan-400 rounded-lg text-sm font-semibold hover:bg-cyan-500/30 transition-colors"
             >
               Abrir Enlace
@@ -259,7 +288,7 @@ export default function JarvisGlobalWidget() {
             </div>
             <p className="text-sm text-white font-medium">{action.args.title}</p>
             <p className="text-xs text-gray-400">{action.args.date} {action.args.start_time} - {action.args.end_time}</p>
-            <button className="mt-1 w-full py-2 bg-emerald-500/20 text-emerald-400 rounded-lg text-sm font-semibold hover:bg-emerald-500/30 transition-colors">
+            <button onClick={() => void executeClientAction(action)} className="mt-1 w-full py-2 bg-emerald-500/20 text-emerald-400 rounded-lg text-sm font-semibold hover:bg-emerald-500/30 transition-colors">
               Confirmar y Agendar
             </button>
           </div>
@@ -272,7 +301,7 @@ export default function JarvisGlobalWidget() {
               <span className="text-xs font-bold uppercase tracking-wider">Búsqueda Web Pendiente</span>
             </div>
             <p className="text-sm text-gray-300">¿Deseas que busque "{action.args.query}" en internet?</p>
-            <button className="mt-1 w-full py-2 bg-blue-500/20 text-blue-400 rounded-lg text-sm font-semibold hover:bg-blue-500/30 transition-colors">
+            <button onClick={() => void executeClientAction(action)} className="mt-1 w-full py-2 bg-blue-500/20 text-blue-400 rounded-lg text-sm font-semibold hover:bg-blue-500/30 transition-colors">
               Proceder con la Búsqueda
             </button>
           </div>
@@ -286,7 +315,7 @@ export default function JarvisGlobalWidget() {
             </div>
             <p className="text-sm text-gray-300">Tema: {action.args.topic}</p>
             <p className="text-xs text-gray-400">Dificultad: {action.args.difficulty} | {action.args.question_count} preguntas</p>
-            <button className="mt-1 w-full py-2 bg-purple-500/20 text-purple-400 rounded-lg text-sm font-semibold hover:bg-purple-500/30 transition-colors">
+            <button onClick={() => void executeClientAction(action)} className="mt-1 w-full py-2 bg-purple-500/20 text-purple-400 rounded-lg text-sm font-semibold hover:bg-purple-500/30 transition-colors">
               Generar y Practicar
             </button>
           </div>
@@ -452,10 +481,17 @@ export default function JarvisGlobalWidget() {
             <div className="absolute top-14 left-3 right-3 bg-black/95 border border-brand-gold/20 rounded-xl p-2 z-50 shadow-2xl max-h-64 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
               <div className="text-[9px] font-semibold text-gray-500 mb-1 px-2 uppercase">OpenRouter</div>
               {[
-                { id: "openrouter/openai/gpt-oss-120b:free", name: "GPT OSS 120B", icon: <Brain className="w-3 h-3 text-purple-400" /> },
-                { id: "nvidia/nemotron-3-super-120b-a12b", name: "Nemotron 3 Super 120B", icon: <Zap className="w-3 h-3 text-emerald-400" /> },
-                { id: "openrouter/openai/gpt-oss-20b:free", name: "GPT OSS 20B", icon: <Sparkles className="w-3 h-3 text-gray-200" /> },
-              ].map(m => (
+                { id: "groq/openai/gpt-oss-20b", name: "Groq · GPT OSS 20B", icon: <Sparkles className="w-3 h-3 text-gray-200" /> },
+                { id: "groq/openai/gpt-oss-120b", name: "Groq · GPT OSS 120B", icon: <Brain className="w-3 h-3 text-purple-400" /> },
+                { id: "groq/llama-3.3-70b-versatile", name: "Groq · Llama 3.3 70B", icon: <BrainCircuit className="w-3 h-3 text-cyan-400" /> },
+                { id: "openrouter/openai/gpt-oss-120b:free", name: "OpenRouter · GPT OSS 120B", icon: <Sparkles className="w-3 h-3 text-gray-200" /> },
+                { id: "openrouter/openai/gpt-oss-20b:free", name: "OpenRouter · GPT OSS 20B", icon: <Sparkles className="w-3 h-3 text-gray-200" /> },
+                { id: "openrouter/deepseek/deepseek-v4-flash-0731", name: "OpenRouter · DeepSeek V4 Flash", icon: <Globe className="w-3 h-3 text-cyan-400" /> },
+                { id: "gemini/gemini-3.8-flash", name: "Gemini · 3.8 Flash", icon: <Sparkles className="w-3 h-3 text-blue-400" /> },
+                { id: "gemini/gemini-3.7-flash", name: "Gemini · 3.7 Flash", icon: <Sparkles className="w-3 h-3 text-blue-400" /> },
+                { id: "gemini/gemini-3.6-flash", name: "Gemini · 3.6 Flash", icon: <Sparkles className="w-3 h-3 text-blue-400" /> },
+                { id: "nvidia/nemotron-3-super-120b-a12b", name: "NVIDIA · Nemotron 3 Super 120B", icon: <Zap className="w-3 h-3 text-emerald-400" /> },
+                            ].map(m => (
                 <button
                   key={m.id}
                   onClick={() => { setSelectedModel(m.id); setShowModelMenu(false); }}
@@ -586,11 +622,11 @@ export default function JarvisGlobalWidget() {
         onClose={() => setIsSkillsModalOpen(false)}
         activeSkills={activeSkills}
         onToggleSkill={(skillId) => {
-          setActiveSkills(prev => 
-            prev.includes(skillId) 
-              ? prev.filter(id => id !== skillId)
-              : [...prev, skillId]
-          );
+          setActiveSkills(prev => {
+            const next = prev.includes(skillId) ? prev.filter(id => id !== skillId) : [...prev, skillId];
+            void saveSkillPacks(next);
+            return next;
+          });
         }}
       />
     </>
