@@ -19,6 +19,20 @@ const withPWA = withPWAInit({
   skipWaiting: true,
   cleanupOutdatedCaches: true,
   cacheId: `learn-up-${buildCacheId}`,
+  runtimeCaching: [
+    {
+      urlPattern: /\/chat(?:\/.*)?(?:\?.*)?$/i,
+      handler: "NetworkOnly",
+    },
+    {
+      urlPattern: /\/ai(?:\/.*)?(?:\?.*)?$/i,
+      handler: "NetworkOnly",
+    },
+    {
+      urlPattern: /\/api\/chat(?:\/.*)?(?:\?.*)?$/i,
+      handler: "NetworkOnly",
+    },
+  ],
 });
 
 // ── Security Headers ─────────────────────────────────────────
@@ -161,7 +175,7 @@ const nextConfig: NextConfig = {
 export default withSentryConfig(
   withPWA(nextConfig),
   {
-    org: "profetas-del-codigo",
+    org: "profetasdelcodigo",
     project: "javascript-nextjs",
     silent: !process.env.CI,
     widenClientFileUpload: true,
