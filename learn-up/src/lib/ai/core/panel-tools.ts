@@ -16,7 +16,7 @@ export const panelTools=[
     execute:async({limit}:{limit:number})=>{
       const {supabase,user}=await authContext();
       const [{data:nodes,error:nError},{data:edges,error:eError}]=await Promise.all([
-        supabase.from("knowledge_nodes").select("id,title,description,confidence_level,source_type,created_at,last_reviewed_at").eq("user_id",user.id).order("created_at",{ascending:false}).limit(limit),
+        supabase.from("knowledge_nodes").select("id,title,description,confidence_level,source_type,created_at,updated_at").eq("user_id",user.id).order("created_at",{ascending:false}).limit(limit),
         supabase.from("knowledge_edges").select("*").eq("user_id",user.id).limit(limit*2),
       ]);
       if(nError) throw nError; if(eError) throw eError;
