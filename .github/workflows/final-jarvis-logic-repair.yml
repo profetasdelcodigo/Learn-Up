@@ -1,0 +1,44 @@
+name: final-jarvis-logic-repair
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  repair:
+    if: contains(github.event.head_commit.message, '[final-jarvis-logic]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Apply Jarvis logic repair
+        run: python scripts/final-jarvis-logic-repair.py
+      - name: Validate
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('learn-up/src/components/JarvisGlobalWidget.tsx')
+          s = p.read_text(encoding='utf-8')
+          stale = ['Dots 3', 'Nemotron 3.5 Lightning', 'GLM-5.2', 'Nemotron 550B', 'dots-studio/dots-3-note-preview', 'nvidia/nemotron-3-ultra-550b-a55b']
+          for x in stale: assert x not in s, x
+          for x in ['Groq · GPT OSS 20B','Groq · GPT OSS 120B','OpenRouter · GPT OSS 120B','Gemini · 3.8 Flash','NVIDIA · Nemotron 3 Super 120B']:
+              assert x in s, x
+          assert 'getPersistedSkillPacks' in s
+          assert 'saveSkillPacks' in s
+          assert 'executeClientAction' in s
+          print('Jarvis validation passed')
+          PY
+      - name: Commit and cleanup
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          rm -f .github/workflows/final-jarvis-logic-repair.yml scripts/final-jarvis-logic-repair.py scripts/.jarvis-logic-trigger
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m 'fix(jarvis): persist skills, repair actions, and current model list'
+            git push origin main
+          fi
