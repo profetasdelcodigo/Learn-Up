@@ -11,12 +11,12 @@ export { AI_MODELS };
 export const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null;
 export const groq = groqApiKey ? new Groq({ apiKey: groqApiKey }) : null;
 
-const MAX_HISTORY = 12;
-const MAX_CONTEXT_CHARS = 12000;
+const MAX_HISTORY = 10;
+const MAX_CONTEXT_CHARS = 10000;
 const MAX_REMOTE_MEDIA_BYTES = 25 * 1024 * 1024;
-const TIMEOUT_MS = Number(process.env.AI_TEXT_TIMEOUT_MS || 18000);
-const MULTIMODAL_TIMEOUT_MS = Number(process.env.AI_MULTIMODAL_TIMEOUT_MS || 45000);
-const DEFAULT_MAX_OUTPUT = Number(process.env.AI_MAX_OUTPUT_TOKENS || 8192);
+const TIMEOUT_MS = Number(process.env.AI_TEXT_TIMEOUT_MS || 15000);
+const MULTIMODAL_TIMEOUT_MS = Number(process.env.AI_MULTIMODAL_TIMEOUT_MS || 30000);
+const DEFAULT_MAX_OUTPUT = Number(process.env.AI_MAX_OUTPUT_TOKENS || 4096);
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -45,22 +45,22 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = TIME
 }
 
 const MODEL_ALIASES: Record<string, string> = {
-  "openrouter/free": AI_MODELS.openRouterFast.id,
-  "openrouter/openrouter/free": AI_MODELS.openRouterFast.id,
-  "openrouter/openai/gpt-oss-120b:free": AI_MODELS.openRouterFast.id,
-  "openrouter/openai/gpt-oss-20b:free": AI_MODELS.openRouterFast.id,
-  "openai/gpt-oss-120b:free": AI_MODELS.openRouterFast.id,
-  "openai/gpt-oss-20b:free": AI_MODELS.openRouterFast.id,
-  "gemini-3.6-flash": AI_MODELS.geminiFast.id,
+  "openrouter/free": AI_MODELS.openRouterFreeLarge.id,
+  "openrouter/openrouter/free": AI_MODELS.openRouterFreeLarge.id,
+  "openrouter/openai/gpt-oss-120b:free": AI_MODELS.openRouterFreeLarge.id,
+  "openrouter/openai/gpt-oss-20b:free": AI_MODELS.openRouterFreeFast.id,
+  "openai/gpt-oss-120b:free": AI_MODELS.openRouterFreeLarge.id,
+  "openai/gpt-oss-20b:free": AI_MODELS.openRouterFreeFast.id,
+  "gemini-3.6-flash": AI_MODELS.geminiBalanced.id,
+  "gemini-3.7-flash": AI_MODELS.geminiAgentic.id,
   "gemini-3.8-flash": AI_MODELS.geminiFast.id,
-  "gemini-3-flash-preview": AI_MODELS.geminiFast.id,
 };
 
 function normalizeModel(model: string): string {
   const raw = String(model || AI_MODELS.groqFast.id).replace(/::autopilot$/i, "").trim();
   if (MODEL_ALIASES[raw]) return MODEL_ALIASES[raw];
   if (!raw) return AI_MODELS.groqFast.id;
-  if (raw.startsWith("openrouter/") || raw.startsWith("groq/") || raw.startsWith("gemini/") || raw.startsWith("nvidia/")) return raw;
+  if (/^(openrouter|groq|gemini|nvidia)\//.test(raw)) return raw;
   return `openrouter/${raw}`;
 }
 
@@ -72,7 +72,11 @@ function nvidiaModelId(model: string) { return model.replace(/^nvidia\//, ""); }
 
 async function openRouterCompletion(messages: any[], model: string, jsonMode = false) {
   if (!openRouterApiKey) throw new Error("OPENROUTER_API_KEY no configurada.");
-  const request = await fetchWithTimeout("https://openrouter.ai/api/v1/chat/completions", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${openRouterApiKey}`, "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "https://learn-up-qmgx.onrender.com", "X-Title": "Learn Up" }, body: JSON.stringify({ model: openRouterModelId(model), messages: trimMessages(messages), max_tokens: DEFAULT_MAX_OUTPUT, temperature: 0.2, ...(jsonMode ? { response_format: { type: "json_object" } } : {}) }) });
+  const request = await fetchWithTimeout("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${openRouterApiKey}`, "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "https://learn-up-qmgx.onrender.com", "X-Title": "Learn Up" },
+    body: JSON.stringify({ model: openRouterModelId(model), messages: trimMessages(messages), max_tokens: DEFAULT_MAX_OUTPUT, temperature: 0.2, ...(jsonMode ? { response_format: { type: "json_object" } } : {}) }),
+  });
   const body = await request.text();
   if (!request.ok) throw new Error(`OpenRouter ${request.status}: ${body}`);
   const data = JSON.parse(body);
@@ -82,7 +86,11 @@ async function openRouterCompletion(messages: any[], model: string, jsonMode = f
 
 async function groqCompletion(messages: any[], model: string, jsonMode = false) {
   if (!groqApiKey) throw new Error("GROQ_API_KEY no configurada.");
-  const request = await fetchWithTimeout("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqApiKey}` }, body: JSON.stringify({ model: groqModelId(model), messages: toTextOnlyMessages(messages), max_completion_tokens: DEFAULT_MAX_OUTPUT, temperature: 0.2, ...(jsonMode ? { response_format: { type: "json_object" } } : {}) }) });
+  const request = await fetchWithTimeout("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqApiKey}` },
+    body: JSON.stringify({ model: groqModelId(model), messages: toTextOnlyMessages(messages), max_completion_tokens: DEFAULT_MAX_OUTPUT, temperature: 0.2, ...(jsonMode ? { response_format: { type: "json_object" } } : {}) }),
+  });
   const body = await request.text();
   if (!request.ok) throw new Error(`Groq ${request.status}: ${body}`);
   return JSON.parse(body);
@@ -90,7 +98,11 @@ async function groqCompletion(messages: any[], model: string, jsonMode = false) 
 
 async function nvidiaCompletion(messages: any[], model: string, jsonMode = false) {
   if (!nvidiaApiKey) throw new Error("NVIDIA_API_KEY no configurada.");
-  const request = await fetchWithTimeout("https://integrate.api.nvidia.com/v1/chat/completions", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${nvidiaApiKey}` }, body: JSON.stringify({ model: nvidiaModelId(model), messages: toTextOnlyMessages(messages), max_tokens: DEFAULT_MAX_OUTPUT, temperature: 0.2, ...(jsonMode ? { response_format: { type: "json_object" } } : {}) }) });
+  const request = await fetchWithTimeout("https://integrate.api.nvidia.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${nvidiaApiKey}` },
+    body: JSON.stringify({ model: nvidiaModelId(model), messages: toTextOnlyMessages(messages), max_tokens: DEFAULT_MAX_OUTPUT, temperature: 0.2, ...(jsonMode ? { response_format: { type: "json_object" } } : {}) }),
+  });
   const body = await request.text();
   if (!request.ok) throw new Error(`NVIDIA ${request.status}: ${body}`);
   return JSON.parse(body);
@@ -119,18 +131,27 @@ async function extractDocumentText(buffer: Buffer, urlLower: string, mimeType: s
 
 async function geminiCompletion(messages: any[], model: string, jsonMode = false) {
   if (!geminiApiKey || !genAI) throw new Error("GEMINI_API_KEY no configurada.");
-  const system = trimMessages(messages).find((m) => m.role === "system");
-  const other = trimMessages(messages).filter((m) => m.role !== "system");
+  const cleaned = trimMessages(messages);
+  const system = cleaned.find((m) => m.role === "system");
+  const other = cleaned.filter((m) => m.role !== "system");
   const generative = genAI.getGenerativeModel({ model: geminiModelId(model), systemInstruction: typeof system?.content === "string" ? system.content : undefined });
   const contents = await Promise.all(other.map(async (message) => {
     const parts = Array.isArray(message.content) ? await Promise.all(message.content.map(async (part: any) => {
       if (part?.type === "text") return { text: String(part.text || "") };
-      if (part?.type === "image_url" || part?.type === "file_url") { const url = part.type === "image_url" ? part.image_url?.url : part.file_url?.url; if (!url) return { text: "" }; const { buffer, mimeType, urlLower } = await fetchRemoteMediaBuffer(url); if (mimeType.startsWith("image/") || mimeType === "application/pdf" || /\.(jpg|jpeg|png|webp|gif|pdf)$/i.test(urlLower)) return { inlineData: { data: buffer.toString("base64"), mimeType: mimeType === "application/octet-stream" ? "image/jpeg" : mimeType } }; return { text: `[Contenido del archivo adjunto]\n${await extractDocumentText(buffer, urlLower, mimeType)}` }; }
+      if (part?.type === "image_url" || part?.type === "file_url") {
+        const url = part.type === "image_url" ? part.image_url?.url : part.file_url?.url;
+        if (!url) return { text: "" };
+        const { buffer, mimeType, urlLower } = await fetchRemoteMediaBuffer(url);
+        if (mimeType.startsWith("image/") || mimeType === "application/pdf" || /\.(jpg|jpeg|png|webp|gif|pdf)$/i.test(urlLower)) return { inlineData: { data: buffer.toString("base64"), mimeType: mimeType === "application/octet-stream" ? "image/jpeg" : mimeType } };
+        return { text: `[Contenido del archivo adjunto]\n${await extractDocumentText(buffer, urlLower, mimeType)}` };
+      }
       return { text: "" };
     })) : [{ text: String(message.content || "") }];
     return { role: message.role === "assistant" ? "model" : "user", parts };
   }));
-  const result = await withTimeout(generative.generateContent({ contents, generationConfig: { responseMimeType: jsonMode ? "application/json" : "text/plain", temperature: 0.7, maxOutputTokens: DEFAULT_MAX_OUTPUT } }), MULTIMODAL_TIMEOUT_MS);
+  const generationConfig: any = { maxOutputTokens: DEFAULT_MAX_OUTPUT };
+  if (jsonMode) generationConfig.responseMimeType = "application/json";
+  const result = await withTimeout(generative.generateContent({ contents, generationConfig }), MULTIMODAL_TIMEOUT_MS);
   return { choices: [{ message: { content: result.response.text() } }] };
 }
 
@@ -172,7 +193,7 @@ export async function getAICompletion(messages: any[], modelName: string = AI_MO
   throw lastError || new Error("No hay ningún proveedor de IA configurado y disponible.");
 }
 
-export async function getNvidiaNIMCompletion(messages: any[], modelName: string = AI_MODELS.nvidiaReasoning.id, jsonMode = false) { return nvidiaCompletion(messages, normalizeModel(modelName), jsonMode); }
+export async function getNvidiaNIMCompletion(messages: any[], modelName: string = AI_MODELS.nvidiaSuper.id, jsonMode = false) { return nvidiaCompletion(messages, normalizeModel(modelName), jsonMode); }
 export const getGroqCompletion = async (messages: any[], modelName: string = AI_MODELS.groqFast.id, jsonMode = false) => groqCompletion(messages, normalizeModel(modelName), jsonMode);
 export const getGeminiCompletion = async (messages: any[], modelName: string = AI_MODELS.geminiFast.id, jsonMode = false) => geminiCompletion(messages, normalizeModel(modelName), jsonMode);
 
