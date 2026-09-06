@@ -17,6 +17,9 @@ export interface WorkflowRunOptions {
   maxParallelTools?: number;
   workflowId?: string | null;
   workflowMessages?: any[];
+  currentRoute?: string | null;
+  mediaUrl?: string | null;
+  mediaType?: string | null;
 }
 
 export interface WorkflowRunResult {
@@ -79,13 +82,12 @@ function extractSources(data: any) {
 function appendUsedSources(text: string, sources: Array<{ title?: string; url: string; provider?: string }>) {
   const unique = [...new Map(sources.map((source) => [source.url, source])).values()];
   if (!unique.length) return text;
-  const alreadyHasSources = /(^|\n)\s*(fuentes|fuentes consultadas|sources)\s*:?\s*$/im.test(text);
-  if (alreadyHasSources) return text;
+  if (/(^|\n)\s*Fuentes consultadas:\s*$/im.test(text)) return text;
   const lines = unique.slice(0, 12).map((source) => `• ${source.title || source.url} — ${source.url}`);
   return `${text.trim()}\n\nFuentes consultadas:\n${lines.join("\n")}`.trim();
 }
 
-async function audit(userId: string, sessionId: string | null | undefined, step: number, action: ToolAction, status: string, output?: unknown, error?: string) {
+async function audit(userId: string, sessionId: string | null | undefined, step: number, action: ToolAction, status: string, output?: unknown, error?: string, currentRoute?: string | null) {
   const supabase = await createClient();
   const registered = aiRegistry.getTool(action.tool);
   await supabase.from("ai_tool_events").insert({
@@ -100,34 +102,46 @@ async function audit(userId: string, sessionId: string | null | undefined, step:
     output: output ?? null,
     sources: extractSources(output),
     error: error || null,
+    current_route: currentRoute || null,
     updated_at: new Date().toISOString(),
   });
 }
 
 async function executeTool(action: ToolAction, options: WorkflowRunOptions, step: number) {
-  await audit(options.userId, options.sessionId, step, action, "running");
+  await audit(options.userId, options.sessionId, step, action, "running", undefined, undefined, options.currentRoute);
   try {
     const registered = aiRegistry.getTool(action.tool);
+    const effectiveArgs = { ...(action.args || {}) };
+    if (!effectiveArgs.image_url && options.mediaUrl && ["analyze_image", "describe_math_image", "extract_colors_from_image", "extract_text_from_image"].includes(action.tool)) effectiveArgs.image_url = options.mediaUrl;
+    if (!effectiveArgs.audio_url && options.mediaUrl && action.tool === "transcribe_audio") effectiveArgs.audio_url = options.mediaUrl;
+    if (!effectiveArgs.video_url && options.mediaUrl && action.tool === "search_youtube_transcripts" && /youtube\.com|youtu\.be/i.test(options.mediaUrl)) effectiveArgs.video_url = options.mediaUrl;
+
     let result: any;
     if (registered?.execute) {
-      const parsed = registered.schema?.safeParse ? registered.schema.safeParse(action.args) : { success: true, data: action.args };
+      const parsed = registered.schema?.safeParse ? registered.schema.safeParse(effectiveArgs) : { success: true, data: effectiveArgs };
       if (!parsed.success) throw new Error(`Argumentos inválidos para ${action.tool}.`);
-      result = await registered.execute(parsed.data, { userId: options.userId, sessionId: options.sessionId || undefined } as any);
+      result = await registered.execute(parsed.data, {
+        userId: options.userId,
+        sessionId: options.sessionId || undefined,
+        currentRoute: options.currentRoute,
+        mediaUrl: options.mediaUrl,
+        mediaType: options.mediaType,
+      } as any);
     } else {
-      result = await executeToolAction(action.tool, action.args);
+      result = await executeToolAction(action.tool, effectiveArgs);
     }
-    result = await materializeToolResult(result, action.tool, action.args);
+    result = await materializeToolResult(result, action.tool, effectiveArgs);
     const normalized = {
-      action,
+      action: { ...action, args: effectiveArgs },
       success: Boolean(result?.success),
       message: String(result?.message || (result?.success ? "Completado" : result?.error || "La herramienta falló")),
       data: result?.data ?? null,
     };
-    await audit(options.userId, options.sessionId, step, action, normalized.success ? "success" : "error", normalized.data, normalized.success ? undefined : normalized.message);
+    await audit(options.userId, options.sessionId, step, normalized.action, normalized.success ? "success" : "error", normalized.data, normalized.success ? undefined : normalized.message, options.currentRoute);
     return normalized;
   } catch (error: any) {
     const message = error?.message || "Error desconocido de herramienta";
-    await audit(options.userId, options.sessionId, step, action, "error", null, message);
+    await audit(options.userId, options.sessionId, step, action, "error", null, message, options.currentRoute);
     return { action, success: false, message, data: null };
   }
 }
@@ -177,16 +191,13 @@ async function runCore(currentMessages: any[], model: string, options: WorkflowR
       executedActions.push(...results.filter((r) => r.success).map((r) => r.action));
       for (const result of results) usedSources.push(...extractSources(result.data));
       currentMessages.push({ role: "assistant", content: text || "Continuaré con la tarea." });
-      currentMessages.push({
-        role: "user",
-        content: `Resultados reales de herramientas:\n${results.map((r) => `[${r.action.tool}] ${r.success ? "OK" : "ERROR"}\n${r.message}\nDatos: ${serialize(r.data)}`).join("\n\n")}\n\nContinúa la tarea con las herramientas necesarias. No repitas herramientas exitosas salvo que necesites un dato nuevo. No inventes fuentes ni resultados.`,
-      });
+      currentMessages.push({ role: "user", content: `Resultados reales de herramientas:\n${results.map((r) => `[${r.action.tool}] ${r.success ? "OK" : "ERROR"}\n${r.message}\nDatos: ${serialize(r.data)}`).join("\n\n")}\n\nContinúa la tarea con las herramientas necesarias. No repitas herramientas exitosas salvo que necesites un dato nuevo. No inventes fuentes ni resultados.` });
     }
 
     if (pending.length) {
       const actionsWithWorkflow = pending.map((action) => ({ ...action, workflowId: workflowId || undefined } as any));
       if (workflowId) {
-        await Promise.all(pending.map((action) => audit(options.userId, options.sessionId, step, action, "waiting_for_user")));
+        await Promise.all(pending.map((action) => audit(options.userId, options.sessionId, step, action, "waiting_for_user", undefined, undefined, options.currentRoute)));
         await updateWorkflow(workflowId, { messages: currentMessages, pending_actions: actionsWithWorkflow, executed_results: results, step, status: "waiting_for_user" });
         return { response: appendUsedSources(text, usedSources), actions: actionsWithWorkflow, executedActions: executedActions.length ? executedActions : undefined };
       }
@@ -202,7 +213,7 @@ async function runCore(currentMessages: any[], model: string, options: WorkflowR
         pendingActions: pending,
         executedResults: results,
       });
-      await Promise.all(pending.map((action) => audit(options.userId, options.sessionId, step, action, "waiting_for_user")));
+      await Promise.all(pending.map((action) => audit(options.userId, options.sessionId, step, action, "waiting_for_user", undefined, undefined, options.currentRoute)));
       const withWorkflow = pending.map((action) => ({ ...action, workflowId: created.id } as any));
       return { response: appendUsedSources(text, usedSources), actions: withWorkflow, executedActions: executedActions.length ? executedActions : undefined };
     }
@@ -227,11 +238,7 @@ async function runCore(currentMessages: any[], model: string, options: WorkflowR
 export async function runWorkflowAgent(systemPrompt: string, history: any[], userMessage: string | any[], model: string, options: WorkflowRunOptions) {
   const currentMessages = Array.isArray(options.workflowMessages)
     ? [...options.workflowMessages, { role: "user", content: userMessage }]
-    : [
-        { role: "system", content: systemPrompt },
-        ...history.slice(-10),
-        { role: "user", content: userMessage },
-      ];
+    : [{ role: "system", content: systemPrompt }, ...history.slice(-10), { role: "user", content: userMessage }];
   return runCore(currentMessages, model, options, options.workflowId || null);
 }
 
