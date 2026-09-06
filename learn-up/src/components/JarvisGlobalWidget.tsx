@@ -358,7 +358,8 @@ export default function JarvisGlobalWidget() {
                   {selectedModel.includes("gpt-oss-120b") ? "GPT OSS 120B" :
                    selectedModel.includes("gpt-oss-20b") ? "GPT OSS 20B" :
                    selectedModel.includes("gemini-3.8") ? "Gemini 3.8 Flash" :
-                   selectedModel.includes("glm") ? "Gemini 3.6 Flash" :
+                   selectedModel.includes("gemini-3.7") ? "Gemini 3.7 Flash" :
+                   selectedModel.includes("gemini-3.6") ? "Gemini 3.6 Flash" :
                    selectedModel.includes("nemotron-3-super") ? "Nemotron Super 120B" :
                    "Modelo"}
                   <ChevronDown className="w-3 h-3" />

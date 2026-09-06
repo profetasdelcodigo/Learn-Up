@@ -85,6 +85,7 @@ import { confirmAndExecuteTool, indexAiDocumentFromUrl } from "@/actions/ai-tuto
 import { approveStableToolAction, cancelStableToolAction } from "@/actions/stable-ai-agents";
 import SkillsDirectoryModal from "./ai/SkillsDirectoryModal";
 import ThinkingBlock from "./ai/ThinkingBlock";
+import { getPersistedSkillPacks, saveSkillPacks } from "@/lib/ai/core/skill-state";
 
 interface ToolAction {
   tool: string;
@@ -349,15 +350,19 @@ export default function AIChatComponent({
   const [hasFileAttached, setHasFileAttached] = useState(false);
 
   useEffect(() => {
-    if (currentSessionId) {
-      if (isCreatingSession.current) {
-        isCreatingSession.current = false;
-        return;
-      }
-      loadSessionMessages(currentSessionId);
-    } else {
+    let cancelled = false;
+    if (!currentSessionId) {
       setMessages([]);
+      getPersistedSkillPacks().then((skills) => { if (!cancelled) setActiveSkills(skills); }).catch(() => {});
+      return () => { cancelled = true; };
     }
+    if (isCreatingSession.current) {
+      isCreatingSession.current = false;
+    } else {
+      loadSessionMessages(currentSessionId);
+    }
+    getPersistedSkillPacks(currentSessionId).then((skills) => { if (!cancelled && skills.length) setActiveSkills(skills); }).catch(() => {});
+    return () => { cancelled = true; };
   }, [currentSessionId]);
 
   useEffect(() => {
@@ -636,7 +641,13 @@ export default function AIChatComponent({
       if (action.tool === "open_url") {
         const safeUrl = getSafeExternalUrl(action.args.url);
         if (!safeUrl) throw new Error("URL no permitida");
-        window.open(safeUrl, "_blank", "noopener,noreferrer");
+        try {
+          const url = new URL(safeUrl, window.location.origin);
+          if (url.origin === window.location.origin) router.push(`${url.pathname}${url.search}${url.hash}`);
+          else window.open(url.toString(), "_blank", "noopener,noreferrer");
+        } catch {
+          throw new Error("No pude interpretar la URL de navegación.");
+        }
         const msg = `Abriendo: ${action.args.title || safeUrl}`;
         if (currentSessionId) await addAiMessage(currentSessionId, "assistant", msg, undefined, undefined, [action]);
         setMessages((prev) => [
@@ -706,7 +717,7 @@ export default function AIChatComponent({
       setError("Error al ejecutar la acción.");
     } finally {
       setExecutingAction(false);
-      if (!actionResult?.data?.suggestions) setPendingActions([]);
+      if (!actionResult?.data?.suggestions && !actionResult?.actions?.length) setPendingActions([]);
     }
   };
 
@@ -1115,30 +1126,36 @@ export default function AIChatComponent({
                 onClose={() => setIsSkillsModalOpen(false)} 
                 activeSkills={activeSkills}
                 onToggleSkill={(id) => {
-                  setActiveSkills(prev => 
-                    prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
-                  );
+                  setActiveSkills(prev => {
+                    const next = prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id];
+                    void saveSkillPacks(next, currentSessionId);
+                    void saveSkillPacks(next);
+                    return next;
+                  });
                 }}
               />
 
               {showModelMenu && !disableModelSelector && (
                 <div className="absolute bottom-full left-0 mb-2 w-72 bg-surface-2 border border-border-subtle rounded-xl shadow-2xl p-2 z-50 max-h-80 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
                   {[
-                    {
-                      category: "OPENROUTER",
-                      models: [
-                        { id: "openrouter/openai/gpt-oss-120b:free", name: "GPT OSS 120B", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "Preview" },
-                        { id: "nvidia/nemotron-3-super-120b-a12b", name: "Nemotron 3 Super 120B", icon: <Zap className="w-4 h-4 text-emerald-400" />, tag: "Gratis" },
-                        { id: "openrouter/openai/gpt-oss-20b:free", name: "GPT OSS 20B", icon: <Sparkles className="w-4 h-4 text-gray-200" />, tag: "Gratis" },
-                      ]
-                    },
-                    {
-                      category: "NVIDIA NIM",
-                      models: [
-                        { id: "gemini/gemini-3.6-flash", name: "Gemini 3.6 Flash", icon: <Bot className="w-4 h-4 text-emerald-400" />, tag: "Gratis" },
-                        { id: "nvidia/nemotron-3-super-120b-a12b", name: "Nemotron 3 Super 120B", icon: <Zap className="w-4 h-4 text-emerald-400" />, tag: "Gratis" },
-                      ]
-                    }
+                    { category: "GROQ", models: [
+                      { id: "groq/openai/gpt-oss-20b", name: "Groq · GPT OSS 20B", icon: <Sparkles className="w-4 h-4 text-gray-200" />, tag: "Rápido" },
+                      { id: "groq/openai/gpt-oss-120b", name: "Groq · GPT OSS 120B", icon: <Brain className="w-4 h-4 text-purple-400" />, tag: "Potente" },
+                      { id: "groq/llama-3.3-70b-versatile", name: "Groq · Llama 3.3 70B", icon: <BrainCircuit className="w-4 h-4 text-cyan-400" />, tag: "General" },
+                    ] },
+                    { category: "OPENROUTER", models: [
+                      { id: "openrouter/openai/gpt-oss-120b:free", name: "OpenRouter · GPT OSS 120B", icon: <Sparkles className="w-4 h-4 text-gray-200" />, tag: "Gratis" },
+                      { id: "openrouter/openai/gpt-oss-20b:free", name: "OpenRouter · GPT OSS 20B", icon: <Sparkles className="w-4 h-4 text-gray-200" />, tag: "Gratis" },
+                      { id: "openrouter/deepseek/deepseek-v4-flash-0731", name: "OpenRouter · DeepSeek V4 Flash", icon: <Globe className="w-4 h-4 text-cyan-400" />, tag: "Research" },
+                    ] },
+                    { category: "GEMINI", models: [
+                      { id: "gemini/gemini-3.8-flash", name: "Gemini · 3.8 Flash", icon: <Sparkles className="w-4 h-4 text-blue-400" />, tag: "Multimodal" },
+                      { id: "gemini/gemini-3.7-flash", name: "Gemini · 3.7 Flash", icon: <Sparkles className="w-4 h-4 text-blue-400" />, tag: "Agente" },
+                      { id: "gemini/gemini-3.6-flash", name: "Gemini · 3.6 Flash", icon: <Sparkles className="w-4 h-4 text-blue-400" />, tag: "Rápido" },
+                    ] },
+                    { category: "NVIDIA NIM", models: [
+                      { id: "nvidia/nemotron-3-super-120b-a12b", name: "NVIDIA · Nemotron 3 Super 120B", icon: <Zap className="w-4 h-4 text-emerald-400" />, tag: "Reasoning" },
+                    ] },
                   ].map(cat => (
                     <div key={cat.category} className="mb-2 last:mb-0">
                       <div className="text-[10px] font-bold text-gray-500 mb-1 px-2 uppercase tracking-wider">{cat.category}</div>
@@ -1262,9 +1279,9 @@ export default function AIChatComponent({
                       <Sparkles className="w-4 h-4" />
                       {(() => {
                         if (selectedModel.includes("dots-3")) return "GPT OSS 120B";
-                        if (selectedModel.includes("nemotron-3.5-lightning")) return "Nemotron 3.5";
-                        if (selectedModel.includes("gpt-oss-20b")) return "OSS 20B";
-                        if (selectedModel.includes("glm-5.2")) return "GLM 5.2";
+                        if (selectedModel.includes("gpt-oss-20b")) return "GPT OSS 20B";
+                        if (selectedModel.includes("gemini-3.8")) return "Gemini 3.8";
+                        if (selectedModel.includes("gemini-3.7")) return "Gemini 3.7";
                         if (selectedModel.includes("nemotron-3-ultra")) return "Nemotron 3 Super 120B";
                         if (selectedModel.includes("deepseek-r1")) return "R1";
                         if (selectedModel.includes("qwen3-coder")) return "Qwen Coder";
