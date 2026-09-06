@@ -10,6 +10,7 @@ import { analyticsSkill } from "./analytics";
 import { profileSocialSkill } from "./social";
 import { educationSkill } from "./education";
 import { withRealSkillOverrides } from "./real-overrides";
+import { withRealAnalyticsOverrides } from "./analytics-real";
 import { withExecutableGenerativeTools } from "./execute-generative-result";
 
 function registerSkill(skill: Parameters<typeof aiRegistry.registerSkill>[0]) {
@@ -24,7 +25,7 @@ export function registerAllSkills() {
   registerSkill(withRealSkillOverrides(librarySkill));
   registerSkill({ ...withRealSkillOverrides(contentSkill), id: "content_generation" });
   registerSkill(multimediaSkill);
-  registerSkill(analyticsSkill);
+  registerSkill(withRealAnalyticsOverrides(analyticsSkill));
   registerSkill(profileSocialSkill);
   registerSkill(educationSkill);
 }
