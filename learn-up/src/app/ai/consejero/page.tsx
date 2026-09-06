@@ -30,7 +30,7 @@ export default function CounselorChatPage() {
           className="font-serif"
           currentSessionId={sessionId}
           onSessionChange={setSessionId}
-          defaultModel="openrouter/openai/gpt-oss-120b:free"
+          defaultModel="groq/openai/gpt-oss-20b"
         />
       }
       rightPanel={<JournalSidebar currentSessionId={sessionId} />}
