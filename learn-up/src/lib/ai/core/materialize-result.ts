@@ -1,4 +1,4 @@
-import { getAICompletion } from "@/lib/ai";
+import { getAICompletion, AI_MODELS } from "@/lib/ai";
 import { searchTavily } from "@/lib/web-search";
 import { browseWebPage } from "@/lib/browser-act";
 
@@ -58,7 +58,7 @@ async function materializeResearchReport(args: Record<string, unknown>) {
     if (!evidence.length) return { success: false, error: "Se encontraron resultados, pero ninguna fuente pudo ser extraída de forma verificable.", data: { sources } };
 
     const prompt = `Redacta un reporte de investigación sobre "${topic}" usando exclusivamente la evidencia proporcionada. No inventes fuentes, autores, cifras ni afirmaciones. Cuando algo no esté respaldado, indícalo.\n\nEVIDENCIA:\n${JSON.stringify(evidence)}`;
-    const completion = await getAICompletion([{ role: "user", content: prompt }], "gemini/gemini-3.8-flash");
+    const completion = await getAICompletion([{ role: "user", content: prompt }], AI_MODELS.geminiFast);
     const content = completion?.choices?.[0]?.message?.content;
     if (typeof content !== "string" || !content.trim()) return { success: false, error: "No se pudo generar el reporte a partir de la evidencia recuperada." };
 
