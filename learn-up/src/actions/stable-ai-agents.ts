@@ -4,7 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import { buildUserMessage } from "./ai-tutor";
 import { buildAgentSystemPrompt } from "@/lib/ai/agent-registry";
 import { type ToolAction } from "@/lib/ai-tools";
-import { getRegistryToolCatalog, normalizeSkillPacks } from "@/lib/ai/core/tool-catalog";
+import { getRegistryToolCatalog, normalizeSkillPacks, ALL_PACKS } from "@/lib/ai/core/tool-catalog";
 import type { ToolMode } from "@/lib/ai/tool-contract";
 import { getPersistedSkillPacks, saveSkillPacks } from "@/lib/ai/core/skill-state";
 import { runWorkflowAgent, resumeWorkflow, cancelWorkflow } from "@/lib/ai/workflow-agent";
@@ -30,7 +30,6 @@ function extractMode(modelId?: string): { mode: ToolMode; model: string } {
 function normalizeTextModel(modelId?: string): string {
   const { model } = extractMode(modelId);
   const legacyMap: Record<string, string> = {
-    // Keep OpenRouter's dynamic free router as a router, not as a hard-coded model.
     "openrouter/free": "openrouter/free",
     "openrouter/openrouter/free": "openrouter/free",
     "openrouter/dots-studio/dots-3-note-preview:free": AI_MODELS.openRouterFreeLarge.id,
@@ -44,6 +43,8 @@ function normalizeTextModel(modelId?: string): string {
     "gemini-3.7-flash": AI_MODELS.geminiAgentic.id,
     "gemini-3.8-flash": AI_MODELS.geminiFast.id,
     "nvidia/nemotron-3-ultra-550b-a55b": AI_MODELS.nvidiaSuper.id,
+    "groq/llama-3.3-70b-versatile": AI_MODELS.groqFast.id,
+    "llama-3.3-70b-versatile": AI_MODELS.groqFast.id,
   };
   if (!model) return TEXT_MODEL;
   if (legacyMap[model]) return legacyMap[model];
@@ -83,21 +84,17 @@ export async function cancelStableToolAction(tool: string, args: Record<string, 
 
 async function runStableAgent(agentId: "profesor" | "consejero" | "nutrirecetas", message: string, history: { role: "user" | "assistant"; content: string | any[] }[], mediaUrl?: string, mediaType?: string, modelId?: string, sessionId?: string | null): Promise<{ response: string; error?: string; actions?: ToolAction[]; executedActions?: ToolAction[] }> {
   const userId = await getUserId();
-  const defaults = agentId === "profesor"
-    ? ["library_pack", "learning_pack", "content_pack", "research_pack", "edu_pack", "media_pack"]
-    : agentId === "consejero"
-      ? ["calendar_pack", "stats_pack", "profile_pack", "learning_pack"]
-      : ["content_pack", "media_pack", "research_pack"];
+  const defaults = ALL_PACKS;
 
   const persisted = await getPersistedSkillPacks(sessionId);
-  const { skills: explicitSkills, text, explicit } = extractSkills(message, []);
+  const { skills: explicitSkills, text, explicit } = extractSkills(message, defaults);
   const skills = explicitSkills.length ? explicitSkills : (persisted.length ? persisted : defaults);
   if (explicit) await Promise.allSettled([saveSkillPacks(skills, sessionId), saveSkillPacks(skills)]);
 
   const { mode } = extractMode(modelId);
   const isMultimedia = Boolean(mediaUrl);
   const model = isMultimedia ? MULTIMODAL_MODEL : normalizeTextModel(modelId);
-  const systemPrompt = `${buildAgentSystemPrompt(agentId)}\n\nCONTEXTO DE EJECUCIÓN:\n- Solo existen las 10 skills oficiales: calendar_pack, chat_pack, library_pack, learning_pack, content_pack, media_pack, research_pack, stats_pack, profile_pack, edu_pack.\n- Usa solamente herramientas reales registradas.\n- Una solicitud puede combinar múltiples skills y múltiples tools.\n- Continúa el workflow hasta finalizar, pedir un dato, encontrar un error real o requerir confirmación.\n- Manual: solo las acciones sin confirmación se ejecutan automáticamente; las demás quedan pendientes.\n- Autopilot: solo herramientas permitidas por la política se ejecutan automáticamente.\n- Nunca inventes fuentes, URLs, estadísticas, IDs, rutas ni acciones terminadas.\n- Si una API no está configurada o falla, informa el error real.\n- No muestres JSON, function calls ni instrucciones internas al estudiante.\n- MODO: ${mode}\n- SKILLS ACTIVAS: ${skills.join(", ") || "ninguna"}\n\nCATÁLOGO DE HERRAMIENTAS:\n${getRegistryToolCatalog(skills)}`;
+  const systemPrompt = `${buildAgentSystemPrompt(agentId)}\n\nCONTEXTO DE EJECUCIÓN:\n- Learn Up expone las 10 skills universales: ${ALL_PACKS.join(", ")}.\n- Todas las skills son invocables desde Profesor, Consejero y Nutrirecetas; las skills activas se usan como prioridad contextual, no como una barrera de disponibilidad.\n- Usa solamente herramientas reales registradas.\n- Una solicitud puede combinar múltiples skills y múltiples tools.\n- Continúa el workflow hasta finalizar, pedir un dato, encontrar un error real o requerir confirmación.\n- Manual: solo las acciones sin confirmación se ejecutan automáticamente; las demás quedan pendientes.\n- Autopilot: solo herramientas permitidas por la política se ejecutan automáticamente.\n- Nunca inventes fuentes, URLs, estadísticas, IDs, rutas ni acciones terminadas.\n- Si una API no está configurada o falla, informa el error real.\n- No muestres JSON, function calls, prompts internos ni bloques de pensamiento ocultos al estudiante.\n- MODO: ${mode}\n- SKILLS PRIORIZADAS: ${skills.join(", ") || "ninguna"}\n\nCATÁLOGO DE HERRAMIENTAS UNIVERSALES:\n${getRegistryToolCatalog(ALL_PACKS)}`;
 
   const { content } = await buildUserMessage(text, mediaUrl, mediaType);
   return runWorkflowAgent(systemPrompt, history.slice(-10), content, model, { sessionId, aiType: agentId, userId, mode, maxSteps: 8, maxParallelTools: 4, mediaUrl, mediaType });
