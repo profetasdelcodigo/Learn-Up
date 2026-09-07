@@ -15,14 +15,14 @@ describe("Learn Up AI skills", () => {
       "knowledge-graph",
       "library",
       "multimedia",
-      "profile",
       "research",
+      "social",
     ]);
   });
 
   it("has a real executor and schema for every registered tool", () => {
     const tools = aiRegistry.getAllTools();
-    expect(tools.length).toBeGreaterThanOrEqual(1);
+    expect(tools.length).toBeGreaterThan(1);
     const ids = new Set<string>();
 
     for (const toolDef of tools) {
@@ -32,9 +32,10 @@ describe("Learn Up AI skills", () => {
       expect(toolDef.description).toBeTruthy();
       expect(toolDef.schema).toBeTruthy();
       expect(typeof toolDef.execute).toBe("function");
-      expect(["read", "write", "external"].includes(toolDef.risk)).toBe(true);
+      expect(["read", "write", "destructive"].includes(toolDef.risk)).toBe(true);
       expect(typeof toolDef.requiresConfirmation).toBe("boolean");
       expect(typeof toolDef.supportsAutopilot).toBe("boolean");
+      if (toolDef.risk === "destructive") expect(toolDef.requiresConfirmation).toBe(true);
     }
   });
 
@@ -63,7 +64,7 @@ describe("Learn Up AI skills", () => {
       "update_calendar_event",
       "delete_calendar_event",
       "search_calendar_events",
-      "read_habit_tracker",
+      "read_habits",
       "add_habit",
       "complete_habit",
       "send_message",
