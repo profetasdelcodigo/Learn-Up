@@ -54,6 +54,8 @@ const MODEL_ALIASES: Record<string, string> = {
   "gemini-3.6-flash": AI_MODELS.geminiBalanced.id,
   "gemini-3.7-flash": AI_MODELS.geminiAgentic.id,
   "gemini-3.8-flash": AI_MODELS.geminiFast.id,
+  "groq/llama-3.3-70b-versatile": AI_MODELS.groqFast.id,
+  "llama-3.3-70b-versatile": AI_MODELS.groqFast.id,
 };
 
 function normalizeModel(model: string): string {
@@ -164,7 +166,7 @@ function providerAvailable(provider: ReturnType<typeof providerOf>) {
 
 function isRetryableProviderError(error: any) {
   const message = String(error?.message || error || "").toLowerCase();
-  return /timeout|429|rate.?limit|temporar|overload|capacity|503|502|500|unavailable|network|fetch failed|abort/.test(message);
+  return /timeout|429|rate.?limit|temporar|overload|capacity|503|502|500|unavailable|network|fetch failed|abort|model.?not.?found|no endpoints available|does not exist|not available for free|404/.test(message);
 }
 
 async function completionForModel(messages: any[], model: string, jsonMode: boolean) {
@@ -178,16 +180,18 @@ async function completionForModel(messages: any[], model: string, jsonMode: bool
 export async function getAICompletion(messages: any[], modelName: string = AI_MODELS.groqFast.id, jsonMode = false) {
   const requested = normalizeModel(modelName);
   const chain = providerOf(requested) === "openrouter" ? AI_FALLBACK_CHAIN : AI_REASONING_CHAIN;
-  const candidates = [requested, ...chain.filter((id) => id !== requested)];
+  const candidates = [...new Set([requested, ...chain.filter((id) => id !== requested)])].slice(0, 6);
   let lastError: any;
+  let attempts = 0;
   for (const candidate of candidates) {
     if (!providerAvailable(providerOf(candidate))) continue;
+    attempts += 1;
     try {
       const result = await completionForModel(messages, candidate, jsonMode);
       return Object.assign(result, { _learnUp: { requestedModel: requested, model: candidate, provider: providerOf(candidate), providerChanged: candidate !== requested, providerLabel: PROVIDER_LABELS[providerOf(candidate)] } });
     } catch (error) {
       lastError = error;
-      if (!isRetryableProviderError(error)) throw error;
+      if (!isRetryableProviderError(error) || attempts >= 4) throw error;
     }
   }
   throw lastError || new Error("No hay ningún proveedor de IA configurado y disponible.");
