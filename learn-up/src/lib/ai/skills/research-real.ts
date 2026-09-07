@@ -21,7 +21,53 @@ export const factCheckReal: ToolDefinition = { id: "fact_check", category: "rese
 
 export const compareMultipleSourcesReal: ToolDefinition = { id: "compare_multiple_sources", category: "research", description: "Abre varias URLs reales, extrae su contenido y compara sus posiciones con trazabilidad.", risk: "read", requiresConfirmation: false, supportsAutopilot: true, schema: z.object({ urls: z.array(z.string().url()).min(2).max(12), topic: z.string().optional() }), execute: async ({ urls, topic }) => { const evidence = await browseMany(urls, 12); if (evidence.length < 2) return { success: false, error: `Solo se pudo extraer ${evidence.length} fuente(s); se necesitan al menos 2 para comparar.`, data: { requested: urls } }; const comparison = await generateFromEvidence(`Compara estas fuentes exclusivamente con el contenido recuperado. Tema: ${topic || "no especificado"}. Identifica acuerdos, diferencias, evidencia, limitaciones y posibles sesgos. Nunca cites una URL que no esté en la evidencia.\n\n${JSON.stringify(evidence)}`); return { success: true, message: `Comparación realizada con ${evidence.length} fuentes extraídas.`, data: { comparison, sources: evidence.map((x) => ({ title: x.title, url: x.url })), evidenceCount: evidence.length } }; } };
 
-export const deepResearchReal: ToolDefinition = { id: "deep_research", category: "research", description: "Realiza investigación iterativa con varias búsquedas y varias páginas reales.", risk: "read", requiresConfirmation: false, supportsAutopilot: true, schema: z.object({ topic: z.string().min(1), depth: z.enum(["basic", "moderate", "deep"]).default("moderate") }), execute: async ({ topic, depth }) => { const rounds = depth === "deep" ? 2 : 1; const gathered: Array<{ title: string; url: string; content: string }> = []; for (let round = 0; round < rounds; round += 1) { const query = round === 0 ? topic : `${topic} evidencia críticas fuentes académicas perspectivas`; const results = await searchTavily(query, depth === "deep" ? 8 : 6); const evidence = await browseMany((results || []).map((item: any) => item?.url).filter(Boolean), depth === "deep" ? 8 : 6); gathered.push(...evidence); } const unique = [...new Map(gathered.map((item) => [item.url, item])).values()]; if (!unique.length) return { success: false, error: "La investigación no obtuvo evidencia web verificable." }; const report = await generateFromEvidence(`Investiga "${topic}" usando exclusivamente estas fuentes recuperadas. Estructura por hallazgos, acuerdos, discrepancias, limitaciones y conclusión. No inventes cifras, autores ni fuentes y marca las incertidumbres.\n\n${JSON.stringify(unique)}`); return { success: true, message: `Investigación completada con ${unique.length} fuentes reales en ${rounds} ronda(s).`, data: { report, sources: unique.map((x) => ({ title: x.title, url: x.url })), evidenceCount: unique.length, rounds } }; } };
+export const deepResearchReal: ToolDefinition = { id: "deep_research", category: "research", description: "Realiza investigación profunda con 3, 5 u 8 búsquedas web diferenciadas, extracción de fuentes y síntesis trazable.", risk: "read", requiresConfirmation: false, supportsAutopilot: true, schema: z.object({ topic: z.string().min(1), depth: z.enum(["basic", "moderate", "deep"]).default("moderate") }), execute: async ({ topic, depth }) => {
+  const queryCount = depth === "deep" ? 8 : depth === "moderate" ? 5 : 3;
+  const focus = [
+    "panorama general conceptos clave",
+    "evidencia y datos verificables fuentes primarias",
+    "investigación académica estudios y resultados",
+    "perspectivas alternativas críticas limitaciones",
+    "desarrollos recientes actualidad y cambios",
+    "casos reales aplicaciones y ejemplos",
+    "contraargumentos controversias y riesgos",
+    "fuentes institucionales y conclusiones comparadas",
+  ];
+  const gathered: Array<{ title: string; url: string; content: string; query: string }> = [];
+  const seenUrls = new Set<string>();
+
+  for (let i = 0; i < queryCount; i += 1) {
+    const query = `${topic} ${focus[i]}`.trim();
+    const results = await searchTavily(query, 6);
+    const urls = (results || []).map((item: any) => item?.url).filter(Boolean);
+    const evidence = await browseMany(urls, 5);
+    for (const item of evidence) {
+      if (!seenUrls.has(item.url)) {
+        seenUrls.add(item.url);
+        gathered.push({ ...item, query });
+      }
+    }
+  }
+
+  if (!gathered.length) return { success: false, error: "La investigación no obtuvo evidencia web verificable." };
+
+  const unique = gathered.slice(0, 40);
+  const report = await generateFromEvidence(
+    `Realiza una investigación rigurosa sobre "${topic}" usando exclusivamente las fuentes web recuperadas. Se hicieron ${queryCount} búsquedas diferenciadas. Estructura la respuesta en: 1) hallazgos principales, 2) evidencia convergente, 3) discrepancias, 4) perspectivas alternativas, 5) limitaciones de las fuentes, 6) conclusión. Prioriza fuentes primarias e institucionales. No inventes cifras, autores, fechas ni URLs. Señala explícitamente qué afirmaciones no pudieron verificarse.\n\nEVIDENCIA:\n${JSON.stringify(unique)}`,
+  );
+
+  return {
+    success: true,
+    message: `Investigación profunda completada con ${queryCount} búsquedas y ${unique.length} fuentes web únicas.`,
+    data: {
+      report,
+      sources: unique.map((x) => ({ title: x.title, url: x.url, query: x.query })),
+      evidenceCount: unique.length,
+      searches: queryCount,
+      depth,
+    },
+  };
+} };
 
 export const searchAcademicPaperReal: ToolDefinition = { id: "search_academic_paper", category: "research", description: "Busca papers reales en Semantic Scholar y devuelve metadatos verificables.", risk: "read", requiresConfirmation: false, supportsAutopilot: true, schema: z.object({ query: z.string().min(1), source: z.enum(["semantic_scholar", "crossref", "arxiv"]).default("semantic_scholar") }), execute: async ({ query, source }) => { if (source !== "semantic_scholar") return { success: false, error: `La fuente ${source} no está implementada en este backend; no se simulará.` }; const apiUrl = `https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&limit=8&fields=title,authors,year,url,abstract,externalIds`; const response = await fetch(apiUrl, { headers: { accept: "application/json" } }); if (!response.ok) throw new Error(`Semantic Scholar ${response.status}: ${await response.text()}`); const payload = await response.json(); const papers = Array.isArray(payload.data) ? payload.data : []; return { success: true, message: `Se encontraron ${papers.length} papers reales.`, data: { papers, sources: [{ title: "Semantic Scholar API", url: apiUrl }] } }; } };
 
