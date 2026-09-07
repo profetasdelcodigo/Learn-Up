@@ -29,6 +29,9 @@ export interface ToolResult {
   message?: string;
   data?: any;
   error?: string;
+  response?: string;
+  actions?: any[];
+  executedActions?: any[];
 }
 
 export interface Skill {
