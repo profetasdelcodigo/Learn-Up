@@ -110,12 +110,13 @@ export const panelTools=[
     }
   },
   {
-    name:"navigate_app", description:"Valida una navegación interna real de Learn Up contra el registro oficial; nunca inventa rutas.", requiresConfirmation:false, externalEffect:false, supportsAutopilot:true,
+    name:"navigate_app", description:"Valida una navegación interna real de Learn Up contra el registro oficial; acepta ID, nombre de sección o ruta, pero nunca inventa rutas.", requiresConfirmation:false, externalEffect:false, supportsAutopilot:true,
     schema:z.object({route:z.string().min(1),reason:z.string().optional()}),
     execute:async({route,reason}:{route:string;reason?:string})=>{
-      const normalized=route.startsWith("/")?route:`/${route}`;
+      const raw=route.trim();
+      const entry=getAppRoute(raw);
+      const normalized=entry?.path || (raw.startsWith("/") ? raw : `/${raw}`);
       if(!isValidInternalRoute(normalized)) return {success:false,error:`La ruta interna '${normalized}' no existe en Learn Up.`};
-      const entry=getAppRoute(normalized);
       return {success:true,message:`Navegación validada: ${entry?.label||normalized}.`,data:{type:"navigate",route:normalized,label:entry?.label||normalized,reason:reason||null}};
     }
   },
