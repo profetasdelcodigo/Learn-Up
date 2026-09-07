@@ -284,7 +284,7 @@ async function executeTool(action: ToolAction, options: WorkflowRunOptions, step
       effectiveArgs.audio_url = options.mediaUrl;
     }
 
-    const parsed = registered.schema?.safeParse ? registered.schema.safeParse(effectiveArgs) : { success: true, data: effectiveArgs };
+    const parsed: any = registered.schema?.safeParse ? registered.schema.safeParse(effectiveArgs) : { success: true, data: effectiveArgs };
     if (!parsed.success) {
       const details = typeof parsed.error?.format === "function" ? JSON.stringify(parsed.error.format()) : "esquema inválido";
       throw new Error(`Argumentos inválidos para ${normalized.tool}: ${details}`);
