@@ -45,18 +45,21 @@ function schemaKeys(schema: any): string[] {
 }
 
 export function getRegistryToolCatalog(activeSkills: unknown = []): string {
-  const packs = normalizeSkillPacks(activeSkills);
-  const selectedPacks = packs.length ? packs : ALL_PACKS;
-  const ids = new Set(selectedPacks.map((pack) => PACK_TO_SKILL[pack]).filter(Boolean));
+  const prioritizedPacks = normalizeSkillPacks(activeSkills);
+  const priority = new Set(prioritizedPacks.map((pack) => PACK_TO_SKILL[pack]).filter(Boolean));
+
+  // Universal policy: every agent always receives the complete real registry.
+  // Active skills affect ordering/priority only; they must never hide tools.
   const tools = aiRegistry
     .getAllSkills()
-    .filter((skill) => ids.has(skill.id))
+    .sort((a, b) => Number(priority.has(b.id)) - Number(priority.has(a.id)))
     .flatMap((skill) => skill.tools);
 
   const catalog = tools
     .map((tool) => {
       const params = schemaKeys(tool.schema).join(", ") || "schema";
-      return `- ${tool.id}: ${tool.description}. Parámetros: ${params}. Riesgo: ${tool.risk}; ${tool.requiresConfirmation ? "requiere confirmación" : "sin confirmación"}; ${tool.supportsAutopilot ? "permitida en piloto automático" : "requiere modo manual"}.`;
+      const marker = priority.has(tool.category) ? "prioridad contextual; " : "";
+      return `- ${tool.id}: ${marker}${tool.description}. Parámetros: ${params}. Riesgo: ${tool.risk}; ${tool.requiresConfirmation ? "requiere confirmación" : "sin confirmación"}; ${tool.supportsAutopilot ? "permitida en piloto automático" : "requiere modo manual"}.`;
     })
     .join("\n");
 
