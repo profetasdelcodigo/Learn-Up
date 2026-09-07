@@ -22,6 +22,7 @@ export default function ProfessorChatPage() {
       }
       centerPanel={
         <AIChatComponent
+          key={sessionId || "new-profesor-session"}
           title="Profesor Mente"
           subtitle="Tu tutor socrático personal"
           icon={<BookOpen className="w-5 h-5 text-brand-gold" />}
