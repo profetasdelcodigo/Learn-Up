@@ -76,6 +76,22 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   outputFileTracingRoot: appDir,
 
+  // Keep server-only, Node-oriented libraries out of the automatic RSC/Route Handler bundle.
+  // They remain installed on Render and are resolved natively at runtime.
+  serverExternalPackages: [
+    "@fal-ai/serverless-client",
+    "@google/generative-ai",
+    "groq-sdk",
+    "livekit-server-sdk",
+    "officeparser",
+    "pdf-parse",
+    "cheerio",
+    "turndown",
+    "web-push",
+    "resend",
+    "youtube-transcript",
+  ],
+
   // Type checking is enforced by CI. Keeping it out of Next's integrated
   // checker avoids exhausting the 2 GB Render build worker.
   typescript: {
