@@ -13,12 +13,12 @@ export interface AIModelDefinition {
   defaultFor?: string[];
 }
 
-/** Single source of truth for the 10 selectable models exposed by Learn Up. */
+/** Single source of truth for the selectable models exposed by Learn Up. */
 export const AI_MODELS = {
   groqReasoning: { id: "groq/openai/gpt-oss-120b", provider: "groq", label: "GPT OSS 120B", shortLabel: "Groq · GPT OSS 120B", modality: "reasoning", contextTokens: 131_072, maxOutputTokens: 65_536, defaultFor: ["chat", "profesor", "consejero", "jarvis"] },
   groqFast: { id: "groq/openai/gpt-oss-20b", provider: "groq", label: "GPT OSS 20B", shortLabel: "Groq · GPT OSS 20B", modality: "reasoning", contextTokens: 131_072, maxOutputTokens: 65_536, defaultFor: ["fast"] },
-  groqGeneral: { id: "groq/llama-3.3-70b-versatile", provider: "groq", label: "Llama 3.3 70B", shortLabel: "Groq · Llama 3.3 70B", modality: "text", contextTokens: 131_072, maxOutputTokens: 32_768 },
-  openRouterFreeLarge: { id: "openrouter/openai/gpt-oss-120b:free", provider: "openrouter", label: "GPT OSS 120B · Gratis", shortLabel: "OpenRouter · GPT OSS 120B", modality: "reasoning", contextTokens: 131_072, maxOutputTokens: 32_768, defaultFor: ["free-fallback"] },
+  groqGeneral: { id: "groq/qwen/qwen3.6-27b", provider: "groq", label: "Qwen 3.6 27B", shortLabel: "Groq · Qwen 3.6 27B", modality: "reasoning", contextTokens: 131_072, maxOutputTokens: 16_384, preview: true },
+  openRouterFreeLarge: { id: "openrouter/free", provider: "openrouter", label: "Router gratuito", shortLabel: "OpenRouter · Free Router", modality: "reasoning", contextTokens: 131_072, maxOutputTokens: 32_768, defaultFor: ["free-fallback"] },
   openRouterFreeFast: { id: "openrouter/openai/gpt-oss-20b:free", provider: "openrouter", label: "GPT OSS 20B · Gratis", shortLabel: "OpenRouter · GPT OSS 20B", modality: "reasoning", contextTokens: 131_072, maxOutputTokens: 32_768 },
   openRouterResearch: { id: "openrouter/deepseek/deepseek-v4-flash-0731", provider: "openrouter", label: "DeepSeek V4 Flash", shortLabel: "OpenRouter · DeepSeek V4 Flash", modality: "reasoning", contextTokens: 1_310_720, maxOutputTokens: 131_072 },
   geminiFast: { id: "gemini/gemini-3.8-flash", provider: "gemini", label: "Gemini 3.8 Flash", shortLabel: "Gemini · 3.8 Flash", modality: "multimodal", contextTokens: 1_048_576, maxOutputTokens: 65_536, defaultFor: ["multimodal", "files", "images", "pdf"] },
