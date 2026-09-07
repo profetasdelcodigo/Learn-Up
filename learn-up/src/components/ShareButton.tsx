@@ -1,6 +1,6 @@
 "use client";
 
-import { useAtom } from "jotai";
+import { useSetAtom } from "jotai";
 import { shareModalOpenAtom, sharePayloadAtom, type SharePayload } from "@/lib/store";
 import { Share2 } from "lucide-react";
 
@@ -11,8 +11,8 @@ interface ShareButtonProps {
 }
 
 export default function ShareButton({ payload, className = "", variant = "icon" }: ShareButtonProps) {
-  const [, setOpen] = useAtom(shareModalOpenAtom);
-  const [, setPayload] = useAtom(sharePayloadAtom);
+  const setOpen = useSetAtom(shareModalOpenAtom);
+  const setPayload = useSetAtom(sharePayloadAtom);
 
   const handleShare = () => {
     setPayload(payload);

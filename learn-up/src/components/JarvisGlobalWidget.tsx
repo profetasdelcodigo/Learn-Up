@@ -257,7 +257,16 @@ export default function JarvisGlobalWidget() {
     }
     if (action.workflowId) {
       const result = await approveStableToolAction(action.tool, action.args || {});
-      if (result?.response) setMessages((prev) => [...prev, { role: "assistant", content: result.response, actions: result.actions }]);
+      if (result?.response) {
+        const actions =
+          typeof result === "object" && result !== null && "actions" in result
+            ? result.actions
+            : undefined;
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: result.response, actions },
+        ]);
+      }
     }
   };
 

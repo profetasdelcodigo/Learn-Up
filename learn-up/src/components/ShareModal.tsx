@@ -1,6 +1,6 @@
 "use client";
 
-import { useAtom } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { shareModalOpenAtom, sharePayloadAtom } from "@/lib/store";
 import { useState, useEffect } from "react";
 import { X, Send, Copy, Share2, MessageSquare, Bot } from "lucide-react";
@@ -9,17 +9,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/utils/supabase/client";
 
 export default function ShareModal() {
-  const [isOpen, setIsOpen] = useAtom(shareModalOpenAtom);
-  const [payload, setPayload] = useAtom(sharePayloadAtom);
+  const isOpen = useAtomValue(shareModalOpenAtom);
+  const setIsOpen = useSetAtom(shareModalOpenAtom);
+  const payload = useAtomValue(sharePayloadAtom);
+  const setPayload = useSetAtom(sharePayloadAtom);
   const [rooms, setRooms] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingRooms, setLoadingRooms] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      loadRooms();
-    }
-  }, [isOpen]);
 
   const loadRooms = async () => {
     setLoadingRooms(true);
@@ -27,6 +23,12 @@ export default function ShareModal() {
     if (rooms) setRooms(rooms);
     setLoadingRooms(false);
   };
+
+  useEffect(() => {
+    if (isOpen) {
+      loadRooms();
+    }
+  }, [isOpen]);
 
   const handleClose = () => {
     setIsOpen(false);

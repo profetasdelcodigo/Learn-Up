@@ -243,6 +243,7 @@ interface Message {
   content: string;
   media_url?: string;
   media_type?: string;
+  client_message_id?: string;
   tool_calls?: ToolAction[];
 }
 
