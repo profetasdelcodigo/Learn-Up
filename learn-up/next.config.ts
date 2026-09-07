@@ -83,6 +83,12 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
 
+  productionBrowserSourceMaps: false,
+
+  experimental: {
+    webpackMemoryOptimizations: true,
+  },
+
   webpack: (config) => {
     config.ignoreWarnings = [
       { module: /node_modules\/officeparser/ },
@@ -128,7 +134,6 @@ export default withSentryConfig(
     org: "profetasdelcodigo",
     project: "javascript-nextjs",
     silent: !process.env.CI,
-    widenClientFileUpload: true,
     sourcemaps: {
       deleteSourcemapsAfterUpload: true,
     },
