@@ -30,11 +30,12 @@ function extractMode(modelId?: string): { mode: ToolMode; model: string } {
 function normalizeTextModel(modelId?: string): string {
   const { model } = extractMode(modelId);
   const legacyMap: Record<string, string> = {
-    "openrouter/free": AI_MODELS.openRouterFreeLarge.id,
-    "openrouter/openrouter/free": AI_MODELS.openRouterFreeLarge.id,
+    // Keep OpenRouter's dynamic free router as a router, not as a hard-coded model.
+    "openrouter/free": "openrouter/free",
+    "openrouter/openrouter/free": "openrouter/free",
     "openrouter/dots-studio/dots-3-note-preview:free": AI_MODELS.openRouterFreeLarge.id,
-    "openrouter/nvidia/nemotron-3.5-lightning:free": AI_MODELS.nvidiaSuper.id,
-    "openrouter/nvidia/nemotron-3.5-lightning": AI_MODELS.nvidiaSuper.id,
+    "openrouter/nvidia/nemotron-3.5-lightning:free": AI_MODELS.openRouterFreeFast.id,
+    "openrouter/nvidia/nemotron-3.5-lightning": AI_MODELS.openRouterFreeFast.id,
     "openrouter/openai/gpt-oss-120b:free": AI_MODELS.openRouterFreeLarge.id,
     "openrouter/openai/gpt-oss-20b:free": AI_MODELS.openRouterFreeFast.id,
     "openai/gpt-oss-120b:free": AI_MODELS.openRouterFreeLarge.id,
