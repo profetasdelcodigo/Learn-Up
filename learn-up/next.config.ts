@@ -17,117 +17,124 @@ const withPWA = withPWAInit({
   register: true,
   skipWaiting: true,
   cleanupOutdatedCaches: true,
-  buildExcludes: [/middleware-manifest\.json$/],
-  workboxOptions: {
-    runtimeCaching: [
-      {
-        urlPattern: /^https?:\/\/[^/]+\/chat(?:\/.*)?$/i,
-        handler: "NetworkOnly",
-      },
-      {
-        urlPattern: /^https?:\/\/[^/]+\/ai(?:\/.*)?$/i,
-        handler: "NetworkOnly",
-      },
-      {
-        urlPattern: /^https?:\/\/[^/]+\/api\/chat(?:\/.*)?$/i,
-        handler: "NetworkOnly",
-      },
-    ],
-  },
+  cacheId: `learn-up-${buildCacheId}`,
+  runtimeCaching: [
+    {
+      urlPattern: /\/chat(?:\/.*)?(?:\?.*)?$/i,
+      handler: "NetworkOnly",
+    },
+    {
+      urlPattern: /\/ai(?:\/.*)?(?:\?.*)?$/i,
+      handler: "NetworkOnly",
+    },
+    {
+      urlPattern: /\/api\/chat(?:\/.*)?(?:\?.*)?$/i,
+      handler: "NetworkOnly",
+    },
+  ],
 });
 
+const securityHeaders = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Strict-Transport-Security",
+    value: "max-age=31536000; includeSubDomains; preload",
+  },
+  {
+    key: "Permissions-Policy",
+    value: [
+      "camera=(self)",
+      "microphone=(self)",
+      "geolocation=()",
+      "payment=()",
+      "usb=()",
+      "display-capture=(self)",
+    ].join(", "),
+  },
+  {
+    key: "Content-Security-Policy",
+    value: [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.youtube.com https://s.ytimg.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in https://i.ytimg.com https://img.youtube.com https://images.unsplash.com https://plus.unsplash.com https://image.pollinations.ai https://*.fal.media",
+      "media-src 'self' blob: https://*.supabase.co https://*.supabase.in",
+      "connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co https://generativelanguage.googleapis.com https://*.livekit.cloud wss://*.livekit.cloud https://*.sentry.io https://cloud.umami.is https://api.umami.is",
+      "frame-src 'self' https://www.youtube.com https://youtube.com",
+      "worker-src 'self' blob:",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "manifest-src 'self'",
+    ].join("; "),
+  },
+];
+
 const nextConfig: NextConfig = {
-  reactStrictMode: true,
-  output: "standalone",
-  poweredByHeader: false,
+  outputFileTracingRoot: appDir,
+
+  // Type checking is enforced by CI. Keeping it out of Next's integrated
+  // checker avoids exhausting the 2 GB Render build worker.
   typescript: {
     ignoreBuildErrors: true,
   },
+
   productionBrowserSourceMaps: false,
+
   experimental: {
     webpackMemoryOptimizations: true,
   },
-  turbopack: {},
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...(config.resolve.fallback || {}),
-        fs: false,
-        net: false,
-        tls: false,
-        child_process: false,
-      };
-    }
 
+  webpack: (config) => {
     config.ignoreWarnings = [
-      ...(config.ignoreWarnings || []),
-      /Critical dependency: the request of a dependency is an expression/,
-      /Module not found: Can't resolve 'encoding'/,
-      /Module not found: Can't resolve 'canvas'/,
-      /Module not found: Can't resolve 'sharp'/,
+      { module: /node_modules\/officeparser/ },
+      { module: /node_modules\/file-type/ },
+      { message: /Critical dependency: the request of a dependency is an expression/ },
     ];
+
+    config.module = {
+      ...config.module,
+      exprContextCritical: false,
+      unknownContextCritical: false,
+    };
 
     return config;
   },
+
+  turbopack: {},
+
   async headers() {
-    const headers = [
+    return [
       {
-        key: "Strict-Transport-Security",
-        value: "max-age=63072000; includeSubDomains; preload",
-      },
-      {
-        key: "X-Content-Type-Options",
-        value: "nosniff",
-      },
-      {
-        key: "Referrer-Policy",
-        value: "strict-origin-when-cross-origin",
-      },
-      {
-        key: "X-Frame-Options",
-        value: "DENY",
-      },
-      {
-        key: "Permissions-Policy",
-        value:
-          "camera=(self), microphone=(self), geolocation=(), payment=(), usb=()",
-      },
-      {
-        key: "Content-Security-Policy",
-        value: [
-          "default-src 'self'",
-          "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:",
-          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-          "font-src 'self' https://fonts.gstatic.com data:",
-          "img-src 'self' data: blob: https:",
-          "media-src 'self' data: blob: https:",
-          "connect-src 'self' https: wss: blob:",
-          "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com",
-          "worker-src 'self' blob:",
-          "manifest-src 'self'",
-          "object-src 'none'",
-          "base-uri 'self'",
-          "form-action 'self'",
-          "frame-ancestors 'none'",
-        ].join("; "),
+        source: "/(.*)",
+        headers: securityHeaders,
       },
     ];
+  },
 
-    return [{ source: "/(.*)", headers }];
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "*.supabase.co" },
+      { protocol: "https", hostname: "*.supabase.in" },
+      { protocol: "https", hostname: "img.youtube.com" },
+      { protocol: "https", hostname: "i.ytimg.com" },
+      { protocol: "https", hostname: "image.pollinations.ai" },
+      { protocol: "https", hostname: "*.fal.media" },
+    ],
   },
 };
 
-const sentryOptions = {
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
-  authToken: process.env.SENTRY_AUTH_TOKEN,
-  silent: !process.env.CI,
-  disableLogger: true,
-  widenClientFileUpload: true,
-  reactComponentAnnotation: {
-    enabled: true,
-  },
-  tunnelRoute: "/monitoring",
-};
-
-export default withSentryConfig(withPWA(nextConfig), sentryOptions);
+export default withSentryConfig(
+  withPWA(nextConfig),
+  {
+    org: "profetasdelcodigo",
+    project: "javascript-nextjs",
+    silent: !process.env.CI,
+    sourcemaps: {
+      deleteSourcemapsAfterUpload: true,
+    },
+  }
+);
