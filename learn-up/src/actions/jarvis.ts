@@ -83,7 +83,6 @@ export async function askJarvis(
 
     return await runWorkflowAgent(systemPrompt, history.slice(-15), content, selectedModel, {
       mode,
-      permissions: true,
       userId: user.id,
       sessionId: null,
       aiType: "jarvis",
