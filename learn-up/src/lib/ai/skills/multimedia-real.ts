@@ -20,11 +20,7 @@ async function geminiVision(url: string, prompt: string) {
   const { buffer, mime } = await fetchBinary(url);
   if (!mime.startsWith("image/")) throw new Error(`El recurso no es una imagen (${mime}).`);
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_VISION_MODEL}:generateContent`;
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-goog-api-key": key },
-    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mime, data: buffer.toString("base64") } }] }], generationConfig: { responseMimeType: "text/plain" } }),
-  });
+  const response = await fetch(endpoint, { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": key }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mime, data: buffer.toString("base64") } }] }], generationConfig: { responseMimeType: "text/plain" } }) });
   if (!response.ok) throw new Error(`Gemini Vision ${response.status}: ${await response.text()}`);
   const data = await response.json();
   const text = data.candidates?.[0]?.content?.parts?.map((part: any) => part.text || "").join("\n").trim();
@@ -51,7 +47,7 @@ export const extractColorsReal: ToolDefinition = {
 };
 
 export const textToSpeechReal: ToolDefinition = {
-  id: "text_to_speech", category: "multimedia", description: "Genera audio MP3 real con la API de OpenAI si OPENAI_API_KEY está configurada.", risk: "external", requiresConfirmation: true, supportsAutopilot: false,
+  id: "text_to_speech", category: "multimedia", description: "Genera audio MP3 real con la API de OpenAI si OPENAI_API_KEY está configurada.", risk: "write", requiresConfirmation: true, supportsAutopilot: false,
   schema: z.object({ text: z.string().min(1).max(10000), voice: z.string().optional().default("alloy"), model: z.string().optional().default("gpt-4o-mini-tts") }),
   execute: async ({ text, voice, model }) => {
     const key = process.env.OPENAI_API_KEY;
@@ -84,13 +80,13 @@ export const transcribeAudioReal: ToolDefinition = {
 };
 
 export const generateImageReal: ToolDefinition = {
-  id: "generate_image", category: "multimedia", description: "Genera una imagen real mediante Fal.ai.", risk: "external", requiresConfirmation: true, supportsAutopilot: false,
+  id: "generate_image", category: "multimedia", description: "Genera una imagen real mediante Fal.ai.", risk: "write", requiresConfirmation: true, supportsAutopilot: false,
   schema: z.object({ prompt: z.string().min(1), purpose: z.string().optional() }),
   execute: async ({ prompt }) => { const url = await generateFalImage(prompt); return { success: true, message: "Imagen generada con Fal.ai.", data: { url, provider: "fal.ai" } }; },
 };
 
 export const generateVideoReal: ToolDefinition = {
-  id: "generate_video", category: "multimedia", description: "Genera un vídeo real mediante Fal.ai.", risk: "external", requiresConfirmation: true, supportsAutopilot: false,
+  id: "generate_video", category: "multimedia", description: "Genera un vídeo real mediante Fal.ai.", risk: "write", requiresConfirmation: true, supportsAutopilot: false,
   schema: z.object({ prompt: z.string().min(1), purpose: z.string().optional() }),
   execute: async ({ prompt }) => { const url = await generateFalVideo(prompt); return { success: true, message: "Vídeo generado con Fal.ai.", data: { url, provider: "fal.ai" } }; },
 };
