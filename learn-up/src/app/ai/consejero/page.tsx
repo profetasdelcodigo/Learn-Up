@@ -22,6 +22,7 @@ export default function CounselorChatPage() {
       }
       centerPanel={
         <AIChatComponent
+          key={sessionId || "new-consejero-session"}
           title="Alma (Consejera)"
           subtitle="Apoyo emocional y motivación diaria"
           icon={<Heart className="w-5 h-5 text-rose-500" />}
