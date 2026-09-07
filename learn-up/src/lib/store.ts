@@ -8,4 +8,10 @@ export interface SharePayload {
 }
 
 export const shareModalOpenAtom = atom<boolean>(false);
-export const sharePayloadAtom = atom<SharePayload | null>(null);
+
+const sharePayloadBaseAtom = atom<SharePayload | null>(null);
+
+export const sharePayloadAtom = atom(
+  (get) => get(sharePayloadBaseAtom),
+  (_get, set, next: SharePayload | null) => set(sharePayloadBaseAtom, next),
+);
