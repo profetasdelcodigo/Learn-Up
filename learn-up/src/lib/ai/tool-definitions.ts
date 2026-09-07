@@ -1,5 +1,4 @@
 import { tool } from "ai";
-import { z } from "zod";
 import { aiRegistry } from "./skills";
 import { AiToolDefinition } from "./agent-registry";
 import { materializeToolResult } from "./core/materialize-result";
@@ -62,22 +61,20 @@ export function buildToolsForAgent(
   const toolDefs = new Map<string, any>();
 
   for (const registeredTool of registryTools) toolDefs.set(registeredTool.id, { kind: "registry", definition: registeredTool });
-  // Panel tools are not a skill pack; they are persistent app surfaces that the AI is allowed to access.
   for (const panelTool of panelTools) if (!toolDefs.has(panelTool.name)) toolDefs.set(panelTool.name, { kind: "panel", definition: panelTool });
-  // Deliberately do not inject the legacy agent catalog here. It contains retired skills/categories 11-15 and can re-enable stale/fake tools.
 
   for (const [toolId, entry] of toolDefs.entries()) {
     if (entry.kind === "registry") {
       const registeredTool = entry.definition;
       const shouldAutoExecute = isAutonomous ? registeredTool.supportsAutopilot : !registeredTool.requiresConfirmation;
-      const execute = async (args: any) => {
-        const invocationId = crypto.randomUUID();
+      const execute = async (args: any, executionOptions?: any) => {
+        const invocationId = executionOptions?.toolCallId || crypto.randomUUID();
         const effectiveArgs = argsWithRuntimeContext(registeredTool.id, args, runtime);
         await startToolEvent({ userId, sessionId: runtime?.sessionId, invocationId, toolName: registeredTool.id, skillPack: packForTool(registeredTool.category, activeSkills), aiType: agentId, mode: isAutonomous ? "autopilot" : "manual", risk: registeredTool.risk, arguments: effectiveArgs, currentRoute: runtime?.currentRoute });
         try {
           const parsed = registeredTool.schema?.safeParse ? registeredTool.schema.safeParse(effectiveArgs) : { success: true, data: effectiveArgs };
           if (!parsed.success) { const message = `Argumentos inválidos para ${registeredTool.id}.`; await finishToolEvent({ userId, invocationId, success: false, error: message }); return { success: false, error: message }; }
-          const result = await materializeToolResult(await registeredTool.execute!(parsed.data, { userId, currentRoute: runtime?.currentRoute, mediaUrl: runtime?.mediaUrl, mediaType: runtime?.mediaType } as any), registeredTool.id, effectiveArgs);
+          const result = await materializeToolResult(await registeredTool.execute!(parsed.data, { userId, currentRoute: runtime?.currentRoute, mediaUrl: runtime?.mediaUrl, mediaType: runtime?.mediaType, toolCallId: invocationId } as any), registeredTool.id, effectiveArgs);
           await finishToolEvent({ userId, invocationId, success: Boolean(result?.success), result, error: result?.success ? null : String(result?.error || result?.message || "Error de herramienta"), sources: extractSources(result) });
           return result;
         } catch (error: any) {
@@ -87,23 +84,31 @@ export function buildToolsForAgent(
           return { success: false, error: message };
         }
       };
-      vercelTools[toolId] = (tool as any)({ description: registeredTool.description, parameters: registeredTool.schema, ...(shouldAutoExecute && registeredTool.execute ? { execute } : {}) });
+      vercelTools[toolId] = (tool as any)({
+        description: registeredTool.description,
+        inputSchema: registeredTool.schema,
+        ...(shouldAutoExecute && registeredTool.execute ? { execute } : {}),
+      });
     } else {
       const panel = entry.definition;
       const shouldAutoExecute = isAutonomous ? panel.supportsAutopilot !== false : !panel.requiresConfirmation;
-      vercelTools[toolId] = (tool as any)({ description: panel.description, parameters: panel.schema, ...(shouldAutoExecute ? { execute: async (args: any) => {
-        const invocationId = crypto.randomUUID();
-        await startToolEvent({ userId, sessionId: runtime?.sessionId, invocationId, toolName: panel.name, skillPack: null, aiType: agentId, mode: isAutonomous ? "autopilot" : "manual", risk: "write", arguments: args, currentRoute: runtime?.currentRoute });
-        try {
-          const result = await panel.execute(args);
-          await finishToolEvent({ userId, invocationId, success: Boolean(result?.success), result, error: result?.success ? null : String(result?.error || result?.message || "Error de herramienta"), sources: extractSources(result) });
-          return result;
-        } catch (error: any) {
-          const message = error?.message || "Panel tool execution failed";
-          await finishToolEvent({ userId, invocationId, success: false, error: message });
-          return { success: false, error: message };
-        }
-      } } : {}) });
+      vercelTools[toolId] = (tool as any)({
+        description: panel.description,
+        inputSchema: panel.schema,
+        ...(shouldAutoExecute ? { execute: async (args: any, executionOptions?: any) => {
+          const invocationId = executionOptions?.toolCallId || crypto.randomUUID();
+          await startToolEvent({ userId, sessionId: runtime?.sessionId, invocationId, toolName: panel.name, skillPack: null, aiType: agentId, mode: isAutonomous ? "autopilot" : "manual", risk: "write", arguments: args, currentRoute: runtime?.currentRoute });
+          try {
+            const result = await panel.execute(args);
+            await finishToolEvent({ userId, invocationId, success: Boolean(result?.success), result, error: result?.success ? null : String(result?.error || result?.message || "Error de herramienta"), sources: extractSources(result) });
+            return result;
+          } catch (error: any) {
+            const message = error?.message || "Panel tool execution failed";
+            await finishToolEvent({ userId, invocationId, success: false, error: message });
+            return { success: false, error: message };
+          }
+        } } : {})
+      });
     }
   }
   return vercelTools;
