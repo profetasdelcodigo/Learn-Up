@@ -5,60 +5,38 @@ export interface SearchResult {
   url: string;
   snippet: string;
   image?: string;
+  provider?: string;
 }
 
-// ── Clasificador: ¿La pregunta necesita búsqueda web? ────────────────────────
-// Evita buscar en internet para saludos, matemáticas, opiniones, etc.
 const SKIP_PATTERNS = [
-  // Saludos y conversación casual
   /^(hola|hey|buenas|buenos|qué tal|cómo estás|gracias|adiós|chao|bye)/i,
-  // Matemáticas puras
-  /^(cuánto|cuanto|calcula|resuelve|suma|resta|multiplica|divide)\s+(es|son)?\s*\d/i,
+  /\b( cuánto| cuanto|calcula|resuelve|suma|resta|multiplica|divide)\s+(es|son)?\s*\d/i,
   /^\d+\s*[\+\-\*\/\^]\s*\d+/,
-  // Preguntas sobre la IA misma
   /^(quién eres|cómo te llamas|qué eres|eres una ia|eres humano)/i,
-  // Peticiones de ayuda genérica
   /^(ayúdame|ayudame|necesito ayuda|explícame|explicame)\s*$/i,
-  // Opiniones personales
   /^(qué opinas|qué piensas|te gusta|prefieres)/i,
 ];
 
 const SEARCH_PATTERNS = [
-  // Hechos, datos, definiciones
   /\b(qué es|quién es|quién fue|qué significa|definición de|define)\b/i,
-  // Historia y eventos
   /\b(cuándo (fue|ocurrió|pasó|nació|murió)|en qué año|historia de)\b/i,
-  // Datos actuales
   /\b(actualmente|hoy en día|en la actualidad|últimas noticias|reciente)\b/i,
-  // Investigación
   /\b(investiga|búscame|busca sobre|información sobre|datos sobre|dime sobre)\b/i,
-  // Ciencia y educación específica
   /\b(fórmula de|teoría de|ley de|proceso de|cómo funciona)\b/i,
-  // Personas, lugares, cosas específicas
   /\b(capital de|presidente de|país|ciudad|planeta|elemento)\b/i,
 ];
 
 export function shouldSearchWeb(message: string): boolean {
   const trimmed = message.trim();
-
-  // Mensajes muy cortos casi nunca necesitan búsqueda
   if (trimmed.split(/\s+/).length <= 2) return false;
-
-  // Si coincide con un patrón de SKIP, no buscar
-  if (SKIP_PATTERNS.some(p => p.test(trimmed))) return false;
-
-  // Si coincide con un patrón de SEARCH, sí buscar
-  if (SEARCH_PATTERNS.some(p => p.test(trimmed))) return true;
-
-  // Para el resto, buscar solo si la pregunta parece informativa (>6 palabras y tiene signos de pregunta o palabras clave)
+  if (SKIP_PATTERNS.some((p) => p.test(trimmed))) return false;
+  if (SEARCH_PATTERNS.some((p) => p.test(trimmed))) return true;
   const wordCount = trimmed.split(/\s+/).length;
   if (wordCount >= 6 && /\?/.test(trimmed)) return true;
-  if (wordCount >= 8) return true; // Preguntas largas probablemente necesitan contexto
-
+  if (wordCount >= 8) return true;
   return false;
 }
 
-// ── Tavily ────────────────────────────────────────────────────────────────────
 export async function searchTavily(query: string, maxResults: number = 3): Promise<SearchResult[]> {
   const apiKey = process.env.TAVILY_API_KEY;
   if (!apiKey) return [];
@@ -68,10 +46,10 @@ export async function searchTavily(query: string, maxResults: number = 3): Promi
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        api_key: apiKey,
-        query: query,
+        query,
         search_depth: 'basic',
         max_results: maxResults,
         include_images: true,
@@ -85,14 +63,14 @@ export async function searchTavily(query: string, maxResults: number = 3): Promi
 
     const data = await response.json();
     await incrementUsage('tavily');
-
-    const images = data.images || [];
+    const images = Array.isArray(data.images) ? data.images : [];
 
     return (data.results || []).map((r: any, i: number) => ({
       title: r.title || 'Sin título',
       url: r.url || '',
       snippet: r.content || 'Sin descripción',
-      image: images[i] || undefined,
+      image: typeof images[i] === 'string' ? images[i] : images[i]?.url,
+      provider: 'tavily',
     }));
   } catch (error) {
     console.error('Error fetching Tavily:', error);
@@ -100,7 +78,6 @@ export async function searchTavily(query: string, maxResults: number = 3): Promi
   }
 }
 
-// ── Serper ─────────────────────────────────────────────────────────────────────
 export async function searchSerper(query: string, maxResults: number = 3): Promise<SearchResult[]> {
   const apiKey = process.env.SERPER_API_KEY;
   if (!apiKey) return [];
@@ -112,10 +89,7 @@ export async function searchSerper(query: string, maxResults: number = 3): Promi
         'X-API-KEY': apiKey,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        q: query,
-        num: maxResults,
-      }),
+      body: JSON.stringify({ q: query, num: maxResults }),
     });
 
     if (!response.ok) {
@@ -125,11 +99,11 @@ export async function searchSerper(query: string, maxResults: number = 3): Promi
 
     const data = await response.json();
     await incrementUsage('serper');
-
     return (data.organic || []).map((r: any) => ({
       title: r.title || 'Sin título',
       url: r.link || '',
       snippet: r.snippet || 'Sin descripción',
+      provider: 'serper',
     }));
   } catch (error) {
     console.error('Error fetching Serper:', error);
@@ -137,50 +111,26 @@ export async function searchSerper(query: string, maxResults: number = 3): Promi
   }
 }
 
-/**
- * Realiza una búsqueda web inteligente usando Tavily y Serper.
- * Retorna un string formateado para inyectarlo en el LLM.
- * Ahora verifica primero si la pregunta realmente necesita búsqueda.
- */
-export async function performWebSearch(query: string, totalResults: number = 5): Promise<string> {
-  // Paso 0: ¿Realmente necesitamos buscar?
-  if (!shouldSearchWeb(query)) {
-    return '';
-  }
-
+export async function searchWebStructured(query: string, maxResults: number = 5): Promise<SearchResult[]> {
   const canTavily = await canUseService('tavily');
   const canSerper = await canUseService('serper');
+  if (!canTavily && !canSerper) return [];
 
-  if (!canTavily && !canSerper) {
-    console.warn('Límite de búsqueda web alcanzado en ambos servicios.');
-    return '';
-  }
+  const tavilyMax = canSerper ? Math.max(1, Math.floor(maxResults / 2)) : maxResults;
+  const serperMax = canTavily ? Math.max(1, maxResults - tavilyMax) : maxResults;
+  const tasks: Promise<SearchResult[]>[] = [];
+  if (canTavily) tasks.push(searchTavily(query, tavilyMax));
+  if (canSerper) tasks.push(searchSerper(query, serperMax));
+  const settled = await Promise.allSettled(tasks);
+  const results = settled.flatMap((item) => item.status === 'fulfilled' ? item.value : []);
+  const unique = new Map<string, SearchResult>();
+  for (const result of results) if (result.url && !unique.has(result.url)) unique.set(result.url, result);
+  return [...unique.values()].slice(0, maxResults);
+}
 
-  const results: SearchResult[] = [];
-  
-  const tavilyMax = canSerper ? Math.floor(totalResults / 2) : totalResults;
-  const serperMax = canTavily ? totalResults - tavilyMax : totalResults;
-
-  const searchPromises: Promise<SearchResult[]>[] = [];
-
-  const timeoutMs = Number(process.env.AI_TEXT_TIMEOUT_MS || 18000);
-  const addTimeout = (p: Promise<SearchResult[]>) => 
-    new Promise<SearchResult[]>((resolve) => {
-      const timer = setTimeout(() => resolve([]), timeoutMs);
-      p.then(res => { clearTimeout(timer); resolve(res); })
-       .catch(err => { console.error(err); clearTimeout(timer); resolve([]); });
-    });
-
-  if (canTavily && tavilyMax > 0) searchPromises.push(addTimeout(searchTavily(query, tavilyMax)));
-  if (canSerper && serperMax > 0) searchPromises.push(addTimeout(searchSerper(query, serperMax)));
-
-  const settled = await Promise.allSettled(searchPromises);
-  settled.forEach(outcome => {
-    if (outcome.status === 'fulfilled') {
-      results.push(...outcome.value);
-    }
-  });
-
+export async function performWebSearch(query: string, totalResults: number = 5): Promise<string> {
+  if (!shouldSearchWeb(query)) return '';
+  const results = await searchWebStructured(query, totalResults);
   if (results.length === 0) {
     return '\n\n--- AVISO WEB ---\n[Sistema]: La búsqueda web (Tavily/Serper) falló o demoró demasiado. Por favor, responde sin usar fuentes externas.\n--- FIN AVISO ---\n';
   }
@@ -189,13 +139,11 @@ export async function performWebSearch(query: string, totalResults: number = 5):
   contextString += `INSTRUCCIONES OBLIGATORIAS:\n`;
   contextString += `1. Si usas información de estas fuentes, DEBES proporcionar el enlace clickable en formato Markdown: [Texto del enlace](URL).\n`;
   contextString += `2. Si hay imágenes relevantes disponibles en el contexto, DEBES incluirlas en tu respuesta usando el formato Markdown: ![Descripción](URL).\n\n`;
-
   results.forEach((r, i) => {
     contextString += `[Fuente ${i + 1}]: ${r.title}\n${r.snippet}\nEnlace: ${r.url}\n`;
     if (r.image) contextString += `Imagen disponible: ${r.image}\n`;
     contextString += `\n`;
   });
   contextString += `--- FIN DEL CONTEXTO WEB ---\n`;
-
   return contextString;
 }
