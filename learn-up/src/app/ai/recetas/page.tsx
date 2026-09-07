@@ -22,6 +22,7 @@ export default function RecipesChatPage() {
       }
       centerPanel={
         <AIChatComponent
+          key={sessionId || "new-recetas-session"}
           title="Chef IA"
           subtitle="Tus Nutrirecetas saludables"
           icon={<ChefHat className="w-5 h-5 text-orange-400" />}
