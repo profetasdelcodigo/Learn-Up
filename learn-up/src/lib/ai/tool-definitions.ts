@@ -28,16 +28,14 @@ export function normalizeSkillPackIds(activeSkills: string[] = []): string[] {
   return [...new Set(ids)].filter((id) => ALL_PACKS.includes(id));
 }
 
-function selectedRegistryTools(activeSkills: string[] = []) {
-  const normalized = normalizeSkillPackIds(activeSkills);
-  const requested = normalized.length ? normalized : ALL_PACKS;
-  const ids = new Set(requested.map((id) => PACK_TO_SKILL[id]).filter(Boolean));
-  return aiRegistry.getAllSkills().filter((skill) => ids.has(skill.id)).flatMap((skill) => skill.tools);
+function selectedRegistryTools(_activeSkills: string[] = []) {
+  // Universal policy: skill selection is contextual/prioritization metadata,
+  // never a hard gate that makes a real skill disappear from an agent.
+  return aiRegistry.getAllSkills().flatMap((skill) => skill.tools);
 }
 
-function packForTool(toolCategory: string, activeSkills: string[]) {
-  const normalized = normalizeSkillPackIds(activeSkills);
-  return normalized.find((pack) => PACK_TO_SKILL[pack] === toolCategory) || null;
+function packForTool(toolCategory: string) {
+  return ALL_PACKS.find((pack) => PACK_TO_SKILL[pack] === toolCategory) || null;
 }
 
 function argsWithRuntimeContext(toolId: string, args: any, runtime?: { mediaUrl?: string | null }) {
@@ -60,6 +58,8 @@ export function buildToolsForAgent(
   const registryTools = selectedRegistryTools(activeSkills);
   const toolDefs = new Map<string, any>();
 
+  // Keep the panel's explicitly declared capabilities, but let the universal
+  // registry provide every registered skill to every AI agent.
   for (const registeredTool of registryTools) toolDefs.set(registeredTool.id, { kind: "registry", definition: registeredTool });
   for (const panelTool of panelTools) if (!toolDefs.has(panelTool.name)) toolDefs.set(panelTool.name, { kind: "panel", definition: panelTool });
 
@@ -70,7 +70,7 @@ export function buildToolsForAgent(
       const execute = async (args: any, executionOptions?: any) => {
         const invocationId = executionOptions?.toolCallId || crypto.randomUUID();
         const effectiveArgs = argsWithRuntimeContext(registeredTool.id, args, runtime);
-        await startToolEvent({ userId, sessionId: runtime?.sessionId, invocationId, toolName: registeredTool.id, skillPack: packForTool(registeredTool.category, activeSkills), aiType: agentId, mode: isAutonomous ? "autopilot" : "manual", risk: registeredTool.risk, arguments: effectiveArgs, currentRoute: runtime?.currentRoute });
+        await startToolEvent({ userId, sessionId: runtime?.sessionId, invocationId, toolName: registeredTool.id, skillPack: packForTool(registeredTool.category), aiType: agentId, mode: isAutonomous ? "autopilot" : "manual", risk: registeredTool.risk, arguments: effectiveArgs, currentRoute: runtime?.currentRoute });
         try {
           const parsed = registeredTool.schema?.safeParse ? registeredTool.schema.safeParse(effectiveArgs) : { success: true, data: effectiveArgs };
           if (!parsed.success) { const message = `Argumentos inválidos para ${registeredTool.id}.`; await finishToolEvent({ userId, invocationId, success: false, error: message }); return { success: false, error: message }; }
