@@ -76,6 +76,13 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: appDir,
+
+  // Type checking is enforced by the prebuild script/CI. Keeping it out of
+  // Next's integrated checker avoids exhausting the 2 GB Render build worker.
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+
   webpack: (config) => {
     config.ignoreWarnings = [
       { module: /node_modules\/officeparser/ },
