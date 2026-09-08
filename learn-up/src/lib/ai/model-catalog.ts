@@ -28,8 +28,11 @@ export const AI_MODELS = {
 } as const satisfies Record<string, AIModelDefinition>;
 
 export const AI_MODEL_OPTIONS = Object.values(AI_MODELS);
-export const AI_FALLBACK_CHAIN = [AI_MODELS.groqFast.id, AI_MODELS.groqReasoning.id, AI_MODELS.openRouterFreeLarge.id, AI_MODELS.openRouterFreeFast.id, AI_MODELS.geminiAgentic.id, AI_MODELS.nvidiaSuper.id] as const;
-export const AI_REASONING_CHAIN = [AI_MODELS.groqReasoning.id, AI_MODELS.nvidiaSuper.id, AI_MODELS.openRouterResearch.id, AI_MODELS.geminiAgentic.id, AI_MODELS.groqFast.id] as const;
+
+// OpenRouter remains available as an explicitly selected provider, but is not
+// used for automatic failover because the configured account may be unfunded.
+export const AI_FALLBACK_CHAIN = [AI_MODELS.groqFast.id, AI_MODELS.groqReasoning.id, AI_MODELS.geminiAgentic.id, AI_MODELS.nvidiaSuper.id] as const;
+export const AI_REASONING_CHAIN = [AI_MODELS.groqReasoning.id, AI_MODELS.nvidiaSuper.id, AI_MODELS.geminiAgentic.id, AI_MODELS.groqFast.id] as const;
 export const PROVIDER_LABELS: Record<AIProvider, string> = { groq: "Groq", openrouter: "OpenRouter", gemini: "Gemini", nvidia: "NVIDIA NIM" };
 
 export function findAIModel(id: string | undefined | null) {
