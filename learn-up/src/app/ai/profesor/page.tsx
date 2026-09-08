@@ -10,6 +10,12 @@ import SourcesPanel from "@/components/ai/SourcesPanel";
 
 export default function ProfessorChatPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [chatInstanceKey, setChatInstanceKey] = useState(0);
+
+  const handleSidebarSessionChange = (nextSessionId: string | null) => {
+    setSessionId(nextSessionId);
+    setChatInstanceKey((key) => key + 1);
+  };
 
   return (
     <NotebookLayout
@@ -17,11 +23,12 @@ export default function ProfessorChatPage() {
         <SourcesPanel
           aiType="profesor"
           currentSessionId={sessionId}
-          onSessionChange={setSessionId}
+          onSessionChange={handleSidebarSessionChange}
         />
       }
       centerPanel={
         <AIChatComponent
+          key={chatInstanceKey}
           title="Profesor Mente"
           subtitle="Tu tutor socrático personal"
           icon={<BookOpen className="w-5 h-5 text-brand-gold" />}
