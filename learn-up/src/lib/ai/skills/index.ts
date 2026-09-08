@@ -13,6 +13,8 @@ import { withRealSkillOverrides } from "./real-overrides";
 import { withRealResearchOverrides } from "./research-real";
 import { withRealMultimediaOverrides } from "./multimedia-real";
 import { withRealAnalyticsOverrides } from "./analytics-real";
+import { withFinalResearchOverrides } from "./research-final-overrides";
+import { withFinalLibraryOverrides } from "./library-final-overrides";
 import { withExecutableGenerativeTools } from "./execute-generative-result";
 
 function registerSkill(skill: Parameters<typeof aiRegistry.registerSkill>[0]) {
@@ -20,11 +22,11 @@ function registerSkill(skill: Parameters<typeof aiRegistry.registerSkill>[0]) {
 }
 
 export function registerAllSkills() {
-  registerSkill(withRealResearchOverrides(withRealSkillOverrides(researchSkill)));
+  registerSkill(withFinalResearchOverrides(withRealResearchOverrides(withRealSkillOverrides(researchSkill))));
   registerSkill(calendarSkill);
   registerSkill(knowledgeGraphSkill);
   registerSkill(withRealSkillOverrides(chatSkill));
-  registerSkill(withRealSkillOverrides(librarySkill));
+  registerSkill(withFinalLibraryOverrides(withRealSkillOverrides(librarySkill)));
   registerSkill({ ...withRealSkillOverrides(contentSkill), id: "content_generation" });
   registerSkill(withRealMultimediaOverrides(multimediaSkill));
   registerSkill(withRealAnalyticsOverrides(analyticsSkill));
