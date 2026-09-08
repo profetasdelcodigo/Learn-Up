@@ -10,6 +10,12 @@ import { askCounselorStable } from "@/actions/stable-ai-agents";
 
 export default function CounselorChatPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [chatInstanceKey, setChatInstanceKey] = useState(0);
+
+  const handleSidebarSessionChange = (nextSessionId: string | null) => {
+    setSessionId(nextSessionId);
+    setChatInstanceKey((key) => key + 1);
+  };
 
   return (
     <NotebookLayout
@@ -17,11 +23,12 @@ export default function CounselorChatPage() {
         <SourcesPanel
           aiType="consejero"
           currentSessionId={sessionId}
-          onSessionChange={setSessionId}
+          onSessionChange={handleSidebarSessionChange}
         />
       }
       centerPanel={
         <AIChatComponent
+          key={chatInstanceKey}
           title="Alma (Consejera)"
           subtitle="Apoyo emocional y motivación diaria"
           icon={<Heart className="w-5 h-5 text-rose-500" />}
