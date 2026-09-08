@@ -10,6 +10,12 @@ import { generateRecipeStable } from "@/actions/stable-ai-agents";
 
 export default function RecipesChatPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [chatInstanceKey, setChatInstanceKey] = useState(0);
+
+  const handleSidebarSessionChange = (nextSessionId: string | null) => {
+    setSessionId(nextSessionId);
+    setChatInstanceKey((key) => key + 1);
+  };
 
   return (
     <NotebookLayout
@@ -17,11 +23,12 @@ export default function RecipesChatPage() {
         <SourcesPanel
           aiType="nutrirecetas"
           currentSessionId={sessionId}
-          onSessionChange={setSessionId}
+          onSessionChange={handleSidebarSessionChange}
         />
       }
       centerPanel={
         <AIChatComponent
+          key={chatInstanceKey}
           title="Chef IA"
           subtitle="Tus Nutrirecetas saludables"
           icon={<ChefHat className="w-5 h-5 text-orange-400" />}
