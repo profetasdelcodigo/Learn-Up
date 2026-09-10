@@ -13,7 +13,6 @@ import {
   Loader2,
   MessageSquare,
   Search,
-  Sparkles,
   Video,
   XCircle,
 } from "lucide-react";
@@ -35,6 +34,7 @@ interface UniversalToolCardProps {
   onCancel?: (action: UniversalToolAction) => void;
   busy?: boolean;
   className?: string;
+  globalRecovery?: boolean;
 }
 
 function iconForTool(tool: string): ReactNode {
@@ -98,12 +98,18 @@ export default function UniversalToolCard({
   onCancel,
   busy = false,
   className = "",
+  globalRecovery = false,
 }: UniversalToolCardProps) {
   const isPending = status === "pending";
   const hasActions = isPending && (onConfirm || onCancel);
 
   return (
-    <div className={`bg-surface-2 rounded-2xl p-4 border border-white/5 shadow-lg ${className}`}>
+    <div
+      data-universal-tool-card="true"
+      data-pending={isPending ? "true" : "false"}
+      data-global-universal-card={globalRecovery ? "true" : "false"}
+      className={`bg-surface-2 rounded-2xl p-4 border border-white/5 shadow-lg ${className}`}
+    >
       <div className="flex items-start gap-3">
         <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center border ${colorsForTool(action.tool)}`}>
           {status === "running" ? <Loader2 className="w-4 h-4 animate-spin" /> : status === "completed" ? <Check className="w-4 h-4" /> : status === "error" ? <XCircle className="w-4 h-4" /> : iconForTool(action.tool)}
