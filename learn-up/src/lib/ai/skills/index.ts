@@ -3,6 +3,7 @@ import { researchSkill } from "./research";
 import { calendarSkill } from "./calendar";
 import { knowledgeGraphSkill } from "./knowledge-graph";
 import { chatSkill } from "./chat";
+import { chatExtendedSkill } from "./chat/extended";
 import { librarySkill } from "./library";
 import { contentSkill } from "./content";
 import { multimediaSkill } from "./multimedia";
@@ -27,6 +28,7 @@ export function registerAllSkills() {
   registerSkill(withFinalCalendarOverrides(calendarSkill));
   registerSkill(knowledgeGraphSkill);
   registerSkill(withRealSkillOverrides(chatSkill));
+  registerSkill(chatExtendedSkill);
   registerSkill(withFinalLibraryOverrides(withRealSkillOverrides(librarySkill)));
   registerSkill({ ...withRealSkillOverrides(contentSkill), id: "content_generation" });
   registerSkill(withRealMultimediaOverrides(multimediaSkill));
