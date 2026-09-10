@@ -18,6 +18,7 @@ import { withFinalResearchOverrides } from "./research-final-overrides";
 import { withFinalLibraryOverrides } from "./library-final-overrides";
 import { withFinalCalendarOverrides } from "./calendar-final-overrides";
 import { withFinalSocialOverrides } from "./social-final-overrides";
+import { withFinalKnowledgeGraphOverrides } from "./knowledge-graph-final-overrides";
 import { withExecutableGenerativeTools } from "./execute-generative-result";
 
 function registerSkill(skill: Parameters<typeof aiRegistry.registerSkill>[0]) {
@@ -27,7 +28,7 @@ function registerSkill(skill: Parameters<typeof aiRegistry.registerSkill>[0]) {
 export function registerAllSkills() {
   registerSkill(withFinalResearchOverrides(withRealResearchOverrides(withRealSkillOverrides(researchSkill))));
   registerSkill(withFinalCalendarOverrides(calendarSkill));
-  registerSkill(knowledgeGraphSkill);
+  registerSkill(withFinalKnowledgeGraphOverrides(knowledgeGraphSkill));
   registerSkill(withRealSkillOverrides(chatSkill));
   registerSkill(chatExtendedSkill);
   registerSkill(withFinalLibraryOverrides(withRealSkillOverrides(librarySkill)));
