@@ -23,10 +23,11 @@ import { withFinalKnowledgeGraphOverrides } from "./knowledge-graph-final-overri
 import { withFinalAnalyticsOverrides } from "./analytics-final-overrides";
 import { withFinalContentOverrides } from "./content-final-overrides";
 import { withFinalEducationOverrides } from "./education-final-overrides";
+import { withUniversalFinalOverrides } from "./universal-final-overrides";
 import { withExecutableGenerativeTools } from "./execute-generative-result";
 
 function registerSkill(skill: Parameters<typeof aiRegistry.registerSkill>[0]) {
-  aiRegistry.registerSkill(withExecutableGenerativeTools(skill));
+  aiRegistry.registerSkill(withUniversalFinalOverrides(withExecutableGenerativeTools(skill)));
 }
 
 export function registerAllSkills() {
