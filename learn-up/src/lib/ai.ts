@@ -29,10 +29,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 }
 
 function trimMessages(messages: any[]) { return messages; }
-
-function toTextOnlyMessages(messages: any[]) {
-  return trimMessages(messages).map((m) => ({ role: m.role, content: Array.isArray(m.content) ? m.content.filter((part: any) => part?.type === "text").map((part: any) => part.text || "").join("\n") : m.content }));
-}
+function toTextOnlyMessages(messages: any[]) { return trimMessages(messages).map((m) => ({ role: m.role, content: Array.isArray(m.content) ? m.content.filter((part: any) => part?.type === "text").map((part: any) => part.text || "").join("\n") : m.content })); }
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = TIMEOUT_MS) {
   const controller = new AbortController();
@@ -57,7 +54,6 @@ const MODEL_ALIASES: Record<string, string> = {
   "openrouter/nvidia/nemotron-3-ultra-550b-a55b": AI_MODELS.nvidiaSuper.id,
 };
 
-/** Extrae un ID aun cuando una UI antigua haya enviado un objeto/array en vez de string. */
 function coerceModelId(model: unknown): string {
   if (typeof model === "string") return model.trim();
   if (Array.isArray(model)) {
@@ -81,13 +77,9 @@ function normalizeModel(model: unknown): string {
   const extracted = coerceModelId(model);
   const raw = (extracted || AI_MODELS.openRouterFree.id).replace(/::autopilot$/i, "").trim();
   if (MODEL_ALIASES[raw]) return MODEL_ALIASES[raw];
-
-  // Solo se aceptan modelos que pertenezcan al catálogo gratuito actual.
   const catalog = findAIModel(raw);
   if (catalog) return catalog.id;
-
-  // Cualquier ID desconocido, antiguo, directo o de pago cae al router gratuito.
-  // Esto evita que una selección vieja provoque 400 en OpenRouter.
+  // Bloqueo de seguridad: cualquier ID desconocido/antiguo/de pago termina en un modelo gratuito.
   return AI_MODELS.openRouterFree.id;
 }
 
@@ -119,11 +111,7 @@ async function openRouterCompletion(messages: any[], model: string, jsonMode = f
 
 async function groqCompletion(messages: any[], model: string, jsonMode = false) {
   if (!groqApiKey) throw new Error("GROQ_API_KEY no configurada.");
-  const request = await fetchWithTimeout("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqApiKey}` },
-    body: JSON.stringify({ model: groqModelId(model), messages: toTextOnlyMessages(messages), max_completion_tokens: maxOutputTokensForModel(model), temperature: 0.2, ...(jsonMode ? { response_format: { type: "json_object" } } : {}) }),
-  });
+  const request = await fetchWithTimeout("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqApiKey}` }, body: JSON.stringify({ model: groqModelId(model), messages: toTextOnlyMessages(messages), max_completion_tokens: maxOutputTokensForModel(model), temperature: 0.2, ...(jsonMode ? { response_format: { type: "json_object" } } : {}) }) });
   const body = await request.text();
   if (!request.ok) throw new Error(`Groq ${request.status}: ${body}`);
   return JSON.parse(body);
@@ -131,11 +119,7 @@ async function groqCompletion(messages: any[], model: string, jsonMode = false) 
 
 async function nvidiaCompletion(messages: any[], model: string, jsonMode = false) {
   if (!nvidiaApiKey) throw new Error("NVIDIA_API_KEY no configurada.");
-  const request = await fetchWithTimeout("https://integrate.api.nvidia.com/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${nvidiaApiKey}` },
-    body: JSON.stringify({ model: nvidiaModelId(model), messages: toTextOnlyMessages(messages), max_tokens: maxOutputTokensForModel(model), temperature: 1.0, top_p: 0.95, ...(jsonMode ? { response_format: { type: "json_object" } } : {}) }),
-  });
+  const request = await fetchWithTimeout("https://integrate.api.nvidia.com/v1/chat/completions", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${nvidiaApiKey}` }, body: JSON.stringify({ model: nvidiaModelId(model), messages: toTextOnlyMessages(messages), max_tokens: maxOutputTokensForModel(model), temperature: 1.0, top_p: 0.95, ...(jsonMode ? { response_format: { type: "json_object" } } : {}) }) });
   const body = await request.text();
   if (!request.ok) throw new Error(`NVIDIA ${request.status}: ${body}`);
   return JSON.parse(body);
@@ -188,39 +172,19 @@ async function geminiCompletion(messages: any[], model: string, jsonMode = false
   return { choices: [{ message: { content: result.response.text() } }] };
 }
 
-function providerAvailable(provider: ReturnType<typeof providerOf>) {
-  return provider === "openrouter" ? Boolean(openRouterApiKey) : false;
-}
-
-function isRetryableProviderError(error: any) {
-  const message = String(error?.message || error || "").toLowerCase();
-  return /timeout|429|rate.?limit|temporar|overload|capacity|503|502|500|unavailable|network|fetch failed|abort|resource.?exhausted|server.?error|internal|model.?not.?found|no endpoints available|does not exist|not available for free|404/.test(message);
-}
-
-function retryAfterMs(error: any) {
-  const message = String(error?.message || error || "");
-  const match = message.match(/retry-after[^\d]*(\d+(?:\.\d+)?)/i) || message.match(/retry in[^\d]*(\d+(?:\.\d+)?)s/i);
-  if (!match) return 0;
-  return Math.min(10000, Math.max(250, Number(match[1]) * (message.match(/retry in/i) ? 1000 : 1)));
-}
+function providerAvailable(_provider: ReturnType<typeof providerOf>) { return Boolean(openRouterApiKey); }
+function isRetryableProviderError(error: any) { const message = String(error?.message || error || "").toLowerCase(); return /timeout|429|rate.?limit|temporar|overload|capacity|503|502|500|unavailable|network|fetch failed|abort|resource.?exhausted|server.?error|internal|model.?not.?found|no endpoints available|does not exist|not available for free|404/.test(message); }
+function retryAfterMs(error: any) { const message = String(error?.message || error || ""); const match = message.match(/retry-after[^\d]*(\d+(?:\.\d+)?)/i) || message.match(/retry in[^\d]*(\d+(?:\.\d+)?)s/i); if (!match) return 0; return Math.min(10000, Math.max(250, Number(match[1]) * (message.match(/retry in/i) ? 1000 : 1))); }
 
 async function callWithProviderRetry<T>(operation: () => Promise<T>): Promise<T> {
   let lastError: any;
   for (let retry = 0; retry <= PROVIDER_RETRIES; retry += 1) {
-    try { return await operation(); }
-    catch (error) {
-      lastError = error;
-      if (!isRetryableProviderError(error) || retry >= PROVIDER_RETRIES) throw error;
-      const providerHint = retryAfterMs(error);
-      await sleep(providerHint || Math.min(8000, RETRY_BASE_MS * 2 ** retry));
-    }
+    try { return await operation(); } catch (error) { lastError = error; if (!isRetryableProviderError(error) || retry >= PROVIDER_RETRIES) throw error; const providerHint = retryAfterMs(error); await sleep(providerHint || Math.min(8000, RETRY_BASE_MS * 2 ** retry)); }
   }
   throw lastError;
 }
 
-async function completionForModel(messages: any[], model: string, jsonMode: boolean) {
-  return openRouterCompletion(messages, model, jsonMode);
-}
+async function completionForModel(messages: any[], model: string, jsonMode: boolean) { return openRouterCompletion(messages, model, jsonMode); }
 
 export async function getAICompletion(messages: any[], modelName: unknown = AI_MODELS.groqFast.id, jsonMode = false) {
   const requested = normalizeModel(modelName);
@@ -234,17 +198,22 @@ export async function getAICompletion(messages: any[], modelName: unknown = AI_M
     try {
       const result = await callWithProviderRetry(() => completionForModel(messages, candidate, jsonMode));
       return Object.assign(result, { _learnUp: { requestedModel: requested, model: candidate, provider: "openrouter", providerChanged: candidate !== requested, providerLabel: PROVIDER_LABELS.openrouter } });
-    } catch (error) {
-      lastError = error;
-    }
+    } catch (error) { lastError = error; }
   }
   throw lastError || new Error("No hay modelos gratuitos de OpenRouter disponibles en este momento.");
 }
 
-export async function getAICompletionWithVision(messages: any[], modelName: unknown = AI_MODELS.geminiFast.id) {
-  return getAICompletion(messages, modelName, false);
-}
-
+export async function getNvidiaNIMCompletion(messages: any[], modelName: unknown = AI_MODELS.nvidiaSuper.id, jsonMode = false) { return getAICompletion(messages, modelName, jsonMode); }
 export const getGroqCompletion = async (messages: any[], modelName: unknown = AI_MODELS.groqFast.id, jsonMode = false) => getAICompletion(messages, modelName, jsonMode);
 export const getGeminiCompletion = async (messages: any[], modelName: unknown = AI_MODELS.geminiFast.id, jsonMode = false) => getAICompletion(messages, modelName, jsonMode);
-export const getNvidiaCompletion = async (messages: any[], modelName: unknown = AI_MODELS.nvidiaSuper.id, jsonMode = false) => getAICompletion(messages, modelName, jsonMode);
+
+export async function getAIEmbedding(text: string): Promise<number[]> {
+  if (!genAI) throw new Error("Gemini AI no está configurado para embeddings.");
+  const model = genAI.getGenerativeModel({ model: process.env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001" });
+  const result = await callWithProviderRetry(() => withTimeout(model.embedContent({ content: { role: "user", parts: [{ text }] } } as any), TIMEOUT_MS));
+  return result.embedding.values;
+}
+
+export const fetchRemoteMediaBufferForAI = fetchRemoteMediaBuffer;
+export const extractDocumentTextForAI = extractDocumentText;
+export { fetchRemoteMediaBuffer, extractDocumentText };
