@@ -1,31 +1,12 @@
 import type { Skill, ToolDefinition } from "../core/types";
-import { getAICompletion } from "@/lib/ai";
+import { getAICompletion, AI_MODELS } from "@/lib/ai";
 
 const RESEARCH_TOOL_IDS = new Set([
-  "search_web",
-  "advanced_web_search",
-  "browse_web_page",
-  "fact_check",
-  "search_wikipedia",
-  "compare_multiple_sources",
-  "deep_research",
-  "search_academic_paper",
-  "find_similar_papers",
-  "extract_paper_abstract",
-  "generate_literature_review",
-  "search_youtube_transcripts",
-  "search_news",
-  "translate_web_page",
-  "find_statistics",
-  "search_github_code",
-  "search_open_education",
-  "analyze_seo",
-  "search_doi_isbn",
-  "deep_research_multi_source",
-  "search_scientific_images",
-  "analyze_search_trends",
-  "search_legislation",
-  "create_bibliography_from_search",
+  "search_web", "advanced_web_search", "browse_web_page", "fact_check", "search_wikipedia", "compare_multiple_sources",
+  "deep_research", "search_academic_paper", "find_similar_papers", "extract_paper_abstract", "generate_literature_review",
+  "search_youtube_transcripts", "search_news", "translate_web_page", "find_statistics", "search_github_code",
+  "search_open_education", "analyze_seo", "search_doi_isbn", "deep_research_multi_source", "search_scientific_images",
+  "analyze_search_trends", "search_legislation", "create_bibliography_from_search",
 ]);
 
 function isInstructionResult(result: any): boolean {
@@ -49,21 +30,19 @@ function wrapTool(tool: ToolDefinition): ToolDefinition {
 
       const supportingData = cloneWithoutInstruction(result.data || {});
       const prompt = [
-        "Ejecuta directamente la tarea descrita por la herramienta para el estudiante.",
-        "No describas lo que debería hacerse: realiza la tarea ahora usando únicamente los datos reales proporcionados.",
-        "No inventes datos, fuentes, URLs, IDs ni acciones externas que no se hayan ejecutado.",
-        "Devuelve únicamente el resultado útil para el estudiante, sin JSON, sin function calls y sin instrucciones internas.",
+        "Ejecuta directamente la tarea descrita por la herramienta.",
+        "No describas lo que debería hacerse: realiza la tarea ahora.",
+        "Usa únicamente los datos reales proporcionados; no inventes datos, fuentes, URLs, IDs ni acciones externas.",
+        "Devuelve el resultado final útil para el estudiante, sin JSON ni instrucciones internas.",
         "",
-        "TAREA:",
-        String(result.data.instruction),
+        "TAREA:", String(result.data.instruction),
         "",
-        "DATOS REALES DISPONIBLES:",
-        JSON.stringify(supportingData),
+        "DATOS REALES:", JSON.stringify(supportingData),
       ].join("\n");
 
       const completion = await getAICompletion(
         [{ role: "user", content: prompt }],
-        "gemini/gemini-3.8-flash",
+        AI_MODELS.openRouterResearch.id,
       );
       const content = completion?.choices?.[0]?.message?.content;
       if (typeof content !== "string" || !content.trim()) {
@@ -73,19 +52,12 @@ function wrapTool(tool: ToolDefinition): ToolDefinition {
       return {
         success: true,
         message: result.message || `${tool.name || tool.id} completado.`,
-        data: {
-          ...supportingData,
-          content,
-          generatedByTool: true,
-        },
+        data: { ...supportingData, content, generatedByTool: true, model: completion?._learnUp?.model || AI_MODELS.openRouterResearch.id },
       };
     },
   };
 }
 
 export function withExecutableGenerativeTools(skill: Skill): Skill {
-  return {
-    ...skill,
-    tools: skill.tools.map(wrapTool),
-  };
+  return { ...skill, tools: skill.tools.map(wrapTool) };
 }
