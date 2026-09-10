@@ -23,6 +23,9 @@ export const AI_MODELS = {
   // OpenRouter: modelos estables con múltiples proveedores, evitando endpoints free
   // como dependencia principal. El enrutamiento del proveedor aporta redundancia.
   openRouterFreeLarge: { id: "openrouter/free", provider: "openrouter", label: "Router gratuito", shortLabel: "OpenRouter · Free Router", modality: "reasoning", contextTokens: 1_048_576, maxOutputTokens: 32_768, defaultFor: ["free-fallback"] },
+  // Alias de compatibilidad: las rutas antiguas que pedían GPT-OSS free terminan
+  // en el router actual y no vuelven a fijar un endpoint free concreto.
+  openRouterFreeFast: { id: "openrouter/free", provider: "openrouter", label: "Router gratuito (compatibilidad)", shortLabel: "OpenRouter · Free Router", modality: "reasoning", contextTokens: 1_048_576, maxOutputTokens: 32_768 },
   openRouterResearch: { id: "openrouter/deepseek/deepseek-v4-flash-0731", provider: "openrouter", label: "DeepSeek V4 Flash 0731", shortLabel: "OpenRouter · DeepSeek V4 Flash", modality: "reasoning", contextTokens: 1_310_720, maxOutputTokens: 393_216, defaultFor: ["research", "long-context"] },
   openRouterPlanning: { id: "openrouter/z-ai/glm-5.2", provider: "openrouter", label: "GLM 5.2", shortLabel: "OpenRouter · GLM 5.2", modality: "reasoning", contextTokens: 1_048_576, maxOutputTokens: 163_840, defaultFor: ["planning", "coding"] },
 
