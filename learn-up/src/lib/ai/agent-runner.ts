@@ -27,20 +27,13 @@ export interface AgentLoopResult {
 
 const MAX_TOOL_STEPS = 8;
 const MAX_PARALLEL_TOOLS = 4;
-const MAX_SYSTEM_PROMPT_CHARS = 9000;
-const MAX_HISTORY_MESSAGES = 10;
-const MAX_MESSAGE_CHARS = 6000;
 
 function compactSystemPrompt(prompt: string): string {
-  if (prompt.length <= MAX_SYSTEM_PROMPT_CHARS) return prompt;
-  const headSize = 5200;
-  return `${prompt.slice(0, headSize)}\n\n[Catálogo de herramientas reducido para mantener estabilidad]\n\n${prompt.slice(-(MAX_SYSTEM_PROMPT_CHARS - headSize))}`;
+  return prompt;
 }
 
 function compactMessageContent(content: string | any[]): string | any[] {
-  return typeof content === "string" && content.length > MAX_MESSAGE_CHARS
-    ? `${content.slice(0, MAX_MESSAGE_CHARS)}\n...[mensaje truncado para estabilidad]...`
-    : content;
+  return content;
 }
 
 function sanitizeAssistantText(text: string): string {
@@ -66,9 +59,7 @@ function normalizeAction(action: ToolAction): ToolAction {
 
 function serializeToolResult(data: unknown): string {
   try {
-    return JSON.stringify(data, (_key, value) =>
-      typeof value === "string" && value.length > 8000 ? `${value.slice(0, 8000)}...[truncado]` : value,
-    );
+    return JSON.stringify(data);
   } catch {
     return String(data ?? "");
   }
@@ -93,7 +84,7 @@ function compactToolFeedback(
   return results
     .map((r) => {
       const evidence = serializeToolResult(r.data);
-      return `[Resultado de herramienta: ${r.action.tool}] ${r.success ? "OK" : "ERROR"}\n${String(r.message || "").slice(0, 2500)}${evidence !== "null" ? `\nDatos: ${evidence}` : ""}`;
+      return `[Resultado de herramienta: ${r.action.tool}] ${r.success ? "OK" : "ERROR"}\n${String(r.message || "")}${evidence !== "null" ? `\nDatos: ${evidence}` : ""}`;
     })
     .join("\n\n");
 }
@@ -225,7 +216,7 @@ export async function runAgentLoop(
   const permissions = options.permissions ?? true;
   const executedActions: ToolAction[] = [];
 
-  const safeHistory = history.slice(-MAX_HISTORY_MESSAGES).map((m) => ({ ...m, content: compactMessageContent(m.content) }));
+  const safeHistory = history.map((m) => ({ ...m, content: compactMessageContent(m.content) }));
   const currentMessages: any[] = [
     { role: "system", content: compactSystemPrompt(systemPrompt) },
     ...safeHistory,
@@ -265,8 +256,6 @@ export async function runAgentLoop(
       else denied.push(action);
     }
 
-    // Manual mode may contain safe reads together with writes that need approval.
-    // Execute the safe reads first instead of returning before them.
     if (executable.length) {
       const toolResults = await executeInBatches(executable, maxParallel, options.userId, options.sessionId, step, {
         currentRoute: options.currentRoute,
