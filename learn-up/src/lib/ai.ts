@@ -28,9 +28,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-function trimMessages(messages: any[]) {
-  return messages;
-}
+function trimMessages(messages: any[]) { return messages; }
 
 function toTextOnlyMessages(messages: any[]) {
   return trimMessages(messages).map((m) => ({ role: m.role, content: Array.isArray(m.content) ? m.content.filter((part: any) => part?.type === "text").map((part: any) => part.text || "").join("\n") : m.content }));
@@ -43,29 +41,57 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = TIME
 }
 
 const MODEL_ALIASES: Record<string, string> = {
-  "openrouter/free": AI_MODELS.openRouterFreeLarge.id,
-  "openrouter/openrouter/free": AI_MODELS.openRouterFreeLarge.id,
-  "openrouter/openai/gpt-oss-120b:free": AI_MODELS.openRouterFreeLarge.id,
-  "openrouter/openai/gpt-oss-20b:free": AI_MODELS.openRouterFreeFast.id,
-  "openai/gpt-oss-120b:free": AI_MODELS.openRouterFreeLarge.id,
-  "openai/gpt-oss-20b:free": AI_MODELS.openRouterFreeFast.id,
+  "openrouter/free": AI_MODELS.openRouterFree.id,
+  "openrouter/openrouter/free": AI_MODELS.openRouterFree.id,
+  "openrouter/openai/gpt-oss-120b:free": AI_MODELS.nexProFree.id,
+  "openrouter/openai/gpt-oss-20b:free": AI_MODELS.nexMiniFree.id,
+  "openai/gpt-oss-120b:free": AI_MODELS.nexProFree.id,
+  "openai/gpt-oss-20b:free": AI_MODELS.nexMiniFree.id,
   "gemini-3.5-flash": AI_MODELS.geminiLegacy.id,
   "gemini-3.6-flash": AI_MODELS.geminiBalanced.id,
   "gemini-3.7-flash": AI_MODELS.geminiAgentic.id,
   "gemini-3.8-flash": AI_MODELS.geminiFast.id,
   "groq/llama-3.3-70b-versatile": AI_MODELS.groqFast.id,
   "llama-3.3-70b-versatile": AI_MODELS.groqFast.id,
+  "nvidia/nemotron-3-ultra-550b-a55b": AI_MODELS.nvidiaSuper.id,
+  "openrouter/nvidia/nemotron-3-ultra-550b-a55b": AI_MODELS.nvidiaSuper.id,
 };
 
-function normalizeModel(model: string): string {
-  const raw = String(model || AI_MODELS.groqFast.id).replace(/::autopilot$/i, "").trim();
-  if (MODEL_ALIASES[raw]) return MODEL_ALIASES[raw];
-  if (!raw) return AI_MODELS.groqFast.id;
-  if (/^(openrouter|groq|gemini|nvidia)\//.test(raw)) return raw;
-  return `openrouter/${raw}`;
+/** Extrae un ID aun cuando una UI antigua haya enviado un objeto/array en vez de string. */
+function coerceModelId(model: unknown): string {
+  if (typeof model === "string") return model.trim();
+  if (Array.isArray(model)) {
+    for (const item of model) {
+      const value = coerceModelId(item);
+      if (value) return value;
+    }
+    return "";
+  }
+  if (model && typeof model === "object") {
+    const candidate = model as Record<string, unknown>;
+    for (const key of ["id", "model", "modelId", "value"]) {
+      const value = coerceModelId(candidate[key]);
+      if (value) return value;
+    }
+  }
+  return "";
 }
 
-function providerOf(model: string) { return providerOfModel(normalizeModel(model)); }
+function normalizeModel(model: unknown): string {
+  const extracted = coerceModelId(model);
+  const raw = (extracted || AI_MODELS.openRouterFree.id).replace(/::autopilot$/i, "").trim();
+  if (MODEL_ALIASES[raw]) return MODEL_ALIASES[raw];
+
+  // Solo se aceptan modelos que pertenezcan al catálogo gratuito actual.
+  const catalog = findAIModel(raw);
+  if (catalog) return catalog.id;
+
+  // Cualquier ID desconocido, antiguo, directo o de pago cae al router gratuito.
+  // Esto evita que una selección vieja provoque 400 en OpenRouter.
+  return AI_MODELS.openRouterFree.id;
+}
+
+function providerOf(model: unknown) { return providerOfModel(normalizeModel(model)); }
 function openRouterModelId(model: string) { return model.replace(/^openrouter\//, ""); }
 function groqModelId(model: string) { return model.replace(/^groq\//, ""); }
 function geminiModelId(model: string) { return model.replace(/^gemini\//, ""); }
@@ -163,10 +189,7 @@ async function geminiCompletion(messages: any[], model: string, jsonMode = false
 }
 
 function providerAvailable(provider: ReturnType<typeof providerOf>) {
-  if (provider === "groq") return Boolean(groqApiKey);
-  if (provider === "openrouter") return Boolean(openRouterApiKey);
-  if (provider === "gemini") return Boolean(geminiApiKey);
-  return Boolean(nvidiaApiKey);
+  return provider === "openrouter" ? Boolean(openRouterApiKey) : false;
 }
 
 function isRetryableProviderError(error: any) {
@@ -196,17 +219,12 @@ async function callWithProviderRetry<T>(operation: () => Promise<T>): Promise<T>
 }
 
 async function completionForModel(messages: any[], model: string, jsonMode: boolean) {
-  const provider = providerOf(model);
-  if (provider === "openrouter") return openRouterCompletion(messages, model, jsonMode);
-  if (provider === "groq") return groqCompletion(messages, model, jsonMode);
-  if (provider === "gemini") return geminiCompletion(messages, model, jsonMode);
-  return nvidiaCompletion(messages, model, jsonMode);
+  return openRouterCompletion(messages, model, jsonMode);
 }
 
-export async function getAICompletion(messages: any[], modelName: string = AI_MODELS.groqFast.id, jsonMode = false) {
+export async function getAICompletion(messages: any[], modelName: unknown = AI_MODELS.groqFast.id, jsonMode = false) {
   const requested = normalizeModel(modelName);
-  const chain = providerOf(requested) === "openrouter" ? AI_FALLBACK_CHAIN : AI_REASONING_CHAIN;
-  const candidates = [...new Set([requested, ...chain])].slice(0, 8);
+  const candidates = [...new Set([requested, ...AI_FALLBACK_CHAIN])].slice(0, 8);
   let lastError: any;
   let attempts = 0;
   for (const candidate of candidates) {
@@ -215,26 +233,18 @@ export async function getAICompletion(messages: any[], modelName: string = AI_MO
     attempts += 1;
     try {
       const result = await callWithProviderRetry(() => completionForModel(messages, candidate, jsonMode));
-      return Object.assign(result, { _learnUp: { requestedModel: requested, model: candidate, provider: providerOf(candidate), providerChanged: candidate !== requested, providerLabel: PROVIDER_LABELS[providerOf(candidate)] } });
+      return Object.assign(result, { _learnUp: { requestedModel: requested, model: candidate, provider: "openrouter", providerChanged: candidate !== requested, providerLabel: PROVIDER_LABELS.openrouter } });
     } catch (error) {
       lastError = error;
-      if (!isRetryableProviderError(error)) throw error;
     }
   }
-  throw lastError || new Error("No hay ningún proveedor de IA configurado y disponible.");
+  throw lastError || new Error("No hay modelos gratuitos de OpenRouter disponibles en este momento.");
 }
 
-export async function getNvidiaNIMCompletion(messages: any[], modelName: string = AI_MODELS.nvidiaSuper.id, jsonMode = false) { return getAICompletion(messages, modelName, jsonMode); }
-export const getGroqCompletion = async (messages: any[], modelName: string = AI_MODELS.groqFast.id, jsonMode = false) => getAICompletion(messages, modelName, jsonMode);
-export const getGeminiCompletion = async (messages: any[], modelName: string = AI_MODELS.geminiFast.id, jsonMode = false) => getAICompletion(messages, modelName, jsonMode);
-
-export async function getAIEmbedding(text: string): Promise<number[]> {
-  if (!genAI) throw new Error("Gemini AI no está configurado para embeddings.");
-  const model = genAI.getGenerativeModel({ model: process.env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001" });
-  const result = await callWithProviderRetry(() => withTimeout(model.embedContent({ content: { role: "user", parts: [{ text }] } } as any), TIMEOUT_MS));
-  return result.embedding.values;
+export async function getAICompletionWithVision(messages: any[], modelName: unknown = AI_MODELS.geminiFast.id) {
+  return getAICompletion(messages, modelName, false);
 }
 
-export const fetchRemoteMediaBufferForAI = fetchRemoteMediaBuffer;
-export const extractDocumentTextForAI = extractDocumentText;
-export { fetchRemoteMediaBuffer, extractDocumentText };
+export const getGroqCompletion = async (messages: any[], modelName: unknown = AI_MODELS.groqFast.id, jsonMode = false) => getAICompletion(messages, modelName, jsonMode);
+export const getGeminiCompletion = async (messages: any[], modelName: unknown = AI_MODELS.geminiFast.id, jsonMode = false) => getAICompletion(messages, modelName, jsonMode);
+export const getNvidiaCompletion = async (messages: any[], modelName: unknown = AI_MODELS.nvidiaSuper.id, jsonMode = false) => getAICompletion(messages, modelName, jsonMode);
