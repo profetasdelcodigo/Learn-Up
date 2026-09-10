@@ -10,7 +10,7 @@ import { getPersistedSkillPacks, saveSkillPacks } from "@/lib/ai/core/skill-stat
 import { runWorkflowAgent, resumeWorkflow, cancelWorkflowAction } from "@/lib/ai/workflow-agent";
 import { AI_MODELS } from "@/lib/ai/model-catalog";
 
-const TEXT_MODEL = AI_MODELS.groqFast.id;
+const TEXT_MODEL = AI_MODELS.groqReasoning.id;
 const MULTIMODAL_MODEL = AI_MODELS.geminiFast.id;
 
 function extractSkills(message: string, defaults: string[]) {
@@ -28,27 +28,32 @@ function extractMode(modelId?: string): { mode: ToolMode; model: string } {
 
 function normalizeTextModel(modelId?: string): string {
   const { model } = extractMode(modelId);
+  const raw = model.trim();
+  if (!raw) return TEXT_MODEL;
+
+  // Compatibilidad interna únicamente: las opciones antiguas ya no se muestran ni se usan como destino.
   const legacyMap: Record<string, string> = {
-    "openrouter/free": "openrouter/free",
-    "openrouter/openrouter/free": "openrouter/free",
-    "openrouter/dots-studio/dots-3-note-preview:free": AI_MODELS.openRouterFreeLarge.id,
-    "openrouter/nvidia/nemotron-3.5-lightning:free": AI_MODELS.openRouterFreeFast.id,
-    "openrouter/nvidia/nemotron-3.5-lightning": AI_MODELS.openRouterFreeFast.id,
-    "openrouter/openai/gpt-oss-120b:free": AI_MODELS.openRouterFreeLarge.id,
-    "openrouter/openai/gpt-oss-20b:free": AI_MODELS.openRouterFreeFast.id,
-    "openai/gpt-oss-120b:free": AI_MODELS.openRouterFreeLarge.id,
-    "openai/gpt-oss-20b:free": AI_MODELS.openRouterFreeFast.id,
+    "openrouter/free": AI_MODELS.openRouterResearch.id,
+    "openrouter/openrouter/free": AI_MODELS.openRouterResearch.id,
+    "openrouter/dots-studio/dots-3-note-preview:free": AI_MODELS.openRouterResearch.id,
+    "openrouter/nvidia/nemotron-3.5-lightning:free": AI_MODELS.nvidiaSuper.id,
+    "openrouter/nvidia/nemotron-3.5-lightning": AI_MODELS.nvidiaSuper.id,
+    "openrouter/openai/gpt-oss-120b:free": AI_MODELS.groqReasoning.id,
+    "openrouter/openai/gpt-oss-20b:free": AI_MODELS.groqFast.id,
+    "openai/gpt-oss-120b:free": AI_MODELS.groqReasoning.id,
+    "openai/gpt-oss-20b:free": AI_MODELS.groqFast.id,
+    "gemini-3.5-flash": AI_MODELS.geminiLegacy.id,
     "gemini-3.6-flash": AI_MODELS.geminiBalanced.id,
     "gemini-3.7-flash": AI_MODELS.geminiAgentic.id,
     "gemini-3.8-flash": AI_MODELS.geminiFast.id,
     "nvidia/nemotron-3-ultra-550b-a55b": AI_MODELS.nvidiaSuper.id,
-    "groq/llama-3.3-70b-versatile": AI_MODELS.groqFast.id,
-    "llama-3.3-70b-versatile": AI_MODELS.groqFast.id,
+    "groq/llama-3.3-70b-versatile": AI_MODELS.groqReasoning.id,
+    "llama-3.3-70b-versatile": AI_MODELS.groqReasoning.id,
   };
-  if (!model) return TEXT_MODEL;
-  if (legacyMap[model]) return legacyMap[model];
-  if (model.startsWith("openrouter/") || model.startsWith("groq/") || model.startsWith("gemini/") || model.startsWith("nvidia/")) return model;
-  return `openrouter/${model}`;
+
+  if (legacyMap[raw]) return legacyMap[raw];
+  if (raw.startsWith("openrouter/") || raw.startsWith("groq/") || raw.startsWith("gemini/") || raw.startsWith("nvidia/")) return raw;
+  return `openrouter/${raw}`;
 }
 
 async function getUserId() {
@@ -104,7 +109,7 @@ async function runStableAgent(agentId: "profesor" | "consejero" | "nutrirecetas"
   const systemPrompt = `${buildAgentSystemPrompt(agentId)}\n\nCONTEXTO DE EJECUCIÓN:\n- Learn Up expone las 10 skills universales: ${ALL_PACKS.join(", ")}.\n- Todas las skills son invocables desde Profesor, Consejero y Nutrirecetas; las skills activas se usan como prioridad contextual, no como una barrera de disponibilidad.\n- Usa solamente herramientas reales registradas.\n- Una solicitud puede combinar múltiples skills y múltiples tools.\n- Continúa el workflow hasta finalizar, pedir un dato, encontrar un error real o requerir confirmación.\n- Manual: solo las acciones sin confirmación se ejecutan automáticamente; las demás quedan pendientes.\n- Autopilot: solo herramientas permitidas por la política se ejecutan automáticamente.\n- Nunca inventes fuentes, URLs, estadísticas, IDs, rutas ni acciones terminadas.\n- Si una API no está configurada o falla, informa el error real.\n- No muestres JSON, function calls, prompts internos ni bloques de pensamiento ocultos al estudiante.\n- MODO: ${mode}\n- SKILLS PRIORIZADAS: ${skills.join(", ") || "ninguna"}\n\nCATÁLOGO DE HERRAMIENTAS UNIVERSALES:\n${getRegistryToolCatalog(ALL_PACKS)}`;
 
   const { content } = await buildUserMessage(text, mediaUrl, mediaType);
-  return runWorkflowAgent(systemPrompt, history.slice(-10), content, model, { sessionId, aiType: agentId, userId, mode, maxSteps: 8, maxParallelTools: 4, mediaUrl, mediaType });
+  return runWorkflowAgent(systemPrompt, history, content, model, { sessionId, aiType: agentId, userId, mode, maxSteps: 8, maxParallelTools: 4, mediaUrl, mediaType });
 }
 
 export async function askProfessorStable(message: string, history: { role: "user" | "assistant"; content: string | any[] }[] = [], mediaUrl?: string, mediaType?: string, modelId?: string, sessionId?: string | null) { return runStableAgent("profesor", message, history, mediaUrl, mediaType, modelId, sessionId); }
