@@ -24,6 +24,7 @@ import OfflineDetector from "@/components/OfflineDetector";
 import DeepLinkHandler from "@/components/DeepLinkHandler";
 import ShareModal from "@/components/ShareModal";
 import JarvisGlobalWidget from "@/components/JarvisGlobalWidget";
+import PendingUniversalToolCards from "@/components/ai/PendingUniversalToolCards";
 import ThemeProvider from "@/components/ThemeProvider";
 
 export const metadata: Metadata = {
@@ -93,6 +94,7 @@ export default function RootLayout({
             <MainLayout>{children}</MainLayout>
             <ShareModal />
             <JarvisGlobalWidget />
+            <PendingUniversalToolCards />
           </SmoothScroll>
         <script
           type="application/ld+json"
