@@ -13,15 +13,14 @@ export interface AIModelDefinition {
   defaultFor?: string[];
 }
 
-/** Única fuente de verdad. TODOS los IDs apuntan a variantes :free o al router gratuito de OpenRouter. */
+/** Única fuente de verdad. TODOS los IDs apuntan a variantes :free de OpenRouter. */
 export const AI_MODELS = {
-  // Nombres de compatibilidad interna: conservados para no romper imports existentes.
-  // Ninguno apunta a un modelo de pago.
   groqReasoning: { id: "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free", provider: "openrouter", label: "Nemotron 3 Ultra (Free)", shortLabel: "NVIDIA · Nemotron 3 Ultra · Free", modality: "reasoning", contextTokens: 1_000_000, maxOutputTokens: 65_536, defaultFor: ["chat", "profesor", "consejero", "jarvis", "reasoning"] },
   groqFast: { id: "openrouter/nex-agi/nex-n2.5-mini:free", provider: "openrouter", label: "Nex-N2.5 Mini (Free)", shortLabel: "Nex AGI · N2.5 Mini · Free", modality: "reasoning", contextTokens: 262_144, maxOutputTokens: 65_536, defaultFor: ["fast", "tools"] },
   groqGeneral: { id: "openrouter/z-ai/glm-5.3-flash:free", provider: "openrouter", label: "GLM 5.3 Flash (Free)", shortLabel: "Z.ai · GLM 5.3 Flash · Free", modality: "multimodal", contextTokens: 1_048_576, maxOutputTokens: 65_536, defaultFor: ["balanced", "coding"] },
 
-  openRouterFree: { id: "openrouter/free", provider: "openrouter", label: "OpenRouter Free (Auto)", shortLabel: "OpenRouter · Free Auto", modality: "reasoning", contextTokens: 200_000, maxOutputTokens: 65_536, defaultFor: ["fallback", "auto"] },
+  // Compatibilidad interna: este alias ya no usa openrouter/free porque el cliente OpenRouter espera el slug sin el prefijo interno.
+  openRouterFree: { id: "openrouter/nex-agi/nex-n2.5-mini:free", provider: "openrouter", label: "Nex-N2.5 Mini (Free)", shortLabel: "OpenRouter · Nex-N2.5 Mini · Free", modality: "reasoning", contextTokens: 262_144, maxOutputTokens: 65_536, defaultFor: ["fallback", "auto"] },
   openRouterFreeLarge: { id: "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free", provider: "openrouter", label: "Nemotron 3 Ultra (Free)", shortLabel: "OpenRouter · Nemotron 3 Ultra · Free", modality: "reasoning", contextTokens: 1_000_000, maxOutputTokens: 65_536, defaultFor: ["free-fallback", "research", "long-context"] },
   openRouterFreeFast: { id: "openrouter/nex-agi/nex-n2.5-mini:free", provider: "openrouter", label: "Nex-N2.5 Mini (Free)", shortLabel: "OpenRouter · Nex-N2.5 Mini · Free", modality: "reasoning", contextTokens: 262_144, maxOutputTokens: 65_536, defaultFor: ["free-fallback-fast"] },
   openRouterResearch: { id: "openrouter/nex-agi/nex-n2.5-pro:free", provider: "openrouter", label: "Nex-N2.5 Pro (Free)", shortLabel: "OpenRouter · Nex-N2.5 Pro · Free", modality: "reasoning", contextTokens: 262_144, maxOutputTokens: 65_536, defaultFor: ["research", "agents"] },
@@ -44,11 +43,10 @@ export const AI_MODELS = {
 
 export const AI_MODEL_OPTIONS = Object.values(AI_MODELS).filter((model, index, all) => all.findIndex((item) => item.id === model.id) === index);
 
-// Cadenas exclusivamente gratuitas. No se permite fallback a un modelo de pago.
 export const AI_FALLBACK_CHAIN = [
   AI_MODELS.openRouterFree.id,
   AI_MODELS.nexProFree.id,
-  AI_MODELS.nemotronUltraFree.id,
+  AI_MODELS.nvidiaSuper.id,
   AI_MODELS.nexMiniFree.id,
   AI_MODELS.glmFlashFree.id,
   AI_MODELS.minimaxM3Free.id,
@@ -58,7 +56,7 @@ export const AI_FALLBACK_CHAIN = [
 
 export const AI_REASONING_CHAIN = [
   AI_MODELS.nexProFree.id,
-  AI_MODELS.nemotronUltraFree.id,
+  AI_MODELS.nvidiaSuper.id,
   AI_MODELS.nexMiniFree.id,
   AI_MODELS.openRouterFree.id,
   AI_MODELS.glmFlashFree.id,
@@ -66,14 +64,6 @@ export const AI_REASONING_CHAIN = [
 
 export const PROVIDER_LABELS: Record<AIProvider, string> = { openrouter: "OpenRouter · Gratis" };
 
-export function findAIModel(id: string | undefined | null) {
-  return id ? AI_MODEL_OPTIONS.find((model) => model.id === id) : undefined;
-}
-
-export function modelDisplayName(id: string | undefined | null) {
-  return findAIModel(id)?.shortLabel || id || "IA";
-}
-
-export function providerOfModel(_id: string): AIProvider {
-  return "openrouter";
-}
+export function findAIModel(id: string | undefined | null) { return id ? AI_MODEL_OPTIONS.find((model) => model.id === id) : undefined; }
+export function modelDisplayName(id: string | undefined | null) { return findAIModel(id)?.shortLabel || id || "IA"; }
+export function providerOfModel(_id: string): AIProvider { return "openrouter"; }
