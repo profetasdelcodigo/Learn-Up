@@ -46,10 +46,10 @@ async function materializeInstructionResult(result: any, toolName: string, args:
     `Herramienta: ${toolName}`,
     `Solicitud/argumentos: ${JSON.stringify(args || {})}`,
     `Instrucción operativa de la skill: ${instruction}`,
-    data.content ? `Contenido recuperado para trabajar:\n${String(data.content).slice(0, 16000)}` : "",
-    data.chatLog ? `Historial recuperado:\n${String(data.chatLog).slice(0, 16000)}` : "",
-    data.habits ? `Hábitos reales:\n${JSON.stringify(data.habits).slice(0, 12000)}` : "",
-    data.events ? `Eventos reales:\n${JSON.stringify(data.events).slice(0, 12000)}` : "",
+    data.content ? `Contenido recuperado para trabajar:\n${String(data.content)}` : "",
+    data.chatLog ? `Historial recuperado:\n${String(data.chatLog)}` : "",
+    data.habits ? `Hábitos reales:\n${JSON.stringify(data.habits)}` : "",
+    data.events ? `Eventos reales:\n${JSON.stringify(data.events)}` : "",
     "Ejecuta la instrucción como tarea final. Usa únicamente los datos proporcionados. No inventes información ausente. Devuelve el resultado útil para el estudiante, sin mencionar esta instrucción interna ni herramientas.",
   ].filter(Boolean).join("\n\n");
   const completion = await getAICompletion([{ role: "user", content: context }], AI_MODELS.geminiFast.id);
@@ -67,7 +67,7 @@ async function materializeResearchReport(args: Record<string, unknown>) {
     const sources = (results || []).filter((result: any) => result?.url).slice(0, 8).map((result: any) => ({ title: result.title || result.url, url: result.url, snippet: result.content || result.snippet || "", provider: "tavily" }));
     if (!sources.length) return { success: false, error: "No se encontraron fuentes web verificables para generar el reporte." };
     const pages = await Promise.allSettled(sources.map((source: any) => browseWebPage(source.url)));
-    const evidence = pages.map((page: any, index: number) => page.status === "fulfilled" && page.value?.success ? { title: page.value.title || sources[index].title, url: sources[index].url, content: String(page.value.content || "").slice(0, 7000) } : null).filter(Boolean);
+    const evidence = pages.map((page: any, index: number) => page.status === "fulfilled" && page.value?.success ? { title: page.value.title || sources[index].title, url: sources[index].url, content: String(page.value.content || "") } : null).filter(Boolean);
     if (!evidence.length) return { success: false, error: "Se encontraron resultados, pero ninguna fuente pudo ser extraída de forma verificable.", data: { sources } };
     const prompt = `Redacta un reporte de investigación sobre "${topic}" usando exclusivamente la evidencia proporcionada. No inventes fuentes, autores, cifras ni afirmaciones. Cuando algo no esté respaldado, indícalo.\n\nEVIDENCIA:\n${JSON.stringify(evidence)}`;
     const completion = await getAICompletion([{ role: "user", content: prompt }], AI_MODELS.geminiFast.id);
