@@ -24,6 +24,7 @@ export const AI_MODELS = {
   geminiFast: { id: "gemini/gemini-3.8-flash", provider: "gemini", label: "Gemini 3.8 Flash", shortLabel: "Gemini · 3.8 Flash", modality: "multimodal", contextTokens: 1_048_576, maxOutputTokens: 65_536, defaultFor: ["multimodal", "files", "images", "pdf"] },
   geminiAgentic: { id: "gemini/gemini-3.7-flash", provider: "gemini", label: "Gemini 3.7 Flash", shortLabel: "Gemini · 3.7 Flash", modality: "multimodal", contextTokens: 1_048_576, maxOutputTokens: 65_536, defaultFor: ["agents"] },
   geminiBalanced: { id: "gemini/gemini-3.6-flash", provider: "gemini", label: "Gemini 3.6 Flash", shortLabel: "Gemini · 3.6 Flash", modality: "multimodal", contextTokens: 1_048_576, maxOutputTokens: 65_536 },
+  geminiLegacy: { id: "gemini/gemini-3.5-flash", provider: "gemini", label: "Gemini 3.5 Flash", shortLabel: "Gemini · 3.5 Flash", modality: "multimodal", contextTokens: 1_048_576, maxOutputTokens: 65_536 },
   nvidiaSuper: { id: "nvidia/nemotron-3-super-120b-a12b", provider: "nvidia", label: "Nemotron 3 Super 120B", shortLabel: "NVIDIA · Nemotron 3 Super", modality: "reasoning", contextTokens: 1_048_576, maxOutputTokens: 16_384, defaultFor: ["reasoning"] },
 } as const satisfies Record<string, AIModelDefinition>;
 
@@ -31,8 +32,8 @@ export const AI_MODEL_OPTIONS = Object.values(AI_MODELS);
 
 // OpenRouter remains available as an explicitly selected provider, but is not
 // used for automatic failover because the configured account may be unfunded.
-export const AI_FALLBACK_CHAIN = [AI_MODELS.groqFast.id, AI_MODELS.groqReasoning.id, AI_MODELS.geminiAgentic.id, AI_MODELS.nvidiaSuper.id] as const;
-export const AI_REASONING_CHAIN = [AI_MODELS.groqReasoning.id, AI_MODELS.nvidiaSuper.id, AI_MODELS.geminiAgentic.id, AI_MODELS.groqFast.id] as const;
+export const AI_FALLBACK_CHAIN = [AI_MODELS.groqFast.id, AI_MODELS.groqReasoning.id, AI_MODELS.geminiFast.id, AI_MODELS.geminiBalanced.id, AI_MODELS.geminiLegacy.id, AI_MODELS.geminiAgentic.id, AI_MODELS.nvidiaSuper.id] as const;
+export const AI_REASONING_CHAIN = [AI_MODELS.groqReasoning.id, AI_MODELS.groqFast.id, AI_MODELS.geminiFast.id, AI_MODELS.geminiBalanced.id, AI_MODELS.geminiLegacy.id, AI_MODELS.geminiAgentic.id, AI_MODELS.nvidiaSuper.id] as const;
 export const PROVIDER_LABELS: Record<AIProvider, string> = { groq: "Groq", openrouter: "OpenRouter", gemini: "Gemini", nvidia: "NVIDIA NIM" };
 
 export function findAIModel(id: string | undefined | null) {
