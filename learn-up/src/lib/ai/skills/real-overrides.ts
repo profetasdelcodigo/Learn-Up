@@ -42,7 +42,7 @@ async function browseMany(urls: string[]) {
   const unique = [...new Set(urls.filter((url) => /^https?:\/\//i.test(url)))];
   const results = await Promise.allSettled(unique.map((url) => browseWebPage(url)));
   return results.map((item, index) => item.status === "fulfilled" && item.value?.success
-    ? { url: unique[index], title: item.value.title || unique[index], content: String(item.value.content || "").slice(0, 8000) }
+    ? { url: unique[index], title: item.value.title || unique[index], content: String(item.value.content || "") }
     : null).filter(Boolean) as { url: string; title: string; content: string }[];
 }
 
@@ -95,7 +95,7 @@ export const analyzeSourceCredibilityToolReal: ToolDefinition = {
   execute: async ({ url }) => {
     const page = await browseWebPage(url);
     if (!page.success) return { success: false, error: String(page.content) };
-    const analysis = await generateWithEvidence(["Analiza exclusivamente la evidencia recuperada.", `URL: ${url}`, `Título: ${page.title || ""}`, `Contenido:\n${String(page.content || "").slice(0,12000)}`, "Evalúa autoría, fecha, institución, evidencia, posibles sesgos y limitaciones. No inventes datos ausentes."].join("\n"));
+    const analysis = await generateWithEvidence(["Analiza exclusivamente la evidencia recuperada.", `URL: ${url}`, `Título: ${page.title || ""}`, `Contenido:\n${String(page.content || "")}`, "Evalúa autoría, fecha, institución, evidencia, posibles sesgos y limitaciones. No inventes datos ausentes."].join("\n"));
     return { success: true, message: "Credibilidad analizada con contenido web real.", data: { url, title: page.title || url, analysis, sources: [{ url, title: page.title || url }] } };
   },
 };
