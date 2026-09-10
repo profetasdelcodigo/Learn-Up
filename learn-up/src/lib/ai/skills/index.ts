@@ -18,6 +18,7 @@ import { withFinalResearchOverrides } from "./research-final-overrides";
 import { withFinalLibraryOverrides } from "./library-final-overrides";
 import { withFinalCalendarOverrides } from "./calendar-final-overrides";
 import { withFinalSocialOverrides } from "./social-final-overrides";
+import { withFriendRequestOverrides } from "./social-request-override";
 import { withFinalKnowledgeGraphOverrides } from "./knowledge-graph-final-overrides";
 import { withFinalAnalyticsOverrides } from "./analytics-final-overrides";
 import { withFinalContentOverrides } from "./content-final-overrides";
@@ -37,7 +38,7 @@ export function registerAllSkills() {
   registerSkill(withFinalContentOverrides({ ...withRealSkillOverrides(contentSkill), id: "content_generation" }));
   registerSkill(withRealMultimediaOverrides(multimediaSkill));
   registerSkill(withFinalAnalyticsOverrides(withRealAnalyticsOverrides(analyticsSkill)));
-  registerSkill(withFinalSocialOverrides(profileSocialSkill));
+  registerSkill(withFriendRequestOverrides(withFinalSocialOverrides(profileSocialSkill)));
   registerSkill(educationSkill);
 }
 
