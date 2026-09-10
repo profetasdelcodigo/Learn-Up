@@ -17,6 +17,11 @@ const MAX_REMOTE_MEDIA_BYTES = 25 * 1024 * 1024;
 const TIMEOUT_MS = Number(process.env.AI_TEXT_TIMEOUT_MS || 15000);
 const MULTIMODAL_TIMEOUT_MS = Number(process.env.AI_MULTIMODAL_TIMEOUT_MS || 30000);
 const DEFAULT_MAX_OUTPUT = Number(process.env.AI_MAX_OUTPUT_TOKENS || 4096);
+const PROVIDER_RETRIES = Math.max(0, Number(process.env.AI_PROVIDER_RETRIES || 2));
+const RETRY_BASE_MS = Math.max(100, Number(process.env.AI_RETRY_BASE_MS || 750));
+const MAX_PROVIDER_ATTEMPTS = Math.max(1, Number(process.env.AI_MAX_PROVIDER_ATTEMPTS || 8));
+
+function sleep(ms: number) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -51,6 +56,7 @@ const MODEL_ALIASES: Record<string, string> = {
   "openrouter/openai/gpt-oss-20b:free": AI_MODELS.openRouterFreeFast.id,
   "openai/gpt-oss-120b:free": AI_MODELS.openRouterFreeLarge.id,
   "openai/gpt-oss-20b:free": AI_MODELS.openRouterFreeFast.id,
+  "gemini-3.5-flash": AI_MODELS.geminiLegacy.id,
   "gemini-3.6-flash": AI_MODELS.geminiBalanced.id,
   "gemini-3.7-flash": AI_MODELS.geminiAgentic.id,
   "gemini-3.8-flash": AI_MODELS.geminiFast.id,
@@ -166,7 +172,28 @@ function providerAvailable(provider: ReturnType<typeof providerOf>) {
 
 function isRetryableProviderError(error: any) {
   const message = String(error?.message || error || "").toLowerCase();
-  return /timeout|429|rate.?limit|temporar|overload|capacity|503|502|500|unavailable|network|fetch failed|abort|model.?not.?found|no endpoints available|does not exist|not available for free|404/.test(message);
+  return /timeout|429|rate.?limit|temporar|overload|capacity|503|502|500|unavailable|network|fetch failed|abort|resource.?exhausted|server.?error|internal|model.?not.?found|no endpoints available|does not exist|not available for free|404/.test(message);
+}
+
+function retryAfterMs(error: any) {
+  const message = String(error?.message || error || "");
+  const match = message.match(/retry-after[^\d]*(\d+(?:\.\d+)?)/i) || message.match(/retry in[^\d]*(\d+(?:\.\d+)?)s/i);
+  if (!match) return 0;
+  return Math.min(10000, Math.max(250, Number(match[1]) * (message.match(/retry in/i) ? 1000 : 1)));
+}
+
+async function callWithProviderRetry<T>(operation: () => Promise<T>): Promise<T> {
+  let lastError: any;
+  for (let retry = 0; retry <= PROVIDER_RETRIES; retry += 1) {
+    try { return await operation(); }
+    catch (error) {
+      lastError = error;
+      if (!isRetryableProviderError(error) || retry >= PROVIDER_RETRIES) throw error;
+      const providerHint = retryAfterMs(error);
+      await sleep(providerHint || Math.min(8000, RETRY_BASE_MS * 2 ** retry));
+    }
+  }
+  throw lastError;
 }
 
 async function completionForModel(messages: any[], model: string, jsonMode: boolean) {
@@ -180,31 +207,32 @@ async function completionForModel(messages: any[], model: string, jsonMode: bool
 export async function getAICompletion(messages: any[], modelName: string = AI_MODELS.groqFast.id, jsonMode = false) {
   const requested = normalizeModel(modelName);
   const chain = providerOf(requested) === "openrouter" ? AI_FALLBACK_CHAIN : AI_REASONING_CHAIN;
-  const candidates = [...new Set([requested, ...chain.filter((id) => id !== requested)])].slice(0, 6);
+  const candidates = [...new Set([requested, ...chain])].slice(0, 8);
   let lastError: any;
   let attempts = 0;
   for (const candidate of candidates) {
     if (!providerAvailable(providerOf(candidate))) continue;
+    if (attempts >= MAX_PROVIDER_ATTEMPTS) break;
     attempts += 1;
     try {
-      const result = await completionForModel(messages, candidate, jsonMode);
+      const result = await callWithProviderRetry(() => completionForModel(messages, candidate, jsonMode));
       return Object.assign(result, { _learnUp: { requestedModel: requested, model: candidate, provider: providerOf(candidate), providerChanged: candidate !== requested, providerLabel: PROVIDER_LABELS[providerOf(candidate)] } });
     } catch (error) {
       lastError = error;
-      if (!isRetryableProviderError(error) || attempts >= 4) throw error;
+      if (!isRetryableProviderError(error)) throw error;
     }
   }
   throw lastError || new Error("No hay ningún proveedor de IA configurado y disponible.");
 }
 
-export async function getNvidiaNIMCompletion(messages: any[], modelName: string = AI_MODELS.nvidiaSuper.id, jsonMode = false) { return nvidiaCompletion(messages, normalizeModel(modelName), jsonMode); }
-export const getGroqCompletion = async (messages: any[], modelName: string = AI_MODELS.groqFast.id, jsonMode = false) => groqCompletion(messages, normalizeModel(modelName), jsonMode);
-export const getGeminiCompletion = async (messages: any[], modelName: string = AI_MODELS.geminiFast.id, jsonMode = false) => geminiCompletion(messages, normalizeModel(modelName), jsonMode);
+export async function getNvidiaNIMCompletion(messages: any[], modelName: string = AI_MODELS.nvidiaSuper.id, jsonMode = false) { return getAICompletion(messages, modelName, jsonMode); }
+export const getGroqCompletion = async (messages: any[], modelName: string = AI_MODELS.groqFast.id, jsonMode = false) => getAICompletion(messages, modelName, jsonMode);
+export const getGeminiCompletion = async (messages: any[], modelName: string = AI_MODELS.geminiFast.id, jsonMode = false) => getAICompletion(messages, modelName, jsonMode);
 
 export async function getAIEmbedding(text: string): Promise<number[]> {
   if (!genAI) throw new Error("Gemini AI no está configurado para embeddings.");
   const model = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
-  const result = await withTimeout(model.embedContent({ content: { role: "user", parts: [{ text }] } } as any), TIMEOUT_MS);
+  const result = await callWithProviderRetry(() => withTimeout(model.embedContent({ content: { role: "user", parts: [{ text }] } } as any), TIMEOUT_MS));
   return result.embedding.values;
 }
 
