@@ -7,7 +7,7 @@ import { type ToolAction } from "@/lib/ai-tools";
 import { getRegistryToolCatalog, normalizeSkillPacks, ALL_PACKS } from "@/lib/ai/core/tool-catalog";
 import type { ToolMode } from "@/lib/ai/tool-contract";
 import { getPersistedSkillPacks, saveSkillPacks } from "@/lib/ai/core/skill-state";
-import { runWorkflowAgent, resumeWorkflow, cancelWorkflowAction } from "@/lib/ai/workflow-agent";
+import { runWorkflowAgent, resumeWorkflow, cancelWorkflowAction } from "@/lib/ai/workflow-agent-compat";
 import { AI_MODELS } from "@/lib/ai/model-catalog";
 import { getTimeContext } from "@/lib/ai/time-context";
 
@@ -32,7 +32,6 @@ function normalizeTextModel(modelId?: string): string {
   const raw = model.trim();
   if (!raw) return TEXT_MODEL;
 
-  // Compatibilidad interna únicamente: las opciones antiguas ya no se muestran ni se usan como destino.
   const legacyMap: Record<string, string> = {
     "openrouter/free": AI_MODELS.openRouterResearch.id,
     "openrouter/openrouter/free": AI_MODELS.openRouterResearch.id,
@@ -53,8 +52,8 @@ function normalizeTextModel(modelId?: string): string {
   };
 
   if (legacyMap[raw]) return legacyMap[raw];
-  if (raw.startsWith("openrouter/") || raw.startsWith("groq/") || raw.startsWith("gemini/") || raw.startsWith("nvidia/")) return raw;
-  return `openrouter/${raw}`;
+  const candidate = raw.startsWith("openrouter/") ? raw : `openrouter/${raw}`;
+  return candidate.startsWith("openrouter/") ? candidate : TEXT_MODEL;
 }
 
 async function getUserId() {
@@ -81,7 +80,7 @@ export async function approveStableToolAction(tool: string, args: Record<string,
   const supabase = await createClient();
   const { data: waiting } = await supabase.from("ai_workflows").select("id,pending_actions,session_id").eq("user_id", userId).eq("status", "waiting_for_user").order("updated_at", { ascending: false }).limit(50);
   const match = (waiting || []).find((workflow: any) => (workflow.pending_actions || []).some((action: any) => action.tool === tool && stableArgs(action.args || {}) === stableArgs(args)));
-  if (match) return resumeWorkflow(match.id, tool, args);
+  if (match) return resumeWorkflow(match.id, tool, args as Record<string, any>);
   return { success: false, message: "La confirmación ya no está disponible. Envía nuevamente la solicitud para crear una acción nueva y verificable." };
 }
 
