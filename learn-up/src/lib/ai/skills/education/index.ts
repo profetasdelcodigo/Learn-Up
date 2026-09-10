@@ -4,7 +4,7 @@ import { Skill, ToolDefinition } from "../../core/types";
 // Helper for AI-driven educational generation
 async function generateEduContentWithAI(prompt: string, title: string) {
   const { getAICompletion } = await import("@/lib/ai");
-  const content = await getAICompletion([{ role: "user", content: prompt }], "gemini-2.0-flash");
+  const content = await getAICompletion([{ role: "user", content: prompt }], "gemini-3.8-flash");
   return { success: true, message: `${title} completado exitosamente.`, data: { title, content } };
 }
 
