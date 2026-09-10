@@ -1,4 +1,4 @@
-export type AIProvider = "groq" | "openrouter" | "gemini" | "nvidia";
+export type AIProvider = "openrouter";
 export type AIModality = "text" | "multimodal" | "reasoning";
 
 export interface AIModelDefinition {
@@ -13,58 +13,135 @@ export interface AIModelDefinition {
   defaultFor?: string[];
 }
 
-/** Single source of truth for the selectable models exposed by Learn Up. */
+/**
+ * Única fuente de verdad de los modelos seleccionables.
+ * IMPORTANTE: todos los IDs de este catálogo son variantes :free de OpenRouter.
+ * No se deben añadir aquí modelos con precio > 0.
+ */
 export const AI_MODELS = {
-  // Groq: modelos de producción vigentes. Groq recomienda GPT-OSS para sustituir Llama retirados.
-  groqReasoning: { id: "groq/openai/gpt-oss-120b", provider: "groq", label: "GPT OSS 120B", shortLabel: "Groq · GPT OSS 120B", modality: "reasoning", contextTokens: 131_072, maxOutputTokens: 65_536, defaultFor: ["chat", "profesor", "consejero", "jarvis"] },
-  groqFast: { id: "groq/openai/gpt-oss-20b", provider: "groq", label: "GPT OSS 20B", shortLabel: "Groq · GPT OSS 20B", modality: "reasoning", contextTokens: 131_072, maxOutputTokens: 65_536, defaultFor: ["fast"] },
-  groqGeneral: { id: "groq/qwen/qwen3.6-27b", provider: "groq", label: "Qwen 3.6 27B", shortLabel: "Groq · Qwen 3.6 27B", modality: "reasoning", contextTokens: 131_072, maxOutputTokens: 16_384 },
+  // Router oficial gratuito: OpenRouter elige automáticamente un modelo free
+  // compatible con las capacidades solicitadas.
+  openRouterFree: {
+    id: "openrouter/free",
+    provider: "openrouter",
+    label: "OpenRouter Free (Auto)",
+    shortLabel: "OpenRouter · Free Auto",
+    modality: "reasoning",
+    contextTokens: 200_000,
+    maxOutputTokens: 65_536,
+    defaultFor: ["chat", "fast", "fallback"],
+  },
 
-  // OpenRouter: endpoints actuales de alto contexto y múltiples proveedores.
-  // Los nombres antiguos/free se mantienen únicamente como aliases internos en ai.ts.
-  openRouterFreeLarge: { id: "openrouter/deepseek/deepseek-v4-flash-0731", provider: "openrouter", label: "DeepSeek V4 Flash", shortLabel: "OpenRouter · DeepSeek V4 Flash", modality: "reasoning", contextTokens: 1_310_720, maxOutputTokens: 393_216, defaultFor: ["free-fallback", "research", "long-context"] },
-  openRouterFreeFast: { id: "openrouter/z-ai/glm-5.2", provider: "openrouter", label: "GLM 5.2", shortLabel: "OpenRouter · GLM 5.2", modality: "reasoning", contextTokens: 1_048_576, maxOutputTokens: 163_840, defaultFor: ["planning", "coding", "free-fallback-fast"] },
-  openRouterResearch: { id: "openrouter/deepseek/deepseek-v4-flash-0731", provider: "openrouter", label: "DeepSeek V4 Flash", shortLabel: "OpenRouter · DeepSeek V4 Flash", modality: "reasoning", contextTokens: 1_310_720, maxOutputTokens: 393_216, defaultFor: ["research", "long-context"] },
-  openRouterPlanning: { id: "openrouter/z-ai/glm-5.2", provider: "openrouter", label: "GLM 5.2", shortLabel: "OpenRouter · GLM 5.2", modality: "reasoning", contextTokens: 1_048_576, maxOutputTokens: 163_840, defaultFor: ["planning", "coding"] },
-
-  // Gemini: modelos estables actuales.
-  geminiFast: { id: "gemini/gemini-3.8-flash", provider: "gemini", label: "Gemini 3.8 Flash", shortLabel: "Gemini · 3.8 Flash", modality: "multimodal", contextTokens: 1_048_576, maxOutputTokens: 65_536, defaultFor: ["multimodal", "files", "images", "pdf"] },
-  geminiAgentic: { id: "gemini/gemini-3.7-flash", provider: "gemini", label: "Gemini 3.7 Flash", shortLabel: "Gemini · 3.7 Flash", modality: "multimodal", contextTokens: 1_048_576, maxOutputTokens: 65_536, defaultFor: ["agents"] },
-  geminiBalanced: { id: "gemini/gemini-3.6-flash", provider: "gemini", label: "Gemini 3.6 Flash", shortLabel: "Gemini · 3.6 Flash", modality: "multimodal", contextTokens: 1_048_576, maxOutputTokens: 65_536 },
-  geminiLegacy: { id: "gemini/gemini-3.5-flash", provider: "gemini", label: "Gemini 3.5 Flash", shortLabel: "Gemini · 3.5 Flash", modality: "multimodal", contextTokens: 1_048_576, maxOutputTokens: 65_536 },
-
-  // NVIDIA: endpoint directo actual con 1M de contexto y razonamiento.
-  nvidiaSuper: { id: "nvidia/nemotron-3-super-120b-a12b", provider: "nvidia", label: "Nemotron 3 Super 120B", shortLabel: "NVIDIA · Nemotron 3 Super", modality: "reasoning", contextTokens: 1_048_576, maxOutputTokens: 16_384, defaultFor: ["reasoning"] },
+  // Modelos gratuitos actuales verificados en OpenRouter.
+  nemotronUltraFree: {
+    id: "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+    provider: "openrouter",
+    label: "Nemotron 3 Ultra (Free)",
+    shortLabel: "NVIDIA · Nemotron 3 Ultra · Free",
+    modality: "reasoning",
+    contextTokens: 1_000_000,
+    maxOutputTokens: 65_536,
+    defaultFor: ["reasoning", "agents", "jarvis"],
+  },
+  minimaxM3Free: {
+    id: "openrouter/minimax/minimax-m3:free",
+    provider: "openrouter",
+    label: "MiniMax M3 (Free)",
+    shortLabel: "MiniMax · M3 · Free",
+    modality: "multimodal",
+    contextTokens: 1_048_576,
+    maxOutputTokens: 65_536,
+    defaultFor: ["multimodal", "files", "images", "video"],
+  },
+  glmFlashFree: {
+    id: "openrouter/z-ai/glm-5.3-flash:free",
+    provider: "openrouter",
+    label: "GLM 5.3 Flash (Free)",
+    shortLabel: "Z.ai · GLM 5.3 Flash · Free",
+    modality: "multimodal",
+    contextTokens: 1_048_576,
+    maxOutputTokens: 65_536,
+    defaultFor: ["balanced", "coding", "multimodal"],
+  },
+  nexMiniFree: {
+    id: "openrouter/nex-agi/nex-n2.5-mini:free",
+    provider: "openrouter",
+    label: "Nex-N2.5 Mini (Free)",
+    shortLabel: "Nex AGI · N2.5 Mini · Free",
+    modality: "reasoning",
+    contextTokens: 262_144,
+    maxOutputTokens: 65_536,
+    defaultFor: ["fast", "tools"],
+  },
+  nexProFree: {
+    id: "openrouter/nex-agi/nex-n2.5-pro:free",
+    provider: "openrouter",
+    label: "Nex-N2.5 Pro (Free)",
+    shortLabel: "Nex AGI · N2.5 Pro · Free",
+    modality: "reasoning",
+    contextTokens: 262_144,
+    maxOutputTokens: 65_536,
+    defaultFor: ["agents", "coding", "research"],
+  },
+  inklingFree: {
+    id: "openrouter/thinkingmachines/inkling:free",
+    provider: "openrouter",
+    label: "Inkling (Free)",
+    shortLabel: "Thinking Machines · Inkling · Free",
+    modality: "multimodal",
+    contextTokens: 1_048_576,
+    maxOutputTokens: 262_144,
+    defaultFor: ["multimodal", "long-context"],
+  },
+  inklingSmallFree: {
+    id: "openrouter/thinkingmachines/inkling-small:free",
+    provider: "openrouter",
+    label: "Inkling Small (Free)",
+    shortLabel: "Thinking Machines · Inkling Small · Free",
+    modality: "multimodal",
+    contextTokens: 1_048_576,
+    maxOutputTokens: 262_144,
+    defaultFor: ["fast", "multimodal"],
+  },
+  nemotronNanoFree: {
+    id: "openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+    provider: "openrouter",
+    label: "Nemotron 3 Nano Omni (Free)",
+    shortLabel: "NVIDIA · Nemotron Nano Omni · Free",
+    modality: "multimodal",
+    contextTokens: 256_000,
+    maxOutputTokens: 65_536,
+    defaultFor: ["vision", "audio", "video"],
+  },
 } as const satisfies Record<string, AIModelDefinition>;
 
 export const AI_MODEL_OPTIONS = Object.values(AI_MODELS);
 
-// Orden deliberado: proveedores directos primero; OpenRouter después como
-// capa de redundancia multi-host. Los aliases antiguos no aparecen como opciones visibles.
+// Todos los fallbacks son gratuitos. No se permite caer accidentalmente a un
+// modelo de pago aunque un proveedor directo falle.
 export const AI_FALLBACK_CHAIN = [
-  AI_MODELS.groqFast.id,
-  AI_MODELS.groqReasoning.id,
-  AI_MODELS.groqGeneral.id,
-  AI_MODELS.nvidiaSuper.id,
-  AI_MODELS.geminiFast.id,
-  AI_MODELS.geminiBalanced.id,
-  AI_MODELS.geminiAgentic.id,
-  AI_MODELS.openRouterResearch.id,
-  AI_MODELS.openRouterPlanning.id,
+  AI_MODELS.openRouterFree.id,
+  AI_MODELS.nemotronUltraFree.id,
+  AI_MODELS.nexProFree.id,
+  AI_MODELS.nexMiniFree.id,
+  AI_MODELS.glmFlashFree.id,
+  AI_MODELS.minimaxM3Free.id,
+  AI_MODELS.nemotronNanoFree.id,
+  AI_MODELS.inklingFree.id,
+  AI_MODELS.inklingSmallFree.id,
 ] as const;
 
 export const AI_REASONING_CHAIN = [
-  AI_MODELS.groqReasoning.id,
-  AI_MODELS.groqFast.id,
-  AI_MODELS.nvidiaSuper.id,
-  AI_MODELS.openRouterResearch.id,
-  AI_MODELS.openRouterPlanning.id,
-  AI_MODELS.geminiFast.id,
-  AI_MODELS.geminiBalanced.id,
-  AI_MODELS.geminiAgentic.id,
+  AI_MODELS.nemotronUltraFree.id,
+  AI_MODELS.nexProFree.id,
+  AI_MODELS.nexMiniFree.id,
+  AI_MODELS.openRouterFree.id,
+  AI_MODELS.glmFlashFree.id,
 ] as const;
 
-export const PROVIDER_LABELS: Record<AIProvider, string> = { groq: "Groq", openrouter: "OpenRouter", gemini: "Gemini", nvidia: "NVIDIA NIM" };
+export const PROVIDER_LABELS: Record<AIProvider, string> = {
+  openrouter: "OpenRouter · Gratis",
+};
 
 export function findAIModel(id: string | undefined | null) {
   return id ? AI_MODEL_OPTIONS.find((model) => model.id === id) : undefined;
@@ -74,9 +151,6 @@ export function modelDisplayName(id: string | undefined | null) {
   return findAIModel(id)?.shortLabel || id || "IA";
 }
 
-export function providerOfModel(id: string): AIProvider {
-  if (id.startsWith("groq/")) return "groq";
-  if (id.startsWith("gemini/")) return "gemini";
-  if (id.startsWith("nvidia/")) return "nvidia";
+export function providerOfModel(_id: string): AIProvider {
   return "openrouter";
 }
