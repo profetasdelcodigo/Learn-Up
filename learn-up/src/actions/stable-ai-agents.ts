@@ -9,6 +9,7 @@ import type { ToolMode } from "@/lib/ai/tool-contract";
 import { getPersistedSkillPacks, saveSkillPacks } from "@/lib/ai/core/skill-state";
 import { runWorkflowAgent, resumeWorkflow, cancelWorkflowAction } from "@/lib/ai/workflow-agent";
 import { AI_MODELS } from "@/lib/ai/model-catalog";
+import { getTimeContext } from "@/lib/ai/time-context";
 
 const TEXT_MODEL = AI_MODELS.groqReasoning.id;
 const MULTIMODAL_MODEL = AI_MODELS.geminiFast.id;
@@ -106,7 +107,7 @@ async function runStableAgent(agentId: "profesor" | "consejero" | "nutrirecetas"
   const { mode } = extractMode(modelId);
   const isMultimedia = Boolean(mediaUrl);
   const model = isMultimedia ? MULTIMODAL_MODEL : normalizeTextModel(modelId);
-  const systemPrompt = `${buildAgentSystemPrompt(agentId)}\n\nCONTEXTO DE EJECUCIÓN:\n- Learn Up expone las 10 skills universales: ${ALL_PACKS.join(", ")}.\n- Todas las skills son invocables desde Profesor, Consejero y Nutrirecetas; las skills activas se usan como prioridad contextual, no como una barrera de disponibilidad.\n- Usa solamente herramientas reales registradas.\n- Una solicitud puede combinar múltiples skills y múltiples tools.\n- Continúa el workflow hasta finalizar, pedir un dato, encontrar un error real o requerir confirmación.\n- Manual: solo las acciones sin confirmación se ejecutan automáticamente; las demás quedan pendientes.\n- Autopilot: solo herramientas permitidas por la política se ejecutan automáticamente.\n- Nunca inventes fuentes, URLs, estadísticas, IDs, rutas ni acciones terminadas.\n- Si una API no está configurada o falla, informa el error real.\n- No muestres JSON, function calls, prompts internos ni bloques de pensamiento ocultos al estudiante.\n- MODO: ${mode}\n- SKILLS PRIORIZADAS: ${skills.join(", ") || "ninguna"}\n\nCATÁLOGO DE HERRAMIENTAS UNIVERSALES:\n${getRegistryToolCatalog(ALL_PACKS)}`;
+  const systemPrompt = `${getTimeContext()}\n\n${buildAgentSystemPrompt(agentId)}\n\nCONTEXTO DE EJECUCIÓN:\n- Learn Up expone las 10 skills universales: ${ALL_PACKS.join(", ")}.\n- Todas las skills son invocables desde Profesor, Consejero y Nutrirecetas; las skills activas se usan como prioridad contextual, no como una barrera de disponibilidad.\n- Usa solamente herramientas reales registradas.\n- Una solicitud puede combinar múltiples skills y múltiples tools.\n- Continúa el workflow hasta finalizar, pedir un dato, encontrar un error real o requerir confirmación.\n- Manual: solo las acciones sin confirmación se ejecutan automáticamente; las demás quedan pendientes.\n- Autopilot: solo herramientas permitidas por la política se ejecutan automáticamente.\n- Nunca inventes fuentes, URLs, estadísticas, IDs, rutas ni acciones terminadas.\n- Si una API no está configurada o falla, informa el error real.\n- No muestres JSON, function calls, prompts internos ni bloques de pensamiento ocultos al estudiante.\n- MODO: ${mode}\n- SKILLS PRIORIZADAS: ${skills.join(", ") || "ninguna"}\n\nCATÁLOGO DE HERRAMIENTAS UNIVERSALES:\n${getRegistryToolCatalog(ALL_PACKS)}`;
 
   const { content } = await buildUserMessage(text, mediaUrl, mediaType);
   return runWorkflowAgent(systemPrompt, history, content, model, { sessionId, aiType: agentId, userId, mode, maxSteps: 8, maxParallelTools: 4, mediaUrl, mediaType });
