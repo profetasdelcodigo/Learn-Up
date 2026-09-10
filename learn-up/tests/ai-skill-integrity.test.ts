@@ -3,6 +3,8 @@ import { aiRegistry } from "@/lib/ai/skills";
 import { getToolDefinition } from "@/lib/ai/tool-contract";
 import { AI_AGENT_REGISTRY } from "@/lib/ai/agent-registry";
 
+const TARGET_UNIVERSAL_SKILL_COUNT = 195; // 27+25+22+15+22+15+18+14+17+20
+
 describe("Learn Up AI skills", () => {
   it("registers the universal skill packs", () => {
     const skillIds = aiRegistry.getAllSkills().map((skill) => skill.id).sort();
@@ -20,9 +22,13 @@ describe("Learn Up AI skills", () => {
     ]);
   });
 
+  it("meets the universal target count", () => {
+    const tools = aiRegistry.getAllTools();
+    expect(tools.length).toBeGreaterThanOrEqual(TARGET_UNIVERSAL_SKILL_COUNT);
+  });
+
   it("has schema + executor + safe policy for every registered tool", () => {
     const tools = aiRegistry.getAllTools();
-    expect(tools.length).toBeGreaterThan(50);
     const ids = new Set<string>();
 
     for (const tool of tools) {
