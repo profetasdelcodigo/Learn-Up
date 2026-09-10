@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
 import UniversalToolCard, { universalToolActionKey, type UniversalToolAction } from "./UniversalToolCard";
 import { listPendingAiWorkflows } from "@/actions/ai-workflows";
 import { approveStableToolAction, cancelStableToolAction } from "@/actions/stable-ai-agents";
@@ -11,9 +10,9 @@ interface PendingAction extends UniversalToolAction {
 }
 
 export default function PendingUniversalToolCards() {
-  const pathname = usePathname();
   const [actions, setActions] = useState<PendingAction[]>([]);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [localCardVisible, setLocalCardVisible] = useState(false);
 
   const refresh = async () => {
     const next = await listPendingAiWorkflows();
@@ -25,6 +24,9 @@ export default function PendingUniversalToolCards() {
     const tick = async () => {
       const next = await listPendingAiWorkflows();
       if (!cancelled) setActions(next as PendingAction[]);
+      if (!cancelled && typeof document !== "undefined") {
+        setLocalCardVisible(Boolean(document.querySelector('[data-universal-tool-card="true"][data-pending="true"]:not([data-global-universal-card="true"])')));
+      }
     };
     void tick();
     const timer = window.setInterval(() => void tick(), 2500);
@@ -34,10 +36,7 @@ export default function PendingUniversalToolCards() {
     };
   }, []);
 
-  // En las pantallas de IA ya existe el render local de las tarjetas. Este componente
-  // funciona como respaldo global y evita duplicarlas allí.
-  if (pathname?.startsWith("/ai/")) return null;
-  if (!actions.length) return null;
+  if (!actions.length || localCardVisible) return null;
 
   const confirm = async (action: PendingAction) => {
     const key = universalToolActionKey(action);
@@ -72,6 +71,7 @@ export default function PendingUniversalToolCards() {
               action={action}
               status="pending"
               busy={busyKey === key}
+              globalRecovery
               onConfirm={(selected) => void confirm(selected as PendingAction)}
               onCancel={(selected) => void cancel(selected as PendingAction)}
             />
