@@ -579,6 +579,7 @@ export interface ToolAction {
   args: Record<string, any>;
   description: string;
   requiresConfirm: boolean;
+  workflowId?: string;
 }
 
 export interface ToolResult {

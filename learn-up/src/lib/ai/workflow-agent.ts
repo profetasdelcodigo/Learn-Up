@@ -3,7 +3,7 @@
 import { getAICompletion } from "@/lib/ai";
 import { type ToolAction } from "@/lib/ai-tools";
 import { aiRegistry } from "@/lib/ai/skills";
-import { normalizeToolName, shouldExecuteTool, type ToolMode } from "@/lib/ai/tool-contract";
+import { getToolDefinition, normalizeToolName, shouldExecuteTool, type ToolMode } from "@/lib/ai/tool-contract";
 import { materializeToolResult } from "@/lib/ai/core/materialize-result";
 import { createClient } from "@/utils/supabase/server";
 import { createPendingWorkflow, finishWorkflow, getWorkflow, updateWorkflow } from "@/lib/ai/core/workflow-store";
@@ -32,8 +32,8 @@ export interface WorkflowRunResult {
 
 const MAX_STEPS = 8;
 const MAX_PARALLEL = 4;
-const MAX_WORKFLOW_MS = 110_000;
-const MAX_TOOL_MS = 18_000;
+const MAX_WORKFLOW_MS = 90_000;
+const MAX_TOOL_MS = 15_000;
 
 const LEGACY_TOOL_ALIASES: Record<string, string> = {
   read_calendar_events: "read_calendar",
@@ -73,8 +73,10 @@ function extractJsonObjects(raw: string): unknown[] {
       .map((match) => match[1].trim())
       .filter(Boolean),
   );
-  const inline = raw.match(/\{[\s\S]*\}/);
-  if (inline) candidates.push(inline[0]);
+  // Only parse a bare JSON response when it is the entire response. Parsing the
+  // first "{" from prose used to turn examples in a normal answer into tools.
+  const trimmed = raw.trim();
+  if (/^(\{|\[)/.test(trimmed)) candidates.push(trimmed);
 
   const parsed: unknown[] = [];
   for (const candidate of candidates) {
@@ -172,23 +174,30 @@ async function audit(
   error?: string,
   currentRoute?: string | null,
 ) {
-  const supabase = await createClient();
-  const registered = aiRegistry.getTool(action.tool);
-  await supabase.from("ai_tool_events").insert({
-    user_id: userId,
-    session_id: sessionId || null,
-    step,
-    skill_id: registered?.category || null,
-    tool_name: action.tool,
-    status,
-    risk: registered?.risk || null,
-    input: action.args || {},
-    output: output ?? null,
-    sources: extractSources(output),
-    error: error || null,
-    current_route: currentRoute || null,
-    updated_at: new Date().toISOString(),
-  });
+  try {
+    const supabase = await createClient();
+    const registered = aiRegistry.getTool(action.tool);
+    const { error: auditError } = await supabase.from("ai_tool_events").insert({
+      user_id: userId,
+      session_id: sessionId || null,
+      step,
+      skill_id: registered?.category || null,
+      tool_name: action.tool,
+      status,
+      risk: registered?.risk || null,
+      input: action.args || {},
+      output: output ?? null,
+      sources: extractSources(output),
+      error: error || null,
+      current_route: currentRoute || null,
+      updated_at: new Date().toISOString(),
+    });
+    if (auditError) console.warn("[ai-workflow] No se pudo registrar la auditoría:", auditError.message);
+  } catch (auditError) {
+    // Provenance is useful, but an unavailable audit table must never take down
+    // a student-facing request or leave a workflow in a broken state.
+    console.warn("[ai-workflow] Auditoría no disponible:", auditError);
+  }
 }
 
 async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
@@ -333,10 +342,44 @@ async function executeTool(action: ToolAction, options: WorkflowRunOptions, step
 async function executeParallel(actions: ToolAction[], options: WorkflowRunOptions, step: number) {
   const limit = Math.max(1, Math.min(options.maxParallelTools ?? MAX_PARALLEL, MAX_PARALLEL));
   const out: any[] = [];
-  for (let i = 0; i < actions.length; i += limit) {
-    out.push(...(await Promise.all(actions.slice(i, i + limit).map((action) => executeTool(action, options, step)))));
+
+  // Reads can share a batch. Writes, navigation and external effects stay in
+  // order so one proposed action cannot race another action in the same chat.
+  let readBatch: ToolAction[] = [];
+  const flushReadBatch = async () => {
+    for (let i = 0; i < readBatch.length; i += limit) {
+      out.push(...(await Promise.all(readBatch.slice(i, i + limit).map((action) => executeTool(action, options, step)))));
+    }
+    readBatch = [];
+  };
+
+  for (const action of actions) {
+    if (getToolDefinition(action.tool).supportsParallel) {
+      readBatch.push(action);
+      continue;
+    }
+    await flushReadBatch();
+    out.push(await executeTool(action, options, step));
   }
+  await flushReadBatch();
   return out;
+}
+
+function actionSignature(action: ToolAction) {
+  return `${normalizeToolName(LEGACY_TOOL_ALIASES[action.tool] || action.tool)}:${serialize(action.args || {})}`;
+}
+
+function buildSafeProcessSummary(executed: ToolAction[], pending: ToolAction[], providerChanged: boolean) {
+  const steps: string[] = [];
+  if (providerChanged) steps.push("Se activó un proveedor alternativo disponible para evitar interrumpir la tarea.");
+  if (executed.length) steps.push(`Se completaron ${executed.length} herramienta${executed.length === 1 ? "" : "s"} verificable${executed.length === 1 ? "" : "s"}: ${executed.slice(0, 4).map((action) => action.description || action.tool).join("; ")}.`);
+  if (pending.length) steps.push(`Quedan ${pending.length} acción${pending.length === 1 ? "" : "es"} que requieren tu confirmación explícita.`);
+  return steps.length ? `<thinking>${steps.map((step, index) => `${index + 1}. ${step}`).join("\n")}</thinking>` : "";
+}
+
+function withSafeProcess(text: string, executed: ToolAction[], pending: ToolAction[], providerChanged: boolean) {
+  const summary = buildSafeProcessSummary(executed, pending, providerChanged);
+  return [summary, text].filter(Boolean).join("\n\n");
 }
 
 function decideTool(action: ToolAction, mode: ToolMode): "execute" | "pending_confirmation" | "deny" {
@@ -358,6 +401,7 @@ async function runCore(
   const started = Date.now();
   const executedActions: ToolAction[] = [];
   const usedSources: Array<{ title?: string; url: string; provider?: string }> = [];
+  const executedSignatures = new Set<string>();
   let lastText = "";
   let lastProviderNotice = "";
   const maxSteps = Math.max(1, Math.min(options.maxSteps ?? MAX_STEPS, MAX_STEPS));
@@ -369,16 +413,25 @@ async function runCore(
       return { response: lastText, error, executedActions: executedActions.length ? executedActions : undefined };
     }
 
-    const response = await withTimeout(getAICompletion(currentMessages, model), 22_000, "modelo de IA");
+    let response: any;
+    try {
+      response = await withTimeout(getAICompletion(currentMessages, model), 22_000, "modelo de IA");
+    } catch (error: any) {
+      const message = error?.message || "No fue posible contactar un proveedor de IA disponible.";
+      if (workflowId) await finishWorkflow(workflowId, "error", { messages: currentMessages, pending_actions: [], error: message, sources: usedSources });
+      return { response: lastText || "No pude completar la solicitud ahora mismo.", error: message, executedActions: executedActions.length ? executedActions : undefined };
+    }
     lastProviderNotice = providerNotice(response);
     const raw = response.choices[0]?.message?.content || "";
     const parsed = parseWorkflowToolCalls(raw);
     const text = parsed.cleanText;
-    const actions = parsed.actions.map(normalizeAction);
+    const actions = parsed.actions
+      .map(normalizeAction)
+      .filter((action) => !executedSignatures.has(actionSignature(action)));
     lastText = text;
 
     if (!actions.length) {
-      const finalText = appendUsedSources([lastProviderNotice, lastText].filter(Boolean).join("\n\n"), usedSources);
+      const finalText = appendUsedSources(withSafeProcess([lastProviderNotice, lastText].filter(Boolean).join("\n\n"), executedActions, [], Boolean(lastProviderNotice)), usedSources);
       if (workflowId) await finishWorkflow(workflowId, "completed", { messages: currentMessages, pending_actions: [], executed_results: executedActions, sources: usedSources });
       return { response: finalText, executedActions: executedActions.length ? executedActions : undefined };
     }
@@ -397,6 +450,7 @@ async function runCore(
     if (executable.length) {
       results = await executeParallel(executable, options, step);
       executedActions.push(...results.filter((result) => result.success).map((result) => result.action));
+      executable.forEach((action) => executedSignatures.add(actionSignature(action)));
       for (const result of results) usedSources.push(...extractSources(result.data));
       currentMessages.push({ role: "assistant", content: text || "Continuaré con la tarea." });
       currentMessages.push({
@@ -408,19 +462,25 @@ async function runCore(
     }
 
     if (pending.length) {
-      const workflow = workflowId
-        ? { id: workflowId }
-        : await createPendingWorkflow({
-            userId: options.userId,
-            sessionId: options.sessionId,
-            aiType: options.aiType,
-            mode: options.mode,
-            model,
-            step,
-            messages: currentMessages,
-            pendingActions: pending,
-            executedResults: results,
-          });
+      let workflow: { id: string };
+      try {
+        workflow = workflowId
+          ? { id: workflowId }
+          : await createPendingWorkflow({
+              userId: options.userId,
+              sessionId: options.sessionId,
+              aiType: options.aiType,
+              mode: options.mode,
+              model,
+              step,
+              messages: currentMessages,
+              pendingActions: pending,
+              executedResults: results,
+            });
+      } catch (error: any) {
+        const message = error?.message || "No se pudo guardar la confirmación de la acción.";
+        return { response: appendUsedSources(withSafeProcess(text || "Necesito tu confirmación para continuar.", executedActions, pending, Boolean(lastProviderNotice)), usedSources), error: message, executedActions: executedActions.length ? executedActions : undefined };
+      }
 
       await Promise.all(
         pending.map((action) => audit(options.userId, options.sessionId, step, action, "waiting_for_user", undefined, undefined, options.currentRoute)),
@@ -435,7 +495,7 @@ async function runCore(
         status: "waiting_for_user",
       });
       return {
-        response: appendUsedSources([lastProviderNotice, text].filter(Boolean).join("\n\n"), usedSources),
+        response: appendUsedSources(withSafeProcess([lastProviderNotice, text].filter(Boolean).join("\n\n"), executedActions, withWorkflow, Boolean(lastProviderNotice)), usedSources),
         actions: withWorkflow,
         executedActions: executedActions.length ? executedActions : undefined,
       };
@@ -452,7 +512,7 @@ async function runCore(
     }
   }
 
-  const limited = appendUsedSources(lastText || "La tarea alcanzó el límite seguro de pasos.", usedSources);
+  const limited = appendUsedSources(withSafeProcess(lastText || "La tarea alcanzó el límite seguro de pasos.", executedActions, [], Boolean(lastProviderNotice)), usedSources);
   if (workflowId) await finishWorkflow(workflowId, "error", { messages: currentMessages, pending_actions: [], error: "Límite de pasos alcanzado", sources: usedSources });
   return { response: limited, error: "Límite de pasos alcanzado", executedActions: executedActions.length ? executedActions : undefined };
 }
@@ -481,6 +541,8 @@ export async function resumeWorkflow(workflowId: string, tool: string, args: Rec
   );
   if (!match) throw new Error("La acción pendiente no coincide con el workflow.");
 
+  const remaining = pending.filter((action: any) => action !== match);
+
   const options: WorkflowRunOptions = {
     mode: workflow.mode,
     userId: workflow.user_id,
@@ -492,11 +554,37 @@ export async function resumeWorkflow(workflowId: string, tool: string, args: Rec
     workflowMessages: Array.isArray(workflow.messages) ? workflow.messages : [],
   };
 
-  await updateWorkflow(workflowId, { status: "running", pending_actions: [] });
+  await updateWorkflow(workflowId, { status: "running", pending_actions: remaining });
   const approved = await executeTool(match, options, Number(workflow.step || 0));
   if (!approved.success) {
-    await finishWorkflow(workflowId, "error", { pending_actions: [], error: approved.message });
-    return { response: "", error: approved.message };
+    const pendingWithWorkflow = remaining.map((action: any) => ({ ...action, workflowId }));
+    await updateWorkflow(workflowId, {
+      status: pendingWithWorkflow.length ? "waiting_for_user" : "error",
+      pending_actions: pendingWithWorkflow,
+      executed_results: [...(workflow.executed_results || []), approved],
+      error: approved.message,
+    });
+    return {
+      response: withSafeProcess(`No pude completar “${match.description || normalizedTool}”. ${approved.message}`, [], pendingWithWorkflow, false),
+      error: approved.message,
+      actions: pendingWithWorkflow,
+    };
+  }
+
+  const pendingWithWorkflow = remaining.map((action: any) => ({ ...action, workflowId }));
+  const executedResults = [...(workflow.executed_results || []), approved];
+  if (pendingWithWorkflow.length) {
+    await updateWorkflow(workflowId, {
+      status: "waiting_for_user",
+      pending_actions: pendingWithWorkflow,
+      executed_results: executedResults,
+      error: null,
+    });
+    return {
+      response: withSafeProcess(`Acción completada: ${match.description || normalizedTool}. Revisa las confirmaciones restantes para continuar.`, [approved.action], pendingWithWorkflow, false),
+      actions: pendingWithWorkflow,
+      executedActions: [approved.action],
+    };
   }
 
   const originalMessages = Array.isArray(workflow.messages) ? workflow.messages : [];
@@ -511,4 +599,37 @@ export async function resumeWorkflow(workflowId: string, tool: string, args: Rec
 export async function cancelWorkflow(workflowId: string) {
   await finishWorkflow(workflowId, "cancelled", { pending_actions: [] });
   return { success: true };
+}
+
+export async function cancelWorkflowAction(workflowId: string, tool: string, args: Record<string, any>) {
+  const workflow = await getWorkflow(workflowId);
+  const normalizedTool = normalizeToolName(LEGACY_TOOL_ALIASES[tool] || tool);
+  const pending = Array.isArray(workflow.pending_actions) ? workflow.pending_actions : [];
+  const match = pending.find(
+    (action: any) =>
+      normalizeToolName(LEGACY_TOOL_ALIASES[action.tool] || action.tool) === normalizedTool &&
+      serialize(action.args || {}) === serialize(args || {}),
+  );
+  if (!match) throw new Error("La acción pendiente no coincide con el workflow.");
+
+  const remaining = pending.filter((action: any) => action !== match).map((action: any) => ({ ...action, workflowId }));
+  await audit(workflow.user_id, workflow.session_id, Number(workflow.step || 0), match, "cancelled");
+
+  if (remaining.length) {
+    await updateWorkflow(workflowId, { status: "waiting_for_user", pending_actions: remaining });
+    return {
+      success: true,
+      status: "waiting_for_user",
+      response: withSafeProcess(`Acción cancelada: ${match.description || normalizedTool}. Puedes decidir las acciones restantes por separado.`, [], remaining, false),
+      actions: remaining,
+    };
+  }
+
+  await finishWorkflow(workflowId, "cancelled", { pending_actions: [] });
+  return {
+    success: true,
+    status: "cancelled",
+    response: "Acción cancelada. No se ejecutó ninguna otra acción pendiente.",
+    actions: [],
+  };
 }

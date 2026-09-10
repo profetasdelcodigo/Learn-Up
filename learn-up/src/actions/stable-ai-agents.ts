@@ -7,8 +7,7 @@ import { type ToolAction } from "@/lib/ai-tools";
 import { getRegistryToolCatalog, normalizeSkillPacks, ALL_PACKS } from "@/lib/ai/core/tool-catalog";
 import type { ToolMode } from "@/lib/ai/tool-contract";
 import { getPersistedSkillPacks, saveSkillPacks } from "@/lib/ai/core/skill-state";
-import { runWorkflowAgent, resumeWorkflow, cancelWorkflow } from "@/lib/ai/workflow-agent";
-import { aiRegistry } from "@/lib/ai/skills";
+import { runWorkflowAgent, resumeWorkflow, cancelWorkflowAction } from "@/lib/ai/workflow-agent";
 import { AI_MODELS } from "@/lib/ai/model-catalog";
 
 const TEXT_MODEL = AI_MODELS.groqFast.id;
@@ -59,27 +58,35 @@ async function getUserId() {
   return user.id;
 }
 
-export async function approveStableToolAction(tool: string, args: Record<string, unknown>) {
-  const userId = await getUserId();
-  const supabase = await createClient();
-  const { data: waiting } = await supabase.from("ai_workflows").select("id,pending_actions,session_id").eq("user_id", userId).eq("status", "waiting_for_user").order("updated_at", { ascending: false }).limit(50);
-  const match = (waiting || []).find((workflow: any) => (workflow.pending_actions || []).some((action: any) => action.tool === tool && JSON.stringify(action.args || {}) === JSON.stringify(args || {})));
-  if (match) return resumeWorkflow(match.id, tool, args);
-  const registryTool = aiRegistry.getTool(tool);
-  if (!registryTool?.execute) return { success: false, message: `La herramienta ${tool} no pertenece a las 10 skills oficiales activas.` };
-  const parsed = registryTool.schema?.safeParse ? registryTool.schema.safeParse(args) : { success: true, data: args };
-  if (!parsed.success) return { success: false, message: "Argumentos inválidos para la herramienta." };
-  return registryTool.execute(parsed.data, { userId } as any);
+function stableArgs(value: Record<string, unknown>) {
+  const normalize = (input: any): any => {
+    if (Array.isArray(input)) return input.map(normalize);
+    if (input && typeof input === "object") {
+      return Object.fromEntries(Object.keys(input).sort().map((key) => [key, normalize(input[key])]));
+    }
+    return input;
+  };
+  return JSON.stringify(normalize(value || {}));
 }
 
-export async function cancelStableToolAction(tool: string, args: Record<string, unknown>) {
+export async function approveStableToolAction(tool: string, args: Record<string, unknown>, workflowId?: string) {
   const userId = await getUserId();
+  if (workflowId) return resumeWorkflow(workflowId, tool, args as Record<string, any>);
+  const supabase = await createClient();
+  const { data: waiting } = await supabase.from("ai_workflows").select("id,pending_actions,session_id").eq("user_id", userId).eq("status", "waiting_for_user").order("updated_at", { ascending: false }).limit(50);
+  const match = (waiting || []).find((workflow: any) => (workflow.pending_actions || []).some((action: any) => action.tool === tool && stableArgs(action.args || {}) === stableArgs(args)));
+  if (match) return resumeWorkflow(match.id, tool, args);
+  return { success: false, message: "La confirmación ya no está disponible. Envía nuevamente la solicitud para crear una acción nueva y verificable." };
+}
+
+export async function cancelStableToolAction(tool: string, args: Record<string, unknown>, workflowId?: string) {
+  const userId = await getUserId();
+  if (workflowId) return cancelWorkflowAction(workflowId, tool, args as Record<string, any>);
   const supabase = await createClient();
   const { data: waiting } = await supabase.from("ai_workflows").select("id,pending_actions").eq("user_id", userId).eq("status", "waiting_for_user").order("updated_at", { ascending: false }).limit(50);
-  const match = (waiting || []).find((workflow: any) => (workflow.pending_actions || []).some((action: any) => action.tool === tool && JSON.stringify(action.args || {}) === JSON.stringify(args || {})));
+  const match = (waiting || []).find((workflow: any) => (workflow.pending_actions || []).some((action: any) => action.tool === tool && stableArgs(action.args || {}) === stableArgs(args)));
   if (!match) return { success: true, status: "not_found" };
-  await cancelWorkflow(match.id);
-  return { success: true, status: "cancelled", workflowId: match.id };
+  return cancelWorkflowAction(match.id, tool, args as Record<string, any>);
 }
 
 async function runStableAgent(agentId: "profesor" | "consejero" | "nutrirecetas", message: string, history: { role: "user" | "assistant"; content: string | any[] }[], mediaUrl?: string, mediaType?: string, modelId?: string, sessionId?: string | null): Promise<{ response: string; error?: string; actions?: ToolAction[]; executedActions?: ToolAction[] }> {

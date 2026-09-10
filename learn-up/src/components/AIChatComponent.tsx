@@ -86,6 +86,7 @@ import { approveStableToolAction, cancelStableToolAction } from "@/actions/stabl
 import SkillsDirectoryModal from "./ai/SkillsDirectoryModal";
 import ThinkingBlock from "./ai/ThinkingBlock";
 import { getPersistedSkillPacks, saveSkillPacks } from "@/lib/ai/core/skill-state";
+import UniversalToolCard, { universalToolActionKey } from "./ai/UniversalToolCard";
 
 interface ToolAction {
   tool: string;
@@ -94,6 +95,18 @@ interface ToolAction {
   requiresConfirm: boolean;
   workflowId?: string;
   client_message_id?: string;
+}
+
+function removePendingToolAction(actions: ToolAction[], target: ToolAction) {
+  const targetKey = universalToolActionKey(target);
+  let removed = false;
+  return actions.filter((action) => {
+    if (!removed && universalToolActionKey(action) === targetKey) {
+      removed = true;
+      return false;
+    }
+    return true;
+  });
 }
 
 function getSafeExternalUrl(rawUrl: unknown): string | null {
@@ -600,12 +613,13 @@ export default function AIChatComponent({
         ? `[Skills Activas: ${activeSkills.join(",")}]\n\n${userMessage}` 
         : userMessage;
 
+      const modelForRun = isAutonomous ? `${selectedModel}::autopilot` : selectedModel;
       const result = await onSubmitAction(
         finalUserMessage,
         historyForGroq,
         mediaUrl,
         mediaType,
-        selectedModel,
+        modelForRun,
         sessionId
       );
 
@@ -619,13 +633,9 @@ export default function AIChatComponent({
         ]);
 
         if (result.actions && result.actions.length > 0) {
-          if (isAutonomous) {
-            result.actions.forEach(action => {
-               setTimeout(() => handleConfirmAction(action), 500);
-            });
-          } else {
-            setPendingActions(result.actions);
-          }
+          // The server already executes only the autopilot-safe tools. Every
+          // returned action still needs an explicit decision from the student.
+          setPendingActions(result.actions);
         }
       }
     } catch (err) {
@@ -638,6 +648,7 @@ export default function AIChatComponent({
   const handleConfirmAction = async (action: ToolAction) => {
     setExecutingAction(true);
     let actionResult: any = null;
+    let actionHandled = false;
     try {
       if (action.tool === "open_url") {
         const safeUrl = getSafeExternalUrl(action.args.url);
@@ -655,6 +666,7 @@ export default function AIChatComponent({
           ...prev,
           { role: "assistant", content: msg, tool_calls: [action] },
         ]);
+        actionHandled = true;
       } else if (action.tool === "trigger_jarvis") {
         window.dispatchEvent(new CustomEvent("triggerJarvis", { 
           detail: { message: `Fui invocado por ${title}. ${action.args.reason || '¿En qué puedo ayudarte?'}` } 
@@ -665,8 +677,11 @@ export default function AIChatComponent({
           ...prev,
           { role: "assistant", content: msg, tool_calls: [action] },
         ]);
+        actionHandled = true;
       } else {
-        actionResult = (action as any).workflowId ? await approveStableToolAction(action.tool, action.args) : await confirmAndExecuteTool(action.tool, action.args);
+        actionResult = (action as any).workflowId
+          ? await approveStableToolAction(action.tool, action.args, (action as any).workflowId)
+          : await confirmAndExecuteTool(action.tool, action.args);
         
         if (actionResult?.response || Array.isArray(actionResult?.actions)) {
             if (actionResult.response) {
@@ -674,6 +689,7 @@ export default function AIChatComponent({
               setMessages((prev) => [...prev, { role: "assistant", content: actionResult.response, tool_calls: actionResult.executedActions }]);
             }
             setPendingActions(actionResult.actions?.length ? actionResult.actions : []);
+            actionHandled = true;
         } else if (!actionResult.success && actionResult.data?.suggestions) {
             if (currentSessionId) await addAiMessage(currentSessionId, "assistant", actionResult.message);
             setMessages((prev) => [
@@ -687,6 +703,7 @@ export default function AIChatComponent({
                 requiresConfirm: false
             }));
             setPendingActions(suggestionActions);
+            actionHandled = true;
         } else {
             if (
               actionResult.success &&
@@ -712,25 +729,35 @@ export default function AIChatComponent({
               ...prev,
               { role: "assistant", content: actionResult.message, tool_calls: [action] },
             ]);
+            actionHandled = true;
         }
       }
     } catch (err) {
       setError("Error al ejecutar la acción.");
     } finally {
       setExecutingAction(false);
-      if (!actionResult?.data?.suggestions && !actionResult?.actions?.length) setPendingActions([]);
+      if (actionHandled && !actionResult?.data?.suggestions && !actionResult?.actions?.length) {
+        setPendingActions((previous) => removePendingToolAction(previous, action));
+      }
     }
   };
 
   const handleRejectAction = async (rejectedAction?: ToolAction) => {
-    if (rejectedAction) await cancelStableToolAction(rejectedAction.tool, rejectedAction.args);
-    const msg = "Entendido, no realicé la acción. ¿Necesitas algo más?";
-    if (currentSessionId) await addAiMessage(currentSessionId, "assistant", msg);
-    setMessages((prev) => [
-      ...prev,
-      { role: "assistant", content: msg },
-    ]);
-    setPendingActions([]);
+    try {
+      const result = rejectedAction?.workflowId
+        ? await cancelStableToolAction(rejectedAction.tool, rejectedAction.args, rejectedAction.workflowId)
+        : null;
+      const msg = result?.response || "Entendido, no realicé esa acción.";
+      if (currentSessionId) await addAiMessage(currentSessionId, "assistant", msg);
+      setMessages((prev) => [...prev, { role: "assistant", content: msg }]);
+      if (result?.actions) {
+        setPendingActions(result.actions);
+      } else if (rejectedAction) {
+        setPendingActions((previous) => removePendingToolAction(previous, rejectedAction));
+      }
+    } catch {
+      setError("No se pudo cancelar la acción. Inténtalo nuevamente.");
+    }
   };
 
   const handleOptionSelect = async (option: string) => {
@@ -1009,16 +1036,8 @@ export default function AIChatComponent({
                     </div>
                     {message.tool_calls && message.tool_calls.length > 0 && (
                       <div className="mt-3 flex flex-col gap-2">
-                        {message.tool_calls.map((tc, idx) => (
-                           <div key={idx} className="flex items-center gap-3 p-3 bg-black/20 border border-brand-gold/20 rounded-xl text-xs text-gray-300">
-                             <div className="bg-brand-gold/10 p-1.5 rounded-lg border border-brand-gold/20">
-                               <BrainCircuit className="w-4 h-4 text-brand-gold" />
-                             </div>
-                             <div>
-                               <div className="font-semibold text-brand-gold uppercase tracking-wider text-[10px] mb-0.5">Herramienta Ejecutada</div>
-                               <div className="font-medium">{tc.description || tc.tool}</div>
-                             </div>
-                           </div>
+                        {message.tool_calls.map((toolCall, idx) => (
+                          <UniversalToolCard key={`${toolCall.tool}-${idx}`} action={toolCall} status="completed" />
                         ))}
                       </div>
                     )}
@@ -1064,44 +1083,14 @@ export default function AIChatComponent({
                 className="flex justify-start"
               >
                 <div className="max-w-[85%] md:max-w-[70%] space-y-2">
-                  {pendingActions.map((action, i) => (
-                    <div
-                      key={i}
-                      className="bg-surface-2 rounded-2xl p-4 rounded-tl-sm shadow-lg border border-white/5"
-                    >
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${getToolColor(action.tool)}`}>
-                          {getToolIcon(action.tool)}
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-white flex items-center gap-1.5">
-                            {getToolLabel(action.tool)}
-                            <span className="text-[10px] bg-brand-gold/20 text-brand-gold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Acción</span>
-                          </p>
-                          <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{action.description}</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleConfirmAction(action)}
-                          disabled={executingAction}
-                          className="flex-1 py-2 px-3 bg-brand-gold text-brand-black rounded-xl font-semibold text-sm hover:bg-white transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
-                        >
-                          {executingAction ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <><Check className="w-4 h-4" /> Aceptar</>
-                          )}
-                        </button>
-                        <button
-                          onClick={() => handleRejectAction(action)}
-                          disabled={executingAction}
-                          className="flex-1 py-2 px-3 bg-surface-2 text-gray-300 rounded-xl font-semibold text-sm hover:bg-gray-700 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
-                        >
-                          <XCircle className="w-4 h-4" /> Cancelar
-                        </button>
-                      </div>
-                    </div>
+                  {pendingActions.map((action) => (
+                    <UniversalToolCard
+                      key={universalToolActionKey(action)}
+                      action={action}
+                      busy={executingAction}
+                      onConfirm={(selectedAction) => void handleConfirmAction(selectedAction as ToolAction)}
+                      onCancel={(selectedAction) => void handleRejectAction(selectedAction as ToolAction)}
+                    />
                   ))}
                 </div>
               </motion.div>

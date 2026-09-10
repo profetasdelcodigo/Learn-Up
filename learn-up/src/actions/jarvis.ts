@@ -10,8 +10,9 @@ import { getRegistryToolCatalog, normalizeSkillPacks } from "@/lib/ai/core/tool-
 import { getPersistedSkillPacks, saveSkillPacks } from "@/lib/ai/core/skill-state";
 import { runWorkflowAgent } from "@/lib/ai/workflow-agent";
 import type { ToolMode } from "@/lib/ai/tool-contract";
+import { AI_MODELS } from "@/lib/ai/model-catalog";
 
-const DEFAULT_TEXT_MODEL = "openrouter/openai/gpt-oss-120b:free";
+const DEFAULT_TEXT_MODEL = AI_MODELS.groqFast.id;
 
 const ROUTES = [
   { label: "Aprendamos Juntos", path: "/chat" },
@@ -46,12 +47,20 @@ async function getCurrentRoute() {
   try { return referer ? new URL(referer).pathname : "desconocida"; } catch { return "desconocida"; }
 }
 
+function extractRouteContext(message: string) {
+  const match = message.match(/\[Contexto URL:\s*([^\]]+)\]\s*/i);
+  if (!match) return { route: null, cleanMessage: message };
+  const route = String(match[1] || "").trim();
+  return { route: route.startsWith("/") ? route : null, cleanMessage: message.replace(match[0], "") };
+}
+
 export async function askJarvis(
   message: string,
   history: { role: "user" | "assistant"; content: string | any[] }[] = [],
   mediaUrl?: string,
   mediaType?: string,
   modelId?: string,
+  sessionId?: string | null,
 ): Promise<{ response: string; error?: string; actions?: ToolAction[]; executedActions?: ToolAction[] }> {
   try {
     const supabase = await createClient();
@@ -59,8 +68,9 @@ export async function askJarvis(
     if (!user) return { response: "", error: "No autorizado. Por favor inicia sesión." };
     if (!message.trim() && !mediaUrl) return { response: "", error: "Por favor escribe una solicitud o envía un archivo." };
 
-    const { mode, cleanMessage } = readMode(message, modelId);
-    const currentRoute = await getCurrentRoute();
+    const { mode, cleanMessage: withoutMode } = readMode(message, modelId);
+    const { route: routedContext, cleanMessage } = extractRouteContext(withoutMode);
+    const currentRoute = routedContext || await getCurrentRoute();
     const { data: profile } = await supabase.from("profiles").select("full_name, role").eq("id", user.id).single();
     const { findRelatedConcepts } = await import("@/lib/knowledge-graph");
     const nodes = await findRelatedConcepts(user.id, cleanMessage);
@@ -84,10 +94,11 @@ export async function askJarvis(
     return await runWorkflowAgent(systemPrompt, history.slice(-15), content, selectedModel, {
       mode,
       userId: user.id,
-      sessionId: null,
+      sessionId: sessionId || null,
       aiType: "jarvis",
       maxSteps: 8,
       maxParallelTools: 4,
+      currentRoute,
     });
   } catch (error: any) {
     console.error("Error en askJarvis:", error);
