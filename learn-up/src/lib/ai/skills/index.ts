@@ -19,6 +19,7 @@ import { withFinalLibraryOverrides } from "./library-final-overrides";
 import { withFinalCalendarOverrides } from "./calendar-final-overrides";
 import { withFinalSocialOverrides } from "./social-final-overrides";
 import { withFinalKnowledgeGraphOverrides } from "./knowledge-graph-final-overrides";
+import { withFinalAnalyticsOverrides } from "./analytics-final-overrides";
 import { withExecutableGenerativeTools } from "./execute-generative-result";
 
 function registerSkill(skill: Parameters<typeof aiRegistry.registerSkill>[0]) {
@@ -34,7 +35,7 @@ export function registerAllSkills() {
   registerSkill(withFinalLibraryOverrides(withRealSkillOverrides(librarySkill)));
   registerSkill({ ...withRealSkillOverrides(contentSkill), id: "content_generation" });
   registerSkill(withRealMultimediaOverrides(multimediaSkill));
-  registerSkill(withRealAnalyticsOverrides(analyticsSkill));
+  registerSkill(withFinalAnalyticsOverrides(withRealAnalyticsOverrides(analyticsSkill)));
   registerSkill(withFinalSocialOverrides(profileSocialSkill));
   registerSkill(educationSkill);
 }
