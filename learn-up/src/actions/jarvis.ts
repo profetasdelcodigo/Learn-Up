@@ -8,7 +8,7 @@ import { type ToolAction } from "@/lib/ai-tools";
 import { buildAgentSystemPrompt } from "@/lib/ai/agent-registry";
 import { getRegistryToolCatalog, normalizeSkillPacks } from "@/lib/ai/core/tool-catalog";
 import { getPersistedSkillPacks, saveSkillPacks } from "@/lib/ai/core/skill-state";
-import { runWorkflowAgent } from "@/lib/ai/workflow-agent";
+import { runWorkflowAgent } from "@/lib/ai/workflow-agent-compat";
 import type { ToolMode } from "@/lib/ai/tool-contract";
 import { AI_MODELS } from "@/lib/ai/model-catalog";
 
@@ -33,8 +33,6 @@ function readMode(message: string, explicitModelId?: string): { mode: ToolMode; 
 function normalizeModel(modelId?: string): string {
   const raw = (modelId || DEFAULT_TEXT_MODEL).replace(/::autopilot$/i, "").trim();
   if (!raw) return DEFAULT_TEXT_MODEL;
-
-  // Compatibilidad de entradas antiguas: se redirigen inmediatamente a modelos vigentes.
   const legacyMap: Record<string, string> = {
     "openrouter/free": AI_MODELS.openRouterResearch.id,
     "openrouter/openrouter/free": AI_MODELS.openRouterResearch.id,
@@ -53,10 +51,8 @@ function normalizeModel(modelId?: string): string {
     "groq/llama-3.3-70b-versatile": AI_MODELS.groqReasoning.id,
     "llama-3.3-70b-versatile": AI_MODELS.groqReasoning.id,
   };
-
   if (legacyMap[raw]) return legacyMap[raw];
-  if (raw.startsWith("openrouter/") || raw.startsWith("nvidia/") || raw.startsWith("groq/") || raw.startsWith("gemini/")) return raw;
-  return `openrouter/${raw}`;
+  return raw.startsWith("openrouter/") ? raw : `openrouter/${raw}`;
 }
 
 async function getCurrentRoute() {
@@ -72,14 +68,7 @@ function extractRouteContext(message: string) {
   return { route: route.startsWith("/") ? route : null, cleanMessage: message.replace(match[0], "") };
 }
 
-export async function askJarvis(
-  message: string,
-  history: { role: "user" | "assistant"; content: string | any[] }[] = [],
-  mediaUrl?: string,
-  mediaType?: string,
-  modelId?: string,
-  sessionId?: string | null,
-): Promise<{ response: string; error?: string; actions?: ToolAction[]; executedActions?: ToolAction[] }> {
+export async function askJarvis(message: string, history: { role: "user" | "assistant"; content: string | any[] }[] = [], mediaUrl?: string, mediaType?: string, modelId?: string, sessionId?: string | null): Promise<{ response: string; error?: string; actions?: ToolAction[]; executedActions?: ToolAction[] }> {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -117,6 +106,8 @@ export async function askJarvis(
       maxSteps: 8,
       maxParallelTools: 4,
       currentRoute,
+      mediaUrl: mediaUrl || null,
+      mediaType: mediaType || null,
     });
   } catch (error: any) {
     console.error("Error en askJarvis:", error);
