@@ -22,6 +22,7 @@ import { withFriendRequestOverrides } from "./social-request-override";
 import { withFinalKnowledgeGraphOverrides } from "./knowledge-graph-final-overrides";
 import { withFinalAnalyticsOverrides } from "./analytics-final-overrides";
 import { withFinalContentOverrides } from "./content-final-overrides";
+import { withFinalEducationOverrides } from "./education-final-overrides";
 import { withExecutableGenerativeTools } from "./execute-generative-result";
 
 function registerSkill(skill: Parameters<typeof aiRegistry.registerSkill>[0]) {
@@ -39,7 +40,7 @@ export function registerAllSkills() {
   registerSkill(withRealMultimediaOverrides(multimediaSkill));
   registerSkill(withFinalAnalyticsOverrides(withRealAnalyticsOverrides(analyticsSkill)));
   registerSkill(withFriendRequestOverrides(withFinalSocialOverrides(profileSocialSkill)));
-  registerSkill(educationSkill);
+  registerSkill(withFinalEducationOverrides(educationSkill));
 }
 
 registerAllSkills();
