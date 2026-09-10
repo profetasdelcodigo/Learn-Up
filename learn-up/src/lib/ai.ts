@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import Groq from "groq-sdk";
-import { AI_FALLBACK_CHAIN, AI_MODELS, AI_REASONING_CHAIN, PROVIDER_LABELS, providerOfModel } from "@/lib/ai/model-catalog";
+import { AI_FALLBACK_CHAIN, AI_MODELS, AI_REASONING_CHAIN, PROVIDER_LABELS, providerOfModel, findAIModel } from "@/lib/ai/model-catalog";
 
 const geminiApiKey = process.env.GEMINI_API_KEY || process.env.AI_API_KEY;
 const groqApiKey = process.env.GROQ_API_KEY;
@@ -11,12 +11,10 @@ export { AI_MODELS };
 export const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null;
 export const groq = groqApiKey ? new Groq({ apiKey: groqApiKey }) : null;
 
-const MAX_HISTORY = 10;
-const MAX_CONTEXT_CHARS = 10000;
 const MAX_REMOTE_MEDIA_BYTES = 25 * 1024 * 1024;
 const TIMEOUT_MS = Number(process.env.AI_TEXT_TIMEOUT_MS || 15000);
 const MULTIMODAL_TIMEOUT_MS = Number(process.env.AI_MULTIMODAL_TIMEOUT_MS || 30000);
-const DEFAULT_MAX_OUTPUT = Number(process.env.AI_MAX_OUTPUT_TOKENS || 4096);
+const CONFIGURED_MAX_OUTPUT = Number(process.env.AI_MAX_OUTPUT_TOKENS || 0);
 const PROVIDER_RETRIES = Math.max(0, Number(process.env.AI_PROVIDER_RETRIES || 2));
 const RETRY_BASE_MS = Math.max(100, Number(process.env.AI_RETRY_BASE_MS || 750));
 const MAX_PROVIDER_ATTEMPTS = Math.max(1, Number(process.env.AI_MAX_PROVIDER_ATTEMPTS || 8));
@@ -31,12 +29,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 }
 
 function trimMessages(messages: any[]) {
-  const system = messages.find((m) => m.role === "system");
-  const rest = messages.filter((m) => m.role !== "system").slice(-MAX_HISTORY).map((m) => {
-    if (typeof m.content === "string" && m.content.length > MAX_CONTEXT_CHARS) return { ...m, content: `${m.content.slice(0, MAX_CONTEXT_CHARS)}\n...[Contenido truncado por límite de contexto]...` };
-    return m;
-  });
-  return system ? [system, ...rest] : rest;
+  return messages;
 }
 
 function toTextOnlyMessages(messages: any[]) {
@@ -78,12 +71,18 @@ function groqModelId(model: string) { return model.replace(/^groq\//, ""); }
 function geminiModelId(model: string) { return model.replace(/^gemini\//, ""); }
 function nvidiaModelId(model: string) { return model.replace(/^nvidia\//, ""); }
 
+function maxOutputTokensForModel(model: string): number {
+  const catalogModel = findAIModel(model);
+  const providerMax = catalogModel?.maxOutputTokens || 65_536;
+  return CONFIGURED_MAX_OUTPUT > 0 ? Math.min(CONFIGURED_MAX_OUTPUT, providerMax) : providerMax;
+}
+
 async function openRouterCompletion(messages: any[], model: string, jsonMode = false) {
   if (!openRouterApiKey) throw new Error("OPENROUTER_API_KEY no configurada.");
   const request = await fetchWithTimeout("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${openRouterApiKey}`, "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "https://learn-up-qmgx.onrender.com", "X-Title": "Learn Up" },
-    body: JSON.stringify({ model: openRouterModelId(model), messages: trimMessages(messages), max_tokens: DEFAULT_MAX_OUTPUT, temperature: 0.2, ...(jsonMode ? { response_format: { type: "json_object" } } : {}) }),
+    body: JSON.stringify({ model: openRouterModelId(model), messages: trimMessages(messages), max_tokens: maxOutputTokensForModel(model), temperature: 0.2, ...(jsonMode ? { response_format: { type: "json_object" } } : {}) }),
   });
   const body = await request.text();
   if (!request.ok) throw new Error(`OpenRouter ${request.status}: ${body}`);
@@ -97,7 +96,7 @@ async function groqCompletion(messages: any[], model: string, jsonMode = false) 
   const request = await fetchWithTimeout("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqApiKey}` },
-    body: JSON.stringify({ model: groqModelId(model), messages: toTextOnlyMessages(messages), max_completion_tokens: DEFAULT_MAX_OUTPUT, temperature: 0.2, ...(jsonMode ? { response_format: { type: "json_object" } } : {}) }),
+    body: JSON.stringify({ model: groqModelId(model), messages: toTextOnlyMessages(messages), max_completion_tokens: maxOutputTokensForModel(model), temperature: 0.2, ...(jsonMode ? { response_format: { type: "json_object" } } : {}) }),
   });
   const body = await request.text();
   if (!request.ok) throw new Error(`Groq ${request.status}: ${body}`);
@@ -109,7 +108,7 @@ async function nvidiaCompletion(messages: any[], model: string, jsonMode = false
   const request = await fetchWithTimeout("https://integrate.api.nvidia.com/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${nvidiaApiKey}` },
-    body: JSON.stringify({ model: nvidiaModelId(model), messages: toTextOnlyMessages(messages), max_tokens: DEFAULT_MAX_OUTPUT, temperature: 0.2, ...(jsonMode ? { response_format: { type: "json_object" } } : {}) }),
+    body: JSON.stringify({ model: nvidiaModelId(model), messages: toTextOnlyMessages(messages), max_tokens: maxOutputTokensForModel(model), temperature: 1.0, top_p: 0.95, ...(jsonMode ? { response_format: { type: "json_object" } } : {}) }),
   });
   const body = await request.text();
   if (!request.ok) throw new Error(`NVIDIA ${request.status}: ${body}`);
@@ -157,7 +156,7 @@ async function geminiCompletion(messages: any[], model: string, jsonMode = false
     })) : [{ text: String(message.content || "") }];
     return { role: message.role === "assistant" ? "model" : "user", parts };
   }));
-  const generationConfig: any = { maxOutputTokens: DEFAULT_MAX_OUTPUT };
+  const generationConfig: any = { maxOutputTokens: maxOutputTokensForModel(model) };
   if (jsonMode) generationConfig.responseMimeType = "application/json";
   const result = await withTimeout(generative.generateContent({ contents, generationConfig }), MULTIMODAL_TIMEOUT_MS);
   return { choices: [{ message: { content: result.response.text() } }] };
@@ -231,7 +230,7 @@ export const getGeminiCompletion = async (messages: any[], modelName: string = A
 
 export async function getAIEmbedding(text: string): Promise<number[]> {
   if (!genAI) throw new Error("Gemini AI no está configurado para embeddings.");
-  const model = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
+  const model = genAI.getGenerativeModel({ model: process.env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001" });
   const result = await callWithProviderRetry(() => withTimeout(model.embedContent({ content: { role: "user", parts: [{ text }] } } as any), TIMEOUT_MS));
   return result.embedding.values;
 }
