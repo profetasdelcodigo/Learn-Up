@@ -13,7 +13,7 @@ async function requireUser() {
 
 async function aiText(prompt: string) {
   const { getAICompletion } = await import("@/lib/ai");
-  const result = await getAICompletion([{ role: "user", content: prompt }], "gemini-2.0-flash");
+  const result = await getAICompletion([{ role: "user", content: prompt }], "gemini-3.8-flash");
   return result?.choices?.[0]?.message?.content || "";
 }
 
@@ -33,10 +33,33 @@ async function callGeminiVision(url: string, prompt: string, mimeFallback = "ima
   if (!response.ok) throw new Error(`No se pudo descargar el recurso (${response.status}).`);
   const mime = response.headers.get("content-type") || mimeFallback;
   const bytes = Buffer.from(await response.arrayBuffer());
-  const api = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(key)}`, { method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({contents:[{parts:[{text:prompt},{inline_data:{mime_type:mime,data:bytes.toString("base64")}}]}]})});
-  if (!api.ok) throw new Error(`Gemini multimodal ${api.status}: ${await api.text()}`);
-  const data = await api.json();
-  return data.candidates?.[0]?.content?.parts?.map((p:any)=>p.text||"").join("\n") || "";
+  const models = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash"];
+  let lastError: any;
+  for (const model of models) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const api = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, { method:"POST", headers:{"content-type":"application/json","x-goog-api-key":key}, body:JSON.stringify({contents:[{parts:[{text:prompt},{inline_data:{mime_type:mime,data:bytes.toString("base64")}}]}], generationConfig:{responseMimeType:"text/plain"}})});
+        const body = await api.text();
+        if (!api.ok) {
+          const error = new Error(`Gemini multimodal ${api.status}: ${body}`);
+          lastError = error;
+          if (!/429|500|502|503|504|overload|capacity|temporar|unavailable|rate.?limit/i.test(body)) throw error;
+          await new Promise((resolve) => setTimeout(resolve, 750 * 2 ** attempt));
+          continue;
+        }
+        const data = JSON.parse(body);
+        const text = data.candidates?.[0]?.content?.parts?.map((p:any)=>p.text||"").join("\n") || "";
+        if (text.trim()) return text;
+        lastError = new Error(`Gemini ${model} no devolvió contenido.`);
+        break;
+      } catch (error) {
+        lastError = error;
+        if (!/timeout|network|fetch failed|abort|429|500|502|503|504|temporar|overload|capacity|unavailable/i.test(String((error as any)?.message || error))) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 750 * 2 ** attempt));
+      }
+    }
+  }
+  throw lastError || new Error("Ningún modelo Gemini pudo analizar la imagen.");
 }
 
 export const generateImageTool: ToolDefinition = {
