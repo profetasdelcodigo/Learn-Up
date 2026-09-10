@@ -23,6 +23,7 @@ import { withFinalKnowledgeGraphOverrides } from "./knowledge-graph-final-overri
 import { withFinalAnalyticsOverrides } from "./analytics-final-overrides";
 import { withFinalContentOverrides } from "./content-final-overrides";
 import { withFinalEducationOverrides } from "./education-final-overrides";
+import { withFinalChatOverrides } from "./chat-final-overrides";
 import { withUniversalFinalOverrides } from "./universal-final-overrides";
 import { withExecutableGenerativeTools } from "./execute-generative-result";
 
@@ -34,7 +35,7 @@ export function registerAllSkills() {
   registerSkill(withFinalResearchOverrides(withRealResearchOverrides(withRealSkillOverrides(researchSkill))));
   registerSkill(withFinalCalendarOverrides(calendarSkill));
   registerSkill(withFinalKnowledgeGraphOverrides(knowledgeGraphSkill));
-  registerSkill(withRealSkillOverrides(chatSkill));
+  registerSkill(withFinalChatOverrides(withRealSkillOverrides(chatSkill)));
   registerSkill(chatExtendedSkill);
   registerSkill(withFinalLibraryOverrides(withRealSkillOverrides(librarySkill)));
   registerSkill(withFinalContentOverrides({ ...withRealSkillOverrides(contentSkill), id: "content_generation" }));
