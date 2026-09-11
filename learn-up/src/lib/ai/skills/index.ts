@@ -36,8 +36,16 @@ export function registerAllSkills() {
   registerSkill(withFinalResearchOverrides(withRealResearchOverrides(withRealSkillOverrides(researchSkill))));
   registerSkill(withFinalCalendarReminderOverrides(withFinalCalendarOverrides(calendarSkill)));
   registerSkill(withFinalKnowledgeGraphOverrides(knowledgeGraphSkill));
-  registerSkill(withFinalChatOverrides(withRealSkillOverrides(chatSkill)));
-  registerSkill(chatExtendedSkill);
+
+  const chatWithExtensions = {
+    ...withRealSkillOverrides(chatSkill),
+    tools: [
+      ...withRealSkillOverrides(chatSkill).tools,
+      ...chatExtendedSkill.tools,
+    ],
+  };
+  registerSkill(withFinalChatOverrides(chatWithExtensions));
+
   registerSkill(withFinalLibraryOverrides(withRealSkillOverrides(librarySkill)));
   registerSkill(withFinalContentOverrides({ ...withRealSkillOverrides(contentSkill), id: "content_generation" }));
   registerSkill(withRealMultimediaOverrides(multimediaSkill));
