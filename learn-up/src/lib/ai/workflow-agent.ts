@@ -8,6 +8,7 @@ import { materializeToolResult } from "@/lib/ai/core/materialize-result";
 import { createClient } from "@/utils/supabase/server";
 import { createPendingWorkflow, finishWorkflow, getWorkflow, updateWorkflow } from "@/lib/ai/core/workflow-store";
 import { PROVIDER_LABELS } from "@/lib/ai/model-catalog";
+import { searchUsers } from "@/actions/friendship";
 
 export interface WorkflowRunOptions {
   mode: ToolMode;
@@ -46,6 +47,7 @@ function cleanText(text: string): string {
     .replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, "")
     .replace(/<function_call>[\s\S]*?<\/function_call>/gi, "")
     .replace(/```(?:tool|function_call|json)\s*[\s\S]*?```/gi, "")
+    .replace(/(?:<|\b)CPA_DONE(?:>|\b)/gi, "")
     .replace(/^\s*\{\s*\"(?:tool|function|function_call)\"[\s\S]*?\}\s*$/gim, "")
     .replace(/^\s*#{1,6}\s+/gm, "")
     .replace(/^\s*(?:\*\s*\*\s*\*|-\s*-\s*-|_\s*_\s*_)[ \t]*$/gm, "")
@@ -69,6 +71,11 @@ function extractJsonObjects(raw: string): unknown[] {
   );
   candidates.push(
     ...[...raw.matchAll(/<(?:tool_call|function_call)>\s*([\s\S]*?)\s*<\/(?:tool_call|function_call)>/gi)]
+      .map((match) => match[1].trim())
+      .filter(Boolean),
+  );
+  candidates.push(
+    ...[...raw.matchAll(/(?:^|\n)\s*(?:tool|function)\s*[:=]?\s*(\{[\s\S]*?\})\s*$/gim)]
       .map((match) => match[1].trim())
       .filter(Boolean),
   );
@@ -127,6 +134,45 @@ function normalizeAction(action: ToolAction): ToolAction {
     description: action.description || registered?.description || `Preparando ${tool}`,
     requiresConfirm: registered?.requiresConfirmation ?? action.requiresConfirm,
   };
+}
+
+async function normalizeActionArgs(action: ToolAction, userId: string): Promise<ToolAction> {
+  const normalized = normalizeAction(action);
+  const args = { ...(normalized.args || {}) } as Record<string, any>;
+
+  if (normalized.tool === "send_message" && !args.recipient_id && args.recipient_name) {
+    const recipientName = String(args.recipient_name).trim();
+    const users = await searchUsers(recipientName);
+    const normalizedName = recipientName.toLocaleLowerCase();
+    const exact = users.find((user: any) => String(user?.name || user?.full_name || "").trim().toLocaleLowerCase() === normalizedName)
+      || users.find((user: any) => String(user?.full_name || user?.name || "").toLocaleLowerCase().includes(normalizedName));
+    if (exact?.id) {
+      args.recipient_id = String(exact.id);
+      delete args.recipient_name;
+      return { ...normalized, args, description: normalized.description || `Enviar mensaje a ${exact.full_name || exact.name || recipientName}` };
+    }
+  }
+
+  if (normalized.tool === "send_message" && !args.room_id && !args.recipient_id && args.recipient) {
+    const recipientName = String(args.recipient).trim();
+    const users = await searchUsers(recipientName);
+    const normalizedName = recipientName.toLocaleLowerCase();
+    const exact = users.find((user: any) => String(user?.name || user?.full_name || "").trim().toLocaleLowerCase() === normalizedName)
+      || users.find((user: any) => String(user?.full_name || user?.name || "").toLocaleLowerCase().includes(normalizedName));
+    if (exact?.id) {
+      args.recipient_id = String(exact.id);
+      delete args.recipient;
+      return { ...normalized, args };
+    }
+  }
+
+  if (normalized.tool === "send_message" && !args.content && args.message) {
+    args.content = String(args.message);
+    delete args.message;
+  }
+
+  void userId;
+  return { ...normalized, args };
 }
 
 function extractSources(data: any) {
@@ -380,7 +426,9 @@ async function runCore(currentMessages: any[], model: string, options: WorkflowR
     const raw = response.choices[0]?.message?.content || "";
     const parsed = parseWorkflowToolCalls(raw);
     const text = parsed.cleanText;
-    const actions = parsed.actions.map(normalizeAction).filter((action) => !executedSignatures.has(actionSignature(action)));
+    const actions = (await Promise.all(parsed.actions.map((action) => normalizeActionArgs(action, options.userId))))
+      .map(normalizeAction)
+      .filter((action) => !executedSignatures.has(actionSignature(action)));
     lastText = text;
 
     if (!actions.length) {
