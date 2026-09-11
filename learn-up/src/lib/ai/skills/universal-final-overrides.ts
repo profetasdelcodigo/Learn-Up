@@ -51,13 +51,19 @@ async function materializeInstructionResult(tool: ToolDefinition, result: ToolRe
   const content: any = imageUrl
     ? { role: "user", content: [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: imageUrl } }] }
     : { role: "user", content: prompt };
-  const completion = await getAICompletion([content], AI_MODELS.openRouterResearch.id);
+
+  // Use a currently supported first-class model here. The normal provider layer
+  // may still fall back when this provider is unavailable; we no longer hard-code
+  // OpenRouter as the universal materializer because research/provider outages used
+  // to make otherwise valid Skills fail at their final generation step.
+  const generationModel = AI_MODELS.geminiFast.id;
+  const completion = await getAICompletion([content], generationModel);
   const text = String(completion?.choices?.[0]?.message?.content || "").trim();
   if (!text) return { success: false, error: `La skill ${tool.id} no produjo un resultado final verificable.` };
   return {
     success: true,
     message: result.message || `${tool.name || tool.id} completado.`,
-    data: { ...result.data, content: text, generatedByTool: true, model: completion?._learnUp?.model || AI_MODELS.openRouterResearch.id, contextRole: role },
+    data: { ...result.data, content: text, generatedByTool: true, model: completion?._learnUp?.model || generationModel, contextRole: role },
   };
 }
 
