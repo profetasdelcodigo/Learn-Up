@@ -8,12 +8,13 @@ import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2, ExternalLink, Ca
 import { askJarvis } from "@/actions/jarvis";
 import { approveStableToolAction, cancelStableToolAction } from "@/actions/stable-ai-agents";
 import { getPersistedSkillPacks, saveSkillPacks } from "@/lib/ai/core/skill-state";
-import { ALL_PACKS } from "@/lib/ai/core/tool-catalog";
 import UniversalToolCard, { universalToolActionKey } from "./ai/UniversalToolCard";
 import dynamic from "next/dynamic";
 import ThinkingBlock from "./ai/ThinkingBlock";
 import SkillsDirectoryModal from "./ai/SkillsDirectoryModal";
 import { createClient } from "@/utils/supabase/client";
+
+const DEFAULT_ACTIVE_SKILLS = ["calendar_pack", "chat_pack", "library_pack", "learning_pack", "content_pack", "media_pack", "research_pack", "stats_pack", "profile_pack", "edu_pack"];
 
 const JarvisOrb3D = dynamic(() => import("@/components/3d/JarvisOrb3D"), { 
   ssr: false,
@@ -42,7 +43,7 @@ export default function JarvisGlobalWidget() {
   
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [isSkillsModalOpen, setIsSkillsModalOpen] = useState(false);
-  const [activeSkills, setActiveSkills] = useState<string[]>([...ALL_PACKS]);
+  const [activeSkills, setActiveSkills] = useState<string[]>([...DEFAULT_ACTIVE_SKILLS]);
   const [file, setFile] = useState<File | null>(null);
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);

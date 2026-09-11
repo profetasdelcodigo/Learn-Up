@@ -86,8 +86,9 @@ import { approveStableToolAction, cancelStableToolAction } from "@/actions/stabl
 import SkillsDirectoryModal from "./ai/SkillsDirectoryModal";
 import ThinkingBlock from "./ai/ThinkingBlock";
 import { getPersistedSkillPacks, saveSkillPacks } from "@/lib/ai/core/skill-state";
-import { ALL_PACKS } from "@/lib/ai/core/tool-catalog";
 import UniversalToolCard, { universalToolActionKey } from "./ai/UniversalToolCard";
+
+const DEFAULT_ACTIVE_SKILLS = ["calendar_pack", "chat_pack", "library_pack", "learning_pack", "content_pack", "media_pack", "research_pack", "stats_pack", "profile_pack", "edu_pack"];
 
 interface ToolAction {
   tool: string;
@@ -360,7 +361,7 @@ export default function AIChatComponent({
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [showModelMenu, setShowModelMenu] = useState(false);
   const [selectedModel, setSelectedModel] = useState(defaultModel || "groq/openai/gpt-oss-20b");
-  const [activeSkills, setActiveSkills] = useState<string[]>([...ALL_PACKS]);
+  const [activeSkills, setActiveSkills] = useState<string[]>([...DEFAULT_ACTIVE_SKILLS]);
   const [isSkillsModalOpen, setIsSkillsModalOpen] = useState(false);
   const [hasFileAttached, setHasFileAttached] = useState(false);
 
