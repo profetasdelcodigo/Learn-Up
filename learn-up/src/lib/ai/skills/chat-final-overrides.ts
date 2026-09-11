@@ -1,7 +1,8 @@
 import { z } from "zod";
 import type { Skill, ToolDefinition } from "../core/types";
 import { createClient } from "@/utils/supabase/server";
-import { getUserRooms, getUnreadMessagesCount, sendMessage } from "@/actions/chat";
+import { getUserRooms, getUnreadMessagesCount, sendMessage, ensurePrivateRoom } from "@/actions/chat";
+import { searchUsers } from "@/actions/friendship";
 
 const readUnreadMessages: ToolDefinition = {
   id: "read_unread_messages",
@@ -30,6 +31,51 @@ const readUnreadMessages: ToolDefinition = {
   },
 };
 
+const sendMessageFinal: ToolDefinition = {
+  id: "send_message",
+  category: "chat",
+  description: "Envía un mensaje real a una persona por ID o nombre, o a una sala existente por room_id.",
+  risk: "write",
+  requiresConfirmation: true,
+  supportsAutopilot: false,
+  schema: z.object({
+    recipient_id: z.string().optional(),
+    recipient_name: z.string().min(1).optional(),
+    room_id: z.string().optional(),
+    content: z.string().min(1).optional(),
+    message: z.string().min(1).optional(),
+  }).refine((value) => Boolean(value.room_id || value.recipient_id || value.recipient_name), {
+    message: "Debes indicar room_id, recipient_id o recipient_name.",
+  }).refine((value) => Boolean(value.content || value.message), {
+    message: "Debes indicar el contenido del mensaje.",
+  }),
+  execute: async (args) => {
+    let targetRoomId = args.room_id;
+    const content = args.content || args.message || "";
+
+    if (!targetRoomId && args.recipient_id) {
+      targetRoomId = await ensurePrivateRoom(args.recipient_id);
+    }
+
+    if (!targetRoomId && args.recipient_name) {
+      const query = args.recipient_name.trim();
+      const users = await searchUsers(query);
+      const normalized = query.toLocaleLowerCase();
+      const exact = users.find((user: any) => String(user?.full_name || user?.name || "").trim().toLocaleLowerCase() === normalized)
+        || users.find((user: any) => String(user?.full_name || user?.name || "").toLocaleLowerCase().includes(normalized));
+      if (!exact?.id) {
+        if (!users.length) return { success: false, error: `No encontré un usuario llamado "${query}".` };
+        return { success: false, error: `Encontré varios resultados para "${query}". Necesito que indiques el nombre exacto o el ID.`, data: { suggestions: users.slice(0, 5).map((user: any) => ({ id: user.id, name: user.full_name || user.name, type: "user" })) } };
+      }
+      targetRoomId = await ensurePrivateRoom(String(exact.id));
+    }
+
+    if (!targetRoomId) return { success: false, error: "No pude resolver la conversación de destino." };
+    await sendMessage(targetRoomId, content);
+    return { success: true, message: "Mensaje enviado exitosamente.", data: { room_id: targetRoomId } };
+  },
+};
+
 const startVideoCall: ToolDefinition = {
   id: "start_video_call",
   category: "chat",
@@ -55,8 +101,13 @@ const startVideoCall: ToolDefinition = {
 
 export function withFinalChatOverrides(skill: Skill): Skill {
   if (skill.id !== "chat") return skill;
-  const additions = [readUnreadMessages, startVideoCall];
-  const tools = skill.tools.map((tool) => tool.id === readUnreadMessages.id ? readUnreadMessages : tool.id === startVideoCall.id ? startVideoCall : tool);
+  const additions = [sendMessageFinal, readUnreadMessages, startVideoCall];
+  const tools = skill.tools.map((tool) =>
+    tool.id === sendMessageFinal.id ? sendMessageFinal
+      : tool.id === readUnreadMessages.id ? readUnreadMessages
+      : tool.id === startVideoCall.id ? startVideoCall
+      : tool,
+  );
   for (const tool of additions) if (!tools.some((candidate) => candidate.id === tool.id)) tools.push(tool);
   return { ...skill, tools };
 }
