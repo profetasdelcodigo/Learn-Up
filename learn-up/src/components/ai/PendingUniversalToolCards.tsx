@@ -29,7 +29,7 @@ export default function PendingUniversalToolCards() {
       }
     };
     void tick();
-    const timer = window.setInterval(() => void tick(), 2500);
+    const timer = window.setInterval(() => void tick(), 1500);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
@@ -62,7 +62,7 @@ export default function PendingUniversalToolCards() {
   };
 
   return (
-    <div className="fixed right-4 bottom-4 z-[120] w-[min(420px,calc(100vw-2rem))] space-y-3 pointer-events-none">
+    <div className="fixed right-4 top-24 z-[10050] w-[min(420px,calc(100vw-2rem))] space-y-3 pointer-events-none">
       {actions.map((action) => {
         const key = universalToolActionKey(action);
         return (
