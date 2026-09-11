@@ -232,7 +232,11 @@ async function executeParallel(actions: ToolAction[], options: WorkflowRunOption
   const out: any[] = [];
   let readBatch: ToolAction[] = [];
   const flushReadBatch = async () => {
-    for (let i = 0; i < readBatch.length; i += limit) out.push(...(await Promise.all(readBatch.slice(i, i + limit).map((action) => executeTool(action, options, step))));
+    for (let i = 0; i < readBatch.length; i += limit) {
+      const batch = readBatch.slice(i, i + limit);
+      const results = await Promise.all(batch.map((action) => executeTool(action, options, step)));
+      out.push(...results);
+    }
     readBatch = [];
   };
   for (const action of actions) {
