@@ -8,6 +8,8 @@ import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2, ExternalLink, Ca
 import { askJarvis } from "@/actions/jarvis";
 import { approveStableToolAction, cancelStableToolAction } from "@/actions/stable-ai-agents";
 import { getPersistedSkillPacks, saveSkillPacks } from "@/lib/ai/core/skill-state";
+import { ALL_PACKS } from "@/lib/ai/core/tool-catalog";
+import UniversalToolCard, { universalToolActionKey } from "./ai/UniversalToolCard";
 import dynamic from "next/dynamic";
 import ThinkingBlock from "./ai/ThinkingBlock";
 import SkillsDirectoryModal from "./ai/SkillsDirectoryModal";
@@ -40,7 +42,7 @@ export default function JarvisGlobalWidget() {
   
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [isSkillsModalOpen, setIsSkillsModalOpen] = useState(false);
-  const [activeSkills, setActiveSkills] = useState<string[]>([]);
+  const [activeSkills, setActiveSkills] = useState<string[]>([...ALL_PACKS]);
   const [file, setFile] = useState<File | null>(null);
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -256,7 +258,7 @@ export default function JarvisGlobalWidget() {
       return;
     }
     if (action.workflowId) {
-      const result = await approveStableToolAction(action.tool, action.args || {});
+      const result = await approveStableToolAction(action.tool, action.args || {}, action.workflowId);
       if (result?.response) {
         const actions =
           typeof result === "object" && result !== null && "actions" in result
@@ -271,74 +273,31 @@ export default function JarvisGlobalWidget() {
   };
 
   const renderToolCard = (action: any) => {
-    switch (action.tool) {
-      case "open_url":
-        return (
-          <div className="mt-3 p-3 rounded-xl bg-white/5 border border-cyan-500/30 flex flex-col gap-2">
-            <div className="flex items-center gap-2 text-cyan-400">
-              <ExternalLink className="w-4 h-4" />
-              <span className="text-xs font-bold uppercase tracking-wider">Sugerencia de Enlace</span>
-            </div>
-            <p className="text-sm text-gray-300">{action.args.title || action.args.url}</p>
-            <button 
-              onClick={() => void executeClientAction(action)}
-              className="mt-1 w-full py-2 bg-cyan-500/20 text-cyan-400 rounded-lg text-sm font-semibold hover:bg-cyan-500/30 transition-colors"
-            >
-              Abrir Enlace
-            </button>
-          </div>
-        );
-      case "add_calendar_event":
-        return (
-          <div className="mt-3 p-3 rounded-xl bg-white/5 border border-emerald-500/30 flex flex-col gap-2">
-            <div className="flex items-center gap-2 text-emerald-400">
-              <CalendarPlus className="w-4 h-4" />
-              <span className="text-xs font-bold uppercase tracking-wider">Confirmar Evento</span>
-            </div>
-            <p className="text-sm text-white font-medium">{action.args.title}</p>
-            <p className="text-xs text-gray-400">{action.args.date} {action.args.start_time} - {action.args.end_time}</p>
-            <button onClick={() => void executeClientAction(action)} className="mt-1 w-full py-2 bg-emerald-500/20 text-emerald-400 rounded-lg text-sm font-semibold hover:bg-emerald-500/30 transition-colors">
-              Confirmar y Agendar
-            </button>
-          </div>
-        );
-      case "search_web":
-        return (
-          <div className="mt-3 p-3 rounded-xl bg-white/5 border border-blue-500/30 flex flex-col gap-2">
-            <div className="flex items-center gap-2 text-blue-400">
-              <Search className="w-4 h-4" />
-              <span className="text-xs font-bold uppercase tracking-wider">Búsqueda Web Pendiente</span>
-            </div>
-            <p className="text-sm text-gray-300">¿Deseas que busque "{action.args.query}" en internet?</p>
-            <button onClick={() => void executeClientAction(action)} className="mt-1 w-full py-2 bg-blue-500/20 text-blue-400 rounded-lg text-sm font-semibold hover:bg-blue-500/30 transition-colors">
-              Proceder con la Búsqueda
-            </button>
-          </div>
-        );
-      case "create_exam":
-        return (
-          <div className="mt-3 p-3 rounded-xl bg-white/5 border border-purple-500/30 flex flex-col gap-2">
-            <div className="flex items-center gap-2 text-purple-400">
-              <FileText className="w-4 h-4" />
-              <span className="text-xs font-bold uppercase tracking-wider">Crear Examen</span>
-            </div>
-            <p className="text-sm text-gray-300">Tema: {action.args.topic}</p>
-            <p className="text-xs text-gray-400">Dificultad: {action.args.difficulty} | {action.args.question_count} preguntas</p>
-            <button onClick={() => void executeClientAction(action)} className="mt-1 w-full py-2 bg-purple-500/20 text-purple-400 rounded-lg text-sm font-semibold hover:bg-purple-500/30 transition-colors">
-              Generar y Practicar
-            </button>
-          </div>
-        );
-      default:
-        return (
-          <div className="mt-3 p-3 rounded-xl bg-white/5 border border-brand-gold/30 flex flex-col gap-2">
-            <p className="text-sm text-brand-gold font-medium">{action.description}</p>
-            <button className="mt-1 w-full py-2 bg-brand-gold/20 text-brand-gold rounded-lg text-sm font-semibold hover:bg-brand-gold/30 transition-colors">
-              Ejecutar Acción
-            </button>
-          </div>
-        );
-    }
+    const isPending = action?.requiresConfirm !== false;
+    const handleConfirm = async (selected: any) => {
+      await executeClientAction(selected);
+    };
+    const handleCancel = async (selected: any) => {
+      if (selected?.workflowId) {
+        const result = await cancelStableToolAction(selected.tool, selected.args || {}, selected.workflowId);
+        if (result?.response) {
+          setMessages((prev) => [...prev, { role: "assistant", content: result.response }]);
+        }
+      } else {
+        setMessages((prev) => [...prev, { role: "assistant", content: "Entendido, no realicé esa acción." }]);
+      }
+    };
+
+    return (
+      <UniversalToolCard
+        key={universalToolActionKey(action)}
+        action={action}
+        status={isPending ? "pending" : "completed"}
+        globalRecovery
+        onConfirm={isPending ? (selected) => void handleConfirm(selected) : undefined}
+        onCancel={isPending ? (selected) => void handleCancel(selected) : undefined}
+      />
+    );
   };
 
   if (isHidden) return null;
