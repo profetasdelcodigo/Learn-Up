@@ -86,6 +86,7 @@ import { approveStableToolAction, cancelStableToolAction } from "@/actions/stabl
 import SkillsDirectoryModal from "./ai/SkillsDirectoryModal";
 import ThinkingBlock from "./ai/ThinkingBlock";
 import { getPersistedSkillPacks, saveSkillPacks } from "@/lib/ai/core/skill-state";
+import { ALL_PACKS } from "@/lib/ai/core/tool-catalog";
 import UniversalToolCard, { universalToolActionKey } from "./ai/UniversalToolCard";
 
 interface ToolAction {
@@ -158,7 +159,7 @@ function AIMessageContent({ text }: { text: string }) {
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
-  while ((match = tokenRegex.exec(text)) !== null) {
+  while ((match = tokenRegex.exec(mainText)) !== null) {
     if (match.index > lastIndex) {
       nodes.push(text.slice(lastIndex, match.index));
     }
@@ -359,7 +360,7 @@ export default function AIChatComponent({
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [showModelMenu, setShowModelMenu] = useState(false);
   const [selectedModel, setSelectedModel] = useState(defaultModel || "groq/openai/gpt-oss-20b");
-  const [activeSkills, setActiveSkills] = useState<string[]>([]);
+  const [activeSkills, setActiveSkills] = useState<string[]>([...ALL_PACKS]);
   const [isSkillsModalOpen, setIsSkillsModalOpen] = useState(false);
   const [hasFileAttached, setHasFileAttached] = useState(false);
 
