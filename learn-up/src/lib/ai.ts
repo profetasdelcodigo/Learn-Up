@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import Groq from "groq-sdk";
-import { AI_FALLBACK_CHAIN, AI_MODELS, AI_REASONING_CHAIN, PROVIDER_LABELS, providerOfModel, findAIModel } from "@/lib/ai/model-catalog";
+import { AI_FALLBACK_CHAIN, AI_MODELS, PROVIDER_LABELS, providerOfModel, findAIModel } from "@/lib/ai/model-catalog";
 
 const geminiApiKey = process.env.GEMINI_API_KEY || process.env.AI_API_KEY;
 const groqApiKey = process.env.GROQ_API_KEY;
@@ -40,18 +40,18 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = TIME
 const MODEL_ALIASES: Record<string, string> = {
   "openrouter/free": AI_MODELS.openRouterFree.id,
   "openrouter/openrouter/free": AI_MODELS.openRouterFree.id,
-  "openrouter/openai/gpt-oss-120b:free": AI_MODELS.nexProFree.id,
-  "openrouter/openai/gpt-oss-20b:free": AI_MODELS.nexMiniFree.id,
-  "openai/gpt-oss-120b:free": AI_MODELS.nexProFree.id,
-  "openai/gpt-oss-20b:free": AI_MODELS.nexMiniFree.id,
-  "gemini-3.5-flash": AI_MODELS.geminiLegacy.id,
-  "gemini-3.6-flash": AI_MODELS.geminiBalanced.id,
-  "gemini-3.7-flash": AI_MODELS.geminiAgentic.id,
+  "openrouter/openai/gpt-oss-120b:free": AI_MODELS.openRouterFree.id,
+  "openrouter/openai/gpt-oss-20b:free": AI_MODELS.openRouterFree.id,
+  "openai/gpt-oss-120b:free": AI_MODELS.openRouterFree.id,
+  "openai/gpt-oss-20b:free": AI_MODELS.openRouterFree.id,
+  "gemini-3.5-flash": AI_MODELS.geminiFast.id,
+  "gemini-3.6-flash": AI_MODELS.geminiFast.id,
+  "gemini-3.7-flash": AI_MODELS.geminiFast.id,
   "gemini-3.8-flash": AI_MODELS.geminiFast.id,
   "groq/llama-3.3-70b-versatile": AI_MODELS.groqFast.id,
   "llama-3.3-70b-versatile": AI_MODELS.groqFast.id,
   "nvidia/nemotron-3-ultra-550b-a55b": AI_MODELS.nvidiaSuper.id,
-  "openrouter/nvidia/nemotron-3-ultra-550b-a55b": AI_MODELS.nvidiaSuper.id,
+  "openrouter/nvidia/nemotron-3-ultra-550b-a55b": AI_MODELS.openRouterFree.id,
 };
 
 function coerceModelId(model: unknown): string {
@@ -75,12 +75,12 @@ function coerceModelId(model: unknown): string {
 
 function normalizeModel(model: unknown): string {
   const extracted = coerceModelId(model);
-  const raw = (extracted || AI_MODELS.openRouterFree.id).replace(/::autopilot$/i, "").trim();
+  const raw = (extracted || AI_MODELS.groqFast.id).replace(/::autopilot$/i, "").trim();
   if (MODEL_ALIASES[raw]) return MODEL_ALIASES[raw];
   const catalog = findAIModel(raw);
   if (catalog) return catalog.id;
-  // Bloqueo de seguridad: cualquier ID desconocido/antiguo/de pago termina en un modelo gratuito.
-  return AI_MODELS.openRouterFree.id;
+  if (/^(groq|gemini|nvidia|openrouter)\//.test(raw)) return raw;
+  return AI_MODELS.groqFast.id;
 }
 
 function providerOf(model: unknown) { return providerOfModel(normalizeModel(model)); }
@@ -111,7 +111,11 @@ async function openRouterCompletion(messages: any[], model: string, jsonMode = f
 
 async function groqCompletion(messages: any[], model: string, jsonMode = false) {
   if (!groqApiKey) throw new Error("GROQ_API_KEY no configurada.");
-  const request = await fetchWithTimeout("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqApiKey}` }, body: JSON.stringify({ model: groqModelId(model), messages: toTextOnlyMessages(messages), max_completion_tokens: maxOutputTokensForModel(model), temperature: 0.2, ...(jsonMode ? { response_format: { type: "json_object" } } : {}) }) });
+  const request = await fetchWithTimeout("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqApiKey}` },
+    body: JSON.stringify({ model: groqModelId(model), messages: toTextOnlyMessages(messages), max_completion_tokens: maxOutputTokensForModel(model), temperature: 0.2, ...(jsonMode ? { response_format: { type: "json_object" } } : {}) }),
+  });
   const body = await request.text();
   if (!request.ok) throw new Error(`Groq ${request.status}: ${body}`);
   return JSON.parse(body);
@@ -119,7 +123,11 @@ async function groqCompletion(messages: any[], model: string, jsonMode = false) 
 
 async function nvidiaCompletion(messages: any[], model: string, jsonMode = false) {
   if (!nvidiaApiKey) throw new Error("NVIDIA_API_KEY no configurada.");
-  const request = await fetchWithTimeout("https://integrate.api.nvidia.com/v1/chat/completions", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${nvidiaApiKey}` }, body: JSON.stringify({ model: nvidiaModelId(model), messages: toTextOnlyMessages(messages), max_tokens: maxOutputTokensForModel(model), temperature: 1.0, top_p: 0.95, ...(jsonMode ? { response_format: { type: "json_object" } } : {}) }) });
+  const request = await fetchWithTimeout("https://integrate.api.nvidia.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${nvidiaApiKey}` },
+    body: JSON.stringify({ model: nvidiaModelId(model), messages: toTextOnlyMessages(messages), max_tokens: maxOutputTokensForModel(model), temperature: 1.0, top_p: 0.95, ...(jsonMode ? { response_format: { type: "json_object" } } : {}) }),
+  });
   const body = await request.text();
   if (!request.ok) throw new Error(`NVIDIA ${request.status}: ${body}`);
   return JSON.parse(body);
@@ -172,7 +180,13 @@ async function geminiCompletion(messages: any[], model: string, jsonMode = false
   return { choices: [{ message: { content: result.response.text() } }] };
 }
 
-function providerAvailable(_provider: ReturnType<typeof providerOf>) { return Boolean(openRouterApiKey); }
+function providerAvailable(provider: ReturnType<typeof providerOf>) {
+  if (provider === "groq") return Boolean(groqApiKey);
+  if (provider === "gemini") return Boolean(geminiApiKey);
+  if (provider === "nvidia") return Boolean(nvidiaApiKey);
+  return Boolean(openRouterApiKey);
+}
+
 function isRetryableProviderError(error: any) { const message = String(error?.message || error || "").toLowerCase(); return /timeout|429|rate.?limit|temporar|overload|capacity|503|502|500|unavailable|network|fetch failed|abort|resource.?exhausted|server.?error|internal|model.?not.?found|no endpoints available|does not exist|not available for free|404/.test(message); }
 function retryAfterMs(error: any) { const message = String(error?.message || error || ""); const match = message.match(/retry-after[^\d]*(\d+(?:\.\d+)?)/i) || message.match(/retry in[^\d]*(\d+(?:\.\d+)?)s/i); if (!match) return 0; return Math.min(10000, Math.max(250, Number(match[1]) * (message.match(/retry in/i) ? 1000 : 1))); }
 
@@ -184,23 +198,38 @@ async function callWithProviderRetry<T>(operation: () => Promise<T>): Promise<T>
   throw lastError;
 }
 
-async function completionForModel(messages: any[], model: string, jsonMode: boolean) { return openRouterCompletion(messages, model, jsonMode); }
+async function completionForModel(messages: any[], model: string, jsonMode: boolean) {
+  switch (providerOf(model)) {
+    case "groq": return groqCompletion(messages, model, jsonMode);
+    case "gemini": return geminiCompletion(messages, model, jsonMode);
+    case "nvidia": return nvidiaCompletion(messages, model, jsonMode);
+    case "openrouter": return openRouterCompletion(messages, model, jsonMode);
+  }
+}
 
 export async function getAICompletion(messages: any[], modelName: unknown = AI_MODELS.groqFast.id, jsonMode = false) {
   const requested = normalizeModel(modelName);
-  const candidates = [...new Set([requested, ...AI_FALLBACK_CHAIN])].slice(0, 8);
+  const candidates = [...new Set([requested, ...AI_FALLBACK_CHAIN])].slice(0, MAX_PROVIDER_ATTEMPTS);
   let lastError: any;
-  let attempts = 0;
   for (const candidate of candidates) {
-    if (!providerAvailable(providerOf(candidate))) continue;
-    if (attempts >= MAX_PROVIDER_ATTEMPTS) break;
-    attempts += 1;
+    const provider = providerOf(candidate);
+    if (!providerAvailable(provider)) continue;
     try {
       const result = await callWithProviderRetry(() => completionForModel(messages, candidate, jsonMode));
-      return Object.assign(result, { _learnUp: { requestedModel: requested, model: candidate, provider: "openrouter", providerChanged: candidate !== requested, providerLabel: PROVIDER_LABELS.openrouter } });
-    } catch (error) { lastError = error; }
+      return Object.assign(result, {
+        _learnUp: {
+          requestedModel: requested,
+          model: candidate,
+          provider,
+          providerChanged: candidate !== requested,
+          providerLabel: PROVIDER_LABELS[provider],
+        },
+      });
+    } catch (error) {
+      lastError = error;
+    }
   }
-  throw lastError || new Error("No hay modelos gratuitos de OpenRouter disponibles en este momento.");
+  throw lastError || new Error("No hay un proveedor de IA configurado y disponible para completar la solicitud.");
 }
 
 export async function getNvidiaNIMCompletion(messages: any[], modelName: unknown = AI_MODELS.nvidiaSuper.id, jsonMode = false) { return getAICompletion(messages, modelName, jsonMode); }
