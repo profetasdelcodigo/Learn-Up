@@ -161,7 +161,7 @@ function AIMessageContent({ text }: { text: string }) {
 
   while ((match = tokenRegex.exec(mainText)) !== null) {
     if (match.index > lastIndex) {
-      nodes.push(text.slice(lastIndex, match.index));
+      nodes.push(mainText.slice(lastIndex, match.index));
     }
     const key = `${match.index}-${tokenRegex.lastIndex}`;
     if (match[2]) {

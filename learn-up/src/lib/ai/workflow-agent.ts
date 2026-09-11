@@ -293,10 +293,27 @@ async function runCore(currentMessages: any[], model: string, options: WorkflowR
     }
 
     lastProviderNotice = providerNotice(response);
-    const raw = response.choices[0]?.message?.content || "";
+    const messagePayload: any = response.choices[0]?.message || {};
+    const raw = typeof messagePayload.content === "string" ? messagePayload.content : "";
     const parsed = parseWorkflowToolCalls(raw);
+    const structuredActions: ToolAction[] = Array.isArray(messagePayload.tool_calls)
+      ? messagePayload.tool_calls.flatMap((call: any) => {
+          const name = call?.function?.name || call?.name || call?.tool;
+          if (typeof name !== "string" || !name.trim()) return [];
+          const rawArgs = call?.function?.arguments ?? call?.arguments ?? call?.args ?? {};
+          let args: Record<string, any> = {};
+          try {
+            args = typeof rawArgs === "string" ? JSON.parse(rawArgs) : (rawArgs && typeof rawArgs === "object" ? rawArgs : {});
+          } catch {
+            return [];
+          }
+          return [{ tool: name.trim(), args, description: call?.function?.description || call?.description, requiresConfirm: undefined } as ToolAction];
+        })
+      : [];
+    const mergedParsedActions = [...parsed.actions, ...structuredActions];
+    const dedupedParsedActions = [...new Map(mergedParsedActions.map((action) => [actionSignature(action), action])).values()];
     const text = parsed.cleanText;
-    const actions = (await Promise.all(parsed.actions.map((action) => normalizeActionArgs(action, options.userId)))).map(normalizeAction).filter((action) => !executedSignatures.has(actionSignature(action)));
+    const actions = (await Promise.all(dedupedParsedActions.map((action) => normalizeActionArgs(action, options.userId)))).map(normalizeAction).filter((action) => !executedSignatures.has(actionSignature(action)));
     lastText = text;
 
     if (!actions.length) {
