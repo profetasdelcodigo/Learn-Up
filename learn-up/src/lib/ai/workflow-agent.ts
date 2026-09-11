@@ -62,6 +62,21 @@ function serialize(value: unknown): string {
   }
 }
 
+function legacyConfirmationAction(raw: string): ToolAction | null {
+  const text = String(raw || "");
+  const match = text.match(/(?:mensaje\s+)?pendiente\s+para\s+([^:\n]+):\s*[«“\"]([\s\S]*?)[»”\"]\s*<CPA_DONE>/i);
+  if (!match) return null;
+  const recipient_name = match[1].trim();
+  const content = match[2].trim();
+  if (!recipient_name || !content) return null;
+  return {
+    tool: "send_message",
+    args: { recipient_name, content },
+    description: `Enviar a: ${recipient_name}`,
+    requiresConfirm: true,
+  };
+}
+
 function extractJsonObjects(raw: string): unknown[] {
   const candidates: string[] = [];
   candidates.push(
@@ -97,6 +112,9 @@ function extractJsonObjects(raw: string): unknown[] {
 
 function parseWorkflowToolCalls(raw: string): { cleanText: string; actions: ToolAction[] } {
   const actions: ToolAction[] = [];
+  const legacyAction = legacyConfirmationAction(raw);
+  if (legacyAction) actions.push(legacyAction);
+
   for (const value of extractJsonObjects(raw)) {
     const root: any = value;
     const candidates = [
@@ -355,7 +373,7 @@ async function executeParallel(actions: ToolAction[], options: WorkflowRunOption
   let readBatch: ToolAction[] = [];
   const flushReadBatch = async () => {
     for (let i = 0; i < readBatch.length; i += limit) {
-      out.push(...(await Promise.all(readBatch.slice(i, i + limit).map((action) => executeTool(action, options, step)))));
+      out.push(...(await Promise.all(readBatch.slice(i, i + limit).map((action) => executeTool(action, options, step))));
     }
     readBatch = [];
   };
