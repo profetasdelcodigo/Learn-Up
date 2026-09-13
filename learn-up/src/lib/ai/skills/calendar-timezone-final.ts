@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { Skill, ToolDefinition } from "../core/types";
 import { createClient } from "@/utils/supabase/server";
 
@@ -11,10 +12,8 @@ function toUtcIsoFromLocal(value: unknown) {
   if (typeof value !== "string") return value;
   const trimmed = value.trim();
   if (!trimmed || hasExplicitTimezone(trimmed)) return trimmed;
-
   const match = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?$/.exec(trimmed);
   if (!match) return trimmed;
-
   const [, date, hh, mm, ss = "00"] = match;
   const localAsUtc = Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10)), Number(hh), Number(mm), Number(ss));
   const formatter = new Intl.DateTimeFormat("en-US", {
@@ -28,17 +27,30 @@ function toUtcIsoFromLocal(value: unknown) {
   const zonePart = formatter.formatToParts(new Date(localAsUtc)).find((part) => part.type === "timeZoneName")?.value || "GMT";
   const offsetMatch = /^GMT([+-])(\d{2}):?(\d{2})$/.exec(zonePart);
   if (!offsetMatch) return new Date(localAsUtc).toISOString();
-
   const sign = offsetMatch[1] === "+" ? 1 : -1;
   const offsetMinutes = sign * (Number(offsetMatch[2]) * 60 + Number(offsetMatch[3]));
   return new Date(localAsUtc - offsetMinutes * 60_000).toISOString();
 }
 
+function normalizeLocalParts(date: string, time: string | undefined) {
+  const value = `${date}T${time || "00:00"}:00`;
+  const iso = String(toUtcIsoFromLocal(value));
+  const parsed = new Date(iso);
+  return {
+    date: parsed.toISOString().slice(0, 10),
+    time: parsed.toISOString().slice(11, 19),
+  };
+}
+
 function normalizeCalendarArgs(toolId: string, args: any) {
   const next = { ...args };
   if (toolId === "add_calendar_event") {
-    if (next.start_time) next.start_time = next.start_time.replace(/(?:Z|[+-]\d{2}:?\d{2})$/i, "");
-    if (next.end_time) next.end_time = next.end_time.replace(/(?:Z|[+-]\d{2}:?\d{2})$/i, "");
+    const start = normalizeLocalParts(next.date, next.start_time);
+    const end = normalizeLocalParts(next.date, next.end_time || "09:00");
+    next.date = start.date;
+    next.start_time = start.time;
+    next.end_time = end.time;
+    next.__learnUpTimezoneNormalized = true;
   }
   if (toolId === "update_calendar_event" || toolId === "create_recurring_event") {
     if (next.start_time) next.start_time = toUtcIsoFromLocal(next.start_time);
@@ -64,14 +76,14 @@ const readCalendarLocalTool: ToolDefinition = {
   risk: "read",
   requiresConfirmation: false,
   supportsAutopilot: true,
-  schema: { parse: (value: unknown) => value } as any,
+  schema: z.object({ startDate: z.string(), endDate: z.string() }),
   execute: async (args: any) => {
     const startLocal = `${args.startDate}T00:00:00`;
     const endDate = new Date(`${args.endDate}T00:00:00Z`);
     endDate.setUTCDate(endDate.getUTCDate() + 1);
-    const endLocal = endDate.toISOString().slice(0, 10) + "T00:00:00";
-    const startUtc = toUtcIsoFromLocal(startLocal)!;
-    const endUtc = toUtcIsoFromLocal(endLocal)!;
+    const endLocal = `${endDate.toISOString().slice(0, 10)}T00:00:00`;
+    const startUtc = String(toUtcIsoFromLocal(startLocal));
+    const endUtc = String(toUtcIsoFromLocal(endLocal));
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: "No autenticado" };
