@@ -1,4 +1,4 @@
-export type AIProvider = "groq" | "openrouter" | "gemini" | "nvidia";
+export type AIProvider = "groq" | "openrouter" | "gemini" | "nvidia" | "cloudflare";
 export type AIModality = "text" | "multimodal" | "reasoning";
 
 export interface AIModelDefinition {
@@ -30,6 +30,9 @@ export const AI_MODELS = {
   geminiLegacy: { id: "gemini/gemini-3.8-flash", provider: "gemini", label: "Gemini 3.8 Flash", shortLabel: "Gemini · 3.8 Flash", modality: "multimodal", contextTokens: 1_048_576, maxOutputTokens: 65_536 },
 
   nvidiaSuper: { id: "nvidia/nemotron-3-super-120b-a12b", provider: "nvidia", label: "Nemotron 3 Super 120B", shortLabel: "NVIDIA · Nemotron 3 Super", modality: "reasoning", contextTokens: 1_048_576, maxOutputTokens: 16_384, defaultFor: ["reasoning"] },
+
+  cloudflareGlmFlash: { id: "cloudflare/@cf/zai-org/glm-4.7-flash", provider: "cloudflare", label: "GLM-4.7 Flash", shortLabel: "Cloudflare · GLM-4.7 Flash", modality: "reasoning", contextTokens: 131_072, maxOutputTokens: 32_768, defaultFor: ["fallback", "free-fallback", "long-form"] },
+
   minimaxM3Free: { id: "openrouter/openai/gpt-oss-20b:free", provider: "openrouter", label: "GPT OSS 20B · Gratis", shortLabel: "OpenRouter · GPT OSS 20B", modality: "reasoning", contextTokens: 131_072, maxOutputTokens: 32_768 },
   glmFlashFree: { id: "openrouter/openai/gpt-oss-20b:free", provider: "openrouter", label: "GPT OSS 20B · Gratis", shortLabel: "OpenRouter · GPT OSS 20B", modality: "reasoning", contextTokens: 131_072, maxOutputTokens: 32_768 },
   nexMiniFree: { id: "openrouter/openai/gpt-oss-20b:free", provider: "openrouter", label: "GPT OSS 20B · Gratis", shortLabel: "OpenRouter · GPT OSS 20B", modality: "reasoning", contextTokens: 131_072, maxOutputTokens: 32_768 },
@@ -46,6 +49,7 @@ export const AI_FALLBACK_CHAIN = [
   AI_MODELS.groqReasoning.id,
   AI_MODELS.geminiFast.id,
   AI_MODELS.nvidiaSuper.id,
+  AI_MODELS.cloudflareGlmFlash.id,
   AI_MODELS.openRouterFree.id,
 ] as const;
 
@@ -53,6 +57,7 @@ export const AI_REASONING_CHAIN = [
   AI_MODELS.groqReasoning.id,
   AI_MODELS.nvidiaSuper.id,
   AI_MODELS.geminiAgentic.id,
+  AI_MODELS.cloudflareGlmFlash.id,
   AI_MODELS.groqFast.id,
   AI_MODELS.openRouterResearch.id,
 ] as const;
@@ -62,6 +67,7 @@ export const PROVIDER_LABELS: Record<AIProvider, string> = {
   openrouter: "OpenRouter",
   gemini: "Gemini",
   nvidia: "NVIDIA NIM",
+  cloudflare: "Cloudflare Workers AI",
 };
 
 export function findAIModel(id: string | undefined | null) { return id ? AI_MODEL_OPTIONS.find((model) => model.id === id) : undefined; }
@@ -72,5 +78,6 @@ export function providerOfModel(id: string): AIProvider {
   if (id.startsWith("groq/")) return "groq";
   if (id.startsWith("gemini/")) return "gemini";
   if (id.startsWith("nvidia/")) return "nvidia";
+  if (id.startsWith("cloudflare/")) return "cloudflare";
   return "openrouter";
 }
