@@ -1,5 +1,6 @@
 import { aiRegistry } from "../skills";
 import { APP_ROUTES, getRouteCatalog } from "./route-registry";
+import { inferTaskDomains, taskRoutingSummary, toolMatchesDomains } from "./task-routing";
 
 export const PACK_TO_SKILL: Record<string, string> = {
   calendar_pack: "calendar",
@@ -44,16 +45,23 @@ function schemaKeys(schema: any): string[] {
   }
 }
 
-export function getRegistryToolCatalog(activeSkills: unknown = []): string {
+export function getRegistryToolCatalog(activeSkills: unknown = [], taskText = ""): string {
   const prioritizedPacks = normalizeSkillPacks(activeSkills);
   const priority = new Set(prioritizedPacks.map((pack) => PACK_TO_SKILL[pack]).filter(Boolean));
+  const domains = inferTaskDomains(taskText);
+  const specialized = !domains.includes("general");
 
-  // Universal policy: every agent always receives the complete real registry.
-  // Active skills affect ordering/priority only; they must never hide tools.
-  const tools = aiRegistry
-    .getAllSkills()
-    .sort((a, b) => Number(priority.has(b.id)) - Number(priority.has(a.id)))
-    .flatMap((skill) => skill.tools);
+  const allTools = aiRegistry.getAllSkills().flatMap((skill) => skill.tools);
+  const scopedTools = specialized
+    ? allTools.filter((tool) => toolMatchesDomains(tool, domains))
+    : allTools;
+
+  const tools = [...scopedTools].sort((a, b) => {
+    const aDomain = toolMatchesDomains(a, domains);
+    const bDomain = toolMatchesDomains(b, domains);
+    if (aDomain !== bDomain) return Number(bDomain) - Number(aDomain);
+    return Number(priority.has(b.category)) - Number(priority.has(a.category));
+  });
 
   const catalog = tools
     .map((tool) => {
@@ -64,6 +72,11 @@ export function getRegistryToolCatalog(activeSkills: unknown = []): string {
     .join("\n");
 
   return [
+    `DOMINIOS DETECTADOS PARA ESTA SOLICITUD: ${taskRoutingSummary(taskText)}`,
+    specialized
+      ? "POLÍTICA DE ENRUTAMIENTO: usa únicamente skills/tools que correspondan a los dominios detectados. No investigues, navegues la web ni consultes skills no relacionadas salvo que el usuario lo pida explícitamente o la solicitud contenga varios dominios."
+      : "POLÍTICA DE ENRUTAMIENTO: no fuerces ninguna skill especializada; usa una skill solo cuando la intención del usuario la necesite.",
+    "",
     catalog,
     "",
     "NAVEGACIÓN INTERNA: nunca inventes rutas; usa únicamente estas rutas registradas:",
