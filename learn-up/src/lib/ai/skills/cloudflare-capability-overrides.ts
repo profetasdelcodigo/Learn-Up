@@ -63,6 +63,21 @@ export function withCloudflareCapabilityRouting(skill: Skill): Skill {
     return { success: true, message: `Vídeo generado con Cloudflare Workers AI.\n\n[▶️ Ver vídeo generado](${generated.url})`, data: { url: generated.url, media_url: generated.url, media_type: "video", provider: generated.provider, model: generated.model } };
   });
 
+  override("search_image", async ({ query, orientation }: any) => {
+    const result = await original.get("search_image")?.execute?.({ query, orientation }, undefined as any);
+    if (!result?.success) return result;
+    return {
+      ...result,
+      message: `Encontré ${result?.data?.photos?.length || 0} imágenes reales en Unsplash.\n\nFuente: Unsplash`,
+      data: {
+        ...(result.data || {}),
+        provider: "unsplash",
+        source: "Unsplash",
+        attribution: "Imágenes proporcionadas por Unsplash",
+      },
+    };
+  });
+
   override("analyze_image", async ({ image_url, question }: any) => {
     const result = await cloudflareVision(image_url, question || "Describe con detalle la imagen, extrae texto visible y señala incertidumbres.");
     return { success: true, message: "Imagen analizada con Cloudflare Vision.", data: { analysis: result.text, content: result.text, source: { url: image_url }, provider: result.provider, model: result.model } };
