@@ -10,7 +10,7 @@ import { normalizeSkillPacks } from "@/lib/ai/core/tool-catalog";
 
 export const maxDuration = 90;
 const DEFAULT_OPENROUTER_MODEL = "openrouter/free";
-type Provider = "openrouter" | "groq" | "nvidia" | "google";
+type Provider = "openrouter" | "groq" | "nvidia" | "google" | "cloudflare";
 
 function normalizeModel(value: unknown): { provider: Provider; model: string } {
   const raw = typeof value === "string" ? value.replace(/::autopilot$/i, "").trim() : "";
@@ -19,8 +19,9 @@ function normalizeModel(value: unknown): { provider: Provider; model: string } {
   if (slash > 0) {
     const prefix = raw.slice(0, slash).toLowerCase();
     const model = raw.slice(slash + 1).trim();
-    if (["openrouter", "groq", "nvidia", "google", "gemini"].includes(prefix) && model) {
-      return { provider: prefix === "gemini" ? "google" : (prefix as Exclude<Provider, "google">), model };
+    if (["openrouter", "groq", "nvidia", "google", "gemini", "cloudflare"].includes(prefix) && model) {
+      if (prefix === "gemini") return { provider: "google", model };
+      return { provider: prefix as Exclude<Provider, "google">, model };
     }
   }
   if (raw.startsWith("gemini-")) return { provider: "google", model: raw };
@@ -42,6 +43,15 @@ function createProviderModel(selection: ReturnType<typeof normalizeModel>) {
     const key = process.env.NVIDIA_API_KEY;
     if (!key) throw new Error("NVIDIA_API_KEY no configurada");
     return createOpenAI({ baseURL: "https://integrate.api.nvidia.com/v1", apiKey: key })(selection.model);
+  }
+  if (selection.provider === "cloudflare") {
+    const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+    const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+    if (!accountId || !apiToken) throw new Error("CLOUDFLARE_ACCOUNT_ID/CLOUDFLARE_API_TOKEN no configurados");
+    return createOpenAI({
+      baseURL: `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(accountId)}/ai/v1`,
+      apiKey: apiToken,
+    })(selection.model);
   }
   const key = process.env.GEMINI_API_KEY || process.env.AI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY no configurada");
