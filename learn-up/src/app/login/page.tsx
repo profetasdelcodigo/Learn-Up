@@ -5,7 +5,6 @@ import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Mail, Lock, LogIn, Loader2, Sparkles } from "lucide-react";
-import Link from "next/link";
 import {
   StaggerContainer,
   FadeUpItem,
@@ -41,14 +40,12 @@ export default function LoginPage() {
         : "https://learn-up-qmgx.onrender.com";
 
     if (isNative) {
-      // Retornamos el esquema nativo para que el navegador del sistema sepa volver a la app
       return `com.learnup.app://auth/callback?next=${encodeURIComponent(path)}`;
     }
 
     return `${baseUrl}/auth/callback?next=${encodeURIComponent(path)}`;
   };
 
-  // Pre-fill email if coming from a failed login attempt
   useEffect(() => {
     if (isSignup) {
       const savedEmail = sessionStorage.getItem("prefill_email");
@@ -67,103 +64,44 @@ export default function LoginPage() {
 
     try {
       if (isSignup) {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {},
-            emailRedirectTo: getRedirectUrl("/onboarding"),
-          },
+        const response = await fetch("/api/auth/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
         });
 
-        if (error) throw error;
+        const result = await response.json().catch(() => ({}));
 
-        // If user already existed, signUp returns identities: []
-        if (data?.user && data.user.identities?.length === 0) {
-          setError("Este correo ya está registrado. Por favor, inicia sesión.");
-          setLoading(false);
-          return;
+        if (!response.ok) {
+          throw new Error(result?.error || "No se pudo crear la cuenta.");
         }
 
-        // If email confirmation is disabled in Supabase, session is immediately available
-        if (data?.session) {
-          router.push("/onboarding");
-        } else {
-          // Confirmation email sent
-          setSuccessMsg(
-            "¡Registro exitoso! Revisa tu correo para confirmar tu cuenta.",
-          );
-        }
-      } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (signInError) {
-          if (
-            signInError.message === "Invalid login credentials" ||
-            signInError.message.includes("Invalid login credentials")
-          ) {
-            // Attempt silent signup to see if user just doesn't exist
-            const { data: signUpData, error: signUpError } =
-              await supabase.auth.signUp({
-                email,
-                password,
-                options: {
-                  data: {},
-                  emailRedirectTo: getRedirectUrl("/onboarding"),
-                },
-              });
-
-            if (signUpError) {
-              // If the user already exists, it means the signIn failed because of a WRONG PASSWORD.
-              // Supabase can return 422 or 400 for existing users on signUp depending on settings.
-              if (
-                signUpError.message?.includes("already registered") ||
-                signUpError.message?.includes("User already registered") ||
-                signUpError.status === 422 ||
-                signUpError.status === 400
-              ) {
-                throw new Error("Correo o contraseña incorrectos.");
-              }
-              // If it's a completely different error (network, etc), rethrow it
-              throw signUpError;
-            }
-
-            if (signUpData?.user && signUpData.user.identities?.length === 0) {
-              // Sometimes it doesn't throw but returns empty identities
-              throw new Error("Correo o contraseña incorrectos.");
-            }
-
-            // Successfully created new account
-            if (signUpData?.session) {
-              router.push("/onboarding");
-              return;
-            } else {
-              setSuccessMsg(
-                "¡Cuenta creada! Revisa tu correo para confirmar tu cuenta antes de continuar.",
-              );
-              setLoading(false);
-              return;
-            }
-          }
-          throw signInError;
-        }
-
-        router.push("/dashboard");
+        setSuccessMsg(
+          "¡Cuenta creada! Revisa tu correo y confirma tu dirección para continuar con tu perfil.",
+        );
+        return;
       }
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) {
+        throw signInError;
+      }
+
+      router.push("/dashboard");
     } catch (err: any) {
-      const msg = err.message || "";
+      const msg = err?.message || "";
       if (
-        msg === "User already registered" ||
-        msg.includes("already registered")
+        msg.includes("already registered") ||
+        msg.includes("ya está registrado")
       ) {
         setError("Este correo ya está registrado. Usa 'Inicia sesión'.");
       } else if (
         msg === "Invalid login credentials" ||
-        msg.includes("Invalid login credentials") ||
-        msg.includes("Correo o contraseña incorrectos")
+        msg.includes("Invalid login credentials")
       ) {
         setError("Correo o contraseña incorrectos.");
       } else if (msg.includes("Email not confirmed")) {
@@ -185,7 +123,7 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: getRedirectUrl("/dashboard"),
+          redirectTo: getRedirectUrl("/onboarding"),
         },
       });
       if (error) throw error;
@@ -196,9 +134,7 @@ export default function LoginPage() {
   };
 
   return (
-    /* Fixed full-screen container — independent of MainLayout overflow */
     <div className="fixed inset-0 flex flex-col lg:flex-row overflow-y-auto">
-      {/* Left Side — Branding (hidden on mobile) */}
       <div className="hidden lg:flex lg:w-1/2 relative flex-col items-center justify-center p-12 overflow-hidden border-r border-white/6">
         <div className="absolute inset-0 pointer-events-none" />
 
@@ -222,10 +158,7 @@ export default function LoginPage() {
         </motion.div>
       </div>
 
-      {/* Right Side — Auth Form (scrollable) */}
       <div className="w-full lg:w-1/2 flex-1 min-h-dvh lg:min-h-0 flex items-center justify-center relative overflow-hidden">
-        {/* Mobile background glow fallback removed to use global glows */}
-
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -234,7 +167,6 @@ export default function LoginPage() {
         >
           <div className="glass-strong border border-white/8 rounded-2xl p-8 sm:p-10 shadow-2xl">
             <StaggerContainer delayOffset={0.3}>
-              {/* Header */}
               <FadeUpItem>
                 <div className="text-center mb-8">
                   <h2 className="text-3xl font-bold text-white mb-2 font-display">
@@ -248,7 +180,6 @@ export default function LoginPage() {
                 </div>
               </FadeUpItem>
 
-              {/* Error message */}
               {error && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
@@ -259,7 +190,6 @@ export default function LoginPage() {
                 </motion.div>
               )}
 
-              {/* Success message */}
               {successMsg && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
@@ -270,7 +200,6 @@ export default function LoginPage() {
                 </motion.div>
               )}
 
-              {/* Google OAuth */}
               <FadeUpItem>
                 <button
                   type="button"
@@ -280,28 +209,15 @@ export default function LoginPage() {
                   className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white text-gray-900 font-semibold rounded-xl hover:bg-gray-100 hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed mb-6 font-body"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
-                    <path
-                      fill="currentColor"
-                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                    />
-                    <path
-                      fill="currentColor"
-                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                    />
-                    <path
-                      fill="currentColor"
-                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                    />
-                    <path
-                      fill="currentColor"
-                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                    />
+                    <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                    <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                   </svg>
                   Continuar con Google
                 </button>
               </FadeUpItem>
 
-              {/* Divider */}
               <FadeUpItem>
                 <div className="flex items-center gap-4 mb-6">
                   <div className="flex-1 h-px bg-white/8" />
@@ -310,14 +226,10 @@ export default function LoginPage() {
                 </div>
               </FadeUpItem>
 
-              {/* Email/Password form */}
               <FadeUpItem>
                 <form onSubmit={handleEmailAuth} className="space-y-4">
                   <div>
-                    <label
-                      htmlFor="email-input"
-                      className="block text-sm font-medium text-gray-400 mb-2 font-body"
-                    >
+                    <label htmlFor="email-input" className="block text-sm font-medium text-gray-400 mb-2 font-body">
                       Correo Electrónico
                     </label>
                     <div className="relative">
@@ -337,10 +249,7 @@ export default function LoginPage() {
                   </div>
 
                   <div>
-                    <label
-                      htmlFor="password-input"
-                      className="block text-sm font-medium text-gray-400 mb-2 font-body"
-                    >
+                    <label htmlFor="password-input" className="block text-sm font-medium text-gray-400 mb-2 font-body">
                       Contraseña
                     </label>
                     <div className="relative">
@@ -353,23 +262,14 @@ export default function LoginPage() {
                         onChange={(e) => setPassword(e.target.value)}
                         required
                         minLength={6}
-                        autoComplete={
-                          isSignup ? "new-password" : "current-password"
-                        }
+                        autoComplete={isSignup ? "new-password" : "current-password"}
                         className="input-base pl-12 !rounded-xl"
                         placeholder="••••••••"
                       />
                     </div>
                   </div>
 
-
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    id="submit-auth-btn"
-                    className="btn-primary w-full !rounded-xl"
-                  >
+                  <button type="submit" disabled={loading} id="submit-auth-btn" className="btn-primary w-full !rounded-xl">
                     {loading ? (
                       <Loader2 className="w-5 h-5 animate-spin" />
                     ) : (
@@ -382,28 +282,26 @@ export default function LoginPage() {
                 </form>
               </FadeUpItem>
 
-              {/* Toggle mode */}
               <FadeUpItem>
                 <div className="mt-6 text-center text-sm text-gray-500 font-body">
                   {isSignup ? "¿Ya tienes cuenta?" : "¿No tienes cuenta?"}{" "}
-                  <Link
+                  <a
                     href={isSignup ? "/login" : "/login?mode=signup"}
-                    className="text-brand-gold hover:underline font-semibold"
+                    className="relative z-20 inline-block text-brand-gold hover:underline font-semibold cursor-pointer"
                   >
                     {isSignup ? "Inicia sesión" : "Regístrate"}
-                  </Link>
+                  </a>
                 </div>
               </FadeUpItem>
 
-              {/* Back to home */}
               <FadeUpItem>
                 <div className="mt-4 text-center">
-                  <Link
+                  <a
                     href="/"
-                    className="text-sm text-gray-600 hover:text-gray-400 transition-colors font-body"
+                    className="relative z-20 inline-block text-sm text-gray-600 hover:text-gray-400 transition-colors font-body cursor-pointer"
                   >
                     ← Volver al inicio
-                  </Link>
+                  </a>
                 </div>
               </FadeUpItem>
             </StaggerContainer>
