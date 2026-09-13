@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { motion } from "framer-motion";
 import {
   Bell,
   Bot,
@@ -80,6 +81,19 @@ function labelForTool(tool: string) {
   return labels[tool] || tool.replaceAll("_", " ");
 }
 
+function skillLabel(tool: string) {
+  if (/calendar|event|habit|reminder/i.test(tool)) return "Calendario";
+  if (/search|web|research|paper|news/i.test(tool)) return "Investigación";
+  if (/image|video|audio|tts|transcrib|media/i.test(tool)) return "Multimedia";
+  if (/library|document|file|drive/i.test(tool)) return "Biblioteca";
+  if (/exam|education|exercise|lesson|practice/i.test(tool)) return "Educación";
+  if (/analytic|stat|progress|metric/i.test(tool)) return "Analítica";
+  if (/message|chat|group|friend|social/i.test(tool)) return "Social";
+  if (/concept|knowledge|graph|learned/i.test(tool)) return "Conocimiento";
+  if (/content|generate_document|infographic|script|palette/i.test(tool)) return "Contenido";
+  return "IA";
+}
+
 const statusLabel: Record<UniversalToolStatus, string> = {
   pending: "Requiere confirmación",
   running: "En proceso",
@@ -104,21 +118,32 @@ export default function UniversalToolCard({
   const hasActions = isPending && (onConfirm || onCancel);
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 10, scale: 0.985 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.22, ease: "easeOut" }}
       data-universal-tool-card="true"
       data-pending={isPending ? "true" : "false"}
       data-global-universal-card={globalRecovery ? "true" : "false"}
       className={`bg-surface-2 rounded-2xl p-4 border border-white/5 shadow-lg ${className}`}
     >
       <div className="flex items-start gap-3">
-        <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center border ${colorsForTool(action.tool)}`}>
+        <motion.div
+          initial={{ scale: 0.82, rotate: -6 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ duration: 0.25, ease: "backOut" }}
+          className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center border ${colorsForTool(action.tool)}`}
+        >
           {status === "running" ? <Loader2 className="w-4 h-4 animate-spin" /> : status === "completed" ? <Check className="w-4 h-4" /> : status === "error" ? <XCircle className="w-4 h-4" /> : iconForTool(action.tool)}
-        </div>
+        </motion.div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <p className="text-sm font-bold text-white capitalize">{labelForTool(action.tool)}</p>
             <span className="text-[10px] bg-brand-gold/20 text-brand-gold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
               {statusLabel[status]}
+            </span>
+            <span className="text-[10px] bg-white/5 text-gray-400 px-1.5 py-0.5 rounded-full border border-white/5">
+              {skillLabel(action.tool)}
             </span>
           </div>
           <p className="text-xs text-gray-400 mt-1 leading-relaxed break-words">
@@ -128,7 +153,12 @@ export default function UniversalToolCard({
       </div>
 
       {hasActions && (
-        <div className="flex gap-2 mt-3">
+        <motion.div
+          initial={{ opacity: 0, y: 5 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.06, duration: 0.18 }}
+          className="flex gap-2 mt-3"
+        >
           {onConfirm && (
             <button
               type="button"
@@ -149,8 +179,8 @@ export default function UniversalToolCard({
               <XCircle className="w-4 h-4" /> Cancelar
             </button>
           )}
-        </div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }
