@@ -1,6 +1,6 @@
 import type { Skill, ToolDefinition } from "../core/types";
 import { createClient } from "@/utils/supabase/server";
-import { cloudflareVision, cloudflareTts, cloudflareStt, generateCloudflareImage, generateCloudflareVideo, generateCloudflareImageToVideo } from "@/lib/ai/cloudflare-media";
+import { cloudflareVision, cloudflareTts, cloudflareStt, generateCloudflareImage, generateCloudflareVideo } from "@/lib/ai/cloudflare-media";
 
 async function uploadPublic(buffer: Buffer | ArrayBuffer, mime: string, extension: string, prefix: string) {
   const supabase = await createClient();
@@ -43,24 +43,24 @@ export function withCloudflareCapabilityRouting(skill: Skill): Skill {
   override("generate_image", async ({ prompt, purpose }: any) => {
     const generated = await generateCloudflareImage(`${prompt}${purpose ? `\nPurpose: ${purpose}` : ""}`);
     const url = await uploadDataUrl(generated.url, generated.mediaType, "png", "image");
-    return { success: true, message: "Imagen generada con Cloudflare Workers AI.", data: { url, media_url: url, media_type: "image", provider: generated.provider, model: generated.model } };
+    return { success: true, message: `Imagen generada con Cloudflare Workers AI.\n\n![Imagen generada](${url})`, data: { url, media_url: url, media_type: "image", provider: generated.provider, model: generated.model } };
   });
 
   override("generate_thumbnail", async ({ topic, text }: any) => {
     const generated = await generateCloudflareImage(`Miniatura educativa moderna para: ${topic}. ${text ? `Texto visible: ${text}.` : "Sin texto superpuesto."} Composición 16:9.`, { width: 1280, height: 720, quality: "fast" });
     const url = await uploadDataUrl(generated.url, generated.mediaType, "png", "thumbnail");
-    return { success: true, message: "Miniatura generada con Cloudflare Workers AI.", data: { url, media_url: url, media_type: "image", provider: generated.provider, model: generated.model } };
+    return { success: true, message: `Miniatura generada con Cloudflare Workers AI.\n\n![Miniatura](${url})`, data: { url, media_url: url, media_type: "image", provider: generated.provider, model: generated.model } };
   });
 
   override("generate_ai_profile_avatar", async ({ style, prompt }: any) => {
     const generated = await generateCloudflareImage(`Avatar de perfil ${style}. ${prompt}. Retrato cuadrado, limpio y apropiado para una plataforma educativa.`, { width: 768, height: 768 });
     const url = await uploadDataUrl(generated.url, generated.mediaType, "png", "avatar");
-    return { success: true, message: "Avatar generado con Cloudflare Workers AI.", data: { url, media_url: url, media_type: "image", provider: generated.provider, model: generated.model } };
+    return { success: true, message: `Avatar generado con Cloudflare Workers AI.\n\n![Avatar generado](${url})`, data: { url, media_url: url, media_type: "image", provider: generated.provider, model: generated.model } };
   });
 
   override("generate_video", async ({ prompt, purpose }: any) => {
     const generated = await generateCloudflareVideo(`${prompt}${purpose ? `\nPurpose: ${purpose}` : ""}`);
-    return { success: true, message: "Vídeo generado con Cloudflare Workers AI.", data: { url: generated.url, media_url: generated.url, media_type: "video", provider: generated.provider, model: generated.model } };
+    return { success: true, message: `Vídeo generado con Cloudflare Workers AI.\n\n[▶️ Ver vídeo generado](${generated.url})`, data: { url: generated.url, media_url: generated.url, media_type: "video", provider: generated.provider, model: generated.model } };
   });
 
   override("analyze_image", async ({ image_url, question }: any) => {
@@ -81,7 +81,7 @@ export function withCloudflareCapabilityRouting(skill: Skill): Skill {
   override("text_to_speech", async ({ text }: any) => {
     const generated = await cloudflareTts(text, "es");
     const url = await uploadDataUrl(generated.url, generated.mediaType, "mp3", "tts");
-    return { success: true, message: "Audio generado con Cloudflare MeloTTS.", data: { url, media_url: url, media_type: "audio", provider: generated.provider, model: generated.model } };
+    return { success: true, message: `Audio generado con Cloudflare MeloTTS.\n\n[🔊 Reproducir audio](${url})`, data: { url, media_url: url, media_type: "audio", provider: generated.provider, model: generated.model } };
   });
 
   override("transcribe_audio", async ({ audio_url }: any) => {
