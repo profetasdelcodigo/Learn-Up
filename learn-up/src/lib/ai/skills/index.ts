@@ -32,8 +32,23 @@ import { withElevenLabsTts } from "./elevenlabs-tts";
 import { withCloudflareCapabilityRouting } from "./cloudflare-capability-overrides";
 import { withTaskRoutingGuard } from "./task-routing-guard";
 
+function enforceAutopilotSafety<T extends { tools?: any[] }>(skill: T): T {
+  if (!Array.isArray(skill.tools)) return skill;
+  return {
+    ...skill,
+    tools: skill.tools.map((tool) => ({
+      ...tool,
+      // Autopilot is intentionally read-only. Anything that writes, sends,
+      // deletes, changes external state, or is otherwise non-read must remain
+      // behind the approval card even when the user enabled autopilot.
+      supportsAutopilot: tool?.risk === "read" && tool?.supportsAutopilot === true,
+    })),
+  };
+}
+
 function registerSkill(skill: Parameters<typeof aiRegistry.registerSkill>[0]) {
-  aiRegistry.registerSkill(withUniversalFinalOverrides(withTaskRoutingGuard(withExecutableGenerativeTools(skill))));
+  const guardedSkill = enforceAutopilotSafety(withUniversalFinalOverrides(withTaskRoutingGuard(withExecutableGenerativeTools(skill))));
+  aiRegistry.registerSkill(guardedSkill);
 }
 
 export function registerAllSkills() {
