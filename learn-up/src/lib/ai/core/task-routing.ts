@@ -1,0 +1,52 @@
+import type { ToolDefinition } from "../core/types";
+
+export type TaskDomain = "calendar" | "research" | "multimedia" | "library" | "education" | "analytics" | "social" | "knowledge" | "content" | "general";
+
+const DOMAIN_PATTERNS: Record<Exclude<TaskDomain, "general">, RegExp[]> = {
+  calendar: [/\b(calendario|agenda|agendar|evento|eventos|cita|citas|reuni[oó]n|reuniones|recordatorio|recordatorios|horario|hoy tengo|ma[nñ]ana tengo|esta semana)\b/i],
+  research: [/\b(investiga|investigaci[oó]n|investigar|busca informaci[oó]n|buscar informaci[oó]n|fuentes|art[ií]culos?|papers?|noticias?|actualidad|web|internet|estad[ií]sticas externas?|bibliograf[ií]a|compara fuentes|fact.?check)\b/i],
+  multimedia: [/\b(imagen|im[aá]genes|foto|fotos|fotograf[ií]a|v[ií]deo|video|audio|voz|transcribe|transcripci[oó]n|genera(?:r)? una imagen|crea(?:r)? una imagen|analiza esta imagen|analizar imagen)\b/i],
+  library: [/\b(documento|documentos|archivo|archivos|pdf|apuntes|biblioteca|mis archivos|mi biblioteca|sub[ií] un archivo)\b/i],
+  education: [/\b(examen|ex[aá]menes|cuestionario|ejercicio|ejercicios|tarea|problema matem[aá]tico|profesor|profesor ia|exp[lí]came|explica|estudiar|repasar|practicar)\b/i],
+  analytics: [/\b(progreso|rendimiento|estad[ií]sticas? de mi|analiza mi progreso|analiza mi rendimiento|m[eé]tricas|resumen de actividad|desempe[nñ]o)\b/i],
+  social: [/\b(env[ií]a(?:r)? (un )?mensaje|mand[aá](?:r)? (un )?mensaje|escribe(?:le)?|amigo|amigos|grupo|grupos|chat con|solicitud de amistad|notifica(?:r)?)\b/i],
+  knowledge: [/\b(concepto|conceptos|guarda esto|memoriza|aprende esto|grafo de conocimiento|conecta conceptos|relaciona conceptos|nodos)\b/i],
+  content: [/\b(genera(?:r)? contenido|redacta|escribe(?:me)?|crea(?:r)? un resumen|resumen|guion|presentaci[oó]n|infograf[ií]a|publicaci[oó]n|texto para)\b/i],
+};
+
+const TOOL_DOMAIN_PATTERNS: Record<Exclude<TaskDomain, "general">, RegExp[]> = {
+  calendar: [/calendar|event|habit|reminder|schedule/i],
+  research: [/search_|web|research|paper|news|wikipedia|doi|statistic|legislation|seo/i],
+  multimedia: [/image|video|audio|tts|transcrib|mermaid|podcast|thumbnail|avatar|qr_/i],
+  library: [/library|document|file|drive|notion|knowledge_repository/i],
+  education: [/exam|education|exercise|study|quiz|lesson|practice/i],
+  analytics: [/analytic|stat|progress|metric|performance|dashboard/i],
+  social: [/message|chat|group|friend|social|notify|shared/i],
+  knowledge: [/concept|knowledge|graph|learned/i],
+  content: [/content|generate_document|infographic|script|palette/i],
+};
+
+export function inferTaskDomains(text: string): TaskDomain[] {
+  const value = String(text || "").trim();
+  if (!value) return ["general"];
+  const domains = (Object.entries(DOMAIN_PATTERNS) as Array<[Exclude<TaskDomain, "general">, RegExp[]]>)
+    .filter(([, patterns]) => patterns.some((pattern) => pattern.test(value)))
+    .map(([domain]) => domain);
+  return domains.length ? [...new Set(domains)] : ["general"];
+}
+
+export function toolMatchesDomains(tool: ToolDefinition, domains: TaskDomain[]): boolean {
+  if (domains.includes("general")) return true;
+  const raw = `${tool.id} ${tool.category} ${tool.description || ""}`;
+  const matched = (Object.entries(TOOL_DOMAIN_PATTERNS) as Array<[Exclude<TaskDomain, "general">, RegExp[]]>)
+    .filter(([, patterns]) => patterns.some((pattern) => pattern.test(raw)))
+    .map(([domain]) => domain);
+  if (!matched.length) return domains.includes(tool.category as TaskDomain);
+  return matched.some((domain) => domains.includes(domain));
+}
+
+export function taskRoutingSummary(text: string): string {
+  const domains = inferTaskDomains(text);
+  if (domains.includes("general")) return "general (sin una skill especializada obligatoria)";
+  return domains.join(", ");
+}
