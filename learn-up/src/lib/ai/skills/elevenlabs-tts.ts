@@ -2,28 +2,35 @@ import type { Skill, ToolDefinition } from "../core/types";
 
 const ELEVENLABS_API_URL = "https://api.elevenlabs.io/v1/text-to-speech";
 
-const elevenLabsTts: ToolDefinition = {
+function shouldUseElevenLabs(args: any) {
+  const voice = String(args?.voice || "").toLowerCase();
+  const provider = String(args?.provider || "").toLowerCase();
+  return provider === "elevenlabs" || voice === "jarvis" || voice === "learn-up" || voice === "learnup";
+}
+
+const elevenLabsTts = (fallback?: ToolDefinition["execute"]): ToolDefinition => ({
   id: "text_to_speech",
   category: "multimedia",
-  name: "Voz Learn Up (ElevenLabs)",
-  description: "Convierte texto a voz usando ElevenLabs con la voz configurada para Learn Up.",
+  name: "Voz Learn Up",
+  description: "TTS económico por defecto; ElevenLabs se reserva para voz Jarvis/premium.",
   risk: "write",
   requiresConfirmation: true,
   supportsAutopilot: false,
   schema: {
     parse: (value: unknown) => value,
   } as any,
-  execute: async (args: any) => {
+  execute: async (args: any, context: any) => {
+    if (!shouldUseElevenLabs(args)) {
+      if (fallback) return fallback(args, context);
+      return { success: false, error: "No hay fallback TTS disponible." };
+    }
+
     const apiKey = process.env.ELEVENLABS_API_KEY;
     const voiceId = process.env.ELEVENLABS_VOICE_ID;
     const modelId = process.env.ELEVENLABS_MODEL_ID || "eleven_v3";
 
-    if (!apiKey) {
-      return { success: false, error: "ELEVENLABS_API_KEY no está configurada." };
-    }
-    if (!voiceId) {
-      return { success: false, error: "ELEVENLABS_VOICE_ID no está configurada." };
-    }
+    if (!apiKey) return { success: false, error: "ELEVENLABS_API_KEY no está configurada." };
+    if (!voiceId) return { success: false, error: "ELEVENLABS_VOICE_ID no está configurada." };
 
     const text = String(args?.text || "").trim();
     if (!text) return { success: false, error: "No se proporcionó texto para sintetizar." };
@@ -31,11 +38,7 @@ const elevenLabsTts: ToolDefinition = {
 
     const response = await fetch(`${ELEVENLABS_API_URL}/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`, {
       method: "POST",
-      headers: {
-        "xi-api-key": apiKey,
-        "content-type": "application/json",
-        accept: "audio/mpeg",
-      },
+      headers: { "xi-api-key": apiKey, "content-type": "application/json", accept: "audio/mpeg" },
       body: JSON.stringify({
         text,
         model_id: modelId,
@@ -49,30 +52,17 @@ const elevenLabsTts: ToolDefinition = {
       }),
     });
 
-    if (!response.ok) {
-      const details = await response.text();
-      throw new Error(`ElevenLabs ${response.status}: ${details}`);
-    }
-
+    if (!response.ok) throw new Error(`ElevenLabs ${response.status}: ${await response.text()}`);
     const buffer = Buffer.from(await response.arrayBuffer());
-    return {
-      success: true,
-      message: "Audio generado con ElevenLabs.",
-      data: {
-        base64: buffer.toString("base64"),
-        mimeType: "audio/mpeg",
-        provider: "elevenlabs",
-        model: modelId,
-        voiceId,
-      },
-    };
+    return { success: true, message: "Audio premium generado con ElevenLabs.", data: { base64: buffer.toString("base64"), mimeType: "audio/mpeg", provider: "elevenlabs", model: modelId, voiceId, media_type: "audio" } };
   },
-};
+});
 
 export function withElevenLabsTts(skill: Skill): Skill {
   if (skill.id !== "multimedia") return skill;
+  const base = skill.tools.find((tool) => tool.id === "text_to_speech");
   return {
     ...skill,
-    tools: skill.tools.map((tool) => (tool.id === "text_to_speech" ? elevenLabsTts : tool)),
+    tools: skill.tools.map((tool) => (tool.id === "text_to_speech" ? elevenLabsTts(base?.execute) : tool)),
   };
 }
