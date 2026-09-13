@@ -6,6 +6,8 @@ const geminiApiKey = process.env.GEMINI_API_KEY || process.env.AI_API_KEY;
 const groqApiKey = process.env.GROQ_API_KEY;
 const openRouterApiKey = process.env.OPENROUTER_API_KEY;
 const nvidiaApiKey = process.env.NVIDIA_API_KEY;
+const cloudflareAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+const cloudflareApiToken = process.env.CLOUDFLARE_API_TOKEN;
 
 export { AI_MODELS };
 export const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null;
@@ -79,7 +81,7 @@ function normalizeModel(model: unknown): string {
   if (MODEL_ALIASES[raw]) return MODEL_ALIASES[raw];
   const catalog = findAIModel(raw);
   if (catalog) return catalog.id;
-  if (/^(groq|gemini|nvidia|openrouter)\//.test(raw)) return raw;
+  if (/^(groq|gemini|nvidia|openrouter|cloudflare)\//.test(raw)) return raw;
   return AI_MODELS.groqFast.id;
 }
 
@@ -88,6 +90,7 @@ function openRouterModelId(model: string) { return model.replace(/^openrouter\//
 function groqModelId(model: string) { return model.replace(/^groq\//, ""); }
 function geminiModelId(model: string) { return model.replace(/^gemini\//, ""); }
 function nvidiaModelId(model: string) { return model.replace(/^nvidia\//, ""); }
+function cloudflareModelId(model: string) { return model.replace(/^cloudflare\//, ""); }
 
 function maxOutputTokensForModel(model: string): number {
   const catalogModel = findAIModel(model);
@@ -131,6 +134,26 @@ async function nvidiaCompletion(messages: any[], model: string, jsonMode = false
   const body = await request.text();
   if (!request.ok) throw new Error(`NVIDIA ${request.status}: ${body}`);
   return JSON.parse(body);
+}
+
+async function cloudflareCompletion(messages: any[], model: string, jsonMode = false) {
+  if (!cloudflareAccountId || !cloudflareApiToken) throw new Error("CLOUDFLARE_ACCOUNT_ID/CLOUDFLARE_API_TOKEN no configurados.");
+  const request = await fetchWithTimeout(`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(cloudflareAccountId)}/ai/v1/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${cloudflareApiToken}` },
+    body: JSON.stringify({
+      model: cloudflareModelId(model),
+      messages: toTextOnlyMessages(messages),
+      max_tokens: maxOutputTokensForModel(model),
+      temperature: 0.2,
+      ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
+    }),
+  });
+  const body = await request.text();
+  if (!request.ok) throw new Error(`Cloudflare Workers AI ${request.status}: ${body}`);
+  const data = JSON.parse(body);
+  if (!data?.choices?.[0]?.message) throw new Error("Cloudflare Workers AI devolvió una respuesta sin mensaje.");
+  return data;
 }
 
 async function fetchRemoteMediaBuffer(rawUrl: string): Promise<{ buffer: Buffer; mimeType: string; urlLower: string }> {
@@ -184,6 +207,7 @@ function providerAvailable(provider: ReturnType<typeof providerOf>) {
   if (provider === "groq") return Boolean(groqApiKey);
   if (provider === "gemini") return Boolean(geminiApiKey);
   if (provider === "nvidia") return Boolean(nvidiaApiKey);
+  if (provider === "cloudflare") return Boolean(cloudflareAccountId && cloudflareApiToken);
   return Boolean(openRouterApiKey);
 }
 
@@ -203,6 +227,7 @@ async function completionForModel(messages: any[], model: string, jsonMode: bool
     case "groq": return groqCompletion(messages, model, jsonMode);
     case "gemini": return geminiCompletion(messages, model, jsonMode);
     case "nvidia": return nvidiaCompletion(messages, model, jsonMode);
+    case "cloudflare": return cloudflareCompletion(messages, model, jsonMode);
     case "openrouter": return openRouterCompletion(messages, model, jsonMode);
   }
 }
