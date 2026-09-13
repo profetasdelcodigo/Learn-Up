@@ -127,7 +127,7 @@ export function getToolDefinition(rawName: string): ToolDefinition {
       requiresConfirmation: highRisk || registered.requiresConfirmation || (registered.risk !== "read"),
       externalEffect,
       readOnly,
-      supportsAutopilot: !highRisk && registered.supportsAutopilot === true,
+      supportsAutopilot: !highRisk && readOnly && registered.supportsAutopilot === true,
       supportsParallel: readOnly && isParallelCandidate(name),
       uiType: categoryFor(name),
     };
@@ -171,7 +171,9 @@ export function shouldExecuteTool(
   if (HIGH_RISK.has(name)) return "pending_confirmation";
 
   if (mode === "autopilot") {
-    return definition.supportsAutopilot ? "execute" : "pending_confirmation";
+    // Autopilot may execute only read-only, explicitly autopilot-safe tools.
+    // Any write/external/high-risk action must remain behind user approval.
+    return definition.readOnly && definition.supportsAutopilot ? "execute" : "pending_confirmation";
   }
 
   return definition.requiresConfirmation ? "pending_confirmation" : "execute";
