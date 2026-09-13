@@ -68,7 +68,7 @@ function labelForTool(tool: string) {
     search_documents: "Buscar documentos",
     query_repositories: "Consultar conocimiento",
     generate_image: "Generar imagen",
-    search_image: "Buscar imagen",
+    search_image: "Buscar imagen · Unsplash",
     generate_video: "Generar video",
     generate_document: "Generar documento",
     create_exam: "Crear examen",
