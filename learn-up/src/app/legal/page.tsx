@@ -1,18 +1,18 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowLeft, BookOpen, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { LEGAL_TEXT } from "@/lib/legal-text";
 
 export default function LegalPage() {
   return (
     <div className="min-h-dvh bg-[var(--bg-base)]">
-      {/* ── Header ── */}
       <header className="sticky top-0 z-50 border-b border-white/10 bg-[var(--bg-base)]/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-4xl items-center gap-4 px-4 py-4">
           <Link
-            href="/dashboard/settings"
+            href="/login?mode=signup"
+            aria-label="Volver al registro"
             className="rounded-xl p-2 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -21,25 +21,41 @@ export default function LegalPage() {
             <h1 className="font-display text-xl font-bold text-[var(--foreground)]">
               Marco Legal y Privacidad
             </h1>
-            <p className="text-sm text-gray-500">
-              Learn Up S.A.C.
-            </p>
+            <p className="text-sm text-gray-500">Learn Up S.A.C.</p>
           </div>
         </div>
       </header>
 
-      {/* ── Warning banner ── */}
       <div className="mx-auto max-w-4xl px-4 py-6">
+        <div className="mb-4 flex flex-wrap gap-2">
+          <a
+            href="#terminos"
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-gray-300 hover:bg-white/10 hover:text-white"
+          >
+            Términos de Servicio
+          </a>
+          <a
+            href="#privacidad"
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-gray-300 hover:bg-white/10 hover:text-white"
+          >
+            Política de Privacidad
+          </a>
+          <Link
+            href="/login?mode=signup"
+            className="rounded-lg border border-brand-gold/30 bg-brand-gold/10 px-3 py-2 text-xs font-semibold text-brand-gold hover:bg-brand-gold/15"
+          >
+            Volver al registro
+          </Link>
+        </div>
+
         <div className="flex items-start gap-3 rounded-xl border border-brand-emerald/30 bg-brand-emerald/10 p-4 text-sm text-brand-emerald/90">
           <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />
           <p>
-            Hemos adaptado nuestras políticas para que sean fáciles de entender para estudiantes, 
-            cumpliendo con la normativa de protección al menor (COPPA/GDPR-K).
+            Hemos adaptado nuestras políticas para que sean fáciles de entender para estudiantes, cumpliendo con las protecciones de privacidad que correspondan al servicio.
           </p>
         </div>
       </div>
 
-      {/* ── Content ── */}
       <main className="mx-auto max-w-4xl px-4 pb-20">
         <motion.article
           initial={{ opacity: 0, y: 10 }}
@@ -51,15 +67,40 @@ export default function LegalPage() {
               const trimmed = line.trim();
               if (!trimmed) return <br key={lIdx} />;
 
-              // Headers
-              if (trimmed.startsWith("### "))
-                return <h4 key={lIdx} className="mt-6 mb-2 text-base font-bold text-brand-gold">{trimmed.replace(/^###\s*/, "")}</h4>;
-              if (trimmed.startsWith("## "))
-                return <h3 key={lIdx} className="mt-8 mb-3 text-lg font-bold text-[var(--foreground)]">{trimmed.replace(/^##\s*/, "")}</h3>;
-              if (trimmed.startsWith("# "))
-                return <h2 key={lIdx} className="mt-4 mb-6 text-2xl md:text-3xl font-display font-bold text-[var(--foreground)]">{trimmed.replace(/^#\s*/, "")}</h2>;
+              if (trimmed.startsWith("### ")) {
+                const text = trimmed.replace(/^###\s*/, "");
+                return (
+                  <h4 key={lIdx} className="mt-6 mb-2 text-base font-bold text-brand-gold">
+                    {text}
+                  </h4>
+                );
+              }
 
-              // Bullet lists
+              if (trimmed.startsWith("## ")) {
+                const text = trimmed.replace(/^##\s*/, "");
+                const isPrivacy = text.startsWith("1. Privacidad y Seguridad");
+                return (
+                  <h3
+                    key={lIdx}
+                    id={isPrivacy ? "privacidad" : undefined}
+                    className="scroll-mt-24 mt-8 mb-3 text-lg font-bold text-[var(--foreground)]"
+                  >
+                    {text}
+                  </h3>
+                );
+              }
+
+              if (trimmed.startsWith("# "))
+                return (
+                  <h2
+                    key={lIdx}
+                    id="terminos"
+                    className="scroll-mt-24 mt-4 mb-6 text-2xl md:text-3xl font-display font-bold text-[var(--foreground)]"
+                  >
+                    {trimmed.replace(/^#\s*/, "")}
+                  </h2>
+                );
+
               if (trimmed.startsWith("- ")) {
                 const parts = trimmed.replace(/^- /, "").split("**");
                 if (parts.length > 2) {
@@ -70,20 +111,23 @@ export default function LegalPage() {
                     </li>
                   );
                 }
-                return <li key={lIdx} className="my-2 ml-4 list-disc marker:text-brand-gold">{trimmed.replace(/^- /, "")}</li>;
+                return (
+                  <li key={lIdx} className="my-2 ml-4 list-disc marker:text-brand-gold">
+                    {trimmed.replace(/^- /, "")}
+                  </li>
+                );
               }
 
-              // Italic footers
               if (trimmed.startsWith("*") && trimmed.endsWith("*")) {
-                 return <p key={lIdx} className="mt-8 pt-6 border-t border-white/10 text-xs text-gray-500 italic text-center">{trimmed.replace(/\*/g, "")}</p>
+                return (
+                  <p key={lIdx} className="mt-8 pt-6 border-t border-white/10 text-xs text-gray-500 italic text-center">
+                    {trimmed.replace(/\*/g, "")}
+                  </p>
+                );
               }
 
-              // Dividers
-              if (trimmed.startsWith("---")) {
-                 return null;
-              }
+              if (trimmed.startsWith("---")) return null;
 
-              // Regular paragraph
               return <p key={lIdx} className="my-3 leading-relaxed">{trimmed}</p>;
             })}
           </div>
