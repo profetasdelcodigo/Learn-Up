@@ -56,8 +56,8 @@ export const AI_CAPABILITY_ROUTES: Record<AICapability, CapabilityRoute> = {
   },
   embeddings: {
     capability: "embeddings",
-    primary: [AI_MODELS.cloudflareBgeM3.id],
-    fallbacks: [AI_MODELS.cloudflareQwenEmbedding.id],
+    primary: [AI_MODELS.cloudflareEmbeddingGemma300m.id],
+    fallbacks: [],
   },
 };
 
