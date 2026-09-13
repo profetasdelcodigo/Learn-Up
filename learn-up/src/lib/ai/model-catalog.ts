@@ -59,11 +59,11 @@ export const AI_MODELS = {
 export const AI_MODEL_OPTIONS = Object.values(AI_MODELS).filter((model, index, all) => all.findIndex((item) => item.id === model.id) === index);
 
 export const AI_FALLBACK_CHAIN = [
+  AI_MODELS.cloudflareGlmFlash.id,
   AI_MODELS.groqFast.id,
   AI_MODELS.groqReasoning.id,
   AI_MODELS.geminiFast.id,
   AI_MODELS.nvidiaSuper.id,
-  AI_MODELS.cloudflareGlmFlash.id,
   AI_MODELS.openRouterFree.id,
 ] as const;
 
