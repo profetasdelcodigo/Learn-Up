@@ -28,6 +28,7 @@ import { withFinalEducationOverrides } from "./education-final-overrides";
 import { withFinalChatOverrides } from "./chat-final-overrides";
 import { withUniversalFinalOverrides } from "./universal-final-overrides";
 import { withExecutableGenerativeTools } from "./execute-generative-result";
+import { withElevenLabsTts } from "./elevenlabs-tts";
 
 function registerSkill(skill: Parameters<typeof aiRegistry.registerSkill>[0]) {
   aiRegistry.registerSkill(withUniversalFinalOverrides(withExecutableGenerativeTools(skill)));
@@ -49,7 +50,7 @@ export function registerAllSkills() {
 
   registerSkill(withFinalLibraryOverrides(withRealSkillOverrides(librarySkill)));
   registerSkill(withFinalContentOverrides({ ...withRealSkillOverrides(contentSkill), id: "content_generation" }));
-  registerSkill(withRealMultimediaOverrides(multimediaSkill));
+  registerSkill(withElevenLabsTts(withRealMultimediaOverrides(multimediaSkill)));
   registerSkill(withFinalAnalyticsOverrides(withRealAnalyticsOverrides(analyticsSkill)));
   registerSkill(withFriendRequestOverrides(withFinalSocialOverrides(profileSocialSkill)));
   registerSkill(withFinalEducationOverrides(educationSkill));
