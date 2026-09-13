@@ -12,8 +12,8 @@ export const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null;
 export const groq = groqApiKey ? new Groq({ apiKey: groqApiKey }) : null;
 
 const MAX_REMOTE_MEDIA_BYTES = 25 * 1024 * 1024;
-const TIMEOUT_MS = Number(process.env.AI_TEXT_TIMEOUT_MS || 15000);
-const MULTIMODAL_TIMEOUT_MS = Number(process.env.AI_MULTIMODAL_TIMEOUT_MS || 30000);
+const TIMEOUT_MS = Math.max(30_000, Number(process.env.AI_TEXT_TIMEOUT_MS || 60_000));
+const MULTIMODAL_TIMEOUT_MS = Math.max(45_000, Number(process.env.AI_MULTIMODAL_TIMEOUT_MS || 60_000));
 const CONFIGURED_MAX_OUTPUT = Number(process.env.AI_MAX_OUTPUT_TOKENS || 0);
 const PROVIDER_RETRIES = Math.max(0, Number(process.env.AI_PROVIDER_RETRIES || 2));
 const RETRY_BASE_MS = Math.max(100, Number(process.env.AI_RETRY_BASE_MS || 750));
