@@ -24,6 +24,7 @@ import OfflineDetector from "@/components/OfflineDetector";
 import DeepLinkHandler from "@/components/DeepLinkHandler";
 import ShareModal from "@/components/ShareModal";
 import JarvisGlobalWidget from "@/components/JarvisGlobalWidget";
+import JarvisElevenLabsBridge from "@/components/JarvisElevenLabsBridge";
 import PendingUniversalToolCards from "@/components/ai/PendingUniversalToolCards";
 import ThemeProvider from "@/components/ThemeProvider";
 
@@ -93,32 +94,33 @@ export default function RootLayout({
             <DeepLinkHandler />
             <MainLayout>{children}</MainLayout>
             <ShareModal />
+            <JarvisElevenLabsBridge />
             <JarvisGlobalWidget />
             <PendingUniversalToolCards />
           </SmoothScroll>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": ["EducationalOrganization", "WebApplication"],
-              name: "Learn Up",
-              url: "https://learn-up-qmgx.onrender.com",
-              logo: "https://learn-up-qmgx.onrender.com/favicon.svg",
-              description:
-                "La plataforma educativa del futuro impulsada por Inteligencia Artificial. Estudia en cualquier lugar del mundo, resuelve exámenes a medida y crea salas de estudio.",
-              applicationCategory: "EducationalApplication",
-              operatingSystem: "All",
-            }),
-          }}
-        />
-        {process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID && (
-          <Script
-            src="https://cloud.umami.is/script.js"
-            data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
-            strategy="afterInteractive"
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": ["EducationalOrganization", "WebApplication"],
+                name: "Learn Up",
+                url: "https://learn-up-qmgx.onrender.com",
+                logo: "https://learn-up-qmgx.onrender.com/favicon.svg",
+                description:
+                  "La plataforma educativa del futuro impulsada por Inteligencia Artificial. Estudia en cualquier lugar del mundo, resuelve exámenes a medida y crea salas de estudio.",
+                applicationCategory: "EducationalApplication",
+                operatingSystem: "All",
+              }),
+            }}
           />
-        )}
+          {process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID && (
+            <Script
+              src="https://cloud.umami.is/script.js"
+              data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
+              strategy="afterInteractive"
+            />
+          )}
         </ThemeProvider>
       </body>
     </html>
