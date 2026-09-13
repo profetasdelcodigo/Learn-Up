@@ -471,7 +471,27 @@ export default function OnboardingPage() {
                         onChange={(e) => setFormData({ ...formData, acceptTerms: e.target.checked })}
                         className="mt-1 shrink-0 accent-brand-gold w-4 h-4 rounded" 
                       />
-                      <label htmlFor="terms" className="leading-tight">Acepto los <a href="/legal" target="_blank" className="text-brand-gold hover:underline">Términos de Servicio y Política de Privacidad</a>.</label>
+                      <div className="leading-tight">
+                        <span>Acepto los </span>
+                        <a
+                          href="/legal#terminos"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="relative z-20 text-brand-gold hover:underline"
+                        >
+                          Términos de Servicio
+                        </a>
+                        <span> y la </span>
+                        <a
+                          href="/legal#privacidad"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="relative z-20 text-brand-gold hover:underline"
+                        >
+                          Política de Privacidad
+                        </a>
+                        <span>.</span>
+                      </div>
                     </div>
 
                     <div className="flex items-start gap-3">
