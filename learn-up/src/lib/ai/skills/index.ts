@@ -30,9 +30,10 @@ import { withUniversalFinalOverrides } from "./universal-final-overrides";
 import { withExecutableGenerativeTools } from "./execute-generative-result";
 import { withElevenLabsTts } from "./elevenlabs-tts";
 import { withCloudflareCapabilityRouting } from "./cloudflare-capability-overrides";
+import { withTaskRoutingGuard } from "./task-routing-guard";
 
 function registerSkill(skill: Parameters<typeof aiRegistry.registerSkill>[0]) {
-  aiRegistry.registerSkill(withUniversalFinalOverrides(withExecutableGenerativeTools(skill)));
+  aiRegistry.registerSkill(withUniversalFinalOverrides(withTaskRoutingGuard(withExecutableGenerativeTools(skill))));
 }
 
 export function registerAllSkills() {
