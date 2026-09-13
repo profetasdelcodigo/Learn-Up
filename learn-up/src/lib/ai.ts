@@ -20,6 +20,7 @@ const CONFIGURED_MAX_OUTPUT = Number(process.env.AI_MAX_OUTPUT_TOKENS || 0);
 const PROVIDER_RETRIES = Math.max(0, Number(process.env.AI_PROVIDER_RETRIES || 2));
 const RETRY_BASE_MS = Math.max(100, Number(process.env.AI_RETRY_BASE_MS || 750));
 const MAX_PROVIDER_ATTEMPTS = Math.max(1, Number(process.env.AI_MAX_PROVIDER_ATTEMPTS || 8));
+const EMBEDDING_DIMENSIONS = 768;
 
 function sleep(ms: number) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 
@@ -156,6 +157,26 @@ async function cloudflareCompletion(messages: any[], model: string, jsonMode = f
   return data;
 }
 
+async function cloudflareEmbedding(text: string): Promise<number[]> {
+  if (!cloudflareAccountId || !cloudflareApiToken) throw new Error("Cloudflare Workers AI no está configurado para embeddings.");
+  const request = await fetchWithTimeout(`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(cloudflareAccountId)}/ai/v1/embeddings`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${cloudflareApiToken}` },
+    body: JSON.stringify({
+      model: AI_MODELS.cloudflareEmbeddingGemma300m.id.replace(/^cloudflare\//, ""),
+      input: text,
+    }),
+  });
+  const body = await request.text();
+  if (!request.ok) throw new Error(`Cloudflare Workers AI embeddings ${request.status}: ${body}`);
+  const data = JSON.parse(body);
+  const embedding = data?.data?.[0]?.embedding || data?.result?.data?.[0]?.embedding;
+  if (!Array.isArray(embedding) || embedding.length !== EMBEDDING_DIMENSIONS) {
+    throw new Error(`Cloudflare devolvió un embedding incompatible (${Array.isArray(embedding) ? embedding.length : 0} dimensiones; se esperan ${EMBEDDING_DIMENSIONS}).`);
+  }
+  return embedding.map((value: unknown) => Number(value));
+}
+
 async function fetchRemoteMediaBuffer(rawUrl: string): Promise<{ buffer: Buffer; mimeType: string; urlLower: string }> {
   const url = new URL(rawUrl);
   if (url.protocol !== "https:") throw new Error("Solo se permiten archivos HTTPS para análisis multimodal.");
@@ -262,10 +283,33 @@ export const getGroqCompletion = async (messages: any[], modelName: unknown = AI
 export const getGeminiCompletion = async (messages: any[], modelName: unknown = AI_MODELS.geminiFast.id, jsonMode = false) => getAICompletion(messages, modelName, jsonMode);
 
 export async function getAIEmbedding(text: string): Promise<number[]> {
-  if (!genAI) throw new Error("Gemini AI no está configurado para embeddings.");
-  const model = genAI.getGenerativeModel({ model: process.env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001" });
-  const result = await callWithProviderRetry(() => withTimeout(model.embedContent({ content: { role: "user", parts: [{ text }] } } as any), TIMEOUT_MS));
-  return result.embedding.values;
+  let geminiError: unknown = null;
+
+  if (genAI) {
+    try {
+      const model = genAI.getGenerativeModel({ model: process.env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001" });
+      const result = await callWithProviderRetry(() => withTimeout(model.embedContent({ content: { role: "user", parts: [{ text }] } } as any), TIMEOUT_MS));
+      const values = result.embedding?.values;
+      if (!Array.isArray(values) || values.length !== EMBEDDING_DIMENSIONS) {
+        throw new Error(`Gemini devolvió un embedding incompatible (${Array.isArray(values) ? values.length : 0} dimensiones; se esperan ${EMBEDDING_DIMENSIONS}).`);
+      }
+      return values.map((value: unknown) => Number(value));
+    } catch (error) {
+      geminiError = error;
+    }
+  }
+
+  if (cloudflareAccountId && cloudflareApiToken) {
+    try {
+      return await callWithProviderRetry(() => cloudflareEmbedding(text));
+    } catch (cloudflareError: any) {
+      const geminiMessage = geminiError instanceof Error ? geminiError.message : String(geminiError || "Gemini no disponible");
+      const cloudflareMessage = cloudflareError?.message || String(cloudflareError);
+      throw new Error(`No se pudo generar el embedding. Gemini: ${geminiMessage}. Cloudflare: ${cloudflareMessage}`);
+    }
+  }
+
+  throw geminiError instanceof Error ? geminiError : new Error("No hay un proveedor de embeddings configurado. Configura Gemini o Cloudflare Workers AI.");
 }
 
 export const fetchRemoteMediaBufferForAI = fetchRemoteMediaBuffer;
