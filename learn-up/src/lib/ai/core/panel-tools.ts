@@ -34,7 +34,7 @@ export const panelTools=[
     }
   },
   {
-    name:"add_advisor_goal", description:"Añade un objetivo real al panel Objetivos de Hoy de Consejero.", requiresConfirmation:true, externalEffect:true, supportsAutopilot:true,
+    name:"add_advisor_goal", description:"Añade un objetivo real al panel Objetivos de Hoy de Consejero.", requiresConfirmation:true, externalEffect:true, supportsAutopilot:false,
     schema:z.object({title:z.string().min(1).max(300)}),
     execute:async({title}:{title:string})=>{
       const {supabase,user}=await authContext();
@@ -44,7 +44,7 @@ export const panelTools=[
     }
   },
   {
-    name:"complete_advisor_goal", description:"Marca un objetivo real del panel Consejero como completado.", requiresConfirmation:true, externalEffect:true, supportsAutopilot:true,
+    name:"complete_advisor_goal", description:"Marca un objetivo real del panel Consejero como completado.", requiresConfirmation:true, externalEffect:true, supportsAutopilot:false,
     schema:z.object({goal_id:z.string().uuid(),completed:z.boolean().default(true)}),
     execute:async({goal_id,completed}:{goal_id:string;completed:boolean})=>{
       const {supabase,user}=await authContext();
@@ -74,7 +74,7 @@ export const panelTools=[
     }
   },
   {
-    name:"save_nutrition_recipe", description:"Guarda una receta real en el panel de Nutrirecetas.", requiresConfirmation:true, externalEffect:true, supportsAutopilot:true,
+    name:"save_nutrition_recipe", description:"Guarda una receta real en el panel de Nutrirecetas.", requiresConfirmation:true, externalEffect:true, supportsAutopilot:false,
     schema:z.object({name:z.string().min(1).max(200),description:z.string().max(2000).optional(),ingredients:z.any(),macros:z.any().optional()}),
     execute:async({name,description,ingredients,macros}:{name:string;description?:string;ingredients:unknown;macros?:unknown})=>{
       const {supabase,user}=await authContext();
@@ -84,7 +84,7 @@ export const panelTools=[
     }
   },
   {
-    name:"add_nutrition_shopping_item", description:"Añade un producto real a la lista Compras de Nutrirecetas.", requiresConfirmation:true, externalEffect:true, supportsAutopilot:true,
+    name:"add_nutrition_shopping_item", description:"Añade un producto real a la lista Compras de Nutrirecetas.", requiresConfirmation:true, externalEffect:true, supportsAutopilot:false,
     schema:z.object({name:z.string().min(1).max(200),quantity:z.union([z.string(),z.number()]).optional(),unit:z.string().optional()}),
     execute:async({name,quantity,unit}:{name:string;quantity?:string|number;unit?:string})=>{
       const {supabase,user}=await authContext();
@@ -95,7 +95,7 @@ export const panelTools=[
     }
   },
   {
-    name:"set_nutrition_week_plan", description:"Configura una entrada real del plan semanal de Nutrirecetas.", requiresConfirmation:true, externalEffect:true, supportsAutopilot:true,
+    name:"set_nutrition_week_plan", description:"Configura una entrada real del plan semanal de Nutrirecetas.", requiresConfirmation:true, externalEffect:true, supportsAutopilot:false,
     schema:z.object({weekday:z.number().int().min(0).max(6),recipe_id:z.string().uuid().optional(),recipe_name:z.string().max(200).optional()}),
     execute:async({weekday,recipe_id,recipe_name}:{weekday:number;recipe_id?:string;recipe_name?:string})=>{
       const {supabase,user}=await authContext();
