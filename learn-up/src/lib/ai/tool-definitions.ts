@@ -6,16 +6,16 @@ import { panelTools } from "./core/panel-tools";
 import { extractSources, finishToolEvent, startToolEvent } from "./core/tool-event-log";
 
 const PACK_TO_SKILL: Record<string, string> = {
-  calendar_pack: "calendar_pack",
-  chat_pack: "chat_pack",
-  library_pack: "library_pack",
-  learning_pack: "learning_pack",
-  content_pack: "content_pack",
-  media_pack: "media_pack",
-  research_pack: "research_pack",
-  stats_pack: "stats_pack",
-  profile_pack: "profile_pack",
-  edu_pack: "edu_pack",
+  calendar_pack: "calendar",
+  chat_pack: "chat",
+  library_pack: "library",
+  learning_pack: "knowledge-graph",
+  content_pack: "content_generation",
+  media_pack: "multimedia",
+  research_pack: "research",
+  stats_pack: "analytics",
+  profile_pack: "social",
+  edu_pack: "education",
 };
 
 const ALL_PACKS = Object.keys(PACK_TO_SKILL);
