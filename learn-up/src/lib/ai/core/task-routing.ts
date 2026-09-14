@@ -26,6 +26,11 @@ const TOOL_DOMAIN_PATTERNS: Record<Exclude<TaskDomain, "general">, RegExp[]> = {
   content: [/content|generate_document|infographic|script|palette/i],
 };
 
+function matchesDomain(value: string, domain: TaskDomain): boolean {
+  if (domain === "general") return true;
+  return TOOL_DOMAIN_PATTERNS[domain].some((pattern) => pattern.test(value));
+}
+
 export function inferTaskDomains(text: string): TaskDomain[] {
   const value = String(text || "").trim();
   if (!value) return ["general"];
@@ -37,12 +42,21 @@ export function inferTaskDomains(text: string): TaskDomain[] {
 
 export function toolMatchesDomains(tool: ToolDefinition, domains: TaskDomain[]): boolean {
   if (domains.includes("general")) return true;
-  const raw = `${tool.id} ${tool.category} ${tool.description || ""}`;
-  const matched = (Object.entries(TOOL_DOMAIN_PATTERNS) as Array<[Exclude<TaskDomain, "general">, RegExp[]]>)
-    .filter(([, patterns]) => patterns.some((pattern) => pattern.test(raw)))
-    .map(([domain]) => domain);
-  if (!matched.length) return domains.includes(tool.category as TaskDomain);
-  return matched.some((domain) => domains.includes(domain));
+
+  // First classify from stable identifiers/category. This prevents a tool from
+  // being pulled into an unrelated domain merely because its prose description
+  // mentions another capability (for example, a calendar tool mentioning a web
+  // link or a research tool mentioning a document).
+  const identity = `${tool.id} ${tool.category}`;
+  const identityMatches = domains.filter((domain) => matchesDomain(identity, domain));
+  if (identityMatches.length) return true;
+
+  // Only use the description as a fallback when the identity has no known
+  // domain. This keeps discovery useful for legacy tools without allowing prose
+  // to override the primary classification.
+  const description = String(tool.description || "");
+  if (!identity.trim() || !domains.length) return false;
+  return domains.some((domain) => matchesDomain(description, domain));
 }
 
 export function taskRoutingSummary(text: string): string {
