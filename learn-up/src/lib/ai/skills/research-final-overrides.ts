@@ -91,12 +91,18 @@ const deepResearchFinal: ToolDefinition = {
         }
       }
     }
-    if (!gathered.length) return { success: false, error: "La investigación no obtuvo evidencia web verificable." };
+    if (gathered.length < 5) {
+      return {
+        success: false,
+        error: `La investigación profunda no alcanzó el mínimo de 5 fuentes únicas verificables (obtuvo ${gathered.length}).`,
+        data: { searches, evidenceCount: gathered.length, sources: gathered.map(({ title, url, query, provider }) => ({ title, url, query, provider })) },
+      };
+    }
     const evidence = gathered.slice(0, 40);
     const report = await synthesize(
       [
         `Investiga rigurosamente el tema "${topic}" usando exclusivamente la evidencia web recuperada.`,
-        `Se realizaron ${searches} búsquedas diferenciadas.`,
+        `Se realizaron ${searches} búsquedas diferenciadas y se verificaron ${evidence.length} fuentes únicas.`,
         "Estructura: hallazgos principales; evidencia convergente; discrepancias; perspectivas alternativas; limitaciones; conclusión.",
         "No inventes cifras, autores, fechas, fuentes ni URLs. Señala explícitamente cualquier punto no verificable.",
         "EVIDENCIA:",
