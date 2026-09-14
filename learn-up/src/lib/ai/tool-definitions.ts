@@ -6,31 +6,26 @@ import { panelTools } from "./core/panel-tools";
 import { extractSources, finishToolEvent, startToolEvent } from "./core/tool-event-log";
 
 const PACK_TO_SKILL: Record<string, string> = {
-  calendar_pack: "calendar",
-  chat_pack: "chat",
-  library_pack: "library",
-  learning_pack: "knowledge-graph",
-  content_pack: "content_generation",
-  media_pack: "multimedia",
-  research_pack: "research",
-  stats_pack: "analytics",
-  profile_pack: "social",
-  edu_pack: "education",
+  calendar_pack: "calendar_pack",
+  chat_pack: "chat_pack",
+  library_pack: "library_pack",
+  learning_pack: "learning_pack",
+  content_pack: "content_pack",
+  media_pack: "media_pack",
+  research_pack: "research_pack",
+  stats_pack: "stats_pack",
+  profile_pack: "profile_pack",
+  edu_pack: "edu_pack",
 };
 
 const ALL_PACKS = Object.keys(PACK_TO_SKILL);
 
 export function normalizeSkillPackIds(activeSkills: string[] = []): string[] {
-  const ids = activeSkills
-    .map((value) => String(value || "").trim())
-    .filter(Boolean)
-    .map((value) => value in PACK_TO_SKILL ? value : Object.entries(PACK_TO_SKILL).find(([, skillId]) => skillId === value)?.[0] || value);
+  const ids = activeSkills.map((value) => String(value || "").trim()).filter(Boolean).map((value) => value in PACK_TO_SKILL ? value : Object.entries(PACK_TO_SKILL).find(([, skillId]) => skillId === value)?.[0] || value);
   return [...new Set(ids)].filter((id) => ALL_PACKS.includes(id));
 }
 
 function selectedRegistryTools(_activeSkills: string[] = []) {
-  // Universal policy: skill selection is contextual/prioritization metadata,
-  // never a hard gate that makes a real skill disappear from an agent.
   return aiRegistry.getAllSkills().flatMap((skill) => skill.tools);
 }
 
@@ -46,27 +41,19 @@ function argsWithRuntimeContext(toolId: string, args: any, runtime?: { mediaUrl?
   return effective;
 }
 
-export function buildToolsForAgent(
-  agentTools: AiToolDefinition[],
-  isAutonomous: boolean,
-  userId: string,
-  agentId?: string,
-  activeSkills: string[] = [],
-  runtime?: { sessionId?: string | null; currentRoute?: string | null; mediaUrl?: string | null; mediaType?: string | null },
-): Record<string, any> {
+export function buildToolsForAgent(agentTools: AiToolDefinition[], isAutonomous: boolean, userId: string, agentId?: string, activeSkills: string[] = [], runtime?: { sessionId?: string | null; currentRoute?: string | null; mediaUrl?: string | null; mediaType?: string | null }): Record<string, any> {
   const vercelTools: Record<string, any> = {};
   const registryTools = selectedRegistryTools(activeSkills);
   const toolDefs = new Map<string, any>();
-
-  // Keep the panel's explicitly declared capabilities, but let the universal
-  // registry provide every registered skill to every AI agent.
   for (const registeredTool of registryTools) toolDefs.set(registeredTool.id, { kind: "registry", definition: registeredTool });
   for (const panelTool of panelTools) if (!toolDefs.has(panelTool.name)) toolDefs.set(panelTool.name, { kind: "panel", definition: panelTool });
 
   for (const [toolId, entry] of toolDefs.entries()) {
     if (entry.kind === "registry") {
       const registeredTool = entry.definition;
-      const shouldAutoExecute = isAutonomous ? registeredTool.supportsAutopilot : !registeredTool.requiresConfirmation;
+      const shouldAutoExecute = isAutonomous
+        ? registeredTool.risk === "read" && registeredTool.supportsAutopilot === true && registeredTool.requiresConfirmation === false
+        : registeredTool.requiresConfirmation === false;
       const execute = async (args: any, executionOptions?: any) => {
         const invocationId = executionOptions?.toolCallId || crypto.randomUUID();
         const effectiveArgs = argsWithRuntimeContext(registeredTool.id, args, runtime);
@@ -84,14 +71,12 @@ export function buildToolsForAgent(
           return { success: false, error: message };
         }
       };
-      vercelTools[toolId] = (tool as any)({
-        description: registeredTool.description,
-        inputSchema: registeredTool.schema,
-        ...(shouldAutoExecute && registeredTool.execute ? { execute } : {}),
-      });
+      vercelTools[toolId] = (tool as any)({ description: registeredTool.description, inputSchema: registeredTool.schema, ...(shouldAutoExecute && registeredTool.execute ? { execute } : {}) });
     } else {
       const panel = entry.definition;
-      const shouldAutoExecute = isAutonomous ? panel.supportsAutopilot !== false : !panel.requiresConfirmation;
+      const shouldAutoExecute = isAutonomous
+        ? panel.supportsAutopilot === true && panel.requiresConfirmation === false && panel.externalEffect === false
+        : panel.requiresConfirmation === false;
       vercelTools[toolId] = (tool as any)({
         description: panel.description,
         inputSchema: panel.schema,
