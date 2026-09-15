@@ -101,7 +101,7 @@ export default function MainLayout({
     <div className={`flex w-full ${isFullscreen ? "h-dvh overflow-hidden" : "min-h-dvh"}`}>
       <NotificationManager />
       <WelcomeTutorial />
-      <SessionHeartbeat />
+      {showNav && <SessionHeartbeat />}
 
       <div
         className="fixed right-4 z-[100] flex flex-col gap-2 pointer-events-none"
