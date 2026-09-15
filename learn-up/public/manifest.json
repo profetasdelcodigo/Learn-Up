@@ -1,11 +1,11 @@
 {
   "name": "Learn Up",
   "short_name": "Learn Up",
-  "description": "Plataforma educativa integral y red social.",
+  "description": "Learn Up, la plataforma educativa del futuro.",
   "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#D4AF37",
+  "background_color": "#09090D",
+  "theme_color": "#8B5CF6",
   "orientation": "portrait",
   "icons": [
     {

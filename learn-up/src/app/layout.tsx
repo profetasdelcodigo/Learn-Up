@@ -30,7 +30,7 @@ import ThemeProvider from "@/components/ThemeProvider";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://learn-up-qmgx.onrender.com"),
-  title: "Learn Up | La Plataforma Educativa Global del Futuro",
+  title: "Learn Up | La plataforma educativa del futuro",
   description:
     "Aprende con IA. Salas en vivo, exámenes a medida y más. ¡Gratis!",
   keywords: [
@@ -41,11 +41,10 @@ export const metadata: Metadata = {
     "plataforma educativa colaborativa",
     "Learn Up",
     "generador de exámenes IA",
-    "estudio global",
   ],
   authors: [{ name: "Learn Up Team" }],
   openGraph: {
-    title: "Learn Up | La Plataforma Educativa Global del Futuro",
+    title: "Learn Up | La plataforma educativa del futuro",
     description:
       "Aprende con IA. Salas en vivo, exámenes a medida y más. ¡Gratis!",
     url: "https://learn-up-qmgx.onrender.com",
@@ -57,13 +56,13 @@ export const metadata: Metadata = {
         url: "/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "Learn Up - La Plataforma Educativa Global del Futuro",
+        alt: "Learn Up - La plataforma educativa del futuro",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Learn Up | La Plataforma Educativa Global del Futuro",
+    title: "Learn Up | La plataforma educativa del futuro",
     description:
       "Aprende con IA. Salas en vivo, exámenes a medida y más. ¡Gratis!",
     images: ["/og-image.jpg"],
