@@ -73,9 +73,23 @@ export default function LoginPage() {
           throw new Error(result?.error || "No se pudo crear la cuenta.");
         }
 
-        setSuccessMsg(
-          "¡Cuenta creada! Revisa tu correo y confirma tu dirección para continuar con tu perfil.",
-        );
+        // The server creates and auto-confirms the account. Sign in immediately
+        // so the new user can complete onboarding with a real authenticated session.
+        const { data, error: signInError } =
+          await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+
+        if (signInError) {
+          throw signInError;
+        }
+
+        if (!data.session) {
+          throw new Error("No se pudo establecer la sesión después del registro.");
+        }
+
+        window.location.replace("/onboarding");
         return;
       }
 
