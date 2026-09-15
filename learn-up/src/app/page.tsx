@@ -6,26 +6,34 @@ import { BookOpen, Users, Brain, Calendar, LogIn } from "lucide-react";
 
 export default function Home() {
   const features = [
-    { icon: Brain, label: "Tutores IA 24/7", tone: "purple" },
-    { icon: Users, label: "Aprende en Grupo", tone: "emerald" },
+    { icon: Brain, label: "Tutores IA 24/7", tone: "gold" },
+    { icon: Users, label: "Aprende en Grupo", tone: "blue" },
     { icon: Calendar, label: "Organiza tu Tiempo", tone: "neutral" },
     { icon: BookOpen, label: "Biblioteca Digital", tone: "neutral" },
   ];
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-[#09090D] text-white">
+    <div className="fixed inset-0 overflow-hidden bg-[#08090D] text-white">
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-[20%] -left-[10%] h-[800px] w-[800px] rounded-full bg-violet-400/10 blur-[160px]" />
-        <div className="absolute -bottom-[20%] -right-[10%] h-[720px] w-[720px] rounded-full bg-emerald-400/[0.07] blur-[170px]" />
+        {/* Dominant diagonal brand glows: warm upper-left / cool lower-right */}
+        <div className="absolute -left-[18%] -top-[22%] h-[900px] w-[900px] rounded-full bg-[#F0C850]/[0.14] blur-[170px]" />
+        <div className="absolute -bottom-[24%] -right-[18%] h-[900px] w-[900px] rounded-full bg-[#38BDF8]/[0.12] blur-[180px]" />
+
+        {/* Very subtle opposite-corner echoes */}
+        <div className="absolute -right-[24%] -top-[24%] h-[650px] w-[650px] rounded-full bg-[#38BDF8]/[0.025] blur-[170px]" />
+        <div className="absolute -bottom-[24%] -left-[24%] h-[650px] w-[650px] rounded-full bg-[#F0C850]/[0.02] blur-[170px]" />
+
+        {/* Keep the center intentionally almost black */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(8,9,13,0.1)_0%,rgba(8,9,13,0.62)_52%,rgba(8,9,13,0.9)_100%)]" />
+
         <div
-          className="absolute inset-0 opacity-[0.018]"
+          className="absolute inset-0 opacity-[0.016]"
           style={{
             backgroundImage:
               "linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px)",
             backgroundSize: "64px 64px",
           }}
         />
-        <div className="absolute inset-x-0 top-0 h-56 bg-gradient-to-b from-white/[0.03] to-transparent" />
       </div>
 
       <div className="relative z-10 flex h-full w-full flex-col items-center justify-center px-4">
@@ -41,7 +49,7 @@ export default function Home() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-4 py-2 backdrop-blur-xl"
           >
-            <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+            <span className="h-2 w-2 animate-pulse rounded-full bg-[#38BDF8]" />
             <span className="font-body text-sm text-white/65">Plataforma educativa con IA</span>
           </motion.div>
 
@@ -52,7 +60,7 @@ export default function Home() {
             className="mb-5 font-display text-6xl font-bold tracking-tight text-white sm:text-7xl md:text-8xl"
           >
             Learn {" "}
-            <span className="bg-gradient-to-r from-violet-300 via-violet-200 to-emerald-300 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-[#F0C850] via-[#F4D97A] to-[#38BDF8] bg-clip-text text-transparent">
               Up
             </span>
           </motion.h1>
@@ -75,10 +83,10 @@ export default function Home() {
             {features.map((feature, index) => {
               const Icon = feature.icon;
               const toneClass =
-                feature.tone === "purple"
-                  ? "text-violet-300"
-                  : feature.tone === "emerald"
-                    ? "text-emerald-300"
+                feature.tone === "gold"
+                  ? "text-[#F0C850]"
+                  : feature.tone === "blue"
+                    ? "text-[#38BDF8]"
                     : "text-white/45";
 
               return (
@@ -104,8 +112,8 @@ export default function Home() {
           >
             <Link href="/login?mode=signin">
               <motion.button
-                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-500 to-emerald-400 px-10 py-4 font-display text-base font-bold text-white shadow-[0_14px_40px_rgba(139,92,246,0.18)] transition-all duration-300 sm:w-auto"
-                whileHover={{ scale: 1.025, boxShadow: "0 16px 48px rgba(139,92,246,0.24)" }}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#F0C850] to-[#38BDF8] px-10 py-4 font-display text-base font-bold text-[#08090D] shadow-[0_14px_40px_rgba(240,200,80,0.14)] transition-all duration-300 sm:w-auto"
+                whileHover={{ scale: 1.025, boxShadow: "0 16px 48px rgba(56,189,248,0.2)" }}
                 whileTap={{ scale: 0.975 }}
               >
                 <LogIn className="h-5 w-5" />
@@ -114,7 +122,7 @@ export default function Home() {
             </Link>
             <Link href="/login?mode=signup">
               <motion.button
-                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.035] px-10 py-4 font-display text-base font-semibold text-white/80 backdrop-blur-xl transition-all duration-300 hover:border-violet-300/25 hover:bg-white/[0.06] sm:w-auto"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.035] px-10 py-4 font-display text-base font-semibold text-white/80 backdrop-blur-xl transition-all duration-300 hover:border-[#F0C850]/25 hover:bg-white/[0.06] sm:w-auto"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.975 }}
               >
