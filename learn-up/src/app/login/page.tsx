@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Mail, Lock, LogIn, Loader2, Sparkles } from "lucide-react";
 import {
@@ -12,8 +11,6 @@ import {
 import { Capacitor } from "@capacitor/core";
 
 export default function LoginPage() {
-  const router = useRouter();
-
   const [isSignup, setIsSignup] = useState(false);
 
   useEffect(() => {
@@ -82,16 +79,23 @@ export default function LoginPage() {
         return;
       }
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { data, error: signInError } =
+        await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
       if (signInError) {
         throw signInError;
       }
 
-      router.push("/dashboard");
+      if (!data.session) {
+        throw new Error("No se pudo establecer la sesión.");
+      }
+
+      // Forzar una navegación real después del login para que el proxy/middleware
+      // reciba inmediatamente las cookies de sesión recién actualizadas.
+      window.location.replace("/dashboard");
     } catch (err: any) {
       const msg = err?.message || "";
       if (
