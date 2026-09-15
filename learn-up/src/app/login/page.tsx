@@ -127,7 +127,10 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: getRedirectUrl("/onboarding"),
+          // Send every Google login to the normal authenticated entry point.
+          // The middleware only sends genuinely incomplete profiles to onboarding,
+          // while completed accounts go straight to the dashboard.
+          redirectTo: getRedirectUrl("/dashboard"),
         },
       });
       if (error) throw error;
