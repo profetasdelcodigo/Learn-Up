@@ -1,23 +1,4 @@
-import { Resend } from "resend";
-import ConfirmSignupEmail from "@/emails/confirmSignup";
 import { createAdminClient } from "@/utils/supabase/admin";
-
-const productionSiteUrl = "https://learn-up-qmgx.onrender.com";
-
-function getSiteUrl(request: Request) {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (configured) return configured.replace(/\/$/, "");
-
-  const forwardedHost = request.headers.get("x-forwarded-host");
-  const forwardedProto = request.headers.get("x-forwarded-proto") || "https";
-  if (forwardedHost) return `${forwardedProto}://${forwardedHost}`;
-
-  try {
-    return new URL(request.url).origin;
-  } catch {
-    return productionSiteUrl;
-  }
-}
 
 function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -41,7 +22,6 @@ export async function POST(request: Request) {
     }
 
     const supabase = createAdminClient();
-    const resendApiKey = process.env.RESEND_API_KEY;
 
     if (!supabase) {
       return Response.json(
@@ -50,20 +30,15 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!resendApiKey) {
-      return Response.json(
-        { error: "El servicio de correo no está configurado correctamente." },
-        { status: 500 },
-      );
-    }
-
-    const { data, error } = await supabase.auth.admin.generateLink({
-      type: "signup",
+    // Create the account server-side and auto-confirm the email so the demo flow
+    // can continue directly to onboarding without a verification email.
+    const { data, error } = await supabase.auth.admin.createUser({
       email,
       password,
+      email_confirm: true,
     });
 
-    if (error || !data?.properties?.action_link) {
+    if (error || !data?.user) {
       const message = error?.message || "No se pudo crear la cuenta.";
       const alreadyRegistered = /already registered|already exists|email.*exists|user.*exists/i.test(message);
 
@@ -74,37 +49,11 @@ export async function POST(request: Request) {
         );
       }
 
-      console.error("Signup generateLink error:", error);
+      console.error("Signup createUser error:", error);
       return Response.json({ error: "No se pudo crear la cuenta." }, { status: 500 });
     }
 
-    const siteUrl = getSiteUrl(request);
-    const redirectTo = `${siteUrl}/auth/callback?next=${encodeURIComponent("/onboarding")}`;
-    const confirmationUrl = new URL(data.properties.action_link);
-    confirmationUrl.searchParams.set("redirect_to", redirectTo);
-
-    const resend = new Resend(resendApiKey);
-    const from = process.env.RESEND_FROM_EMAIL?.trim() || "Learn Up <bienvenida@learnup.app>";
-
-    const { error: emailError } = await resend.emails.send({
-      from,
-      to: email,
-      subject: "Confirma tu correo para entrar a Learn Up 🎓",
-      react: ConfirmSignupEmail({
-        recipientEmail: email,
-        confirmationUrl: confirmationUrl.toString(),
-      }),
-    });
-
-    if (emailError) {
-      console.error("Resend signup confirmation error:", emailError);
-      return Response.json(
-        { error: "La cuenta fue creada, pero no pudimos enviar el correo de confirmación. Intenta solicitarlo de nuevo." },
-        { status: 502 },
-      );
-    }
-
-    return Response.json({ ok: true });
+    return Response.json({ ok: true, userId: data.user.id });
   } catch (error) {
     console.error("Unexpected signup error:", error);
     return Response.json({ error: "Ocurrió un error inesperado al crear la cuenta." }, { status: 500 });
