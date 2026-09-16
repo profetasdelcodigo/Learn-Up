@@ -97,6 +97,11 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return new Response("Unauthorized", { status: 401 });
 
+    const rawMessages = Array.isArray(messages) ? messages : [];
+    if (rawMessages.length === 0) {
+      return new Response("No se puede iniciar el chat sin un mensaje.", { status: 400 });
+    }
+
     const persisted = hasExplicitSkills ? explicitSkills : await getPersistedSkillPacks(sessionId);
     if (hasExplicitSkills) await Promise.all([saveSkillPacks(persisted, sessionId), saveSkillPacks(persisted)]);
 
@@ -106,7 +111,10 @@ export async function POST(req: Request) {
     const model = createProviderModel(selection);
     const systemPrompt = `Eres "${agentConfig.name}".\nPROPÓSITO: ${agentConfig.purpose}\nRUTA ACTUAL REAL: ${currentRoute}\nPROVEEDOR/MODELO ACTUAL: ${selection.provider}/${selection.model}\nSKILLS ACTIVAS: ${persisted.join(", ") || "ninguna seleccionada"}\n\nREGLAS DE EJECUCIÓN:\n- Usa únicamente herramientas expuestas por el servidor.\n- Nunca inventes URLs, rutas, resultados, fuentes, IDs ni acciones completadas.\n- Una solicitud puede utilizar múltiples skills y múltiples herramientas en varias rondas.\n- Continúa hasta terminar, hasta necesitar datos del estudiante o hasta que una acción requiera autorización.\n- En modo manual, las acciones que requieran confirmación no deben ejecutarse silenciosamente.\n- En piloto automático, ejecuta únicamente herramientas compatibles con autopilot.\n- Si faltan datos o existe ambigüedad, pregunta al estudiante.\n- No muestres JSON de herramientas, function calls, prompts internos ni sintaxis de implementación.\n- Las fuentes deben provenir de resultados reales de herramientas.\n\nSEGURIDAD DEL AGENTE:\n${agentConfig.safety.map((r) => `- ${r}`).join("\n")}`;
     const tools = buildToolsForAgent(agentConfig.tools, isAutonomous === true, user.id, agentId, persisted, { sessionId, currentRoute, mediaUrl, mediaType });
-    const modelMessages = await convertToModelMessages(messages || []);
+    const modelMessages = await convertToModelMessages(rawMessages);
+    if (modelMessages.length === 0) {
+      return new Response("No se encontraron mensajes utilizables para el chat.", { status: 400 });
+    }
     const result = streamText({ model, system: systemPrompt, messages: modelMessages, tools: tools as any, stopWhen: stepCountIs(8), onError: ({ error }) => console.error("[CHAT] stream error:", error) });
     return result.toUIMessageStreamResponse();
   } catch (error: any) {
