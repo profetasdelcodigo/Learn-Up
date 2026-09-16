@@ -253,6 +253,28 @@ async function completionForModel(messages: any[], model: string, jsonMode: bool
   }
 }
 
+function repairCommonJsonSyntax(raw: string): string {
+  // Some providers occasionally serialize a property as: "questions", ":", [...].
+  // Repair only this narrow malformed-property pattern; leave valid JSON untouched.
+  return raw.replace(/"([^"\n]+)"\s*,\s*"\s*:\s*"\s*,/g, '"$1":');
+}
+
+function normalizeJsonCompletion<T extends { choices?: any[] }>(result: T, jsonMode: boolean): T {
+  if (!jsonMode) return result;
+  const content = result?.choices?.[0]?.message?.content;
+  if (typeof content !== "string") return result;
+  const repaired = repairCommonJsonSyntax(content);
+  if (repaired === content) return result;
+  return {
+    ...result,
+    choices: result.choices?.map((choice: any, index: number) =>
+      index === 0
+        ? { ...choice, message: { ...choice.message, content: repaired } }
+        : choice,
+    ),
+  } as T;
+}
+
 export async function getAICompletion(messages: any[], modelName: unknown = AI_MODELS.groqFast.id, jsonMode = false) {
   const requested = normalizeModel(modelName);
   const candidates = [...new Set([requested, ...AI_FALLBACK_CHAIN])].slice(0, MAX_PROVIDER_ATTEMPTS);
@@ -262,7 +284,8 @@ export async function getAICompletion(messages: any[], modelName: unknown = AI_M
     if (!providerAvailable(provider)) continue;
     try {
       const result = await callWithProviderRetry(() => completionForModel(messages, candidate, jsonMode));
-      return Object.assign(result, {
+      const normalizedResult = normalizeJsonCompletion(result, jsonMode);
+      return Object.assign(normalizedResult, {
         _learnUp: {
           requestedModel: requested,
           model: candidate,
