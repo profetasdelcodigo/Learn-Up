@@ -75,11 +75,30 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // Validate user against Supabase server (not stale cookies)
+  // Validate user against Supabase server (not stale cookies).
+  // A stale/revoked refresh token is a normal recoverable auth state:
+  // clear the invalid Supabase cookies and continue as anonymous instead
+  // of allowing AuthApiError to bubble into a 500 middleware failure.
+  let user = null;
+  try {
+    const {
+      data: { user: authenticatedUser },
+    } = await supabase.auth.getUser();
+    user = authenticatedUser;
+  } catch (error: any) {
+    const message = error?.message || "";
+    const code = error?.code || error?.cause?.code || "";
+    const isInvalidRefreshToken =
+      code === "refresh_token_not_found" ||
+      /invalid refresh token|refresh token.*not found/i.test(message);
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    if (isInvalidRefreshToken) {
+      clearSupabaseCookies(request, supabaseResponse);
+      user = null;
+    } else {
+      throw error;
+    }
+  }
 
   // Define public routes
   const publicRoutes = ["/", "/login"];
