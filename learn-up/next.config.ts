@@ -18,6 +18,9 @@ const withPWA = withPWAInit({
   skipWaiting: true,
   cleanupOutdatedCaches: true,
   cacheId: `learn-up-${buildCacheId}`,
+  // Source maps are useful for Sentry/uploaded diagnostics but should not be
+  // precached by the PWA service worker. They can be several MB each.
+  buildExcludes: [/\.map$/],
   runtimeCaching: [
     {
       urlPattern: /\/chat(?:\/.*)?(?:\?.*)?$/i,
@@ -92,8 +95,8 @@ const nextConfig: NextConfig = {
     "youtube-transcript",
   ],
 
-  // Type checking is enforced by CI. Keeping it out of Next's integrated
-  // checker avoids exhausting the 2 GB Render build worker.
+  // CI already runs tsc --noEmit. Keep the production bundle memory-safe on
+  // Render while retaining the existing dedicated typecheck in CI.
   typescript: {
     ignoreBuildErrors: true,
   },
