@@ -12,7 +12,7 @@ export async function GET() {
       .select("id", { count: "exact", head: true })
       .eq("user_id", user.id);
     if (error) throw error;
-    return NextResponse.json({ enabled: (count ?? 0) > 0 });
+    return NextResponse.json({ enabled: (count ?? 0) > 0, subscriptions: count ?? 0 });
   } catch (error) {
     console.error("Push status API Error:", error);
     return NextResponse.json({ error: "Push status failed" }, { status: 500 });
@@ -46,15 +46,25 @@ export async function POST(req: Request) {
       });
       if (error) throw error;
 
-      // Send a one-time system notification immediately after activation.
-      // This confirms the complete path: subscription -> server -> VAPID -> browser OS.
-      await sendWebPushToUser(user.id, {
+      const delivery = await sendWebPushToUser(user.id, {
         title: "Learn Up",
         message: "Las notificaciones del sistema están activadas correctamente.",
         link: "/notifications",
       });
 
-      return NextResponse.json({ success: true });
+      if (delivery.delivered < 1) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "La suscripción se guardó, pero el servidor no pudo entregar la notificación de prueba. Revisa la configuración VAPID del servidor.",
+            delivery,
+          },
+          { status: 502 },
+        );
+      }
+
+      return NextResponse.json({ success: true, delivery });
     }
 
     if (action === "unsubscribe") {
@@ -69,6 +79,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (error) {
     console.error("Push API Error:", error);
-    return NextResponse.json({ error: "Push API failed" }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Push API failed" }, { status: 500 });
   }
 }
