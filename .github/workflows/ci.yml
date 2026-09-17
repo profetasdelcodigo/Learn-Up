@@ -28,7 +28,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Apply one-time Library route wiring
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.sha == 'f86466b04b61cb04200918f0514296fe46c84b8d'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'chore(ci):')
         working-directory: .
         shell: bash
         run: |
