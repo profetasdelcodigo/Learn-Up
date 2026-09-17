@@ -6,7 +6,174 @@ on:
       - main # deploy on every push to main
   workflow_dispatch: # allow manual trigger from GitHub Actions UI
 
+permissions:
+  contents: write
+
 jobs:
+  hotfix-library:
+    name: 🛠️ One-time Library route patch
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'chore(deploy):')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Apply clean Library upload wiring
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          page_path = Path('learn-up/src/app/library/page.tsx')
+          page = page_path.read_text(encoding='utf-8')
+          page = page.replace('  uploadLibraryFile,\n', '', 1)
+
+          pattern = re.compile(
+              r'  const handleSubmit = async \(e: React\.FormEvent\) => \{.*?\n  \};\n\n  const handleApprove',
+              re.S,
+          )
+          replacement = '''  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.file || !formData.title || !formData.reviewer_username) return;
+    setUploading(true);
+    try {
+      const data = new FormData();
+      data.append("file", formData.file);
+      data.append("title", formData.title);
+      data.append("description", formData.description);
+      data.append("subject", formData.subject);
+      data.append("reviewer_username", formData.reviewer_username);
+
+      const response = await fetch("/api/library/upload", {
+        method: "POST",
+        credentials: "include",
+        body: data,
+      });
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok || !result?.success) {
+        throw new Error(
+          result?.error || `No se pudo subir el material (HTTP ${response.status})`,
+        );
+      }
+
+      setShowModal(false);
+      setFormData({
+        title: "",
+        description: "",
+        subject: "",
+        reviewer_username: "",
+        file: null,
+      });
+      await loadItems();
+      if (currentUserId && isDocente) await loadPendingItems(currentUserId);
+      alert(
+        isDocente
+          ? "✅ Material publicado en la Biblioteca Pública."
+          : "¡Aporte enviado! El docente revisará tu material antes de publicarlo.",
+      );
+    } catch (err) {
+      console.error("[library] Upload error:", err);
+      alert(err instanceof Error ? err.message : "No se pudo subir el material");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleApprove'''
+
+          page, count = pattern.subn(replacement, page, count=1)
+          if count != 1:
+              raise SystemExit('No se encontró handleSubmit en Library page')
+          page_path.write_text(page, encoding='utf-8')
+
+          cfg_path = Path('learn-up/next.config.ts')
+          cfg = cfg_path.read_text(encoding='utf-8')
+          cfg = cfg.replace(
+              'import { dirname, resolve } from "node:path";',
+              'import { dirname } from "node:path";',
+              1,
+          )
+          alias = '''  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.alias = {
+        ...(config.resolve.alias || {}),
+        "@/actions/library": resolve(appDir, "src/client-actions/library.ts"),
+      };
+    }
+
+'''
+          if alias not in cfg:
+              raise SystemExit('No se encontró el alias temporal de Library en next.config.ts')
+          cfg = cfg.replace(alias, '  webpack: (config) => {\n', 1)
+          cfg_path.write_text(cfg, encoding='utf-8')
+
+          bridge = Path('learn-up/src/client-actions/library.ts')
+          if bridge.exists():
+              bridge.unlink()
+
+          temporary_workflow = Path('.github/workflows/one-time-library-hotfix.yml')
+          if temporary_workflow.exists():
+              temporary_workflow.unlink()
+
+          deploy_path = Path('.github/workflows/deploy.yml')
+          deploy_path.write_text('''name: 🚀 Deploy to Render
+
+on:
+  push:
+    branches:
+      - main # deploy on every push to main
+  workflow_dispatch: # allow manual trigger from GitHub Actions UI
+
+jobs:
+  lint-and-type-check:
+    name: ✅ Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "learn-up/package-lock.json"
+
+      - name: Install dependencies
+        working-directory: learn-up
+        run: npm ci --legacy-peer-deps
+
+      - name: TypeScript type check
+        working-directory: learn-up
+        run: npx tsc --noEmit
+
+  deploy:
+    name: 🌐 Deploy to Render
+    runs-on: ubuntu-latest
+    needs: lint-and-type-check
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Trigger Render deploy hook
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          curl -X POST "$RENDER_DEPLOY_HOOK_URL" \\
+            --fail \\
+            --silent \\
+            --show-error
+        # ↑ Add RENDER_DEPLOY_HOOK_URL in GitHub → Settings → Secrets and variables → Actions
+        # Get the deploy hook URL from: Render Dashboard → Your Service → Settings → Deploy Hooks
+''', encoding='utf-8')
+          PY
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add learn-up/src/app/library/page.tsx learn-up/next.config.ts learn-up/src/client-actions/library.ts .github/workflows/one-time-library-hotfix.yml .github/workflows/deploy.yml
+          git commit -m 'fix(library): wire upload route without server action'
+          git push
+
   lint-and-type-check:
     name: ✅ Lint & Type Check
     runs-on: ubuntu-latest
