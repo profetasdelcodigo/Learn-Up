@@ -2,10 +2,11 @@ import webpush from "web-push";
 
 const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "";
 const privateKey = process.env.VAPID_PRIVATE_KEY || "";
+const subject = process.env.VAPID_SUBJECT || "mailto:soporte@learnup.com";
 
 if (publicKey && privateKey && publicKey.length > 0 && privateKey.length > 0) {
   try {
-    webpush.setVapidDetails("mailto:soporte@learnup.com", publicKey, privateKey);
+    webpush.setVapidDetails(subject, publicKey, privateKey);
   } catch (error) {
     console.warn("VAPID keys provided are invalid. Push notifications disabled.", error);
   }
