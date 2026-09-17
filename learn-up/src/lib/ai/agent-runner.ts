@@ -28,13 +28,8 @@ export interface AgentLoopResult {
 const MAX_TOOL_STEPS = 6;
 const MAX_PARALLEL_TOOLS = 4;
 
-function compactSystemPrompt(prompt: string): string {
-  return prompt;
-}
-
-function compactMessageContent(content: string | any[]): string | any[] {
-  return content;
-}
+function compactSystemPrompt(prompt: string): string { return prompt; }
+function compactMessageContent(content: string | any[]): string | any[] { return content; }
 
 function sanitizeAssistantText(text: string): string {
   return String(text || "")
@@ -58,11 +53,7 @@ function normalizeAction(action: ToolAction): ToolAction {
 }
 
 function serializeToolResult(data: unknown): string {
-  try {
-    return JSON.stringify(data);
-  } catch {
-    return String(data ?? "");
-  }
+  try { return JSON.stringify(data); } catch { return String(data ?? ""); }
 }
 
 function extractSources(data: any): Array<{ title?: string; url?: string; provider?: string }> {
@@ -78,15 +69,11 @@ function extractSources(data: any): Array<{ title?: string; url?: string; provid
     .filter((x: any) => typeof x.url === "string" && /^https?:\/\//i.test(x.url));
 }
 
-function compactToolFeedback(
-  results: Array<{ action: ToolAction; success: boolean; message: string; data: unknown }>,
-): string {
-  return results
-    .map((r) => {
-      const evidence = serializeToolResult(r.data);
-      return `[Resultado de herramienta: ${r.action.tool}] ${r.success ? "OK" : "ERROR"}\n${String(r.message || "")}${evidence !== "null" ? `\nDatos: ${evidence}` : ""}`;
-    })
-    .join("\n\n");
+function compactToolFeedback(results: Array<{ action: ToolAction; success: boolean; message: string; data: unknown }>): string {
+  return results.map((r) => {
+    const evidence = serializeToolResult(r.data);
+    return `[Resultado de herramienta: ${r.action.tool}] ${r.success ? "OK" : "ERROR"}\n${String(r.message || "")}${evidence !== "null" ? `\nDatos: ${evidence}` : ""}`;
+  }).join("\n\n");
 }
 
 async function auditToolEvent(params: {
@@ -135,8 +122,8 @@ async function executeOne(
   try {
     const registered = aiRegistry.getTool(action.tool);
     let rawResult: any;
-
     const effectiveArgs = { ...(action.args || {}) };
+
     if (!effectiveArgs.image_url && runtime?.mediaUrl && ["analyze_image", "describe_math_image", "extract_colors_from_image", "extract_text_from_image"].includes(action.tool)) {
       effectiveArgs.image_url = runtime.mediaUrl;
     }
@@ -204,13 +191,29 @@ async function executeInBatches(
 }
 
 function selectAgentModel(model: string, userMessage: string | any[]): string {
-  // Profesor IA historically requested the Gemini 3.6 alias for every message.
-  // Keep Gemini for real multimodal payloads, but route plain text to the fast
-  // Cloudflare model so ordinary chat does not pay the multimodal latency.
   const isLegacyGeminiAlias = model === "gemini-3.6-flash" || model === "gemini/gemini-3.6-flash";
   const hasMedia = Array.isArray(userMessage) && userMessage.some((part: any) => part?.type === "file_url" || part?.type === "image_url");
   if (isLegacyGeminiAlias && !hasMedia) return "cloudflare/@cf/zai-org/glm-4.7-flash";
   return model;
+}
+
+function extractExplicitImageSearchQuery(userMessage: string | any[], systemPrompt: string): string | null {
+  if (Array.isArray(userMessage) || !systemPrompt.includes("search_image")) return null;
+  const text = String(userMessage || "").trim();
+  if (!text) return null;
+  if (!/\b(imagen(?:es)?|foto(?:s)?|fotograf[ií]a(?:s)?)\b/i.test(text)) return null;
+  if (!/\b(busca(?:r)?|encuentra|mu[eé]strame|muestra|quiero|necesito|dame|consigue|investiga)\b/i.test(text)) return null;
+  const match = text.match(/\b(?:imagen(?:es)?|foto(?:s)?|fotograf[ií]a(?:s)?)\b\s+(?:de|del|de la|sobre)\s+(.+?)(?:\s+(?:por favor|porfavor))?\s*$/i);
+  if (!match?.[1]) return null;
+  return match[1].trim().replace(/^(?:un|una|el|la|los|las)\s+/i, "");
+}
+
+function fallbackResponse(cleanText: string, executedActions: ToolAction[], pending = false): string {
+  const text = String(cleanText || "").trim();
+  if (text) return text;
+  if (pending) return "Preparé la acción solicitada. Revisa la tarjeta y confírmala para continuar.";
+  if (executedActions.length) return "Listo. Completé la acción solicitada usando herramientas verificadas.";
+  return "No recibí contenido de respuesta del proveedor de IA. Intenta nuevamente.";
 }
 
 export async function runAgentLoop(
@@ -225,7 +228,6 @@ export async function runAgentLoop(
   const mode = options.mode ?? "manual";
   const permissions = options.permissions ?? true;
   const executedActions: ToolAction[] = [];
-
   const safeHistory = history.map((m) => ({ ...m, content: compactMessageContent(m.content) }));
   const currentMessages: any[] = [
     { role: "system", content: compactSystemPrompt(systemPrompt) },
@@ -235,13 +237,46 @@ export async function runAgentLoop(
 
   let lastCleanText = "";
   const selectedModel = selectAgentModel(model, userMessage);
+  const forcedImageQuery = extractExplicitImageSearchQuery(userMessage, systemPrompt);
+  let forcedImageSearchDone = false;
 
   for (let step = 0; step < maxSteps; step++) {
+    // An explicit request for a real image must use the registered Unsplash
+    // skill. This prevents a generic web-search result from inventing an image URL.
+    if (step === 0 && forcedImageQuery && !forcedImageSearchDone) {
+      const imageAction = normalizeAction({
+        tool: "search_image",
+        args: { query: forcedImageQuery },
+        description: "Buscar imágenes reales en Unsplash",
+        requiresConfirm: false,
+      });
+      const decision = shouldExecuteTool(imageAction.tool, mode, permissions);
+      if (decision === "execute") {
+        const forcedResult = await executeOne(imageAction, options.userId, options.sessionId, step, {
+          currentRoute: options.currentRoute,
+          mediaUrl: options.mediaUrl,
+          mediaType: options.mediaType,
+        });
+        forcedImageSearchDone = true;
+        if (forcedResult.success) executedActions.push(forcedResult.action);
+        currentMessages.push({ role: "assistant", content: "Buscaré una imagen real usando la herramienta de imágenes disponible." });
+        currentMessages.push({
+          role: "user",
+          content: `Resultado verificado de búsqueda de imagen. No inventes URLs ni sustituyas esta fuente por una imagen de búsqueda web.\n\n${compactToolFeedback([forcedResult])}`,
+        });
+        continue;
+      }
+      forcedImageSearchDone = true;
+    }
+
     const response = await getAICompletion(currentMessages, selectedModel);
     const rawContent = response.choices[0]?.message?.content || "";
     const parsed = await parseToolCall(rawContent);
     let cleanText = sanitizeAssistantText(parsed.cleanText);
-    const actions = (parsed.actions || []).map(normalizeAction);
+    let actions = (parsed.actions || []).map(normalizeAction);
+
+    // Do not repeat the forced image search after it already succeeded.
+    if (forcedImageSearchDone) actions = actions.filter((action) => action.tool !== "search_image");
     lastCleanText = cleanText;
 
     if (options.onFormulaExtracted) {
@@ -249,17 +284,17 @@ export async function runAgentLoop(
       if (matches) {
         await options.onFormulaExtracted(matches.map((x) => x.replace(/<\/?formula>/g, "")));
         cleanText = cleanText.replace(/<formula>.*?<\/formula>/g, "").trim();
+        lastCleanText = cleanText;
       }
     }
 
     if (!actions.length) {
-      return { response: cleanText, executedActions: executedActions.length ? executedActions : undefined };
+      return { response: fallbackResponse(cleanText, executedActions), executedActions: executedActions.length ? executedActions : undefined };
     }
 
     const executable: ToolAction[] = [];
     const pending: ToolAction[] = [];
     const denied: ToolAction[] = [];
-
     for (const action of actions) {
       const decision = shouldExecuteTool(action.tool, mode, permissions);
       if (decision === "execute") executable.push(action);
@@ -277,22 +312,25 @@ export async function runAgentLoop(
 
       if (pending.length || denied.length) {
         if (pending.length) {
-          await Promise.all(
-            pending.map((a) =>
-              auditToolEvent({ userId: options.userId, sessionId: options.sessionId, step, action: a, status: "waiting_for_user", currentRoute: options.currentRoute }),
-            ),
-          );
+          await Promise.all(pending.map((a) => auditToolEvent({
+            userId: options.userId,
+            sessionId: options.sessionId,
+            step,
+            action: a,
+            status: "waiting_for_user",
+            currentRoute: options.currentRoute,
+          })));
         }
         if (denied.length && !pending.length && !toolResults.some((r) => r.success)) {
           return {
-            response: cleanText || "No puedo ejecutar esa acción con los permisos actuales.",
+            response: fallbackResponse(cleanText, executedActions),
             error: `No se pudieron ejecutar: ${denied.map((a) => a.tool).join(", ")}`,
             executedActions: executedActions.length ? executedActions : undefined,
           };
         }
         if (pending.length) {
           return {
-            response: cleanText,
+            response: fallbackResponse(cleanText, executedActions, true),
             actions: pending,
             executedActions: executedActions.length ? executedActions : undefined,
           };
@@ -301,27 +339,40 @@ export async function runAgentLoop(
 
       const feedback = compactToolFeedback(toolResults);
       currentMessages.push({ role: "assistant", content: cleanText || "He completado parte de la tarea y continuaré con lo necesario." });
-      currentMessages.push({ role: "user", content: `Resultados estructurados de herramientas. Trátalos como evidencia real.\n\n${feedback}\n\nContinúa hasta terminar. No inventes datos ni fuentes. No escribas JSON de ejecución ni sintaxis interna.` });
+      currentMessages.push({
+        role: "user",
+        content: `Resultados estructurados de herramientas. Trátalos como evidencia real.\n\n${feedback}\n\nContinúa hasta terminar. No inventes datos ni fuentes. No escribas JSON de ejecución ni sintaxis interna.`,
+      });
       continue;
     }
 
     if (pending.length) {
-      await Promise.all(
-        pending.map((a) =>
-          auditToolEvent({ userId: options.userId, sessionId: options.sessionId, step, action: a, status: "waiting_for_user", currentRoute: options.currentRoute }),
-        ),
-      );
-      return { response: cleanText, actions: pending, executedActions: executedActions.length ? executedActions : undefined };
+      await Promise.all(pending.map((a) => auditToolEvent({
+        userId: options.userId,
+        sessionId: options.sessionId,
+        step,
+        action: a,
+        status: "waiting_for_user",
+        currentRoute: options.currentRoute,
+      })));
+      return {
+        response: fallbackResponse(cleanText, executedActions, true),
+        actions: pending,
+        executedActions: executedActions.length ? executedActions : undefined,
+      };
     }
 
     if (denied.length) {
       return {
-        response: cleanText || "No puedo ejecutar esa acción con los permisos actuales.",
+        response: fallbackResponse(cleanText, executedActions),
         error: `No se pudieron ejecutar: ${denied.map((a) => a.tool).join(", ")}`,
         executedActions: executedActions.length ? executedActions : undefined,
       };
     }
   }
 
-  return { response: lastCleanText || "La tarea alcanzó el límite seguro de pasos.", executedActions: executedActions.length ? executedActions : undefined };
+  return {
+    response: fallbackResponse(lastCleanText, executedActions),
+    executedActions: executedActions.length ? executedActions : undefined,
+  };
 }
