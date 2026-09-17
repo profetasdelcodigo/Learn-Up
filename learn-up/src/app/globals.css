@@ -584,3 +584,20 @@ html.light .prose-ai strong {
   background-size: 40px 40px;
   background-color: rgba(0, 0, 0, 0.05);
 }
+
+/* ─────────────────────────────────────────────────
+   MOBILE POINTER FIXES — Jarvis
+───────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .cursor-grab {
+    touch-action: none !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+  }
+
+  .fixed.bottom-6.right-6 > button {
+    touch-action: none !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+  }
+}
