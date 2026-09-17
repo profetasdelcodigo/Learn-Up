@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "typecheck": "tsc --noEmit",
-    "build": "next build --webpack",
+    "build": "node scripts/prepare-native.cjs && next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run"
