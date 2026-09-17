@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { createServerNotification } from "@/utils/server-notifications";
 import { indexAiDocumentFromUrl } from "./ai-tutor";
 
@@ -20,7 +21,9 @@ function getLibraryObjectPath(fileUrl: string | null | undefined): string | null
 async function removeLibraryObject(supabase: Awaited<ReturnType<typeof createClient>>, fileUrl: string | null | undefined) {
   const objectPath = getLibraryObjectPath(fileUrl);
   if (!objectPath) return;
-  const { error } = await supabase.storage.from(LIBRARY_BUCKET).remove([objectPath]);
+  const admin = createAdminClient();
+  const storageClient = admin || supabase;
+  const { error } = await storageClient.storage.from(LIBRARY_BUCKET).remove([objectPath]);
   if (error) console.error("[library] Storage cleanup failed:", error);
 }
 
@@ -29,6 +32,12 @@ export async function uploadLibraryFile(formData: FormData): Promise<{ success: 
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: "No autenticado" };
+
+    const admin = createAdminClient();
+    if (!admin) {
+      console.error("[uploadLibraryFile] SUPABASE_SERVICE_ROLE_KEY is not configured");
+      return { success: false, error: "La Biblioteca no está configurada correctamente en el servidor" };
+    }
 
     const file = formData.get("file") as File | null;
     const title = String(formData.get("title") || "").trim();
@@ -44,7 +53,9 @@ export async function uploadLibraryFile(formData: FormData): Promise<{ success: 
     if (file.size <= 0) return { success: false, error: "El archivo está vacío" };
     if (file.size > MAX_LIBRARY_FILE_BYTES) return { success: false, error: "El archivo supera el límite de 50 MB" };
 
-    const { data: reviewer, error: reviewerError } = await supabase
+    // Reviewer lookup is done with the server-only admin client so this flow
+    // does not depend on client RLS configuration.
+    const { data: reviewer, error: reviewerError } = await admin
       .from("profiles")
       .select("id, full_name, username, role")
       .eq("username", reviewerUsername)
@@ -53,7 +64,7 @@ export async function uploadLibraryFile(formData: FormData): Promise<{ success: 
 
     if (reviewerError) {
       console.error("[uploadLibraryFile] Reviewer lookup failed:", reviewerError);
-      return { success: false, error: "No se pudo comprobar el docente revisor" };
+      return { success: false, error: `No se pudo comprobar el docente revisor: ${reviewerError.message}` };
     }
     if (!reviewer) return { success: false, error: `No se encontró un docente con el usuario @${reviewerUsername}` };
 
@@ -61,7 +72,10 @@ export async function uploadLibraryFile(formData: FormData): Promise<{ success: 
     const objectPath = `${user.id}/${Date.now()}-${safeName}`;
     const fileBuffer = Buffer.from(await file.arrayBuffer());
 
-    const { error: uploadError } = await supabase.storage.from(LIBRARY_BUCKET).upload(objectPath, fileBuffer, {
+    // Use the server-only admin client for Storage. The user has already been
+    // authenticated above, so this bypasses fragile Storage RLS without exposing
+    // the service role key to the browser.
+    const { error: uploadError } = await admin.storage.from(LIBRARY_BUCKET).upload(objectPath, fileBuffer, {
       contentType: file.type || "application/octet-stream",
       upsert: false,
     });
@@ -71,7 +85,7 @@ export async function uploadLibraryFile(formData: FormData): Promise<{ success: 
       return { success: false, error: `No se pudo subir el archivo a la Biblioteca: ${uploadError.message}` };
     }
 
-    const { data: publicData } = supabase.storage.from(LIBRARY_BUCKET).getPublicUrl(objectPath);
+    const { data: publicData } = admin.storage.from(LIBRARY_BUCKET).getPublicUrl(objectPath);
     const publicUrl = publicData.publicUrl;
 
     let fileType = "document";
@@ -79,7 +93,7 @@ export async function uploadLibraryFile(formData: FormData): Promise<{ success: 
     else if (["mp4", "webm", "mov", "m4v"].includes(extension)) fileType = "video";
     else if (extension === "pdf") fileType = "pdf";
 
-    const { data: submitterProfile } = await supabase
+    const { data: submitterProfile } = await admin
       .from("profiles")
       .select("role, full_name, username")
       .eq("id", user.id)
@@ -88,7 +102,9 @@ export async function uploadLibraryFile(formData: FormData): Promise<{ success: 
     const isTeacher = ["docente", "admin"].includes(submitterProfile?.role || "");
     const reviewerId = isTeacher ? user.id : reviewer.id;
 
-    const { data: newItem, error: dbError } = await supabase.from("library_items").insert({
+    // Persist the metadata with the same server-only transaction boundary. This
+    // prevents a valid Storage upload from being rejected by client RLS.
+    const { data: newItem, error: dbError } = await admin.from("library_items").insert({
       title,
       description,
       subject,
@@ -101,12 +117,10 @@ export async function uploadLibraryFile(formData: FormData): Promise<{ success: 
 
     if (dbError) {
       console.error("[uploadLibraryFile] Database insert failed:", dbError);
-      await supabase.storage.from(LIBRARY_BUCKET).remove([objectPath]).catch(() => undefined);
+      await admin.storage.from(LIBRARY_BUCKET).remove([objectPath]).catch(() => undefined);
       return { success: false, error: `No se pudo registrar el material en la Biblioteca: ${dbError.message}` };
     }
 
-    // The material is already persisted. A notification failure must not turn
-    // a successful upload into a false "Error inesperado" response.
     if (!isTeacher) {
       const submitterName = submitterProfile?.full_name || submitterProfile?.username || user.email || "Un estudiante";
       try {
