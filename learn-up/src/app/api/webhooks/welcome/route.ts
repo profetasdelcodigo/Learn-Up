@@ -11,17 +11,39 @@ export async function POST(req: Request) {
   }
 
   const payload = await req.json();
-  const record = payload.record;
-  const { id, email, full_name } = record;
+  const record = payload.record ?? {};
+  const id = record.id;
 
-  if (!id || !email) {
-    console.log("Welcome email skipped: missing user id or email");
-    return new Response("ok (missing user data)", { status: 200 });
+  if (!id) {
+    console.log("Welcome email skipped: missing user id");
+    return new Response("ok (missing user id)", { status: 200 });
   }
 
   const supabase = createAdminClient();
   if (!supabase) {
     return new Response("Error de configuración de Supabase", { status: 500 });
+  }
+
+  // Profile rows do not necessarily contain the auth email (Google signups are
+  // created in auth.users). Resolve the email from Auth when the webhook record
+  // only contains the profile fields.
+  let email = record.email as string | undefined;
+  let fullName = record.full_name as string | undefined;
+
+  if (!email) {
+    const { data: authUserData, error: authUserError } =
+      await supabase.auth.admin.getUserById(id);
+
+    if (authUserError || !authUserData.user?.email) {
+      console.error("Welcome email skipped: could not resolve auth user email", authUserError);
+      return new Response("ok (missing user email)", { status: 200 });
+    }
+
+    email = authUserData.user.email;
+    fullName =
+      fullName ||
+      (authUserData.user.user_metadata?.full_name as string | undefined) ||
+      (authUserData.user.user_metadata?.name as string | undefined);
   }
 
   // Claim the send before calling Resend so duplicate webhook deliveries do not send twice.
@@ -46,7 +68,7 @@ export async function POST(req: Request) {
       from: "Learn Up <bienvenida@learnup.app>",
       to: email,
       subject: "¡Bienvenido a Learn Up! 🎓",
-      react: WelcomeEmail({ name: full_name || "estudiante" }),
+      react: WelcomeEmail({ name: fullName || "estudiante" }),
     });
 
     console.log("Correo de bienvenida enviado:", data);
