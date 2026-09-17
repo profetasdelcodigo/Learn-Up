@@ -30,6 +30,12 @@ async function getPushStatus() {
   return body?.enabled === true;
 }
 
+async function getLocalPushSubscription() {
+  const registration = await navigator.serviceWorker.getRegistration("/");
+  if (!registration) return null;
+  return registration.pushManager.getSubscription();
+}
+
 export default function PushPermissionButton() {
   const [supported, setSupported] = useState(false);
   const [enabled, setEnabled] = useState(false);
@@ -49,8 +55,10 @@ export default function PushPermissionButton() {
       if (!canPush) return;
 
       try {
-        const status = await getPushStatus();
-        if (!cancelled) setEnabled(status && Notification.permission === "granted");
+        const localSubscription = await getLocalPushSubscription();
+        const localEnabled = Notification.permission === "granted" && !!localSubscription;
+        const serverEnabled = localEnabled ? await getPushStatus() : false;
+        if (!cancelled) setEnabled(serverEnabled);
       } catch (error) {
         console.warn("Could not load push status:", error);
       }
@@ -63,6 +71,18 @@ export default function PushPermissionButton() {
   }, []);
 
   if (!supported) return null;
+
+  const ensureServiceWorker = async () => {
+    let registration = await navigator.serviceWorker.getRegistration("/");
+    if (!registration) {
+      registration = await withTimeout(
+        navigator.serviceWorker.register("/sw.js", { scope: "/" }),
+        "El servicio de notificaciones tardó demasiado en registrarse",
+      );
+    }
+    await withTimeout(registration.update(), "El servicio de notificaciones tardó demasiado en actualizarse");
+    return registration;
+  };
 
   const enablePush = async () => {
     if (busy || enabled) return;
@@ -81,11 +101,7 @@ export default function PushPermissionButton() {
         return;
       }
 
-      const registration = await withTimeout(
-        navigator.serviceWorker.ready,
-        "El servicio de notificaciones tardó demasiado en iniciar",
-      );
-
+      const registration = await ensureServiceWorker();
       let subscription = await registration.pushManager.getSubscription();
       if (!subscription) {
         subscription = await withTimeout(
@@ -112,6 +128,7 @@ export default function PushPermissionButton() {
         throw new Error(body?.error || "No se pudo guardar la suscripción push");
       }
 
+      localStorage.setItem("learnup_push_enabled", "true");
       setEnabled(true);
       window.dispatchEvent(new Event("learnup:push-enabled"));
       addToast({ message: "Notificaciones push activadas", type: "success" });
@@ -135,7 +152,7 @@ export default function PushPermissionButton() {
 
     try {
       const registration = await withTimeout(
-        navigator.serviceWorker.ready,
+        ensureServiceWorker(),
         "El servicio de notificaciones tardó demasiado en iniciar",
       );
       const subscription = await registration.pushManager.getSubscription();
@@ -157,6 +174,7 @@ export default function PushPermissionButton() {
 
       if (subscription) await withTimeout(subscription.unsubscribe(), "No se pudo desactivar el push del navegador");
 
+      localStorage.removeItem("learnup_push_enabled");
       setEnabled(false);
       window.dispatchEvent(new Event("learnup:push-disabled"));
       addToast({ message: "Notificaciones push desactivadas", type: "success" });
