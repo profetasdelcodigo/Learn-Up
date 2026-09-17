@@ -232,7 +232,7 @@ function providerAvailable(provider: ReturnType<typeof providerOf>) {
   return Boolean(openRouterApiKey);
 }
 
-function isRetryableProviderError(error: any) { const message = String(error?.message || error || "").toLowerCase(); return /timeout|429|rate.?limit|temporar|overload|capacity|503|502|500|unavailable|network|fetch failed|abort|resource.?exhausted|server.?error|internal|model.?not.?found|no endpoints available|does not exist|not available for free|404/.test(message); }
+function isRetryableProviderError(error: any) { const message = String(error?.message || error || "").toLowerCase(); return /timeout|408|429|rate.?limit|temporar|overload|capacity|503|504|502|500|unavailable|network|fetch failed|abort|resource.?exhausted|server.?error|internal|model.?not.?found|no endpoints available|does not exist|not available for free|empty|blank|respuesta vac[ií]a|no devolvi[oó] contenido|sin mensaje|404/.test(message); }
 function retryAfterMs(error: any) { const message = String(error?.message || error || ""); const match = message.match(/retry-after[^\d]*(\d+(?:\.\d+)?)/i) || message.match(/retry in[^\d]*(\d+(?:\.\d+)?)s/i); if (!match) return 0; return Math.min(10000, Math.max(250, Number(match[1]) * (message.match(/retry in/i) ? 1000 : 1))); }
 
 async function callWithProviderRetry<T>(operation: () => Promise<T>): Promise<T> {
@@ -241,6 +241,15 @@ async function callWithProviderRetry<T>(operation: () => Promise<T>): Promise<T>
     try { return await operation(); } catch (error) { lastError = error; if (!isRetryableProviderError(error) || retry >= PROVIDER_RETRIES) throw error; const providerHint = retryAfterMs(error); await sleep(providerHint || Math.min(8000, RETRY_BASE_MS * 2 ** retry)); }
   }
   throw lastError;
+}
+
+function assertUsableCompletion(result: any, provider: string) {
+  const message = result?.choices?.[0]?.message;
+  const content = message?.content;
+  if (!message || typeof content !== "string" || !content.trim()) {
+    throw new Error(`${provider} devolvió una respuesta vacía.`);
+  }
+  return result;
 }
 
 async function completionForModel(messages: any[], model: string, jsonMode: boolean) {
@@ -283,7 +292,7 @@ export async function getAICompletion(messages: any[], modelName: unknown = AI_M
     const provider = providerOf(candidate);
     if (!providerAvailable(provider)) continue;
     try {
-      const result = await callWithProviderRetry(() => completionForModel(messages, candidate, jsonMode));
+      const result = assertUsableCompletion(await callWithProviderRetry(() => completionForModel(messages, candidate, jsonMode)), provider);
       const normalizedResult = normalizeJsonCompletion(result, jsonMode);
       return Object.assign(normalizedResult, {
         _learnUp: {

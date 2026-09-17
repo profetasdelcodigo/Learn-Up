@@ -262,6 +262,10 @@ function buildSafeProcessSummary(executed: ToolAction[], pending: ToolAction[], 
 
 function withSafeProcess(text: string, executed: ToolAction[], pending: ToolAction[], providerChanged: boolean) { return [buildSafeProcessSummary(executed, pending, providerChanged), text].filter(Boolean).join("\n\n"); }
 
+function explicitNavigationIntent(text: string) {
+  return /\b(abre|abr[ií]|ve a|ir a|entra a|ll[eé]vame a|navega|navegar|regresa|volver|salir de|cambia a|cambiar a)\b.*(?:secci[oó]n|p[aá]gina|ruta|inicio|dashboard|chat|profesor|consejero|recetas|examen|biblioteca|perfil|ajustes|configuraci[oó]n)/i.test(text);
+}
+
 function decideTool(action: ToolAction, mode: ToolMode): "execute" | "pending_confirmation" | "deny" {
   const registered = aiRegistry.getTool(action.tool);
   if (registered) { if (mode === "autopilot") return registered.supportsAutopilot ? "execute" : "pending_confirmation"; return registered.requiresConfirmation ? "pending_confirmation" : "execute"; }
@@ -313,7 +317,12 @@ async function runCore(currentMessages: any[], model: string, options: WorkflowR
     const mergedParsedActions = [...parsed.actions, ...structuredActions];
     const dedupedParsedActions = [...new Map(mergedParsedActions.map((action) => [actionSignature(action), action])).values()];
     const text = parsed.cleanText;
-    const actions = (await Promise.all(dedupedParsedActions.map((action) => normalizeActionArgs(action, options.userId)))).map(normalizeAction).filter((action) => !executedSignatures.has(actionSignature(action)));
+    const latestUserText = String([...currentMessages].reverse().find((message: any) => message?.role === "user")?.content || "");
+    const allowNavigation = explicitNavigationIntent(latestUserText);
+    const actions = (await Promise.all(dedupedParsedActions.map((action) => normalizeActionArgs(action, options.userId))))
+      .map(normalizeAction)
+      .filter((action) => !executedSignatures.has(actionSignature(action)))
+      .filter((action) => action.tool !== "navigate_app" || allowNavigation);
     lastText = text;
 
     if (!actions.length) {
