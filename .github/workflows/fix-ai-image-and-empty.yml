@@ -1,0 +1,149 @@
+name: AI image and empty action hotfix
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, 'fix(ai): force real image search and prevent blank action replies') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply targeted AI fixes
+        shell: python
+        run: |
+          from pathlib import Path
+
+          # -----------------------------------------------------------------
+          # 1) Professor/AI agent: explicit image-search intent must use the
+          #    real search_image skill (Unsplash), not generic web research.
+          # -----------------------------------------------------------------
+          p = Path('learn-up/src/lib/ai/agent-runner.ts')
+          s = p.read_text(encoding='utf-8')
+
+          marker = 'function selectAgentModel(model: string, userMessage: string | any[]): string {'
+          if marker not in s:
+              raise SystemExit('No se encontró selectAgentModel en agent-runner.ts')
+
+          helper = '''function extractExplicitImageSearchQuery(userMessage: string | any[], systemPrompt: string): string | null {
+  if (Array.isArray(userMessage) || !systemPrompt.includes("search_image")) return null;
+  const text = String(userMessage || "").trim();
+  if (!text) return null;
+  if (!/\\b(imagen(?:es)?|foto(?:s)?|fotograf[ií]a(?:s)?)\\b/i.test(text)) return null;
+  if (!/\\b(busca(?:r)?|encuentra|mu[eé]strame|muestra|quiero|necesito|dame|consigue|investiga)\\b/i.test(text)) return null;
+  const match = text.match(/\\b(?:imagen(?:es)?|foto(?:s)?|fotograf[ií]a(?:s)?)\\b\\s+(?:de|del|de la|sobre)\\s+(.+?)(?:\\s+(?:por favor|porfavor))?\\s*$/i);
+  return match?.[1]?.trim() || null;
+}
+
+'''
+          if 'function extractExplicitImageSearchQuery(' not in s:
+              s = s.replace(marker, helper + marker, 1)
+
+          old = '  let lastCleanText = "";\n  const selectedModel = selectAgentModel(model, userMessage);\n\n  for (let step = 0; step < maxSteps; step++) {'
+          new = '''  let lastCleanText = "";
+  const selectedModel = selectAgentModel(model, userMessage);
+  const forcedImageQuery = extractExplicitImageSearchQuery(userMessage, systemPrompt);
+  let forcedImageSearchDone = false;
+
+  for (let step = 0; step < maxSteps; step++) {
+    if (step === 0 && forcedImageQuery && !forcedImageSearchDone) {
+      const imageAction = normalizeAction({
+        tool: "search_image",
+        args: { query: forcedImageQuery },
+        description: "Buscar imágenes reales en Unsplash",
+        requiresConfirm: false,
+      });
+      const decision = shouldExecuteTool(imageAction.tool, mode, permissions);
+      if (decision === "execute") {
+        const forcedResult = await executeOne(imageAction, options.userId, options.sessionId, step, {
+          currentRoute: options.currentRoute,
+          mediaUrl: options.mediaUrl,
+          mediaType: options.mediaType,
+        });
+        forcedImageSearchDone = true;
+        if (forcedResult.success) executedActions.push(forcedResult.action);
+        const feedback = compactToolFeedback([forcedResult]);
+        currentMessages.push({ role: "assistant", content: "Buscaré una imagen real usando la herramienta de imágenes disponible." });
+        currentMessages.push({ role: "user", content: `Resultado verificado de búsqueda de imagen. No inventes URLs ni sustituyas esta fuente por una imagen de búsqueda web.\n\n${feedback}` });
+        continue;
+      }
+    }
+'''
+          if old not in s:
+              raise SystemExit('No se encontró el inicio de runAgentLoop en agent-runner.ts')
+          s = s.replace(old, new, 1)
+
+          old = '    if (!actions.length) {\n      return { response: cleanText, executedActions: executedActions.length ? executedActions : undefined };\n    }'
+          new = '''    if (!actions.length) {
+      const safeResponse = cleanText || (executedActions.length
+        ? "Listo. Completé la acción solicitada usando herramientas verificadas."
+        : "No recibí contenido de respuesta del proveedor de IA. Intenta nuevamente.");
+      return { response: safeResponse, executedActions: executedActions.length ? executedActions : undefined };
+    }'''
+          if old not in s:
+              raise SystemExit('No se encontró el retorno final de agent-runner.ts')
+          s = s.replace(old, new, 1)
+
+          old = '      return { response: cleanText, actions: pending, executedActions: executedActions.length ? executedActions : undefined };'
+          new = '      return { response: cleanText || "Preparé la acción solicitada. Revisa la tarjeta y confírmala para continuar.", actions: pending, executedActions: executedActions.length ? executedActions : undefined };'
+          if old not in s:
+              raise SystemExit('No se encontró el retorno pending de agent-runner.ts')
+          s = s.replace(old, new, 1)
+
+          p.write_text(s, encoding='utf-8')
+
+          # -----------------------------------------------------------------
+          # 2) AIChatComponent: never suppress the assistant message when a
+          #    tool action exists but the model emitted no visible text.
+          # -----------------------------------------------------------------
+          p = Path('learn-up/src/components/AIChatComponent.tsx')
+          s = p.read_text(encoding='utf-8')
+          old = '''      } else if (result.response) {
+        await addAiMessage(sessionId, "assistant", result.response, undefined, undefined, result.executedActions);
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: result.response, tool_calls: result.executedActions },
+        ]);
+
+        if (result.actions && result.actions.length > 0) {
+          // The server already executes only the autopilot-safe tools. Every
+          // returned action still needs an explicit decision from the student.
+          setPendingActions(result.actions);
+        }
+      }'''
+          new = '''      } else if (result.response || result.actions?.length || result.executedActions?.length) {
+        const visibleResponse = String(result.response || "").trim()
+          || (result.actions?.length
+            ? "Preparé la acción solicitada. Revisa la tarjeta y confírmala para continuar."
+            : "Listo. Completé la acción solicitada usando herramientas verificadas.");
+
+        await addAiMessage(sessionId, "assistant", visibleResponse, undefined, undefined, result.executedActions);
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: visibleResponse, tool_calls: result.executedActions },
+        ]);
+
+        if (result.actions && result.actions.length > 0) {
+          // The server already executes only the autopilot-safe tools. Every
+          // returned action still needs an explicit decision from the student.
+          setPendingActions(result.actions);
+        }
+      }'''
+          if old not in s:
+              raise SystemExit('No se encontró el bloque de respuesta de AIChatComponent.tsx')
+          s = s.replace(old, new, 1)
+
+          p.write_text(s, encoding='utf-8')
+      - name: Commit production fixes and remove this workflow
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add learn-up/src/lib/ai/agent-runner.ts learn-up/src/components/AIChatComponent.tsx
+          git rm .github/workflows/fix-ai-image-and-empty.yml
+          git commit -m 'fix(ai): force real image search and prevent blank action replies'
+          git push
