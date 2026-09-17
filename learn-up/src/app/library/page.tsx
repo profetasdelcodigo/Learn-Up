@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
 import {
-  uploadLibraryFile,
   approveLibraryItem,
   rejectLibraryItem,
   deleteOwnLibraryItem,
@@ -296,8 +295,7 @@ export default function LibraryPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.file || !formData.title || !formData.reviewer_username)
-      return;
+    if (!formData.file || !formData.title || !formData.reviewer_username) return;
     setUploading(true);
     try {
       const data = new FormData();
@@ -306,24 +304,38 @@ export default function LibraryPage() {
       data.append("description", formData.description);
       data.append("subject", formData.subject);
       data.append("reviewer_username", formData.reviewer_username);
-      const result = await uploadLibraryFile(data);
-      if (result.success) {
-        setShowModal(false);
-        setFormData({
-          title: "",
-          description: "",
-          subject: "",
-          reviewer_username: "",
-          file: null,
-        });
-        alert(
-          "¡Aporte enviado! El docente revisará tu material antes de publicarlo.",
+
+      const response = await fetch("/api/library/upload", {
+        method: "POST",
+        credentials: "include",
+        body: data,
+      });
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok || !result?.success) {
+        throw new Error(
+          result?.error || `No se pudo subir el material (HTTP ${response.status})`,
         );
-      } else {
-        alert(result.error || "Error al subir");
       }
+
+      setShowModal(false);
+      setFormData({
+        title: "",
+        description: "",
+        subject: "",
+        reviewer_username: "",
+        file: null,
+      });
+      await loadItems();
+      if (currentUserId && isDocente) await loadPendingItems(currentUserId);
+      alert(
+        isDocente
+          ? "✅ Material publicado en la Biblioteca Pública."
+          : "¡Aporte enviado! El docente revisará tu material antes de publicarlo.",
+      );
     } catch (err) {
-      alert("Error inesperado");
+      console.error("[library] Upload error:", err);
+      alert(err instanceof Error ? err.message : "No se pudo subir el material");
     } finally {
       setUploading(false);
     }
