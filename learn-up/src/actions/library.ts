@@ -36,9 +36,14 @@ export async function uploadLibraryFile(formData: FormData): Promise<{ success: 
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-120);
     const objectPath = `${user.id}/${Date.now()}-${safeName}`;
 
+    // Server Actions deliver File objects through the request boundary. Convert
+    // the payload to a Node Buffer before sending it to Supabase Storage so the
+    // storage client does not depend on the runtime's File implementation.
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+
     const { error: uploadError } = await supabase.storage
       .from("library")
-      .upload(objectPath, file, { contentType: file.type || "application/octet-stream", upsert: false });
+      .upload(objectPath, fileBuffer, { contentType: file.type || "application/octet-stream", upsert: false });
 
     if (uploadError) {
       console.error("[uploadLibraryFile] Storage upload failed:", uploadError);
@@ -83,8 +88,6 @@ export async function uploadLibraryFile(formData: FormData): Promise<{ success: 
       return { success: false, error: `No se pudo registrar el material en la Biblioteca: ${dbError.message}` };
     }
 
-    // Biblioteca Pública y Rincón IA son sistemas separados.
-    // Un aporte público NO se indexa automáticamente en ai_documents.
     if (!isTeacher) {
       const submitterName = submitterProfile?.full_name || submitterProfile?.username || user.email || "Un estudiante";
       await createServerNotification({
@@ -121,7 +124,6 @@ export async function approveLibraryItem(itemId: string): Promise<{ success: boo
 
     if (error || !item) return { success: false, error: error?.message || "No se pudo aprobar" };
 
-    // No se llama a indexAiDocumentFromUrl aquí: aprobar Biblioteca no significa indexar Rincón IA.
     await createServerNotification({
       user_id: item.user_id,
       sender_id: user.id,
@@ -257,7 +259,6 @@ export async function getUserIndexedDocuments() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
 
-    // Elimina del Rincón IA los documentos que provengan del bucket público de Biblioteca y hayan quedado indexados por una versión anterior.
     const { data: accidental } = await supabase
       .from("ai_documents")
       .select("id, source_url")
@@ -315,10 +316,11 @@ export async function uploadAndIndexAiDocument(formData: FormData, sessionId?: s
 
     const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_").slice(-120);
     const objectPath = `${user.id}/${Date.now()}_${safeName}`;
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
 
     const { error: uploadError } = await supabase.storage
       .from("documents")
-      .upload(objectPath, file, { contentType: file.type || "application/octet-stream", upsert: false });
+      .upload(objectPath, fileBuffer, { contentType: file.type || "application/octet-stream", upsert: false });
 
     if (uploadError) {
       console.error("[uploadAndIndexAiDocument] Storage upload failed:", uploadError);
