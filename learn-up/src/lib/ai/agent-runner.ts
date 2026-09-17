@@ -25,7 +25,7 @@ export interface AgentLoopResult {
   error?: string;
 }
 
-const MAX_TOOL_STEPS = 8;
+const MAX_TOOL_STEPS = 6;
 const MAX_PARALLEL_TOOLS = 4;
 
 function compactSystemPrompt(prompt: string): string {
@@ -203,6 +203,16 @@ async function executeInBatches(
   return results;
 }
 
+function selectAgentModel(model: string, userMessage: string | any[]): string {
+  // Profesor IA historically requested the Gemini 3.6 alias for every message.
+  // Keep Gemini for real multimodal payloads, but route plain text to the fast
+  // Cloudflare model so ordinary chat does not pay the multimodal latency.
+  const isLegacyGeminiAlias = model === "gemini-3.6-flash" || model === "gemini/gemini-3.6-flash";
+  const hasMedia = Array.isArray(userMessage) && userMessage.some((part: any) => part?.type === "file_url" || part?.type === "image_url");
+  if (isLegacyGeminiAlias && !hasMedia) return "cloudflare/@cf/zai-org/glm-4.7-flash";
+  return model;
+}
+
 export async function runAgentLoop(
   systemPrompt: string,
   history: { role: "user" | "assistant" | "system"; content: string | any[] }[] = [],
@@ -224,9 +234,10 @@ export async function runAgentLoop(
   ];
 
   let lastCleanText = "";
+  const selectedModel = selectAgentModel(model, userMessage);
 
   for (let step = 0; step < maxSteps; step++) {
-    const response = await getAICompletion(currentMessages, model);
+    const response = await getAICompletion(currentMessages, selectedModel);
     const rawContent = response.choices[0]?.message?.content || "";
     const parsed = await parseToolCall(rawContent);
     let cleanText = sanitizeAssistantText(parsed.cleanText);
