@@ -1,43 +1,46 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 
+export async function GET() {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ enabled: false }, { status: 401 });
+    const { count, error } = await supabase.from("push_subscriptions").select("id", { count: "exact", head: true }).eq("user_id", user.id);
+    if (error) throw error;
+    return NextResponse.json({ enabled: (count ?? 0) > 0 });
+  } catch (error) {
+    console.error("Push status API Error:", error);
+    return NextResponse.json({ error: "Push status failed" }, { status: 500 });
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const body = await req.json().catch(() => ({}));
+    const { action, subscription, endpoint } = body;
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (action === "subscribe") {
+      if (!subscription?.endpoint) return NextResponse.json({ error: "Missing subscription endpoint" }, { status: 400 });
+      const { error: deleteError } = await supabase.from("push_subscriptions").delete().eq("user_id", user.id).eq("subscription->>endpoint", subscription.endpoint);
+      if (deleteError) throw deleteError;
+      const { error } = await supabase.from("push_subscriptions").insert({ user_id: user.id, subscription, updated_at: new Date().toISOString() });
+      if (error) throw error;
+      return NextResponse.json({ success: true });
     }
 
-    const body = await req.json();
-    const { action, subscription } = body;
-
-    // Subscribe Action (Save push subscription to DB)
-    if (action === "subscribe") {
-      if (!subscription)
-        return NextResponse.json(
-          { error: "Missing subscription" },
-          { status: 400 },
-        );
-
-      const { error } = await supabase.from("push_subscriptions").upsert(
-        {
-          user_id: user.id,
-          subscription: subscription,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id" },
-      );
-
+    if (action === "unsubscribe") {
+      const query = supabase.from("push_subscriptions").delete().eq("user_id", user.id);
+      const { error } = endpoint ? await query.eq("subscription->>endpoint", endpoint) : await query;
       if (error) throw error;
       return NextResponse.json({ success: true });
     }
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Push API Error:", error);
     return NextResponse.json({ error: "Push API failed" }, { status: 500 });
   }

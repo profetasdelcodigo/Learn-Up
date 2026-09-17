@@ -1,9 +1,34 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BellRing } from "lucide-react";
+import { BellRing, BellOff } from "lucide-react";
 import { useSetAtom } from "jotai";
 import { addToastAtom } from "@/store/ui";
+
+const PUSH_TIMEOUT_MS = 15000;
+
+function withTimeout<T>(promise: Promise<T>, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error(message)), PUSH_TIMEOUT_MS);
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+async function getPushStatus() {
+  const response = await fetch("/api/push", { cache: "no-store", credentials: "include" });
+  if (!response.ok) return false;
+  const body = await response.json().catch(() => null);
+  return body?.enabled === true;
+}
 
 export default function PushPermissionButton() {
   const [supported, setSupported] = useState(false);
@@ -12,84 +37,91 @@ export default function PushPermissionButton() {
   const addToast = useSetAtom(addToastAtom);
 
   useEffect(() => {
-    const canPush =
-      typeof window !== "undefined" &&
-      "Notification" in window &&
-      "serviceWorker" in navigator &&
-      "PushManager" in window;
+    let cancelled = false;
 
-    setSupported(canPush);
-    setEnabled(
-      canPush &&
-        Notification.permission === "granted" &&
-        localStorage.getItem("learnup_push_enabled") === "true",
-    );
+    const load = async () => {
+      const canPush =
+        typeof window !== "undefined" &&
+        "Notification" in window &&
+        "serviceWorker" in navigator &&
+        "PushManager" in window;
+      setSupported(canPush);
+      if (!canPush) return;
+
+      try {
+        const status = await getPushStatus();
+        if (!cancelled) setEnabled(status && Notification.permission === "granted");
+      } catch (error) {
+        console.warn("Could not load push status:", error);
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (!supported) return null;
 
   const enablePush = async () => {
     if (busy || enabled) return;
-
     setBusy(true);
+
     try {
       const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-      if (!publicVapidKey) {
-        addToast({
-          message: "Las notificaciones push aún no están configuradas en el servidor",
-          type: "info",
-        });
-        return;
-      }
+      if (!publicVapidKey) throw new Error("Push notifications are not configured");
 
       const permission =
         Notification.permission === "granted"
           ? "granted"
           : await Notification.requestPermission();
-
       if (permission !== "granted") {
         addToast({ message: "Permiso de notificaciones denegado", type: "info" });
         return;
       }
 
-      const registration = await navigator.serviceWorker.ready;
-      let subscription = await registration.pushManager.getSubscription();
+      const registration = await withTimeout(
+        navigator.serviceWorker.ready,
+        "El servicio de notificaciones tardó demasiado en iniciar",
+      );
 
+      let subscription = await registration.pushManager.getSubscription();
       if (!subscription) {
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicVapidKey),
-        });
+        subscription = await withTimeout(
+          registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(publicVapidKey),
+          }),
+          "La suscripción push tardó demasiado",
+        );
       }
 
-      const response = await fetch("/api/push", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "subscribe",
-          subscription,
+      const response = await withTimeout(
+        fetch("/api/push", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ action: "subscribe", subscription: subscription.toJSON() }),
         }),
-      });
+        "El servidor tardó demasiado en guardar la suscripción",
+      );
 
       if (!response.ok) {
-        let message = "No se pudo guardar la suscripción push";
-        try {
-          const body = await response.json();
-          if (body?.error) message = body.error;
-        } catch {
-          // Keep the generic message when the API does not return JSON.
-        }
-        throw new Error(message);
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error || "No se pudo guardar la suscripción push");
       }
 
-      localStorage.setItem("learnup_push_enabled", "true");
-      window.dispatchEvent(new Event("learnup:push-enabled"));
       setEnabled(true);
+      window.dispatchEvent(new Event("learnup:push-enabled"));
       addToast({ message: "Notificaciones push activadas", type: "success" });
     } catch (error) {
       console.error("Error enabling push notifications:", error);
       addToast({
-        message: "No se pudieron activar las notificaciones push. Inténtalo de nuevo.",
+        message:
+          error instanceof Error && error.message.includes("configured")
+            ? "Las notificaciones push aún no están configuradas en el servidor"
+            : "No se pudieron activar las notificaciones push. Inténtalo de nuevo.",
         type: "info",
       });
     } finally {
@@ -97,30 +129,62 @@ export default function PushPermissionButton() {
     }
   };
 
+  const disablePush = async () => {
+    if (busy || !enabled) return;
+    setBusy(true);
+
+    try {
+      const registration = await withTimeout(
+        navigator.serviceWorker.ready,
+        "El servicio de notificaciones tardó demasiado en iniciar",
+      );
+      const subscription = await registration.pushManager.getSubscription();
+
+      const response = await withTimeout(
+        fetch("/api/push", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            action: "unsubscribe",
+            endpoint: subscription?.endpoint ?? null,
+          }),
+        }),
+        "El servidor tardó demasiado en desactivar las notificaciones",
+      );
+
+      if (!response.ok) throw new Error("No se pudo eliminar la suscripción del servidor");
+
+      if (subscription) await withTimeout(subscription.unsubscribe(), "No se pudo desactivar el push del navegador");
+
+      setEnabled(false);
+      window.dispatchEvent(new Event("learnup:push-disabled"));
+      addToast({ message: "Notificaciones push desactivadas", type: "success" });
+    } catch (error) {
+      console.error("Error disabling push notifications:", error);
+      addToast({ message: "No se pudieron desactivar las notificaciones push. Inténtalo de nuevo.", type: "info" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <button
-      onClick={enablePush}
-      disabled={busy || enabled}
+      onClick={enabled ? disablePush : enablePush}
+      disabled={busy}
       className="flex items-center gap-2 rounded-full border border-brand-gold/25 bg-brand-gold/10 px-4 py-2 text-sm font-semibold text-brand-gold hover:bg-brand-gold/15 disabled:cursor-not-allowed disabled:opacity-70"
     >
-      <BellRing className="h-4 w-4" />
-      {enabled ? "Push activado" : busy ? "Activando..." : "Activar push"}
+      {enabled ? <BellOff className="h-4 w-4" /> : <BellRing className="h-4 w-4" />}
+      {busy ? "Procesando..." : enabled ? "Desactivar push" : "Activar push"}
     </button>
   );
 }
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding)
-    .replace(/\-/g, "+")
-    .replace(/_/g, "/");
-
+  const base64 = (base64String + padding).replace(/\-/g, "+").replace(/_/g, "/");
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-
+  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
   return outputArray;
 }
