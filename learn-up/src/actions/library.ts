@@ -4,94 +4,63 @@ import { createClient } from "@/utils/supabase/server";
 import { createServerNotification } from "@/utils/server-notifications";
 import { indexAiDocumentFromUrl } from "./ai-tutor";
 
-export async function uploadLibraryFile(
-  formData: FormData,
-): Promise<{ success: boolean; error?: string }> {
+export async function uploadLibraryFile(formData: FormData): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: "No autenticado" };
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      return { success: false, error: "No autenticado" };
-    }
+    const file = formData.get("file") as File | null;
+    const title = String(formData.get("title") || "").trim();
+    const description = String(formData.get("description") || "").trim();
+    const subject = String(formData.get("subject") || "").trim();
+    const reviewerUsername = String(formData.get("reviewer_username") || "").trim().replace(/^@/, "");
 
-    const file = formData.get("file") as File;
-    const title = formData.get("title") as string;
-    const description = (formData.get("description") as string) || "";
-    const subject = (formData.get("subject") as string) || "";
-    const reviewerUsername = formData.get("reviewer_username") as string;
+    if (!file || !title) return { success: false, error: "Archivo y título son requeridos" };
+    if (!reviewerUsername) return { success: false, error: "Debes seleccionar un docente revisor" };
 
-    if (!file || !title) {
-      return { success: false, error: "Archivo y título son requeridos" };
-    }
-
-    if (!reviewerUsername) {
-      return { success: false, error: "Debes seleccionar un docente revisor" };
-    }
-
-    // Find reviewer by username
-    const { data: reviewer } = await supabase
+    const { data: reviewer, error: reviewerError } = await supabase
       .from("profiles")
-      .select("id, full_name, role")
-      .eq("username", reviewerUsername.replace("@", ""))
+      .select("id, full_name, username, role")
+      .eq("username", reviewerUsername)
       .in("role", ["docente", "admin"])
       .maybeSingle();
 
-    if (!reviewer) {
-      return {
-        success: false,
-        error:
-          "No se encontró un docente con ese usuario (@" +
-          reviewerUsername +
-          ")",
-      };
+    if (reviewerError) {
+      console.error("[uploadLibraryFile] Reviewer lookup failed:", reviewerError);
+      return { success: false, error: "No se pudo comprobar el docente revisor" };
     }
+    if (!reviewer) return { success: false, error: `No se encontró un docente con el usuario @${reviewerUsername}` };
 
-    // Upload file to Supabase Storage
-    const fileExt = file.name.split(".").pop()?.toLowerCase() || "pdf";
-    const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+    const extension = file.name.split(".").pop()?.toLowerCase() || "bin";
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-120);
+    const objectPath = `${user.id}/${Date.now()}-${safeName}`;
 
     const { error: uploadError } = await supabase.storage
       .from("library")
-      .upload(fileName, file);
+      .upload(objectPath, file, { contentType: file.type || "application/octet-stream", upsert: false });
 
     if (uploadError) {
-      console.error("Upload error:", uploadError);
-      return { success: false, error: "Error al subir el archivo" };
+      console.error("[uploadLibraryFile] Storage upload failed:", uploadError);
+      return { success: false, error: `No se pudo subir el archivo a la Biblioteca: ${uploadError.message}` };
     }
 
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from("library").getPublicUrl(fileName);
+    const { data: publicData } = supabase.storage.from("library").getPublicUrl(objectPath);
+    const publicUrl = publicData.publicUrl;
 
-    // Determine file type
     let fileType = "document";
-    if (["jpg", "jpeg", "png", "gif", "webp"].includes(fileExt))
-      fileType = "image";
-    else if (["mp4", "webm", "mov"].includes(fileExt)) fileType = "video";
-    else if (["pdf"].includes(fileExt)) fileType = "pdf";
+    if (["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(extension)) fileType = "image";
+    else if (["mp4", "webm", "mov", "m4v"].includes(extension)) fileType = "video";
+    else if (extension === "pdf") fileType = "pdf";
 
-    // Save reference to database
-    // Docentes and Admins are auto-approved; students need review
-    const { data: submitterProfile, error: profileError } = await supabase
+    const { data: submitterProfile } = await supabase
       .from("profiles")
       .select("role, full_name, username")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (profileError) {
-      console.error(
-        "[uploadLibraryFile] Error fetching profile:",
-        profileError,
-      );
-    }
-
-    const isTeacher = ["docente", "admin"].includes(
-      submitterProfile?.role || "",
-    );
-    const finalReviewerId = isTeacher ? user.id : reviewer.id;
+    const isTeacher = ["docente", "admin"].includes(submitterProfile?.role || "");
+    const reviewerId = isTeacher ? user.id : reviewer.id;
 
     const { data: newItem, error: dbError } = await supabase
       .from("library_items")
@@ -102,36 +71,25 @@ export async function uploadLibraryFile(
         file_url: publicUrl,
         file_type: fileType,
         user_id: user.id,
-        reviewer_id: finalReviewerId,
-        is_approved: isTeacher, // Strictly auto-approve ONLY if submitter is teacher/admin
+        reviewer_id: reviewerId,
+        is_approved: isTeacher,
       })
-      .select()
+      .select("id")
       .single();
 
     if (dbError) {
-      console.error("Database error:", dbError);
-      return { success: false, error: "Error al guardar en la base de datos" };
+      console.error("[uploadLibraryFile] Database insert failed:", dbError);
+      await supabase.storage.from("library").remove([objectPath]).catch(() => undefined);
+      return { success: false, error: `No se pudo registrar el material en la Biblioteca: ${dbError.message}` };
     }
 
-    if (isTeacher && (fileType === "pdf" || fileType === "document")) {
-      // Auto-index if auto-approved
-      // We don't await this so it doesn't block the UI
-      indexAiDocumentFromUrl({
-        title,
-        url: publicUrl,
-        mimeType: file.type || "application/pdf",
-        sessionId: null,
-      }).catch(err => console.error("Auto-index error:", err));
-    }
-
-    // Notify reviewer — only if student upload
+    // Biblioteca Pública y Rincón IA son sistemas separados.
+    // Un aporte público NO se indexa automáticamente en ai_documents.
     if (!isTeacher) {
-      const submitterName =
-        submitterProfile?.full_name || submitterProfile?.username || user.email;
-
+      const submitterName = submitterProfile?.full_name || submitterProfile?.username || user.email || "Un estudiante";
       await createServerNotification({
-        user_id: reviewer.id, // TO: Docente Revisor
-        sender_id: user.id, // FROM: Estudiante
+        user_id: reviewer.id,
+        sender_id: user.id,
         type: "library_review",
         title: "Material para revisar",
         message: `${submitterName} te envió "${title}" para revisión en la Biblioteca.`,
@@ -141,20 +99,16 @@ export async function uploadLibraryFile(
     }
 
     return { success: true };
-  } catch (error) {
-    console.error("Error in uploadLibraryFile:", error);
-    return { success: false, error: "Error inesperado" };
+  } catch (error: any) {
+    console.error("[uploadLibraryFile] Unexpected error:", error);
+    return { success: false, error: error?.message || "Error inesperado al subir el material" };
   }
 }
 
-export async function approveLibraryItem(
-  itemId: string,
-): Promise<{ success: boolean; error?: string }> {
+export async function approveLibraryItem(itemId: string): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: "No autenticado" };
 
     const { data: item, error } = await supabase
@@ -162,45 +116,32 @@ export async function approveLibraryItem(
       .update({ is_approved: true })
       .eq("id", itemId)
       .eq("reviewer_id", user.id)
-      .select("title, user_id, file_type, file_url")
+      .select("title, user_id")
       .single();
 
-    if (error || !item) return { success: false, error: "No se pudo aprobar" };
+    if (error || !item) return { success: false, error: error?.message || "No se pudo aprobar" };
 
-    if (item.file_type === "pdf" || item.file_type === "document") {
-      indexAiDocumentFromUrl({
-        title: item.title,
-        url: item.file_url,
-        sessionId: null,
-      }).catch(err => console.error("Auto-index error on approve:", err));
-    }
-
-    // Notify submitter
+    // No se llama a indexAiDocumentFromUrl aquí: aprobar Biblioteca no significa indexar Rincón IA.
     await createServerNotification({
       user_id: item.user_id,
+      sender_id: user.id,
       type: "library_approved",
       title: "Material aprobado ✅",
       message: `Tu material "${item.title}" fue aprobado y publicado en la Biblioteca.`,
-      sender_id: user.id,
       link: "/library",
       is_read: false,
     });
 
     return { success: true };
-  } catch (e) {
-    return { success: false, error: "Error inesperado" };
+  } catch (error: any) {
+    return { success: false, error: error?.message || "Error inesperado" };
   }
 }
 
-export async function rejectLibraryItem(
-  itemId: string,
-  reason?: string,
-): Promise<{ success: boolean; error?: string }> {
+export async function rejectLibraryItem(itemId: string, reason?: string): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: "No autenticado" };
 
     const { data: item, error } = await supabase
@@ -211,33 +152,28 @@ export async function rejectLibraryItem(
       .select("title, user_id")
       .single();
 
-    if (error || !item) return { success: false, error: "No se pudo rechazar" };
+    if (error || !item) return { success: false, error: error?.message || "No se pudo rechazar" };
 
-    // Notify submitter
     await createServerNotification({
       user_id: item.user_id,
+      sender_id: user.id,
       type: "library_rejected",
       title: "Material rechazado ❌",
       message: `Tu material "${item.title}" fue rechazado.${reason ? ` Motivo: ${reason}` : ""}`,
-      sender_id: user.id,
       link: "/library",
       is_read: false,
     });
 
     return { success: true };
-  } catch (e) {
-    return { success: false, error: "Error inesperado" };
+  } catch (error: any) {
+    return { success: false, error: error?.message || "Error inesperado" };
   }
 }
 
-export async function deleteOwnLibraryItem(
-  itemId: string,
-): Promise<{ success: boolean; error?: string }> {
+export async function deleteOwnLibraryItem(itemId: string): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: "No autenticado" };
 
     const { data: item, error } = await supabase
@@ -245,43 +181,24 @@ export async function deleteOwnLibraryItem(
       .delete()
       .eq("id", itemId)
       .eq("user_id", user.id)
-      .select("title")
+      .select("title, file_url")
       .single();
 
-    if (error || !item) {
-      return {
-        success: false,
-        error: "No se pudo eliminar el archivo o no tienes permisos",
-      };
-    }
-
+    if (error || !item) return { success: false, error: error?.message || "No se pudo eliminar el material" };
     return { success: true };
-  } catch (e) {
-    return { success: false, error: "Error inesperado" };
+  } catch (error: any) {
+    return { success: false, error: error?.message || "Error inesperado" };
   }
 }
 
-export async function adminDeleteLibraryItem(
-  itemId: string,
-  reason: string,
-): Promise<{ success: boolean; error?: string }> {
+export async function adminDeleteLibraryItem(itemId: string, reason: string): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: "No autenticado" };
 
-    // Check if user is admin/docente
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (!["admin", "docente"].includes(profile?.role || "")) {
-      return { success: false, error: "No tienes permisos de administrador" };
-    }
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    if (!["admin", "docente"].includes(profile?.role || "")) return { success: false, error: "No tienes permisos de administrador" };
 
     const { data: item, error } = await supabase
       .from("library_items")
@@ -290,9 +207,8 @@ export async function adminDeleteLibraryItem(
       .select("title, user_id")
       .single();
 
-    if (error || !item) return { success: false, error: "No se pudo eliminar" };
+    if (error || !item) return { success: false, error: error?.message || "No se pudo eliminar" };
 
-    // Notify owner
     await createServerNotification({
       user_id: item.user_id,
       sender_id: user.id,
@@ -304,8 +220,8 @@ export async function adminDeleteLibraryItem(
     });
 
     return { success: true };
-  } catch (e) {
-    return { success: false, error: "Error inesperado" };
+  } catch (error: any) {
+    return { success: false, error: error?.message || "Error inesperado" };
   }
 }
 
@@ -319,24 +235,15 @@ export async function searchLibrary(query: string, filters?: { subject?: string;
       .order("created_at", { ascending: false })
       .limit(50);
 
-    if (query && query.trim() !== "") {
-      queryBuilder = queryBuilder.or(`title.ilike.%${query}%,description.ilike.%${query}%`);
-    }
-
-    if (filters?.subject && filters.subject.trim() !== "") {
-      queryBuilder = queryBuilder.eq("subject", filters.subject);
-    }
-    
-    // Level filtering could be implemented via a column if added to library_items,
-    // currently we only filter by subject and query.
+    const cleanQuery = String(query || "").trim();
+    if (cleanQuery) queryBuilder = queryBuilder.or(`title.ilike.%${cleanQuery}%,description.ilike.%${cleanQuery}%`);
+    if (filters?.subject?.trim()) queryBuilder = queryBuilder.eq("subject", filters.subject.trim());
 
     const { data, error } = await queryBuilder;
-    
     if (error) {
       console.error("[searchLibrary] Error:", error);
       return [];
     }
-    
     return data || [];
   } catch (error) {
     console.error("[searchLibrary] Unexpected error:", error);
@@ -350,6 +257,21 @@ export async function getUserIndexedDocuments() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
 
+    // Elimina del Rincón IA los documentos que provengan del bucket público de Biblioteca y hayan quedado indexados por una versión anterior.
+    const { data: accidental } = await supabase
+      .from("ai_documents")
+      .select("id, source_url")
+      .eq("user_id", user.id)
+      .ilike("source_url", "%/storage/v1/object/public/library/%");
+
+    if (accidental?.length) {
+      await supabase
+        .from("ai_documents")
+        .delete()
+        .eq("user_id", user.id)
+        .in("id", accidental.map((doc: any) => doc.id));
+    }
+
     const { data, error } = await supabase
       .from("ai_documents")
       .select("*")
@@ -360,7 +282,6 @@ export async function getUserIndexedDocuments() {
       console.error("[getUserIndexedDocuments] Error:", error);
       return [];
     }
-
     return data || [];
   } catch (error) {
     console.error("[getUserIndexedDocuments] Unexpected error:", error);
@@ -374,79 +295,54 @@ export async function deleteAiDocument(id: string): Promise<{ success: boolean; 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: "No autenticado" };
 
-    // Delete the document (cascade should delete chunks)
-    const { error } = await supabase
-      .from("ai_documents")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", user.id);
-
-    if (error) {
-      console.error("[deleteAiDocument] Error:", error);
-      return { success: false, error: "Error al eliminar el documento" };
-    }
-
+    const { error } = await supabase.from("ai_documents").delete().eq("id", id).eq("user_id", user.id);
+    if (error) return { success: false, error: error.message || "Error al eliminar el documento" };
     return { success: true };
-  } catch (error) {
-    console.error("[deleteAiDocument] Unexpected error:", error);
-    return { success: false, error: "Error inesperado" };
+  } catch (error: any) {
+    return { success: false, error: error?.message || "Error inesperado" };
   }
 }
 
-export async function uploadAndIndexAiDocument(
-  formData: FormData,
-  sessionId?: string
-): Promise<{ success: boolean; error?: string }> {
+export async function uploadAndIndexAiDocument(formData: FormData, sessionId?: string): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: "No autenticado" };
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      return { success: false, error: "No autenticado" };
-    }
+    const file = formData.get("file") as File | null;
+    const title = String(formData.get("title") || "").trim();
+    if (!file || !title) return { success: false, error: "Archivo y título son requeridos" };
 
-    const file = formData.get("file") as File;
-    const title = formData.get("title") as string;
-
-    if (!file || !title) {
-      return { success: false, error: "Archivo y título son requeridos" };
-    }
-
-    // Upload file to Supabase Storage in "documents" bucket
-    const fileExt = file.name.split(".").pop()?.toLowerCase() || "pdf";
-    const fileName = `${user.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_").slice(-120);
+    const objectPath = `${user.id}/${Date.now()}_${safeName}`;
 
     const { error: uploadError } = await supabase.storage
       .from("documents")
-      .upload(fileName, file);
+      .upload(objectPath, file, { contentType: file.type || "application/octet-stream", upsert: false });
 
     if (uploadError) {
-      console.error("Upload error:", uploadError);
-      return { success: false, error: "Error al subir el archivo" };
+      console.error("[uploadAndIndexAiDocument] Storage upload failed:", uploadError);
+      return { success: false, error: `No se pudo subir el documento de Rincón IA: ${uploadError.message}` };
     }
 
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from("documents").getPublicUrl(fileName);
-
-    // Call the indexer
+    const { data: publicData } = supabase.storage.from("documents").getPublicUrl(objectPath);
     const indexResult = await indexAiDocumentFromUrl({
       title,
-      url: publicUrl,
+      url: publicData.publicUrl,
       mimeType: file.type || undefined,
       sessionId: sessionId || null,
     });
 
     if (!indexResult.success) {
-      // Guardar el documento con estado pending_embeddings (no borrar de storage)
-      return { success: true, error: "Archivo subido correctamente, pero la indexación de IA falló o quedó pendiente. (" + indexResult.error + ")" };
+      return {
+        success: true,
+        error: `Archivo subido a Rincón IA, pero la indexación quedó pendiente: ${indexResult.error || "error de indexación"}`,
+      };
     }
 
     return { success: true };
   } catch (error: any) {
     console.error("[uploadAndIndexAiDocument] Unexpected error:", error);
-    return { success: false, error: error.message || "Error inesperado" };
+    return { success: false, error: error?.message || "Error inesperado" };
   }
 }
