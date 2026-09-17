@@ -66,9 +66,17 @@ export function withCloudflareCapabilityRouting(skill: Skill): Skill {
   override("search_image", async ({ query, orientation }: any) => {
     const result = await original.get("search_image")?.execute?.({ query, orientation }, undefined as any);
     if (!result?.success) return result;
+    const photos = Array.isArray(result?.data?.photos) ? result.data.photos : [];
+    const imageMarkdown = photos.slice(0, 6).map((photo: any, index: number) => {
+      const url = typeof photo?.url === "string" ? photo.url : "";
+      if (!url) return "";
+      const alt = String(photo?.alt || `Imagen ${index + 1}`).replace(/[\[\]]/g, "");
+      const source = typeof photo?.sourceUrl === "string" ? photo.sourceUrl : url;
+      return `![${alt}](${url})\n[Ver en Unsplash](${source})`;
+    }).filter(Boolean).join("\n\n");
     return {
       ...result,
-      message: `Encontré ${result?.data?.photos?.length || 0} imágenes reales en Unsplash.\n\nFuente: Unsplash`,
+      message: `Encontré ${photos.length} imágenes reales en Unsplash.${imageMarkdown ? `\n\n${imageMarkdown}` : ""}\n\nFuente: Unsplash`,
       data: {
         ...(result.data || {}),
         provider: "unsplash",
