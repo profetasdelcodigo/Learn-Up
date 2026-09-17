@@ -16,39 +16,81 @@ type NotificationInsert = {
   priority?: "low" | "normal" | "high" | "urgent";
   metadata?: Record<string, any>;
 };
+
 type PushPayload = { title: string; message: string; link?: string };
 
 function toLegacyNotification(notification: NotificationInsert) {
   const { room_id: _roomId, event_type: _eventType, source: _source, priority: _priority, metadata: _metadata, ...legacy } = notification;
   return legacy;
 }
+
 function isSchemaCacheError(error: any) {
   return error?.code === "PGRST204" || /schema cache|column|room_id|event_type|priority|metadata/i.test(error?.message || "");
 }
+
 export async function createServerNotification(notification: NotificationInsert): Promise<void> {
   const admin = createAdminClient();
   if (!admin) return console.warn("Skipping server notification: SUPABASE_SERVICE_ROLE_KEY is missing.");
+
   const { error } = await admin.from("notifications").insert(notification);
-  if (!error) return;
-  if (isSchemaCacheError(error)) {
-    const { error: legacyError } = await admin.from("notifications").insert(toLegacyNotification(notification));
-    if (legacyError) console.error("Server notification legacy insert failed:", legacyError);
-    return;
+  if (error) {
+    if (isSchemaCacheError(error)) {
+      const { error: legacyError } = await admin.from("notifications").insert(toLegacyNotification(notification));
+      if (legacyError) {
+        console.error("Server notification legacy insert failed:", legacyError);
+        return;
+      }
+    } else {
+      console.error("Server notification insert failed:", error);
+      return;
+    }
   }
-  console.error("Server notification insert failed:", error);
+
+  // The in-app notification and the browser/system notification are two
+  // separate delivery channels. A push subscription must be present before
+  // this function can reach a user's operating-system notification center.
+  try {
+    await sendWebPushToUser(notification.user_id, {
+      title: notification.title,
+      message: notification.message,
+      link: notification.link || "/notifications",
+    });
+  } catch (pushError) {
+    // Never make a successful in-app notification fail just because Web Push
+    // is temporarily unavailable (missing VAPID keys, expired subscription, etc.).
+    console.error("Server notification push dispatch failed:", pushError);
+  }
 }
+
 export async function createServerNotifications(notifications: NotificationInsert[]): Promise<void> {
   if (!notifications.length) return;
   const admin = createAdminClient();
   if (!admin) return console.warn("Skipping server notifications: SUPABASE_SERVICE_ROLE_KEY is missing.");
+
   const { error } = await admin.from("notifications").insert(notifications);
-  if (!error) return;
-  if (isSchemaCacheError(error)) {
-    const { error: legacyError } = await admin.from("notifications").insert(notifications.map(toLegacyNotification));
-    if (legacyError) console.error("Server notifications legacy insert failed:", legacyError);
-    return;
+  if (error) {
+    if (isSchemaCacheError(error)) {
+      const { error: legacyError } = await admin.from("notifications").insert(notifications.map(toLegacyNotification));
+      if (legacyError) {
+        console.error("Server notifications legacy insert failed:", legacyError);
+        return;
+      }
+    } else {
+      console.error("Server notifications insert failed:", error);
+      return;
+    }
   }
-  console.error("Server notifications insert failed:", error);
+
+  // Dispatch push notifications after the database insert succeeds.
+  await Promise.allSettled(
+    notifications.map((notification) =>
+      sendWebPushToUser(notification.user_id, {
+        title: notification.title,
+        message: notification.message,
+        link: notification.link || "/notifications",
+      }),
+    ),
+  );
 }
 
 function isExpiredPushError(error: any) {
@@ -65,6 +107,7 @@ export async function sendWebPushToUser(userId: string, payload: PushPayload): P
   if (!admin) return console.warn("Skipping web push: SUPABASE_SERVICE_ROLE_KEY is missing.");
   const { data, error } = await admin.from("push_subscriptions").select("id, subscription").eq("user_id", userId);
   if (error) return console.error("Push subscription lookup failed:", error);
+
   await Promise.all((data || []).map(async (row: any) => {
     if (!row.subscription) return;
     try {
@@ -83,6 +126,7 @@ export async function sendWebPushToUsers(userIds: string[], payloadForUser: (use
   if (!admin) return console.warn("Skipping web push batch: SUPABASE_SERVICE_ROLE_KEY is missing.");
   const { data, error } = await admin.from("push_subscriptions").select("id, user_id, subscription").in("user_id", uniqueUserIds);
   if (error) return console.error("Push subscriptions batch lookup failed:", error);
+
   await Promise.all((data || []).map(async (row: any) => {
     if (!row.subscription) return;
     try {
