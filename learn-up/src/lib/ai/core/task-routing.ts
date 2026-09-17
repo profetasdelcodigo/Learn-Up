@@ -5,7 +5,7 @@ export type TaskDomain = "calendar" | "research" | "multimedia" | "library" | "e
 const DOMAIN_PATTERNS: Record<Exclude<TaskDomain, "general">, RegExp[]> = {
   calendar: [/\b(calendario|agenda|agendar|evento|eventos|cita|citas|reuni[oó]n|reuniones|recordatorio|recordatorios|horario|hoy tengo|ma[nñ]ana tengo|esta semana)\b/i],
   research: [/\b(investiga|investigaci[oó]n|investigar|busca informaci[oó]n|buscar informaci[oó]n|fuentes|art[ií]culos?|papers?|noticias?|actualidad|web|internet|estad[ií]sticas externas?|bibliograf[ií]a|compara fuentes|fact.?check)\b/i],
-  multimedia: [/\b(imagen|im[aá]genes|foto|fotos|fotograf[ií]a|v[ií]deo|video|audio|voz|transcribe|transcripci[oó]n|genera(?:r)? una imagen|crea(?:r)? una imagen|analiza esta imagen|analizar imagen)\b/i],
+  multimedia: [/\b(imagen|im[aá]genes|foto|fotos|fotograf[ií]a|v[ií]deo|video|audio|voz|transcribe|transcripci[oó]n|genera(?:r)? una imagen|crea(?:r)? una imagen|analiza esta imagen|analizar imagen|mu[eé]strame una imagen|muestra una foto|busca una imagen|buscar una imagen|encuentra una imagen)\b/i],
   library: [/\b(documento|documentos|archivo|archivos|pdf|apuntes|biblioteca|mis archivos|mi biblioteca|sub[ií] un archivo)\b/i],
   education: [/\b(examen|ex[aá]menes|cuestionario|ejercicio|ejercicios|tarea|problema matem[aá]tico|profesor|profesor ia|exp[lí]came|explica|estudiar|repasar|practicar)\b/i],
   analytics: [/\b(progreso|rendimiento|estad[ií]sticas? de mi|analiza mi progreso|analiza mi rendimiento|m[eé]tricas|resumen de actividad|desempe[nñ]o)\b/i],
@@ -37,7 +37,21 @@ export function inferTaskDomains(text: string): TaskDomain[] {
   const domains = (Object.entries(DOMAIN_PATTERNS) as Array<[Exclude<TaskDomain, "general">, RegExp[]]>)
     .filter(([, patterns]) => patterns.some((pattern) => pattern.test(value)))
     .map(([domain]) => domain);
-  return domains.length ? [...new Set(domains)] : ["general"];
+
+  if (!domains.length) return ["general"];
+
+  // An explicit request for a photo/image must be treated as a multimedia
+  // task even when the wording also contains research verbs such as
+  // "investiga". Otherwise the generic web-search skill can win and the
+  // model may hallucinate an image URL instead of using Unsplash.
+  const explicitImageIntent = /\b(?:imagen(?:es)?|foto(?:s)?|fotograf[ií]a(?:s)?)\b.*\b(?:de|del|sobre)\b/i.test(value)
+    || /\b(?:busca(?:r)?|encuentra|mu[eé]strame|muestra|dame|consigue)\b.*\b(?:imagen(?:es)?|foto(?:s)?|fotograf[ií]a(?:s)?)\b/i.test(value);
+
+  if (explicitImageIntent && domains.includes("multimedia")) {
+    return ["multimedia", ...domains.filter((domain) => domain !== "multimedia")];
+  }
+
+  return [...new Set(domains)];
 }
 
 export function toolMatchesDomains(tool: ToolDefinition, domains: TaskDomain[]): boolean {
