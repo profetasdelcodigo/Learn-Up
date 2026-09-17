@@ -208,6 +208,16 @@ function extractExplicitImageSearchQuery(userMessage: string | any[], systemProm
   return match[1].trim().replace(/^(?:un|una|el|la|los|las)\s+/i, "");
 }
 
+function extractAttachedImageUrl(userMessage: string | any[], mediaUrl?: string | null, mediaType?: string | null): string | null {
+  if (mediaType === "image" && mediaUrl) return mediaUrl;
+  if (!Array.isArray(userMessage)) return null;
+  const part = userMessage.find((item: any) => item?.type === "file_url" || item?.type === "image_url");
+  const candidate = part?.file_url?.url || part?.image_url?.url || part?.url;
+  if (typeof candidate !== "string" || !candidate) return null;
+  const normalized = candidate.split("?")[0].toLowerCase();
+  return /\.(?:jpg|jpeg|png|webp|gif|heic|heif)$/i.test(normalized) ? candidate : null;
+}
+
 function fallbackResponse(cleanText: string, executedActions: ToolAction[], pending = false): string {
   const text = String(cleanText || "").trim();
   if (text) return text;
@@ -238,7 +248,9 @@ export async function runAgentLoop(
   let lastCleanText = "";
   const selectedModel = selectAgentModel(model, userMessage);
   const forcedImageQuery = extractExplicitImageSearchQuery(userMessage, systemPrompt);
+  const attachedImageUrl = extractAttachedImageUrl(userMessage, options.mediaUrl, options.mediaType);
   let forcedImageSearchDone = false;
+  let forcedImageAnalysisDone = false;
 
   for (let step = 0; step < maxSteps; step++) {
     // An explicit request for a real image must use the registered Unsplash
@@ -269,14 +281,49 @@ export async function runAgentLoop(
       forcedImageSearchDone = true;
     }
 
+    // A real image attachment is analyzed by the dedicated vision skill first.
+    // This prevents the text-only fallback providers (for example Groq) from
+    // receiving the image as their only source of visual understanding.
+    if (step === 0 && attachedImageUrl && !forcedImageAnalysisDone) {
+      const imageAnalysisAction = normalizeAction({
+        tool: "analyze_image",
+        args: {
+          image_url: attachedImageUrl,
+          question: Array.isArray(userMessage)
+            ? String(userMessage.find((item: any) => item?.type === "text")?.text || "Analiza esta imagen con detalle, extrae el texto visible y responde a la pregunta del usuario.")
+            : "Analiza esta imagen con detalle y responde a la pregunta del usuario.",
+        },
+        description: "Analizar imagen adjunta",
+        requiresConfirm: false,
+      });
+      const decision = shouldExecuteTool(imageAnalysisAction.tool, mode, permissions);
+      if (decision === "execute") {
+        const analysisResult = await executeOne(imageAnalysisAction, options.userId, options.sessionId, step, {
+          currentRoute: options.currentRoute,
+          mediaUrl: attachedImageUrl,
+          mediaType: "image",
+        });
+        forcedImageAnalysisDone = true;
+        if (analysisResult.success) executedActions.push(analysisResult.action);
+        currentMessages.push({ role: "assistant", content: "Analizaré primero la imagen con la herramienta visual dedicada." });
+        currentMessages.push({
+          role: "user",
+          content: `Análisis visual verificado de la imagen adjunta. Usa esta evidencia para responder y no afirmes que no puedes ver la imagen. Si el análisis falló, indícalo claramente.\n\n${compactToolFeedback([analysisResult])}`,
+        });
+        continue;
+      }
+      forcedImageAnalysisDone = true;
+    }
+
     const response = await getAICompletion(currentMessages, selectedModel);
     const rawContent = response.choices[0]?.message?.content || "";
     const parsed = await parseToolCall(rawContent);
     let cleanText = sanitizeAssistantText(parsed.cleanText);
     let actions = (parsed.actions || []).map(normalizeAction);
 
-    // Do not repeat the forced image search after it already succeeded.
+    // Do not repeat forced media/image tools after they already ran.
     if (forcedImageSearchDone) actions = actions.filter((action) => action.tool !== "search_image");
+    if (forcedImageAnalysisDone) actions = actions.filter((action) => action.tool !== "analyze_image");
     lastCleanText = cleanText;
 
     if (options.onFormulaExtracted) {

@@ -31,7 +31,7 @@ const withPWA = withPWAInit({
       handler: "NetworkOnly",
     },
     {
-      urlPattern: /\/api\/chat(?:\/.*)?(?:\?.*)?$/i,
+      urlPattern: /\/api\/chat(?:\/.*)?$/i,
       handler: "NetworkOnly",
     },
   ],
@@ -105,6 +105,12 @@ const nextConfig: NextConfig = {
 
   experimental: {
     webpackMemoryOptimizations: true,
+    serverActions: {
+      // Library uploads arrive as FormData through a Server Action.
+      // Keep this aligned with the 50 MB AI media storage limit so common
+      // school PDFs, presentations and images are not rejected by Next first.
+      bodySizeLimit: "50mb",
+    },
   },
 
   webpack: (config) => {

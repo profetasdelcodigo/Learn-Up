@@ -577,14 +577,18 @@ export default function AIChatComponent({
           .getPublicUrl(filePath);
         mediaUrl = data.publicUrl;
 
-        const indexResult = await indexAiDocumentFromUrl({
-          title: backupFile.name,
-          url: mediaUrl,
-          mimeType: backupFile.type,
-          sessionId,
-        });
-        if (!indexResult.success) {
-          console.warn("AI document indexing skipped:", indexResult.error);
+        const imageFile = /\.(?:jpg|jpeg|png|webp|gif|heic|heif)$/i.test(backupFile.name);
+        const shouldIndexDocument = !imageFile && mediaType === "document" && !backupFile.type.startsWith("audio/") && !backupFile.type.startsWith("video/");
+        if (shouldIndexDocument) {
+          const indexResult = await indexAiDocumentFromUrl({
+            title: backupFile.name,
+            url: mediaUrl,
+            mimeType: backupFile.type,
+            sessionId,
+          });
+          if (!indexResult.success) {
+            console.warn("AI document indexing skipped:", indexResult.error);
+          }
         }
 
         setMessages((prev) => 
@@ -627,11 +631,16 @@ export default function AIChatComponent({
 
       if (result.error) {
         handleFailure(result.error);
-      } else if (result.response) {
-        await addAiMessage(sessionId, "assistant", result.response, undefined, undefined, result.executedActions);
+      } else if (result.response || result.actions?.length || result.executedActions?.length) {
+        const visibleResponse = String(result.response || "").trim()
+          || (result.actions?.length
+            ? "Preparé la acción solicitada. Revisa la tarjeta y confírmala para continuar."
+            : "Listo. Completé la acción solicitada usando herramientas verificadas.");
+
+        await addAiMessage(sessionId, "assistant", visibleResponse, undefined, undefined, result.executedActions);
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: result.response, tool_calls: result.executedActions },
+          { role: "assistant", content: visibleResponse, tool_calls: result.executedActions },
         ]);
 
         if (result.actions && result.actions.length > 0) {
