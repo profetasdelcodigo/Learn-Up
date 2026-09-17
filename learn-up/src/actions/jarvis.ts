@@ -53,7 +53,8 @@ function normalizeModel(modelId?: string): string {
     "llama-3.3-70b-versatile": AI_MODELS.groqReasoning.id,
   };
   if (legacyMap[raw]) return legacyMap[raw];
-  return raw.startsWith("openrouter/") ? raw : `openrouter/${raw}`;
+  if (/^(groq|gemini|nvidia|cloudflare|openrouter)\//.test(raw)) return raw;
+  return `openrouter/${raw}`;
 }
 
 async function getCurrentRoute() {
