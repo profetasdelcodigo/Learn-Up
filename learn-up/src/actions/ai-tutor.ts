@@ -833,26 +833,26 @@ export async function gradeExam(
   maxScore: number;
   error?: string;
 }> {
-  // Auth check
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { feedback: "", score: 0, maxScore: 0, error: "No autorizado. Por favor inicia sesión." };
 
-  // ── PASO 1: Cálculo determinístico de puntos (NUNCA falla) ──────────────
+  // La parte cerrada se corrige 100% en servidor. La IA solo evalúa las abiertas.
   let autoScore = 0;
   let maxScore = 0;
   let maxClosedScore = 0;
   let maxOpenScore = 0;
   let openQuestionsCount = 0;
+  const openQuestionMap: Array<{ id: string; maxPoints: number; question: string }> = [];
 
   exam.sections.forEach((section) => {
     section.questions.forEach((q, i) => {
       const pts = q.points || 0;
+      const id = `${section.title}-${i}`;
       maxScore += pts;
       if (q.type !== "open") {
         maxClosedScore += pts;
-        const studentAns = answers[`${section.title}-${i}`];
-        // Comparación robusta: convertir ambos a número
+        const studentAns = answers[id];
         const studentIdx = typeof studentAns === "string" ? parseInt(studentAns, 10) : studentAns;
         const correctIdx = typeof q.correctAnswer === "string" ? parseInt(String(q.correctAnswer), 10) : q.correctAnswer;
         if (
@@ -866,22 +866,23 @@ export async function gradeExam(
       } else {
         maxOpenScore += pts;
         openQuestionsCount++;
+        openQuestionMap.push({ id, maxPoints: pts, question: q.question });
       }
     });
   });
 
-  // Seguridad: si maxScore aún es 0, forzar a totalPoints del examen
-  if (maxScore === 0 && exam.totalPoints > 0) {
-    maxScore = exam.totalPoints;
-  }
+  if (maxScore === 0 && exam.totalPoints > 0) maxScore = exam.totalPoints;
 
   console.log(`[gradeExam] autoScore=${autoScore} maxScore=${maxScore} maxClosedScore=${maxClosedScore} maxOpenScore=${maxOpenScore}`);
 
-  // ── PASO 2: Pedir retroalimentación a la IA (puede fallar sin perder nota) ──
   let feedback = "";
+  let openScore = 0;
+  let aiGradingSucceeded = false;
+
   try {
     const questionsWithAnswers = exam.sections.flatMap((section) =>
       section.questions.map((q, i) => ({
+        id: `${section.title}-${i}`,
         question: q.question,
         type: q.type,
         options: q.options,
@@ -897,47 +898,36 @@ export async function gradeExam(
 Eres un corrector académico de élite. Tu objetivo es entregar resultados visualmente impecables, organizados y motivadores.
 
 REGLAS DE CALIFICACIÓN OBLIGATORIAS:
-- Las preguntas cerradas (opción múltiple, verdadero/falso, completar espacio) ya han sido calificadas automáticamente por el servidor. El alumno ha obtenido exactamente la puntuación que se te indica en "Puntuación automática del Servidor".
-- Debes calificar únicamente las preguntas abiertas (tipo "open"). Para cada pregunta abierta, otorga una puntuación entre 0 y el valor asignado a "points" de esa pregunta, según la calidad de la respuesta.
-- Suma los puntos que asignes a las preguntas abiertas a la puntuación automática del Servidor para obtener la "Puntuación Final".
-- NUNCA cambies el total de puntos ni la puntuación de las preguntas cerradas.
-- En tu sección final (VEREDICTO FINAL), DEBES mostrar de forma muy destacada la puntuación final en el formato: "Puntuación Final: [Total] / [Puntuación Máxima]" (ej. "Puntuación Final: 75 / 100"). Esta puntuación debe ser exactamente la suma matemática.
+- Las preguntas cerradas ya fueron calificadas por el servidor. NO las recalifiques ni alteres sus puntos.
+- Solo califica preguntas con type "open".
+- Para CADA pregunta abierta debes asignar una puntuación entre 0 y sus puntos máximos.
+- Tu respuesta DEBE incluir exactamente una línea de máquina por cada pregunta abierta con este formato:
+OPEN_SCORE|ID|PUNTOS
+Ejemplo: OPEN_SCORE|Sección I: Abiertas-2|7
+- ID debe copiarse exactamente del campo "id".
+- PUNTOS puede ser entero o decimal, pero nunca menor que 0 ni mayor que los puntos máximos.
+- NO confíes en tu propia suma como resultado oficial: el servidor calculará la nota final usando estas líneas.
+- No inventes líneas OPEN_SCORE para preguntas cerradas.
 
-ESTILO VISUAL (PROHIBIDO EL USO DE MARKDOWN DE CABECERAS ## O ###):
-- Usa símbolos Unicode y emojis para estructurar.
-- Título principal: ✦ 🎓 RESULTADOS DE TU EVALUACIÓN ✦
-- Separadores: Usa líneas limpias como ━━━━━━━━━━━━━━━━━━━━━━━━━
-- Estructura de preguntas:
-  📝 Pregunta [Número]
-  ─────────────────────────
-  ✔️ Tu respuesta: [Respuesta]
-  🎯 Estado: [✅ Correcta / ❌ Incorrecta / ⚠️ Parcial]
-  💡 Análisis: [Feedback detallado]
-- Sección Final:
-  ━━━━━━━━━━━━━━━━━━━━━━━━━
-  🏆 VEREDICTO FINAL: [Conclusión motivadora]
-
-REGLAS:
-- NUNCA uses los caracteres # o ##.
-- Usa fuentes de texto normal (negrita con ** es aceptable, pero no cabeceras).
-- Mantén mucho espacio en blanco entre secciones.
-
-Responde en español, con un diseño limpio, moderno y profesional.`;
+ESTILO VISUAL:
+- No uses cabeceras Markdown con # o ##.
+- Usa símbolos Unicode y emojis.
+- Título: ✦ 🎓 RESULTADOS DE TU EVALUACIÓN ✦
+- Separadores: ━━━━━━━━━━━━━━━━━━━━━━━━━
+- Para cada pregunta: 📝 Pregunta, ✔️ Tu respuesta, 🎯 Estado y 💡 Análisis.
+- Termina con un veredicto motivador.
+- Responde en español, limpio, moderno y profesional.`;
 
     const userPrompt = `Califica este examen de "${exam.topic}":
 
 ${JSON.stringify(questionsWithAnswers, null, 2)}
 
-INFORMACIÓN DE CALIFICACIÓN (DEBES RESPETARLA):
-- Puntuación automática del Servidor (Preguntas Cerradas): ${autoScore} de un total de ${maxClosedScore} puntos.
-- Puntuación máxima total del Examen: ${maxScore} puntos (de los cuales ${maxOpenScore} puntos corresponden a las ${openQuestionsCount} preguntas abiertas).
+INFORMACIÓN DE CALIFICACIÓN:
+- Puntuación automática del servidor en cerradas: ${autoScore}/${maxClosedScore}.
+- Puntuación máxima total: ${maxScore}.
+- Preguntas abiertas: ${openQuestionsCount}, máximo disponible: ${maxOpenScore}.
 
-INSTRUCCIONES DE CORRECCIÓN:
-1. Las preguntas cerradas ya han sido calificadas por el servidor de forma objetiva.
-2. Evalúa las respuestas del alumno en las preguntas abiertas ("open"). Asigna a cada una los puntos que consideres (de 0 a su valor máximo de puntos).
-3. Suma tus puntos de preguntas abiertas al "Puntuación automática del Servidor" (${autoScore}) para hallar el puntaje total final.
-4. Reporta el total final claramente en el veredicto final como: "Puntuación Final: [Total] / ${maxScore}".
-5. Responde con feedback constructivo e individualizado para cada pregunta.`;
+Evalúa solo las preguntas abiertas. Para cada una, decide sus puntos según la calidad de la respuesta y emite la línea OPEN_SCORE correspondiente. Después entrega feedback constructivo e individualizado.`;
 
     const response = await getAICompletion(
       [
@@ -948,20 +938,56 @@ INSTRUCCIONES DE CORRECCIÓN:
     );
 
     feedback = response.choices[0]?.message?.content || "";
+
+    const scoreById = new Map(openQuestionMap.map((item) => [item.id, 0]));
+    for (const line of feedback.split(/\r?\n/)) {
+      const match = line.trim().match(/^OPEN_SCORE\|(.+?)\|(-?\d+(?:\.\d+)?)$/);
+      if (!match) continue;
+      const item = openQuestionMap.find((candidate) => candidate.id === match[1]);
+      if (!item) continue;
+      const parsed = Number(match[2]);
+      if (!Number.isFinite(parsed)) continue;
+      scoreById.set(item.id, Math.min(item.maxPoints, Math.max(0, parsed)));
+    }
+
+    openScore = [...scoreById.values()].reduce((sum, value) => sum + value, 0);
+    aiGradingSucceeded = openQuestionsCount === 0 || openQuestionMap.every((item) => scoreById.has(item.id) && scoreById.get(item.id)! >= 0);
+
+    // Si la IA respondió pero omitió alguna pregunta abierta, esa pregunta conserva 0.
+    // El servidor sigue siendo la única fuente de verdad de la nota.
+    const finalScore = Math.min(maxScore, Math.max(0, autoScore + openScore));
+    const roundedFinalScore = Math.round(finalScore * 100) / 100;
+    const pct = maxScore > 0 ? Math.round((roundedFinalScore / maxScore) * 100) : 0;
+
+    feedback = feedback
+      .split(/\r?\n/)
+      .filter((line) => !/^OPEN_SCORE\|/.test(line.trim()))
+      .join("\n")
+      .replace(/Puntuación Final\s*:\s*[^\n]*/gi, `Puntuación Final: ${roundedFinalScore} / ${maxScore}`)
+      .trim();
+
+    feedback = `🎓 **Puntuación Final oficial: ${roundedFinalScore} / ${maxScore} (${pct}%)**\n\n` + feedback;
   } catch (feedbackError: any) {
-    console.error("[gradeExam] Error generando feedback de IA:", feedbackError.message);
-    // Generar feedback de respaldo sin IA
-    const pct = maxScore > 0 ? Math.round((autoScore / maxScore) * 100) : 0;
+    console.error("[gradeExam] Error generando feedback/calificación de IA:", feedbackError.message);
+    aiGradingSucceeded = false;
+  }
+
+  const finalScore = aiGradingSucceeded
+    ? Math.min(maxScore, Math.max(0, autoScore + openScore))
+    : autoScore;
+  const roundedFinalScore = Math.round(finalScore * 100) / 100;
+  const pct = maxScore > 0 ? Math.round((roundedFinalScore / maxScore) * 100) : 0;
+
+  if (!feedback) {
     const emoji = pct >= 80 ? "🏆" : pct >= 50 ? "👍" : "💪";
-    feedback = `${emoji} **Puntuación Final: ${autoScore} / ${maxScore} (${pct}%)**\n\n` +
-      `El sistema calificó automáticamente tus respuestas objetivas.\n` +
-      `Obtuviste ${autoScore} de ${maxClosedScore} puntos en preguntas cerradas.\n\n` +
-      `_(La retroalimentación detallada de la IA no está disponible en este momento. Revisa tus respuestas en el modo de revisión.)_`;
+    feedback = `${emoji} **Puntuación Final: ${roundedFinalScore} / ${maxScore} (${pct}%)**\n\n` +
+      `El servidor calificó automáticamente ${maxClosedScore} puntos de preguntas cerradas y la IA no pudo completar la corrección detallada de las preguntas abiertas.\n` +
+      `Puntos obtenidos en cerradas: ${autoScore}/${maxClosedScore}.`;
   }
 
   return {
     feedback,
-    score: autoScore,
+    score: roundedFinalScore,
     maxScore,
   };
 }
