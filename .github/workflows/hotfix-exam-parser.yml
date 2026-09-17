@@ -9,80 +9,75 @@ permissions:
 
 jobs:
   hotfix:
-    if: ${{ !contains(github.event.head_commit.message, 'fix(ai): harden shared fallback and navigation safety') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply targeted production fixes
+
+      - name: Apply shared AI fallback and navigation safety
         shell: python
         run: |
           from pathlib import Path
+          import re
 
-          # Keep provider-prefixed Jarvis model IDs intact.
-          p = Path('learn-up/src/actions/jarvis.ts')
-          s = p.read_text(encoding='utf-8')
-          old = '  return raw.startsWith("openrouter/") ? raw : `openrouter/${raw}`;'
-          new = '''  if (/^(groq|gemini|nvidia|cloudflare|openrouter)\\//.test(raw)) return raw;\n  return `openrouter/${raw}`;'''
-          if old in s:
-              s = s.replace(old, new, 1)
-          p.write_text(s, encoding='utf-8')
-
-          # Shared AI fallback: empty provider responses must be treated as
-          # failures so the next provider is tried instead of returning a
-          # blank answer to the student.
+          # -----------------------------------------------------------------
+          # Shared AI fallback: an empty provider response is a failed
+          # completion, so getAICompletion can move to the next provider.
+          # -----------------------------------------------------------------
           p = Path('learn-up/src/lib/ai.ts')
           s = p.read_text(encoding='utf-8')
-          old = 'function isRetryableProviderError(error: any) { const message = String(error?.message || error || "").toLowerCase(); return /timeout|429|rate.?limit|temporar|overload|capacity|503|502|500|unavailable|network|fetch failed|abort|resource.?exhausted|server.?error|internal|model.?not.?found|no endpoints available|does not exist|not available for free|404/.test(message); }'
-          new = 'function isRetryableProviderError(error: any) { const message = String(error?.message || error || "").toLowerCase(); return /timeout|408|429|rate.?limit|temporar|overload|capacity|503|504|502|500|unavailable|network|fetch failed|abort|resource.?exhausted|server.?error|internal|model.?not.?found|no endpoints available|does not exist|not available for free|empty|blank|respuesta vac[ií]a|no devolvi[oó] contenido|sin mensaje|404/.test(message); }'
-          if old not in s:
-              raise SystemExit('ai.ts retry predicate not found')
-          s = s.replace(old, new, 1)
 
-          marker = 'async function completionForModel(messages: any[], model: string, jsonMode: boolean) {'
-          helper = '''function assertUsableCompletion(result: any, provider: string) {\n  const message = result?.choices?.[0]?.message;\n  const content = message?.content;\n  if (!message || typeof content !== "string" || !content.trim()) {\n    throw new Error(`${provider} devolvió una respuesta vacía.`);\n  }\n  return result;\n}\n\n'''
-          if helper.strip() not in s:
+          retry_pattern = r'function isRetryableProviderError\(error: any\) \{.*?\n'
+          retry_replacement = '''function isRetryableProviderError(error: any) { const message = String(error?.message || error || "").toLowerCase(); return /timeout|408|429|rate.?limit|temporar|overload|capacity|503|504|502|500|unavailable|network|fetch failed|abort|resource.?exhausted|server.?error|internal|model.?not.?found|no endpoints available|does not exist|not available for free|empty|blank|respuesta vac[ií]a|no devolvi[oó] contenido|sin mensaje|404/.test(message); }\n'''
+          s, count = re.subn(retry_pattern, retry_replacement, s, count=1, flags=re.S)
+          if count != 1:
+              raise SystemExit('No se pudo localizar isRetryableProviderError en ai.ts')
+
+          if 'function assertUsableCompletion(' not in s:
+              marker = 'async function completionForModel(messages: any[], model: string, jsonMode: boolean) {'
+              helper = '''function assertUsableCompletion(result: any, provider: string) {\n  const message = result?.choices?.[0]?.message;\n  const content = message?.content;\n  if (!message || typeof content !== "string" || !content.trim()) {\n    throw new Error(`${provider} devolvió una respuesta vacía.`);\n  }\n  return result;\n}\n\n'''
               if marker not in s:
-                  raise SystemExit('ai.ts completion marker not found')
+                  raise SystemExit('No se encontró el punto de inserción para assertUsableCompletion')
               s = s.replace(marker, helper + marker, 1)
 
-          old = '      const result = await callWithProviderRetry(() => completionForModel(messages, candidate, jsonMode));\n      const normalizedResult = normalizeJsonCompletion(result, jsonMode);'
-          new = '      const result = assertUsableCompletion(await callWithProviderRetry(() => completionForModel(messages, candidate, jsonMode)), provider);\n      const normalizedResult = normalizeJsonCompletion(result, jsonMode);'
-          if old not in s:
-              raise SystemExit('ai.ts getAICompletion body not found')
-          s = s.replace(old, new, 1)
+          old_call = '      const result = await callWithProviderRetry(() => completionForModel(messages, candidate, jsonMode));\n      const normalizedResult = normalizeJsonCompletion(result, jsonMode);'
+          new_call = '      const result = assertUsableCompletion(await callWithProviderRetry(() => completionForModel(messages, candidate, jsonMode)), provider);\n      const normalizedResult = normalizeJsonCompletion(result, jsonMode);'
+          if old_call in s:
+              s = s.replace(old_call, new_call, 1)
+          elif new_call not in s:
+              raise SystemExit('No se pudo localizar la llamada de getAICompletion en ai.ts')
+
           p.write_text(s, encoding='utf-8')
 
-          # Prevent accidental section jumps from AI-generated navigation
-          # actions unless the student explicitly asked to navigate.
+          # -----------------------------------------------------------------
+          # Prevent accidental navigation from model hallucinations. A
+          # navigate_app action is ignored unless the latest user request
+          # explicitly asks to navigate/open a Learn Up section.
+          # -----------------------------------------------------------------
           p = Path('learn-up/src/lib/ai/workflow-agent.ts')
           s = p.read_text(encoding='utf-8')
-          marker = 'function decideTool(action: ToolAction, mode: ToolMode): "execute" | "pending_confirmation" | "deny" {'
-          helper = '''function explicitNavigationIntent(text: string) {\n  return /\\b(abre|abr[eí]|ve a|ir a|entra a|ll[eé]vame a|navega|navegar|regresa|volver|salir de|cambia a|cambiar a)\\b.*(?:secci[oó]n|p[aá]gina|ruta|inicio|dashboard|chat|profesor|consejero|recetas|examen|biblioteca|perfil|ajustes|configuraci[oó]n)/i.test(text);\n}\n\n'''
-          if helper.strip() not in s:
+
+          if 'function explicitNavigationIntent(' not in s:
+              marker = 'function decideTool(action: ToolAction, mode: ToolMode): "execute" | "pending_confirmation" | "deny" {'
+              helper = '''function explicitNavigationIntent(text: string) {\n  return /\\b(abre|abr[ií]|ve a|ir a|entra a|ll[eé]vame a|navega|navegar|regresa|volver|salir de|cambia a|cambiar a)\\b.*(?:secci[oó]n|p[aá]gina|ruta|inicio|dashboard|chat|profesor|consejero|recetas|examen|biblioteca|perfil|ajustes|configuraci[oó]n)/i.test(text);\n}\n\n'''
               if marker not in s:
-                  raise SystemExit('workflow navigation marker not found')
+                  raise SystemExit('No se encontró el punto de inserción para explicitNavigationIntent')
               s = s.replace(marker, helper + marker, 1)
 
-          old = '    const executable: ToolAction[] = [];\n    const pending: ToolAction[] = [];\n    const denied: ToolAction[] = [];\n    for (const action of actions) { const decision = decideTool(action, options.mode); if (decision === "execute") executable.push(action); else if (decision === "pending_confirmation") pending.push(action); else denied.push(action); }'
-          new = '    const executable: ToolAction[] = [];\n    const pending: ToolAction[] = [];\n    const denied: ToolAction[] = [];\n    const latestUserText = String([...currentMessages].reverse().find((message: any) => message?.role === "user")?.content || "");\n    const allowNavigation = explicitNavigationIntent(latestUserText);\n    for (const action of actions) {\n      if (action.tool === "navigate_app" && !allowNavigation) continue;\n      const decision = decideTool(action, options.mode);\n      if (decision === "execute") executable.push(action); else if (decision === "pending_confirmation") pending.push(action); else denied.push(action);\n    }'
-          if old not in s:
-              raise SystemExit('workflow action loop not found')
-          s = s.replace(old, new, 1)
+          old_actions = '    const actions = (await Promise.all(dedupedParsedActions.map((action) => normalizeActionArgs(action, options.userId)))).map(normalizeAction).filter((action) => !executedSignatures.has(actionSignature(action)));\n    lastText = text;'
+          new_actions = '''    const latestUserText = String([...currentMessages].reverse().find((message: any) => message?.role === "user")?.content || "");\n    const allowNavigation = explicitNavigationIntent(latestUserText);\n    const actions = (await Promise.all(dedupedParsedActions.map((action) => normalizeActionArgs(action, options.userId))))\n      .map(normalizeAction)\n      .filter((action) => !executedSignatures.has(actionSignature(action)))\n      .filter((action) => action.tool !== "navigate_app" || allowNavigation);\n    lastText = text;'''
+          if old_actions in s:
+              s = s.replace(old_actions, new_actions, 1)
+          elif new_actions not in s:
+              raise SystemExit('No se pudo localizar el procesamiento de acciones en workflow-agent.ts')
 
-          # Never report an empty final answer from an agent step.
-          old = '    const text = parsed.cleanText;\n    const actions = (await Promise.all(dedupedParsedActions.map((action) => normalizeActionArgs(action, options.userId)))).map(normalizeAction).filter((action) => !executedSignatures.has(actionSignature(action)));\n    lastText = text;'
-          new = '    const text = parsed.cleanText;\n    const actions = (await Promise.all(dedupedParsedActions.map((action) => normalizeActionArgs(action, options.userId)))).map(normalizeAction).filter((action) => !executedSignatures.has(actionSignature(action)));\n    lastText = text;\n    if (!text.trim() && !actions.length) {\n      throw new Error("El proveedor devolvió una respuesta vacía después del enrutamiento.");\n    }'
-          if old not in s:
-              raise SystemExit('workflow empty-response guard location not found')
-          s = s.replace(old, new, 1)
           p.write_text(s, encoding='utf-8')
 
-      - name: Commit production fixes and remove temporary workflow
+      - name: Commit production fixes and remove this temporary workflow
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add learn-up/src/actions/jarvis.ts learn-up/src/lib/ai.ts learn-up/src/lib/ai/workflow-agent.ts
+          git add learn-up/src/lib/ai.ts learn-up/src/lib/ai/workflow-agent.ts
           git rm .github/workflows/hotfix-exam-parser.yml
           git commit -m 'fix(ai): harden shared fallback and navigation safety'
           git push
