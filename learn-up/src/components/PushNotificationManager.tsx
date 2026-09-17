@@ -2,20 +2,47 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
+import PushPermissionButton from "./PushPermissionButton";
 
 export default function PushNotificationManager() {
   const supabase = useMemo(() => createClient(), []);
   const [enabled, setEnabled] = useState(false);
+  const [showButton, setShowButton] = useState(false);
 
   useEffect(() => {
     const syncEnabled = () => {
-      setEnabled(localStorage.getItem("learnup_push_enabled") === "true");
+      const isEnabled = localStorage.getItem("learnup_push_enabled") === "true";
+      setEnabled(isEnabled);
+      setShowButton(!isEnabled);
     };
 
     syncEnabled();
     window.addEventListener("learnup:push-enabled", syncEnabled);
-    return () => window.removeEventListener("learnup:push-enabled", syncEnabled);
+    window.addEventListener("learnup:push-disabled", syncEnabled);
+    return () => {
+      window.removeEventListener("learnup:push-enabled", syncEnabled);
+      window.removeEventListener("learnup:push-disabled", syncEnabled);
+    };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!cancelled && session) {
+        const isEnabled = localStorage.getItem("learnup_push_enabled") === "true";
+        setShowButton(!isEnabled);
+      }
+    };
+
+    void checkSession();
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -44,13 +71,13 @@ export default function PushNotificationManager() {
           });
         }
 
-        // Send subscription to backend
         await fetch("/api/push", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
             action: "subscribe",
-            subscription,
+            subscription: subscription.toJSON(),
           }),
         });
       } catch (e) {
@@ -58,10 +85,16 @@ export default function PushNotificationManager() {
       }
     }
 
-    setupPush();
+    void setupPush();
   }, [enabled, supabase]);
 
-  return null;
+  if (!showButton || enabled) return null;
+
+  return (
+    <div className="fixed bottom-24 right-4 z-[95] max-w-[calc(100vw-2rem)] sm:bottom-6 sm:right-6">
+      <PushPermissionButton />
+    </div>
+  );
 }
 
 function urlBase64ToUint8Array(base64String: string) {
