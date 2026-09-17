@@ -24,9 +24,6 @@ export async function POST(req: Request) {
     return new Response("Error de configuración de Supabase", { status: 500 });
   }
 
-  // Profile rows do not necessarily contain the auth email (Google signups are
-  // created in auth.users). Resolve the email from Auth when the webhook record
-  // only contains the profile fields.
   let email = record.email as string | undefined;
   let fullName = record.full_name as string | undefined;
 
@@ -46,8 +43,6 @@ export async function POST(req: Request) {
       (authUserData.user.user_metadata?.name as string | undefined);
   }
 
-  // Claim the send before calling Resend so duplicate webhook deliveries do not send twice.
-  // If Resend fails, remove the claim so a later webhook retry can try again.
   const { error: claimError } = await supabase
     .from("welcome_emails_sent")
     .insert({ user_id: id });
@@ -65,16 +60,22 @@ export async function POST(req: Request) {
 
   try {
     const data = await resend.emails.send({
-      from: "Learn Up <bienvenida@learnup.app>",
+      // Resend's verified test sender works without configuring a custom domain.
+      from: "Learn Up <onboarding@resend.dev>",
       to: email,
       subject: "¡Bienvenido a Learn Up! 🎓",
       react: WelcomeEmail({ name: fullName || "estudiante" }),
     });
 
-    console.log("Correo de bienvenida enviado:", data);
+    if (data.error) {
+      await supabase.from("welcome_emails_sent").delete().eq("user_id", id);
+      console.error("Resend rechazó el correo de bienvenida:", data.error);
+      return new Response("Error enviando correo", { status: 502 });
+    }
+
+    console.log("Correo de bienvenida enviado:", data.data);
     return new Response("ok", { status: 200 });
   } catch (err) {
-    // Do not leave a failed delivery marked as sent; allow the webhook provider to retry.
     await supabase.from("welcome_emails_sent").delete().eq("user_id", id);
     console.error("Error enviando el correo de bienvenida:", err);
     return new Response("Error interno enviando correo", { status: 500 });
