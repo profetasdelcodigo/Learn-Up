@@ -17,7 +17,6 @@ const inter = Inter({
 });
 
 import MainLayout from "@/components/MainLayout";
-import PushNotificationManager from "@/components/PushNotificationManager";
 import SmoothScroll from "@/components/SmoothScroll";
 import HardwareBackHandler from "@/components/HardwareBackHandler";
 import OfflineDetector from "@/components/OfflineDetector";
@@ -88,7 +87,6 @@ export default function RootLayout({
         <ThemeProvider>
           <SmoothScroll>
             <OfflineDetector />
-            <PushNotificationManager />
             <HardwareBackHandler />
             <DeepLinkHandler />
             <MainLayout>{children}</MainLayout>
