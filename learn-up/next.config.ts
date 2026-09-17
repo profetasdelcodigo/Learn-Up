@@ -1,5 +1,5 @@
 import type { NextConfig } from "next";
-import { dirname } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import withPWAInit from "next-pwa";
@@ -113,7 +113,14 @@ const nextConfig: NextConfig = {
     },
   },
 
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.alias = {
+        ...(config.resolve.alias || {}),
+        "@/actions/library": resolve(appDir, "src/client-actions/library.ts"),
+      };
+    }
+
     config.ignoreWarnings = [
       { module: /node_modules\/officeparser/ },
       { module: /node_modules\/file-type/ },
