@@ -134,11 +134,12 @@ export default function PushPermissionButton() {
       addToast({ message: "Notificaciones push activadas", type: "success" });
     } catch (error) {
       console.error("Error enabling push notifications:", error);
+      const message = error instanceof Error ? error.message : "No se pudieron activar las notificaciones push.";
       addToast({
         message:
-          error instanceof Error && error.message.includes("configured")
+          message.includes("configured")
             ? "Las notificaciones push aún no están configuradas en el servidor"
-            : "No se pudieron activar las notificaciones push. Inténtalo de nuevo.",
+            : message,
         type: "info",
       });
     } finally {
@@ -180,7 +181,10 @@ export default function PushPermissionButton() {
       addToast({ message: "Notificaciones push desactivadas", type: "success" });
     } catch (error) {
       console.error("Error disabling push notifications:", error);
-      addToast({ message: "No se pudieron desactivar las notificaciones push. Inténtalo de nuevo.", type: "info" });
+      addToast({
+        message: error instanceof Error ? error.message : "No se pudieron desactivar las notificaciones push.",
+        type: "info",
+      });
     } finally {
       setBusy(false);
     }
