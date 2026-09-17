@@ -53,6 +53,16 @@ export async function POST(req: Request) {
       });
 
       if (delivery.delivered < 1) {
+        // Do not leave a false-positive active subscription after a failed
+        // delivery test. The user must be able to try again after the server
+        // configuration or browser state is corrected.
+        const { error: cleanupError } = await supabase
+          .from("push_subscriptions")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("subscription->>endpoint", subscription.endpoint);
+        if (cleanupError) console.error("Push failed-delivery cleanup failed:", cleanupError);
+
         return NextResponse.json(
           {
             success: false,
